@@ -1,46 +1,59 @@
 <script>
-	import { getContext } from "svelte";
-	import Footer from "$components/Footer.svelte";
 	import Scrolly from "$components/helpers/Scrolly.svelte";
 
-	// const copy = getContext("copy");
-	// const data = getContext("data");
-
 	let value = $state();
-
-	const steps = [
-		"Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
-		"Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.",
-		"Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.",
-		"Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.",
-		"Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudantium, totam rem aperiam."
-	];
 </script>
 
 <svelte:boundary onerror={(e) => console.error(e)}>
-	<section id="scrolly-demo">
+	<section id="scrolly">
 		<div class="scrolly-layout">
 			<div class="scrolly-visual">
 				<p>Step {value ?? "–"}</p>
 			</div>
 			<div class="scrolly-steps">
 				<Scrolly bind:value>
-					{#each steps as text, i}
-						{@const active = value === i}
-						<div class="step" class:active>
-							<p>{text}</p>
-						</div>
-					{/each}
+					<div class="step" class:active={value === 0}>
+						<p>
+							Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod
+							tempor incididunt ut labore et dolore magna aliqua.
+						</p>
+					</div>
+
+					<div class="step" class:active={value === 1}>
+						<p>
+							Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris
+							nisi ut aliquip ex ea commodo consequat.
+						</p>
+					</div>
+
+					<div class="step" class:active={value === 2}>
+						<p>
+							Duis aute irure dolor in reprehenderit in voluptate velit esse cillum
+							dolore eu fugiat nulla pariatur.
+						</p>
+					</div>
+
+					<div class="step" class:active={value === 3}>
+						<p>
+							Excepteur sint occaecat cupidatat non proident, sunt in culpa qui
+							officia deserunt mollit anim id est laborum.
+						</p>
+					</div>
+
+					<div class="step" class:active={value === 4}>
+						<p>
+							Sed ut perspiciatis unde omnis iste natus error sit voluptatem
+							accusantium doloremque laudantium, totam rem aperiam.
+						</p>
+					</div>
 				</Scrolly>
 			</div>
 		</div>
 	</section>
-
-	<!-- <Footer recirc={true} /> -->
 </svelte:boundary>
 
 <style>
-	#scrolly-demo {
+	#scrolly {
 		max-width: 700px;
 		margin: 0 auto;
 		padding: 2rem 1rem;
