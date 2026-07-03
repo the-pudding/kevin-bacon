@@ -1,6 +1,7 @@
 .DS_Store
 node_modules
 /build
+/docs
 /.svelte-kit
 /package
 /static
@@ -12,3 +13,9 @@ node_modules
 pnpm-lock.yaml
 package-lock.json
 yarn.lock
+
+# prettier-plugin-svelte crashes parsing this unmigrated template (see CLAUDE.md)
+src/components/helpers/migrate/SortTable.svelte
+
+# git submodule, not ours to format
+references/pudding-post

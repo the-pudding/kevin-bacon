@@ -1,0 +1,37 @@
+version: "0.2"
+language: en-GB
+dictionaries:
+  - typescript
+  - node
+  - html
+  - css
+words:
+  - archieml
+  - pudding
+  - puddingviz
+  - sveltekit
+  - layercake
+  - createfuture
+  - goatcounter
+  - runed
+  - scrolly
+  - scrollytelling
+  - wordmark
+  - barebones
+  - hackman
+  - greenblatt
+  - prodution
+  - bloggs
+  - yourpassword
+  - chloë
+ignorePaths:
+  - node_modules
+  - build
+  - docs
+  - .svelte-kit
+  - pnpm-lock.yaml
+  - package-lock.json
+  - references
+  - properties
+  - "*.svg"
+  - "*.csv"

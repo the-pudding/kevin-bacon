@@ -13,7 +13,7 @@
 
 	$: mobile = $viewport.width < 600;
 	$: buffer = mobile ? 10 : 100;
-	$: activeSlide, $viewport.width, updateSlideHeight();
+	$: (activeSlide, $viewport.width, updateSlideHeight());
 
 	const updateSlideHeight = async () => {
 		if (mounted) {

@@ -8,7 +8,22 @@
 		"build": "vite build",
 		"preview": "vite preview",
 		"lint": "prettier --check --plugin-search-dir=. .",
-		"format": "prettier --write --plugin-search-dir=. ."
+		"spellcheck": "cspell \"src/data/**\" \"notes/**\" \"README.md\" \"src/routes/**/*.svelte\" \"src/components/Index.svelte\" \"src/components/Header.svelte\" \"src/components/Meta.svelte\"",
+		"format": "prettier --write --plugin-search-dir=. .",
+		"prepare": "simple-git-hooks"
+	},
+	"simple-git-hooks": {
+		"pre-commit": "npx lint-staged"
+	},
+	"lint-staged": {
+		"*.{js,svelte,json,css,md,html}": "prettier --write",
+		"src/data/**": "cspell",
+		"notes/**": "cspell",
+		"README.md": "cspell",
+		"src/routes/**/*.svelte": "cspell",
+		"src/components/Index.svelte": "cspell",
+		"src/components/Header.svelte": "cspell",
+		"src/components/Meta.svelte": "cspell"
 	},
 	"devDependencies": {
 		"@lucide/svelte": "^1.16.0",
@@ -20,7 +35,9 @@
 		"archieml": "^0.5.0",
 		"autoprefixer": "^10.5.0",
 		"bits-ui": "^2.18.1",
+		"cspell": "^10.0.1",
 		"d3": "^7.9.0",
+		"lint-staged": "^17.0.8",
 		"lodash.debounce": "^4.0.8",
 		"postcss": "^8.5.15",
 		"prettier": "^3.8.3",
@@ -28,6 +45,7 @@
 		"rollup": "^4.60.4",
 		"rollup-plugin-svg": "^2.0.0",
 		"runed": "^0.37.1",
+		"simple-git-hooks": "^2.13.1",
 		"style-dictionary": "^5.4.1",
 		"svelte": "^5.55.9",
 		"svelte-preprocess": "^6.0.3",

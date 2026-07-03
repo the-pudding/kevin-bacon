@@ -52,9 +52,17 @@
 			{#if visibleArrows.includes(dir)}
 				<span style="font-size: {arrowSize};">
 					{#if dir === "left"}
-						<ChevronLeft aria-hidden="true" color={arrowStroke} strokeWidth={arrowStrokeWidth} />
+						<ChevronLeft
+							aria-hidden="true"
+							color={arrowStroke}
+							strokeWidth={arrowStrokeWidth}
+						/>
 					{:else if dir === "right"}
-						<ChevronRight aria-hidden="true" color={arrowStroke} strokeWidth={arrowStrokeWidth} />
+						<ChevronRight
+							aria-hidden="true"
+							color={arrowStroke}
+							strokeWidth={arrowStrokeWidth}
+						/>
 					{/if}
 				</span>
 			{/if}

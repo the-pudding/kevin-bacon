@@ -14,8 +14,8 @@
 	$: tickVals = Array.isArray(ticks)
 		? ticks
 		: typeof ticks === "function"
-		? ticks($xScale.ticks())
-		: $xScale.ticks(ticks);
+			? ticks($xScale.ticks())
+			: $xScale.ticks(ticks);
 
 	const textAnchor = (i) => {
 		if (snapTicks === true) {

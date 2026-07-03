@@ -3,9 +3,9 @@
 	Adds HTML text labels based features in the data or a custom GeoJSON Feature Collection.
  -->
 <script>
-	import { getContext } from 'svelte';
+	import { getContext } from "svelte";
 
-	const { data, width, height } = getContext('LayerCake');
+	const { data, width, height } = getContext("LayerCake");
 
 	/** @type {Function} projection - A D3 projection function. Pass this in as an uncalled function, e.g. `projection={geoAlbersUsa}`. */
 	export let projection;
@@ -22,28 +22,28 @@
 	/** @type {Array} [features] - A list of labels as GeoJSON features. If unset, the plotted features will defaults to those in `$data.features`, assuming this field a list of GeoJSON features. */
 	export let features = undefined;
 
-	$: fitSizeRange = fixedAspectRatio ? [100, 100 / fixedAspectRatio] : [$width, $height];
+	$: fitSizeRange = fixedAspectRatio
+		? [100, 100 / fixedAspectRatio]
+		: [$width, $height];
 
-	$: projectionFn = projection()
-		.fitSize(fitSizeRange, $data);
+	$: projectionFn = projection().fitSize(fitSizeRange, $data);
 
-	$: units = fixedAspectRatio ? '%': 'px';
+	$: units = fixedAspectRatio ? "%" : "px";
 </script>
 
-<div
-	class="map-labels"
-	style:aspect-ratio={fixedAspectRatio ? 1 : null}
->
-{#each (features || $data.features) as d}
-	{@const coords = projectionFn(getCoordinates(d))}
-	<div
-		class="map-label"
-		style="
+<div class="map-labels" style:aspect-ratio={fixedAspectRatio ? 1 : null}>
+	{#each features || $data.features as d}
+		{@const coords = projectionFn(getCoordinates(d))}
+		<div
+			class="map-label"
+			style="
 			left: {coords[0]}{units};
 			top: {coords[1]}{units};
 		"
-	>{getLabel(d)}</div>
-{/each}
+		>
+			{getLabel(d)}
+		</div>
+	{/each}
 </div>
 
 <style>

@@ -9,7 +9,9 @@
 	text-decoration: none;
 	border-radius: var(--radius-md);
 	font-family: var(--font-form);
-	transition: transform 0.25s ease, background 0.25s ease;
+	transition:
+		transform 0.25s ease,
+		background 0.25s ease;
 }
 
 .bits-button[data-button-root]:disabled {

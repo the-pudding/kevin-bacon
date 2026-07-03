@@ -1,0 +1,6 @@
+allowBuilds:
+  esbuild: set this to true or false
+  sharp: set this to true or false
+  simple-git-hooks: true
+  svelte-preprocess: set this to true or false
+  workerd: set this to true or false

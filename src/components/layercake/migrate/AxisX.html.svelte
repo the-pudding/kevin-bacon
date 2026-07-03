@@ -15,8 +15,8 @@
 	$: tickVals = Array.isArray(ticks)
 		? ticks
 		: typeof ticks === "function"
-		? ticks($xScale.ticks())
-		: $xScale.ticks(ticks);
+			? ticks($xScale.ticks())
+			: $xScale.ticks(ticks);
 </script>
 
 <div class="axis x-axis" class:snapTicks>

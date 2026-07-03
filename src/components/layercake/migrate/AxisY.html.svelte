@@ -14,8 +14,8 @@
 	$: tickVals = Array.isArray(ticks)
 		? ticks
 		: typeof ticks === "function"
-		? ticks($yScale.ticks())
-		: $yScale.ticks(ticks);
+			? ticks($yScale.ticks())
+			: $yScale.ticks(ticks);
 </script>
 
 <div class="axis y-axis" style="transform:translate(-{$padding.left}px, 0)">
