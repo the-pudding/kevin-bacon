@@ -33,6 +33,7 @@
 	.step :global(p) {
 		background: var(--color-bg);
 		padding: 1.5rem;
+		box-shadow: 0 0 1.5rem 1rem var(--color-bg);
 	}
 
 	.step.active {
