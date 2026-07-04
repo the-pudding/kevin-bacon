@@ -1,16 +1,21 @@
 <script>
 	import Scrolly from "$components/helpers/Scrolly.svelte";
+	import useWindowDimensions from "$runes/useWindowDimensions.svelte.js";
 
 	let value = $state();
+	let dimensions = new useWindowDimensions();
 </script>
 
 <svelte:boundary onerror={(e) => console.error(e)}>
 	<section id="scrolly">
-		<div class="scrolly-layout">
-			<div class="scrolly-visual">
+		<div
+			class="scrolly-layout"
+			style="--viewport-height: {dimensions.height}px"
+		>
+			<div class="scrolly-visual" style:height="{dimensions.height}px">
 				<p>Step {value ?? "–"}</p>
 			</div>
-			<div class="scrolly-steps">
+			<div class="scrolly-steps" style:margin-top="{-dimensions.height}px">
 				<Scrolly bind:value>
 					<div class="step" class:active={value === 0}>
 						<p>
@@ -307,13 +312,12 @@
 	}
 
 	.scrolly-steps {
-		margin-top: -50vh;
 		z-index: 1;
 		position: relative;
 	}
 
 	.step {
-		min-height: 60vh;
+		min-height: calc(var(--viewport-height) * 0.6);
 		display: flex;
 		align-items: center;
 		padding: 1rem;
