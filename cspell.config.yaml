@@ -16,6 +16,9 @@ words:
   - runed
   - scrolly
   - scrollytelling
+  - tweener
+  - crossfade
+  - lerping
   - wordmark
   - barebones
   - hackman

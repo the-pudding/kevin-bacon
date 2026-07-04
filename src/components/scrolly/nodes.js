@@ -3,6 +3,24 @@ const HOP_COUNTS = [1, 40, 350, 480, 129];
 
 export const NODE_COUNT = HOP_COUNTS.reduce((sum, n) => sum + n, 0);
 
+/**
+ * @typedef {Object} ActorNode
+ * @property {number} id stable index into the attr array — never changes
+ * @property {number} hop degrees of separation from the anchor (0–4)
+ * @property {number} films
+ * @property {number} avgDistance
+ * @property {number} rank position when sorted by avgDistance ascending
+ *
+ * @typedef {Object} Edge
+ * @property {number} source node id
+ * @property {number} target node id
+ */
+
+/**
+ * Deterministic pseudo-random in [0, 1) — stable per (id, salt) across runs.
+ * @param {number} id
+ * @param {number} salt
+ */
 export function hash01(id, salt) {
 	const x = Math.sin(id * 127.1 + salt * 311.7) * 43758.5453;
 	return x - Math.floor(x);
@@ -19,6 +37,7 @@ function mulberry32(seed) {
 	};
 }
 
+/** @returns {{ nodes: ActorNode[], edges: Edge[] }} */
 export function makeNodes() {
 	const rand = mulberry32(SEED);
 	const nodes = [];

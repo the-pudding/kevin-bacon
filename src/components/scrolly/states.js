@@ -4,6 +4,24 @@ import { NODE_COUNT, hash01 } from "./nodes.js";
 export const STRIDE = 7;
 export const EDGE_ALPHA_INDEX = NODE_COUNT * STRIDE;
 export const ATTR_SIZE = EDGE_ALPHA_INDEX + 1;
+// one delay slot per node, plus one for the edge-alpha group
+export const DELAY_SIZE = NODE_COUNT + 1;
+export const EDGE_DELAY_INDEX = NODE_COUNT;
+
+/**
+ * @typedef {import("./nodes.js").ActorNode} ActorNode
+ *
+ * @typedef {Object} LayoutResult
+ * @property {Float64Array} attrs ATTR_SIZE values, STRIDE per node + edge alpha
+ * @property {Float64Array} [delays] DELAY_SIZE per-node start delays in ms;
+ *   omitted = tweener applies its default hashed jitter
+ *
+ * @callback LayoutFn
+ * @param {ActorNode[]} nodes
+ * @param {number} w width in px
+ * @param {number} h height in px
+ * @returns {LayoutResult}
+ */
 
 // rgb values of the tokens in src/styles/variables.css (canvas can't read CSS custom properties)
 const HOP_RGB = [
@@ -29,6 +47,7 @@ function set(attrs, id, x, y, r, [red, green, blue], alpha) {
 	attrs[i + 6] = alpha;
 }
 
+/** @type {LayoutFn} */
 function layoutLone(nodes, w, h) {
 	const attrs = new Float64Array(ATTR_SIZE);
 	const cx = w / 2;
@@ -37,14 +56,17 @@ function layoutLone(nodes, w, h) {
 		const anchor = n.hop === 0;
 		set(attrs, n.id, cx, cy, anchor ? 18 : 2, HOP_RGB[n.hop], anchor ? 1 : 0);
 	}
-	return attrs;
+	return { attrs };
 }
 
 const NETWORK_ALPHA = [1, 0.9, 0.45, 0.2, 0.12];
 const NETWORK_RADIUS = [16, 6, 3.5, 2.5, 2];
+const NETWORK_HOP_DELAY_MS = 250;
 
+/** @type {LayoutFn} */
 function layoutNetwork(nodes, w, h) {
 	const attrs = new Float64Array(ATTR_SIZE);
+	const delays = new Float64Array(DELAY_SIZE);
 	const cx = w / 2;
 	const cy = h / 2;
 	const maxR = Math.min(w, h) / 2 - MARGIN;
@@ -60,11 +82,15 @@ function layoutNetwork(nodes, w, h) {
 			HOP_RGB[n.hop],
 			NETWORK_ALPHA[n.hop]
 		);
+		// ripple outward: each hop starts after the previous one
+		delays[n.id] = n.hop * NETWORK_HOP_DELAY_MS;
 	}
 	attrs[EDGE_ALPHA_INDEX] = 0.2;
-	return attrs;
+	delays[EDGE_DELAY_INDEX] = NETWORK_HOP_DELAY_MS;
+	return { attrs, delays };
 }
 
+/** @type {LayoutFn} */
 function layoutHopBands(nodes, w, h) {
 	const attrs = new Float64Array(ATTR_SIZE);
 	const counts = [0, 0, 0, 0, 0];
@@ -89,9 +115,10 @@ function layoutHopBands(nodes, w, h) {
 			anchor ? 1 : 0.8
 		);
 	}
-	return attrs;
+	return { attrs };
 }
 
+/** @type {LayoutFn} */
 function layoutRankLine(nodes, w, h) {
 	const attrs = new Float64Array(ATTR_SIZE);
 	const cx = w / 2;
@@ -109,9 +136,10 @@ function layoutRankLine(nodes, w, h) {
 			anchor ? 1 : near ? 0.9 : 0.15
 		);
 	}
-	return attrs;
+	return { attrs };
 }
 
+/** @type {LayoutFn} */
 function layoutScatter(nodes, w, h) {
 	const attrs = new Float64Array(ATTR_SIZE);
 	let maxFilms = 1;
@@ -134,9 +162,10 @@ function layoutScatter(nodes, w, h) {
 			anchor ? 1 : 0.55
 		);
 	}
-	return attrs;
+	return { attrs };
 }
 
+/** @type {Record<string, LayoutFn>} */
 export const STATES = {
 	lone: layoutLone,
 	network: layoutNetwork,
@@ -158,6 +187,7 @@ const STEP_TO_STATE = [
 	"rankLine"
 ];
 
+/** @param {number} step @returns {string} */
 export const stateForStep = (step) => STEP_TO_STATE[step] ?? "scatter";
 
 export const OVERLAYS = {

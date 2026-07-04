@@ -1,11 +1,27 @@
 import { hash01 } from "./nodes.js";
 
+/** @param {number} t normalized time 0–1 */
 export const easeCubicInOut = (t) =>
 	t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2;
 
-// Tweens groups of `stride` consecutive values; each group gets its own
-// deterministic start delay so nodes begin/finish at different times.
-// `jitter` scales the max delay relative to the base duration (0 = in unison).
+/**
+ * @typedef {Object} Tweener
+ * @property {Float64Array} current live rendered values
+ * @property {(next: Float64Array, ms: number, jitter?: number, nodeDelays?: Float64Array) => void} to
+ * @property {() => void} stop
+ */
+
+/**
+ * Tweens groups of `stride` consecutive values; each group gets its own
+ * start delay so nodes begin/finish at different times. Delays come from
+ * `nodeDelays` (ms per group, layout-choreographed) when provided, otherwise
+ * from a deterministic hash scaled by `jitter` (0 = in unison).
+ *
+ * @param {number} size total number of values
+ * @param {(attrs: Float64Array) => void} draw called every frame
+ * @param {number} stride values per group (one group per node)
+ * @returns {Tweener}
+ */
 export function createTweener(size, draw, stride = 1) {
 	const groups = Math.ceil(size / stride);
 	const current = new Float64Array(size);
@@ -32,7 +48,7 @@ export function createTweener(size, draw, stride = 1) {
 		if (!done) frame = requestAnimationFrame(tick);
 	}
 
-	function to(next, ms, jitter = 0) {
+	function to(next, ms, jitter = 0, nodeDelays = null) {
 		cancelAnimationFrame(frame);
 		if (ms <= 0) {
 			current.set(next);
@@ -43,7 +59,7 @@ export function createTweener(size, draw, stride = 1) {
 		target = next;
 		duration = ms;
 		for (let g = 0; g < groups; g++) {
-			delays[g] = hash01(g, 9) * ms * jitter;
+			delays[g] = nodeDelays ? nodeDelays[g] : hash01(g, 9) * ms * jitter;
 		}
 		startTime = performance.now();
 		frame = requestAnimationFrame(tick);

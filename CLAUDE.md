@@ -30,6 +30,7 @@ This is The Pudding's `svelte-starter` template (SvelteKit 2 + Svelte 5 with run
 - **Micro-CMS**: `google.config.js` lists Google Docs/Sheets to pull in via `npm run gdoc`, parsed with ArchieML and written into `src/data`.
 - **Styling**: global styles live in `src/styles` and are pulled into `app.css`; design tokens are authored in `properties/` and compiled to CSS/JS via Style Dictionary (`npm run style`).
 - **Component layers** under `src/components/`:
+  - `scrolly/` — the story's object-constancy visual framework (canvas dots tweening between per-step layout states, driven by the Scrolly step index). Architecture and contracts documented in `notes/scrolly-framework.md` — read that before touching these files.
   - `helpers/` — interaction helpers; only `Scrolly.svelte` (scrollytelling) is currently migrated in — most others live under `helpers/migrate/` and `layercake/migrate/` as unmigrated starter templates.
   - `layercake/` — LayerCake chart primitives (requires installing the `layercake` package before use).
   - `ui/` — bits-ui-based headless UI wrappers (Button, Checkbox, Select, Slider, Switch, ToggleGroup).

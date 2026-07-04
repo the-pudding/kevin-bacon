@@ -75,10 +75,10 @@
 			prevW = width;
 			prevH = height;
 		}
-		const target = STATES[stateName](nodes, width, height);
+		const { attrs, delays } = STATES[stateName](nodes, width, height);
 		const animate = stateName !== prevState && !resized && !reducedMotion;
 		prevState = stateName;
-		tweener.to(target, animate ? TWEEN_MS : 0, TWEEN_JITTER);
+		tweener.to(attrs, animate ? TWEEN_MS : 0, TWEEN_JITTER, delays);
 	});
 
 	$effect(() => () => tweener.stop());
