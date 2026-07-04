@@ -1,4 +1,4 @@
-import { NODE_COUNT } from "./nodes.js";
+import { NODE_COUNT, hash01 } from "./nodes.js";
 
 // x, y, radius, red, green, blue, alpha
 export const STRIDE = 7;
@@ -17,11 +17,6 @@ const HOP_RGB = [
 const MARGIN = 32;
 
 const lin = (v, d0, d1, r0, r1) => r0 + ((v - d0) / (d1 - d0)) * (r1 - r0);
-
-function hash01(id, salt) {
-	const x = Math.sin(id * 127.1 + salt * 311.7) * 43758.5453;
-	return x - Math.floor(x);
-}
 
 function set(attrs, id, x, y, r, [red, green, blue], alpha) {
 	const i = id * STRIDE;

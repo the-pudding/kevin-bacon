@@ -3,6 +3,11 @@ const HOP_COUNTS = [1, 40, 350, 480, 129];
 
 export const NODE_COUNT = HOP_COUNTS.reduce((sum, n) => sum + n, 0);
 
+export function hash01(id, salt) {
+	const x = Math.sin(id * 127.1 + salt * 311.7) * 43758.5453;
+	return x - Math.floor(x);
+}
+
 function mulberry32(seed) {
 	let a = seed;
 	return function () {

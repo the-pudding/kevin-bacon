@@ -12,8 +12,11 @@
 
 	let { step = 0 } = $props();
 
+	const TWEEN_MS = 700;
+	const TWEEN_JITTER = 0.5;
+
 	const { nodes, edges } = makeNodes();
-	const tweener = createTweener(ATTR_SIZE, draw);
+	const tweener = createTweener(ATTR_SIZE, draw, STRIDE);
 
 	let canvas = $state();
 	let width = $state(0);
@@ -75,7 +78,7 @@
 		const target = STATES[stateName](nodes, width, height);
 		const animate = stateName !== prevState && !resized && !reducedMotion;
 		prevState = stateName;
-		tweener.to(target, animate ? 700 : 0);
+		tweener.to(target, animate ? TWEEN_MS : 0, TWEEN_JITTER);
 	});
 
 	$effect(() => () => tweener.stop());
