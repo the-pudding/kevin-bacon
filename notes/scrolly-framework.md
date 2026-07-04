@@ -18,8 +18,9 @@ per-step visuals from `notes/storyboard.md` come later on top of this framework.
 | --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `src/components/scrolly/nodes.js`             | Synthetic seeded data: `makeNodes()` → `{ nodes, edges }`. 1,000 `ActorNode`s (`id, hop, films, avgDistance, rank`) from a mulberry32 PRNG (fixed seed → deterministic every reload). Node 0 is the anchor (Kevin Bacon). Also exports `hash01(id, salt)` — deterministic per-node randomness used everywhere (never `Math.random`, which would flicker between renders). |
 | `src/components/scrolly/tween.js`             | `createTweener(size, draw, stride)` → `{ current, to, stop }`. One rAF loop lerping a flat `Float64Array` from the _currently rendered_ values to a target. `to(next, ms, jitter, nodeDelays?)`. Vanilla (hand-rolled `easeCubicInOut`), no d3.                                                                                                                           |
-| `src/components/scrolly/states.js`            | One pure layout function per state + `stateForStep()` mapping + `OVERLAYS` captions. All geometry/color constants live here.                                                                                                                                                                                                                                              |
-| `src/components/scrolly/ScrollyVisual.svelte` | Canvas host wired into `Index.svelte` as `<ScrollyVisual step={value ?? 0} />`. Owns dpr scaling, resize, reduced-motion, the HTML overlay, and the `$effect` that reacts to step changes.                                                                                                                                                                                |
+| `src/components/scrolly/states.js`            | One pure layout function per state + `OVERLAYS` captions. All geometry/color constants live here.                                                                                                                                                                                                                                                                         |
+| `src/components/scrolly/Step.svelte`          | One scrolly step: prose in the slot, visual state declared on the tag (`<Step state="network">…</Step>`). Registers `{ state, params }` in document order with the `"scrolly-steps"` context provided by `Index.svelte`, and derives its own active styling — no hand-numbered step indices anywhere.                                                                     |
+| `src/components/scrolly/ScrollyVisual.svelte` | Canvas host wired into `Index.svelte` as `<ScrollyVisual state={…} />` (a state name, not a step number). Owns dpr scaling, resize, reduced-motion, the HTML overlay, and the `$effect` that reacts to state changes.                                                                                                                                                     |
 
 JSDoc typedefs (`ActorNode`, `Edge`, `LayoutResult`, `LayoutFn`, `Tweener`) are in
 `nodes.js` / `states.js` / `tween.js` — VS Code type-checks them without any build
@@ -47,19 +48,31 @@ per-node start delays in ms (index = node id; `EDGE_DELAY_INDEX` for edges).
 - no `delays` → each node starts after a deterministic hashed delay in
   `[0, ms * jitter]` (currently `TWEEN_JITTER = 0.5` in ScrollyVisual) so nodes
   start/finish at different times.
-- `ms <= 0` → instant jump, delays ignored. Used for initial paint, resize/
-  orientation change, and `prefers-reduced-motion`.
+- `ms <= 0` → instant jump, delays ignored. Used for resize/orientation change
+  and `prefers-reduced-motion`.
+- First paint is a one-time entry animation (`ENTER_MS = 900` in ScrollyVisual):
+  positions are seeded instantly with radius/alpha zeroed, then tweened to the
+  first state so visible dots grow in place instead of popping.
 - Interruption-safe by construction: `to()` snapshots the live `current` array,
   so flick-scrolling retargets dots from wherever they are mid-flight.
 
-**Step → state.** `stateForStep(step)` in states.js. Current placeholder mapping:
-0 lone · 1–2 network · 3–4 hopBands · 5–9 rankLine · 10+ scatter.
+**Step → state.** Declared per step in `Index.svelte` markup: each
+`<Step state="…">` registers itself (in document order) with the
+`"scrolly-steps"` context, which builds the `stepConfigs` array —
+`{ state: string, params?: Object }` per step. `Index.svelte` passes
+`stepConfigs[value ?? 0]?.state` to `ScrollyVisual`; the prop is `undefined`
+for a beat on first client render (the visual mounts before the steps
+register), so ScrollyVisual guards on it. `params` is reserved for per-step
+layout variation (e.g. which actor a rankLine step highlights) — registered
+now, not yet consumed. Current placeholder mapping: 0 lone · 1–2 network ·
+3–4 hopBands · 5–9 rankLine · 10+ scatter.
 
 ## How to add a state
 
 1. Write `layoutFoo(nodes, w, h)` in states.js: fill a `Float64Array(ATTR_SIZE)`
    via the `set()` helper, return `{ attrs }` (plus `delays` if choreographed).
-2. Register it in `STATES` and in `STEP_TO_STATE`.
+2. Register it in `STATES`, then use it from `Index.svelte`:
+   `<Step state="foo"><p>…</p></Step>`.
 3. Optionally add an `OVERLAYS.foo` entry (`caption`, `xLabel`, `yLabel`) — the
    overlay is plain HTML absolutely positioned over the canvas and fades per state.
 
@@ -78,9 +91,9 @@ salt integer (used so far: 1–5 in layouts, 9 in tween.js).
 
 ## Known gaps / next steps
 
-- **Step cards cover the visual's center on mobile** — the most interesting dots
-  (network core, scatter mass) sit behind the text card. Real visuals should
-  bias layouts toward the top third or bottom-anchor the step cards.
+- Step cards are bottom-anchored (Step.svelte `align-items: flex-end`) so the
+  visual's center stays clear on mobile; real visuals should still avoid the
+  bottom quarter where the card sits.
 - Overlay label swap uses `{#key}`: new label fades in, old one is removed
   instantly (no crossfade). Fine for PoC; use Svelte transitions later.
 - Annotations/popovers (agreed approach, not built): `draw()` copies coords for

@@ -6,13 +6,14 @@
 		STRIDE,
 		EDGE_ALPHA_INDEX,
 		STATES,
-		stateForStep,
 		OVERLAYS
 	} from "./states.js";
 
-	let { step = 0 } = $props();
+	// undefined until the <Step> registry has populated (first client render)
+	let { state: stateName } = $props();
 
 	const TWEEN_MS = 700;
+	const ENTER_MS = 900;
 	const TWEEN_JITTER = 0.5;
 
 	const { nodes, edges } = makeNodes();
@@ -27,8 +28,8 @@
 	let prevState = null;
 	let prevW = 0;
 	let prevH = 0;
+	let entered = false;
 
-	const stateName = $derived(stateForStep(step));
 	const overlay = $derived(OVERLAYS[stateName]);
 
 	function draw(attrs) {
@@ -64,7 +65,7 @@
 	});
 
 	$effect(() => {
-		if (!canvas || !width || !height) return;
+		if (!canvas || !width || !height || !stateName) return;
 		const resized = width !== prevW || height !== prevH;
 		if (resized) {
 			const dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -76,6 +77,21 @@
 			prevH = height;
 		}
 		const { attrs, delays } = STATES[stateName](nodes, width, height);
+		const firstPaint = !entered;
+		entered = true;
+		if (firstPaint && !reducedMotion) {
+			// entry: seed positions with radius/alpha zeroed so dots grow in place
+			const entry = attrs.slice();
+			for (let i = 0; i < EDGE_ALPHA_INDEX; i += STRIDE) {
+				entry[i + 2] = 0;
+				entry[i + 6] = 0;
+			}
+			entry[EDGE_ALPHA_INDEX] = 0;
+			tweener.to(entry, 0);
+			prevState = stateName;
+			tweener.to(attrs, ENTER_MS, TWEEN_JITTER, delays);
+			return;
+		}
 		const animate = stateName !== prevState && !resized && !reducedMotion;
 		prevState = stateName;
 		tweener.to(attrs, animate ? TWEEN_MS : 0, TWEEN_JITTER, delays);
@@ -88,11 +104,10 @@
 	<canvas bind:this={canvas}></canvas>
 	{#key stateName}
 		<div class="overlay">
-			<p class="caption">{overlay.caption}</p>
-			{#if overlay.xLabel}
+			{#if overlay?.xLabel}
 				<p class="x-label">{overlay.xLabel}</p>
 			{/if}
-			{#if overlay.yLabel}
+			{#if overlay?.yLabel}
 				<p class="y-label">{overlay.yLabel}</p>
 			{/if}
 		</div>

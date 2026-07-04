@@ -174,22 +174,6 @@ export const STATES = {
 	scatter: layoutScatter
 };
 
-const STEP_TO_STATE = [
-	"lone",
-	"network",
-	"network",
-	"hopBands",
-	"hopBands",
-	"rankLine",
-	"rankLine",
-	"rankLine",
-	"rankLine",
-	"rankLine"
-];
-
-/** @param {number} step @returns {string} */
-export const stateForStep = (step) => STEP_TO_STATE[step] ?? "scatter";
-
 export const OVERLAYS = {
 	lone: { caption: "Kevin Bacon" },
 	network: { caption: "Bacon's costar network" },

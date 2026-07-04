@@ -1,24 +1,41 @@
 <script>
+	import { setContext } from "svelte";
 	import Scrolly from "$components/helpers/Scrolly.svelte";
 	import ScrollyVisual from "$components/scrolly/ScrollyVisual.svelte";
+	import Step from "$components/scrolly/Step.svelte";
 	import useWindowDimensions from "$runes/useWindowDimensions.svelte.js";
 
 	let value = $state();
 	let dimensions = new useWindowDimensions();
+
+	/**
+	 * Filled by each <Step> as it mounts, in document order — the single source
+	 * of truth mapping step index → visual state (+ future per-step params).
+	 * @type {{ state: string, params?: Object }[]}
+	 */
+	const stepConfigs = $state([]);
+	setContext("scrolly-steps", {
+		register: (state, params) => stepConfigs.push({ state, params }) - 1,
+		get current() {
+			return value;
+		}
+	});
 </script>
 
 <svelte:boundary onerror={(e) => console.error(e)}>
 	<section id="scrolly">
 		<div
 			class="scrolly-layout"
-			style="--viewport-height: {dimensions.height}px"
+			style="--viewport-height: {dimensions.height
+				? `${dimensions.height}px`
+				: '100svh'}"
 		>
-			<div class="scrolly-visual" style:height="{dimensions.height}px">
-				<ScrollyVisual step={value ?? 0} />
+			<div class="scrolly-visual">
+				<ScrollyVisual state={stepConfigs[value ?? 0]?.state} />
 			</div>
-			<div class="scrolly-steps" style:margin-top="{-dimensions.height}px">
+			<div class="scrolly-steps">
 				<Scrolly bind:value>
-					<div class="step" class:active={value === 0}>
+					<Step state="lone">
 						<p>
 							The "Six Degrees of Kevin Bacon" is a game where players try to
 							connect an actor to Kevin Bacon via movies they've starred in with
@@ -29,8 +46,8 @@
 							
 							Code reference: references/pudding-post/design/stories/components/network-graph.js
 						-->
-					</div>
-					<div class="step" class:active={value === 1}>
+					</Step>
+					<Step state="network">
 						<p>
 							The intuition is that Kevin Bacon is so prolific, genre-spanning,
 							and timeless that the game is a lot easier than if it were called
@@ -41,8 +58,8 @@
               New nodes appear far away from KB, and paths towards KB animate into view.
               Eventually, a graph of a couple of dozen nodes is visible.
 						-->
-					</div>
-					<div class="step" class:active={value === 2}>
+					</Step>
+					<Step state="network">
 						<p>
 							However, Kevin Bacon is <b>not</b> the center of hollywood. Not
 							only that, he <b>never has been</b>, and almost certainly
@@ -51,9 +68,9 @@
 						<!--
               Graph fades into the background
 						-->
-					</div>
+					</Step>
 					<!-- TODO: chapters! At this point, full screen "present" -->
-					<div class="step" class:active={value === 3}>
+					<Step state="hopBands">
 						<p>
 							No doubt, he's well connected. You can get from any Hollywood
 							actor to Kevin Bacon in four movies or less.
@@ -65,8 +82,8 @@
 							showing no one is 5 steps away.
 							Code reference: references/pudding-post/design/stories/components/hop-graph.js
 						-->
-					</div>
-					<div class="step" class:active={value === 4}>
+					</Step>
+					<Step state="hopBands">
 						<p>
 							The reality is that Kevin Bacon isn't special in this respect;
 							there are 16,429 actors who can be reached by everyone within 4
@@ -80,8 +97,8 @@
 							distance based on his hop graph, showing his average distance is
 							2.2823.
 						-->
-					</div>
-					<div class="step" class:active={value === 5}>
+					</Step>
+					<Step state="rankLine">
 						<p>
 							As of 2026, I can tell you that Kevin Bacon ranks #175 of all
 							Hollywood actors based on average distance. Can you guess who #1
@@ -96,8 +113,8 @@
               We have a 'guess' functionality, with a 'guess again' functionality, eventually with a 'give up'.
 							Code reference: references/pudding-post/design/stories/components/rank-ladder.js
 						-->
-					</div>
-					<div class="step" class:active={value === 6}>
+					</Step>
+					<Step state="rankLine">
 						<p>
 							Yes, Samuel L. Jackson is the <i>center of Hollywood</i>. You can
 							get to him in an average distance of just 2.09.
@@ -107,9 +124,9 @@
 							they'll see that Willem Dafoe is 2nd, and Robert De Niro is 3rd,
 							etc.
 						-->
-					</div>
+					</Step>
 					<!-- TODO: chapter - PAST -->
-					<div class="step" class:active={value === 7}>
+					<Step state="rankLine">
 						<p>
 							Samuel L. Jackson has been the center of hollywood since 2006,
 							taking over from Gene Hackman.
@@ -121,8 +138,8 @@
 							grows to the left to the point of this handover. A detailed breakdown of what happened appears
 							Code reference: references/pudding-post/design/stories/components/race-chart.js
 						-->
-					</div>
-					<div class="step" class:active={value === 8}>
+					</Step>
+					<Step state="rankLine">
 						<p>
 							Before then, the crown changed hands frequently. Gene Hackman and
 							Robert De Niro fighting over top spot for half a decade.
@@ -131,8 +148,8 @@
 							Storyboard visual: we move left in the graph, showing lines
 							overtaking each other at that point. Each handover is made obvious to the user to opt-in to a similar breakdown from the previous
 						-->
-					</div>
-					<div class="step" class:active={value === 9}>
+					</Step>
+					<Step state="rankLine">
 						<p>
 							Repeating this process, we can go all the way back to 1970 to
 							create a timeline of centers from when we started recording this
@@ -144,9 +161,9 @@
 							on who the anchor is (avg_distance) appear. Each
 							annotation performs a similar deep dive. User can then go 'next' once they've finished exploring.
 						-->
-					</div>
+					</Step>
 					<!-- TODO: next chapter - future! -->
-					<div class="step" class:active={value === 10}>
+					<Step state="scatter">
 						<p>
 							As you just learned, Samuel L. Jackson has been dominating
 							Hollywood by his sheer prolificacy since 2006. His reign has
@@ -163,8 +180,8 @@
 							distance. Highlight the notable actors.
 							Code reference: references/pudding-post/design/stories/components/distance-films-scatter.js
 						-->
-					</div>
-					<div class="step" class:active={value === 11}>
+					</Step>
+					<Step state="scatter">
 						<p>
 							Just because you're in loads of films doesn't necessarily mean
 							you've got a lot of connections in the graph. And just because
@@ -174,8 +191,8 @@
 						<!--
               No change
 						-->
-					</div>
-					<div class="step" class:active={value === 12}>
+					</Step>
+					<Step state="scatter">
 						<p>
 							Dame Julie Walters under-performs drastically on average distance.
 							In this respect, she's got two things going against her:
@@ -196,8 +213,8 @@
 							Code reference: references/pudding-post/design/stories/components/distance-films-scatter.js
 							("JulieWalters" story)
 						-->
-					</div>
-					<div class="step" class:active={value === 13}>
+					</Step>
+					<Step state="scatter">
 						<p>
 							Let's generalise this idea into two hypotheses:
 							<br />
@@ -216,8 +233,8 @@
 							Code reference: references/pudding-post/design/stories/components/distance-films-scatter.js
 							+ distance-films-quiz.js
 						-->
-					</div>
-					<div class="step" class:active={value === 14}>
+					</Step>
+					<Step state="scatter">
 						<p>
 							Seth Rogen and Charlize Theron are in similar numbers of films -
 							they even costarred in "Long Shot". However, Charlize Theron tends
@@ -228,8 +245,8 @@
 						<!--
               No change
 						-->
-					</div>
-					<div class="step" class:active={value === 15}>
+					</Step>
+					<Step state="scatter">
 						<p>
 							<i>Concurrency</i> is a measure of how frequently you work with the
 							same actors. Seth Rogen having a concurrency of 0.2 means that for each
@@ -244,8 +261,8 @@
 							FLAG: this is the best-guess landing point for the visual — see
 							ambiguity note on step 14.
 						-->
-					</div>
-					<div class="step" class:active={value === 16}>
+					</Step>
+					<Step state="scatter">
 						<p>
 							If your concurrency is low, you work for the first time with
 							actors more often. This means you create more connections in the
@@ -255,9 +272,9 @@
 						<!--
               No change
 						-->
-					</div>
+					</Step>
 
-					<div class="step" class:active={value === 17}>
+					<Step state="scatter">
 						<p>
 							If you starred in one film with Samuel L Jackson and him alone,
 							you would immediately have an average distance of 3.08, putting
@@ -266,8 +283,8 @@
 						<!--
               TODO: needed?
 						-->
-					</div>
-					<div class="step" class:active={value === 18}>
+					</Step>
+					<Step state="scatter">
 						<p>
 							Due to its circular nature, we can't use "low costar average
 							distance" as a signal for explaining someone's average distance.
@@ -277,8 +294,8 @@
 						<!--
             No change
 						-->
-					</div>
-					<div class="step" class:active={value === 19}>
+					</Step>
+					<Step state="scatter">
 						<p>
 							Here's the same graph, but measuring the average degree of their
 							top 50 costars.
@@ -291,12 +308,12 @@
 							Robbie) have high degrees of costars.
 							Code reference: references/pudding-post/design/stories/components/top50-degree-films-scatter.js
 						-->
-					</div>
+					</Step>
 
 					<!-- TODO: round off? -->
 
 					<!-- TODO: FUTURE! -->
-					<div class="step" class:active={value === 20}>
+					<Step state="scatter">
 						<p>
 							So both of our hypotheses hold up against our example pairs. These
 							two new pieces of information can be used to explain why two
@@ -313,9 +330,9 @@
 							the diagonal when ticked/unticked.
 							Code reference: references/pudding-post/design/stories/components/prediction-scatter.js
 						-->
-					</div>
+					</Step>
 
-					<div class="step" class:active={value === 21}>
+					<Step state="scatter">
 						<p>
 							Now, Samuel L. Jackson can't be the center forever. At some point,
 							someone must overtake him. Which Gen Z actor do we think is going
@@ -329,9 +346,9 @@
 							Chloe Grace Moretz in the graph.
 							Code reference: references/pudding-post/design/stories/components/distance-films-scatter.js
 						-->
-					</div>
+					</Step>
 
-					<div class="step" class:active={value === 22}>
+					<Step state="scatter">
 						<p>
 							Using all the data we have, we can model an actor's career by
 							looking at what has happened to actors with similar stats in the
@@ -340,9 +357,9 @@
 						<!--
               NO CHANGE
             -->
-					</div>
+					</Step>
 
-					<div class="step" class:active={value === 23}>
+					<Step state="scatter">
 						<p>
 							Take Sydney Sweeney. She's been in 16 films since her debut 15
 							years ago. At the same point in their career, Robert De Niro had
@@ -356,9 +373,9 @@
 							climb vs Chevy Chase's plateau).
 							Code reference: references/pudding-post/design/stories/components/career-age-scatter.js
 						-->
-					</div>
+					</Step>
 
-					<div class="step" class:active={value === 24}>
+					<Step state="scatter">
 						<p>
 							This means that whatever actor we use to model a Gen Z's career
 							trajectory can massively impact the results. For each actor, we
@@ -372,9 +389,9 @@
 							Storyboard visual: add more lines to the line chart (from step 23).
 							Code reference: references/pudding-post/design/stories/components/career-age-scatter.js
 						-->
-					</div>
+					</Step>
 
-					<div class="step" class:active={value === 25}>
+					<Step state="scatter">
 						<p>
 							Indeed, Chloe Grace Moretz wins in a quarter of simulations. She
 							doesn't exactly have a clear majority, despite already being
@@ -400,9 +417,9 @@
 							the entire cohort, before she's 30. SLJ at her age had 40 films.
 							She's not projected to grow; she's projected to keep what she has.
 						-->
-					</div>
+					</Step>
 
-					<div class="step" class:active={value === 26}>
+					<Step state="scatter">
 						<p>
 							On average, the winning score is 2.24, nowhere near SLJ's current
 							average distance. We're counting on SLJ's average distance getting
@@ -414,9 +431,9 @@
 							trajectory based on career age, and then the 10k simulation
 							lines.
 						-->
-					</div>
+					</Step>
 
-					<div class="step" class:active={value === 27}>
+					<Step state="scatter">
 						<p>
 							What I can tell you is that our first female center of hollywood
 							is very likely to happen next, with 77% of the wins going to
@@ -425,7 +442,7 @@
 						<!--
 							No visual noted in storyboard for this closing beat.
 						-->
-					</div>
+					</Step>
 				</Scrolly>
 			</div>
 		</div>
@@ -436,7 +453,7 @@
 	#scrolly {
 		max-width: 700px;
 		margin: 0 auto;
-		padding: 2rem 1rem;
+		padding: 0 1rem;
 	}
 
 	.scrolly-layout {
@@ -447,28 +464,12 @@
 	.scrolly-visual {
 		position: sticky;
 		top: 0;
+		height: var(--viewport-height);
 	}
 
 	.scrolly-steps {
 		z-index: 1;
 		position: relative;
-	}
-
-	.step {
-		min-height: calc(var(--viewport-height));
-		display: flex;
-		align-items: center;
-		padding: 1rem;
-		opacity: 0.3;
-		transition: opacity 0.2s ease;
-	}
-
-	.step p {
-		background: var(--color-bg);
-		padding: 1.5rem;
-	}
-
-	.step.active {
-		opacity: 1;
+		margin-top: calc(-1 * var(--viewport-height));
 	}
 </style>
