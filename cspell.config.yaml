@@ -28,6 +28,10 @@ words:
   - bloggs
   - yourpassword
   - chloë
+  - unspool
+  - toggleable
+  - crossfaded
+  - genz
 ignorePaths:
   - node_modules
   - build
@@ -39,5 +43,6 @@ ignorePaths:
   - properties
   - "*.svg"
   - "*.csv"
-  # generated actor sample — thousands of real names
+  # generated actor sample / story data — real names + data-key identifiers
   - src/data/scrolly-nodes.json
+  - src/data/scrolly-story.json

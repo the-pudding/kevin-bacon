@@ -1,0 +1,3 @@
+- [ ] draw line from MR to RG, not the other direction
+- [ ] step 3 should basically be a ramp up from step 2 remove the labels and the edges. and add more and more actors to the graph as the graph zooms out top show the full dataset
+- [ ] "never has, never will" text can be the first dwell step

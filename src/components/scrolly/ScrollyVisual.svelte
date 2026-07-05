@@ -9,15 +9,24 @@
 		STATES,
 		OVERLAYS,
 		STATE_LABELS,
-		STATE_PULSE
+		STATE_PULSE,
+		STATE_PARAMS,
+		STATE_TRACKED,
+		TRAIL_SIZE,
+		TRAIL_STRIDE,
+		TRAIL_POINTS,
+		TRAIL_META
 	} from "./states.js";
+	import { story } from "./story.svelte.js";
 
 	// undefined until the <Step> registry has populated (first client render)
-	/** @type {{ state: import("./states.js").LayoutState }} */
-	let { state: stateName } = $props();
+	/** @type {{ state: import("./states.js").LayoutState, params?: Object }} */
+	let { state: stateName, params } = $props();
 
 	const TWEEN_MS = 700;
 	const ENTER_MS = 900;
+	// interaction inside a state (params change): quicker, direct retarget
+	const PARAM_TWEEN_MS = 450;
 	const TWEEN_JITTER = 0.5;
 
 	const { nodes, edges } = makeNodes();
@@ -27,28 +36,38 @@
 		nodes[source].hop >= nodes[target].hop ? [source, target] : [target, source]
 	);
 	// every id any state labels or pulses — tracked out of the attr array each
-	// frame so the HTML annotations stay glued to their dots mid-tween
+	// frame so the HTML annotations stay glued to their dots mid-tween.
+	// Dynamic label states (function values) declare their possible ids in
+	// STATE_TRACKED instead.
 	const TRACKED_IDS = [
 		...new Set([
-			...Object.values(STATE_LABELS).flat(),
-			...Object.values(STATE_PULSE)
+			...Object.values(STATE_LABELS).filter(Array.isArray).flat(),
+			...Object.values(STATE_PULSE),
+			...STATE_TRACKED
 		])
 	];
-	const tweener = createTweener(ATTR_SIZE, draw, STRIDE);
+	const tweener = createTweener(ATTR_SIZE, drawScene, STRIDE);
+	// trails (race/career lines) tween on their own array so polylines morph
+	// with the same interruption-safe semantics as dots
+	const trailTweener = createTweener(TRAIL_SIZE, drawScene, TRAIL_STRIDE);
+	// last trail target, kept so states without trails fade them out in place
+	let lastTrailTarget = null;
 	const TAU = Math.PI * 2;
 	// one Path2D per (quantised rgb, alpha bucket): batches ~1k dots into a
 	// handful of fills instead of a fillStyle + fill per dot
 	const dotBuckets = new Map();
 
-	// layouts are pure in (state, w, h) — cache so re-visited states skip both
-	// the recompute and the per-call Float64Array allocation; the tweener only
-	// reads the result, never mutates it
+	// layouts are pure in (state, w, h, params) — cache so re-visited states
+	// skip both the recompute and the per-call Float64Array allocation; the
+	// tweener only reads the result, never mutates it. `params` merges the
+	// step's static params with the interaction fields the state consumes
+	// (STATE_PARAMS selector), so an interaction re-runs the current layout.
 	const layoutCache = new Map();
-	function layoutFor(name, w, h) {
-		const key = `${name}:${w}:${h}`;
+	function layoutFor(name, w, h, layoutParams) {
+		const key = `${name}:${w}:${h}:${JSON.stringify(layoutParams) ?? ""}`;
 		let result = layoutCache.get(key);
 		if (!result) {
-			result = STATES[name](nodes, w, h, edges);
+			result = STATES[name](nodes, w, h, edges, layoutParams);
 			layoutCache.set(key, result);
 		}
 		return result;
@@ -60,15 +79,30 @@
 	let reducedMotion = $state(false);
 	/** @type {{ id: number, name: string, x: number, y: number, r: number, alpha: number }[]} */
 	let tracked = $state([]);
+	// static per-state chart furniture (ticks/callouts) from the layout result
+	/** @type {{ axes?: { x?: {pos:number,label:string}[], y?: {pos:number,label:string}[], xBase?: number, yBase?: number }, notes?: import("./states.js").Note[] } | null} */
+	let decor = $state(null);
 
 	let ctx = null;
 	let prevState = null;
+	let prevParamsKey = null;
 	let prevW = 0;
 	let prevH = 0;
 	let entered = false;
 
 	const overlay = $derived(OVERLAYS[stateName]);
-	const labelIds = $derived(new Set(STATE_LABELS[stateName] ?? []));
+	// what the active layout actually varies on: the state's selector plucks
+	// the interaction fields it consumes (reading the `story` $state proxy
+	// here makes the layout effect re-run when those fields change)
+	const layoutParams = $derived(
+		STATE_PARAMS[stateName]?.(story, params) ?? params ?? null
+	);
+	const labelIds = $derived.by(() => {
+		const spec = STATE_LABELS[stateName];
+		return new Set(
+			typeof spec === "function" ? spec(layoutParams) : (spec ?? [])
+		);
+	});
 	const pulseId = $derived(STATE_PULSE[stateName] ?? null);
 	// keeps the ring anchored to the last center actor while it fades out
 	let lastPulseId = $state(null);
@@ -77,9 +111,26 @@
 	});
 	const ring = $derived(tracked.find((t) => t.id === lastPulseId));
 
-	function draw(attrs) {
+	function drawScene() {
 		if (!ctx) return;
+		const attrs = tweener.current;
+		const trailAttrs = trailTweener.current;
 		ctx.clearRect(0, 0, width, height);
+		// trails under everything: race/career lines, prediction diagonal
+		for (let t = 0; t < TRAIL_META.length; t++) {
+			const base = t * TRAIL_STRIDE;
+			const alpha = trailAttrs[base + TRAIL_POINTS * 2];
+			if (alpha <= 0.008) continue;
+			const { rgb, width: lw } = TRAIL_META[t];
+			ctx.strokeStyle = `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, ${alpha})`;
+			ctx.lineWidth = lw;
+			ctx.beginPath();
+			ctx.moveTo(trailAttrs[base], trailAttrs[base + 1]);
+			for (let k = 1; k < TRAIL_POINTS; k++) {
+				ctx.lineTo(trailAttrs[base + k * 2], trailAttrs[base + k * 2 + 1]);
+			}
+			ctx.stroke();
+		}
 		ctx.lineWidth = 1;
 		for (let e = 0; e < edgeEnds.length; e++) {
 			const i = EDGE_BASE + e * STRIDE;
@@ -155,7 +206,21 @@
 			prevW = width;
 			prevH = height;
 		}
-		const { attrs, delays } = layoutFor(stateName, width, height);
+		const paramsKey = JSON.stringify(layoutParams) ?? "";
+		const layout = layoutFor(stateName, width, height, layoutParams);
+		const { attrs, delays } = layout;
+		decor = { axes: layout.axes, notes: layout.notes };
+		// states without trails fade the previous ones out where they lie
+		let trailTarget = layout.trails;
+		if (!trailTarget) {
+			trailTarget = lastTrailTarget
+				? lastTrailTarget.slice()
+				: new Float64Array(TRAIL_SIZE);
+			for (let t = 0; t < TRAIL_META.length; t++) {
+				trailTarget[t * TRAIL_STRIDE + TRAIL_POINTS * 2] = 0;
+			}
+		}
+		lastTrailTarget = trailTarget;
 		const firstPaint = !entered;
 		entered = true;
 		if (firstPaint && !reducedMotion) {
@@ -171,15 +236,36 @@
 			}
 			tweener.to(entry, 0);
 			prevState = stateName;
+			prevParamsKey = paramsKey;
 			tweener.to(attrs, ENTER_MS, TWEEN_JITTER, delays);
+			trailTweener.to(trailTarget, ENTER_MS, 0, layout.trailDelays);
 			return;
 		}
-		const animate = stateName !== prevState && !resized && !reducedMotion;
+		const stateChange = stateName !== prevState;
+		const paramChange = !stateChange && paramsKey !== prevParamsKey;
 		prevState = stateName;
-		tweener.to(attrs, animate ? TWEEN_MS : 0, TWEEN_JITTER, delays);
+		prevParamsKey = paramsKey;
+		if (resized || reducedMotion) {
+			tweener.to(attrs, 0);
+			trailTweener.to(trailTarget, 0);
+		} else if (stateChange) {
+			tweener.to(attrs, TWEEN_MS, TWEEN_JITTER, delays);
+			trailTweener.to(trailTarget, TWEEN_MS, 0, layout.trailDelays);
+		} else if (paramChange) {
+			// interaction: retarget quickly, no choreography (delays would make
+			// a small pan/highlight feel laggy)
+			tweener.to(attrs, PARAM_TWEEN_MS, 0);
+			trailTweener.to(trailTarget, PARAM_TWEEN_MS, 0);
+		} else {
+			tweener.to(attrs, 0);
+			trailTweener.to(trailTarget, 0);
+		}
 	});
 
-	$effect(() => () => tweener.stop());
+	$effect(() => () => {
+		tweener.stop();
+		trailTweener.stop();
+	});
 </script>
 
 <div class="visual" bind:clientWidth={width} bind:clientHeight={height}>
@@ -209,12 +295,45 @@
 	</div>
 	{#key stateName}
 		<div class="overlay">
+			{#if overlay?.caption}
+				<p class="caption">{overlay.caption}</p>
+			{/if}
 			{#if overlay?.xLabel}
-				<p class="x-label">{overlay.xLabel}</p>
+				<p
+					class="x-label"
+					style={decor?.axes?.xBase != null
+						? `top: ${decor.axes.xBase + 22}px; bottom: auto`
+						: ""}
+				>
+					{overlay.xLabel}
+				</p>
 			{/if}
 			{#if overlay?.yLabel}
 				<p class="y-label">{overlay.yLabel}</p>
 			{/if}
+			{#each decor?.axes?.x ?? [] as tick}
+				<p
+					class="tick tick-x"
+					style="left: {tick.pos}px; {decor.axes.xBase != null
+						? `top: ${decor.axes.xBase}px`
+						: ''}"
+				>
+					{tick.label}
+				</p>
+			{/each}
+			{#each decor?.axes?.y ?? [] as tick}
+				<p class="tick tick-y" style="top: {tick.pos}px">{tick.label}</p>
+			{/each}
+			{#each decor?.notes ?? [] as note}
+				<p
+					class="note {note.align ?? 'left'}"
+					class:strong={note.strong}
+					class:wrap={note.wrap}
+					style="left: {note.x}px; top: {note.y}px"
+				>
+					{note.text}
+				</p>
+			{/each}
 		</div>
 	{/key}
 </div>
@@ -340,6 +459,62 @@
 		bottom: 0.5rem;
 		left: 50%;
 		transform: translateX(-50%);
+	}
+
+	.tick {
+		font-size: 0.65rem;
+		color: var(--color-gray-500, #888);
+	}
+
+	.tick-x {
+		bottom: 1.6rem; /* fallback when the layout provides no xBase */
+		transform: translateX(-50%);
+	}
+
+	.tick-x[style*="top:"] {
+		bottom: auto;
+	}
+
+	.note.strong {
+		font-weight: 700;
+		color: var(--color-gray-900, #222);
+	}
+
+	.tick-y {
+		left: 0.5rem;
+		transform: translateY(-50%);
+	}
+
+	.note {
+		font-size: 0.7rem;
+		color: var(--color-gray-700, #444);
+		white-space: nowrap;
+		text-shadow:
+			0 0 3px var(--color-bg, #fff),
+			0 0 6px var(--color-bg, #fff);
+	}
+
+	.note.wrap {
+		white-space: normal;
+		max-width: 16rem;
+	}
+
+	.caption {
+		top: 0.6rem;
+		left: 50%;
+		transform: translateX(-50%);
+		font-variant: small-caps;
+		letter-spacing: 0.06em;
+		color: var(--color-gray-700, #444);
+	}
+
+	.note.center {
+		transform: translateX(-50%);
+	}
+
+	.note.right {
+		transform: translateX(-100%);
+		text-align: right;
 	}
 
 	.y-label {
