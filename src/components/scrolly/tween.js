@@ -6,7 +6,7 @@ export const easeCubicInOut = (t) =>
 
 /**
  * @typedef {Object} Tweener
- * @property {Float64Array} current live rendered values
+ * @property {Float32Array} current live rendered values
  * @property {(next: Float64Array, ms: number, jitter?: number, nodeDelays?: Float64Array) => void} to
  * @property {() => void} stop
  */
@@ -24,8 +24,9 @@ export const easeCubicInOut = (t) =>
  */
 export function createTweener(size, draw, stride = 1) {
 	const groups = Math.ceil(size / stride);
-	const current = new Float64Array(size);
-	const start = new Float64Array(size);
+	// Float32 for the per-frame hot arrays; layout `target` stays Float64
+	const current = new Float32Array(size);
+	const start = new Float32Array(size);
 	const delays = new Float64Array(groups);
 	let target = null;
 	let startTime = 0;

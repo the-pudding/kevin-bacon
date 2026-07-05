@@ -19,13 +19,13 @@
 	},
 	"lint-staged": {
 		"*.{js,svelte,json,css,md,html}": "prettier --write",
-		"src/data/**": "cspell",
-		"notes/**": "cspell",
-		"README.md": "cspell",
-		"src/routes/**/*.svelte": "cspell",
-		"src/components/Index.svelte": "cspell",
-		"src/components/Header.svelte": "cspell",
-		"src/components/Meta.svelte": "cspell"
+		"src/data/**": "cspell --no-must-find-files",
+		"notes/**": "cspell --no-must-find-files",
+		"README.md": "cspell --no-must-find-files",
+		"src/routes/**/*.svelte": "cspell --no-must-find-files",
+		"src/components/Index.svelte": "cspell --no-must-find-files",
+		"src/components/Header.svelte": "cspell --no-must-find-files",
+		"src/components/Meta.svelte": "cspell --no-must-find-files"
 	},
 	"devDependencies": {
 		"@lucide/svelte": "^1.16.0",

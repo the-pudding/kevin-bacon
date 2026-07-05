@@ -39,3 +39,5 @@ ignorePaths:
   - properties
   - "*.svg"
   - "*.csv"
+  # generated actor sample — thousands of real names
+  - src/data/scrolly-nodes.json

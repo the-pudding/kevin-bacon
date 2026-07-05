@@ -45,23 +45,14 @@
 							connect an actor to Kevin Bacon via movies they've starred in with
 							other Hollywood actors, aiming to reach him in six movies or less.
 						</p>
-						<!--
-              KB appears alone. Establish a subtle animation we'll use going forward to highlight someone as the center actor.
-						-->
 					</Step>
-					<Step state="network">
+					<Step state="networkIntro">
 						<p>
 							The intuition is that Kevin Bacon is so prolific, genre-spanning,
 							and timeless that the game is a lot easier than if it were called
 							the "Six Degrees of John Doe". This idea implies that Kevin Bacon
 							is this all-encompassing center of Hollywood.
 						</p>
-						<!--
-              New nodes appear far away from KB, and paths towards KB animate into view.
-              Eventually, a graph of a couple of dozen nodes is visible.
-
-							Code reference: references/pudding-post/design/stories/components/network-graph.js
-						-->
 					</Step>
 					<Step state="network">
 						<p>
@@ -69,9 +60,6 @@
 							only that, he <b>never has been</b>, and almost certainly
 							<b>never will</b>.
 						</p>
-						<!--
-              Graph zooms out and the full 1k subset is visible.
-						-->
 					</Step>
 					<!-- TODO: chapters! At this point, full screen "present" -->
 					<Step state="hopBands">
