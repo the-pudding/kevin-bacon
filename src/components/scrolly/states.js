@@ -279,10 +279,12 @@ export const STATES = {
 
 /** per-state node ids whose names render as HTML labels over the canvas */
 export const STATE_LABELS = {
-	networkIntro: INTRO_IDS
+	lone: [ANCHOR_ID],
+	networkIntro: INTRO_IDS,
+	network: [ANCHOR_ID]
 };
 
-/** per-state "center actor" node id — gets the breathing pulse ring */
+/** per-state "center actor" node id — gets the ripple pulse */
 export const STATE_PULSE = {
 	lone: ANCHOR_ID,
 	networkIntro: ANCHOR_ID,

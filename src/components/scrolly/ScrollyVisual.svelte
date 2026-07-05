@@ -186,12 +186,14 @@
 	<div class="annotations">
 		{#if ring}
 			<div
-				class="pulse-ring"
-				style="left: {ring.x}px; top: {ring.y}px; width: {(ring.r + 5) *
-					2}px; height: {(ring.r + 5) * 2}px; opacity: {pulseId != null
+				class="pulse-wrap"
+				style="left: {ring.x}px; top: {ring.y}px; width: {ring.r *
+					2}px; height: {ring.r * 2}px; opacity: {pulseId != null
 					? ring.alpha
 					: 0}"
-			></div>
+			>
+				<div class="pulse-ring"></div>
+			</div>
 		{/if}
 		{#each tracked as t (t.id)}
 			<p
@@ -254,20 +256,34 @@
 		transition: opacity 0.3s ease;
 	}
 
-	.pulse-ring {
+	.pulse-wrap {
 		position: absolute;
-		border: 2px solid rgba(34, 34, 34, 0.35);
-		border-radius: 50%;
+		transform: translate(-50%, -50%);
 		transition: opacity 0.3s ease;
-		animation: pulse 1.9s ease-in-out infinite alternate;
 	}
 
-	@keyframes pulse {
+	.pulse-ring,
+	.pulse-ring::after {
+		position: absolute;
+		inset: 0;
+		border: 2px solid rgba(34, 34, 34, 0.45);
+		border-radius: 50%;
+		animation: ripple 1.8s ease-out infinite;
+	}
+
+	.pulse-ring::after {
+		content: "";
+		animation-delay: -0.9s;
+	}
+
+	@keyframes ripple {
 		from {
-			transform: translate(-50%, -50%) scale(1);
+			transform: scale(1);
+			opacity: 0.6;
 		}
 		to {
-			transform: translate(-50%, -50%) scale(1.12);
+			transform: scale(2.2);
+			opacity: 0;
 		}
 	}
 
@@ -284,13 +300,21 @@
 		}
 
 		.node-label,
-		.pulse-ring {
+		.pulse-wrap {
 			transition: none;
 		}
 
-		.pulse-ring {
+		.pulse-ring,
+		.pulse-ring::after {
 			animation: none;
-			transform: translate(-50%, -50%);
+		}
+
+		.pulse-ring {
+			transform: scale(1.3);
+		}
+
+		.pulse-ring::after {
+			content: none;
 		}
 	}
 
