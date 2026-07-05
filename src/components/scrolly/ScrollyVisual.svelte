@@ -21,9 +21,10 @@
 	const TWEEN_JITTER = 0.5;
 
 	const { nodes, edges } = makeNodes();
-	// edges draw outward from the anchor: orient each from its lower-hop end
+	// edges draw inward toward the anchor: orient each from its higher-hop end so
+	// the line grows from the outer actor toward Bacon
 	const edgeEnds = edges.map(({ source, target }) =>
-		nodes[source].hop <= nodes[target].hop ? [source, target] : [target, source]
+		nodes[source].hop >= nodes[target].hop ? [source, target] : [target, source]
 	);
 	// every id any state labels or pulses — tracked out of the attr array each
 	// frame so the HTML annotations stay glued to their dots mid-tween

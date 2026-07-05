@@ -9,8 +9,8 @@ import {
 
 // x, y, radius, red, green, blue, alpha — one group per node, then one
 // (mostly empty) group per edge so the tweener staggers edges individually:
-// edge slot 0 = draw progress (0–1, drawn from the lower-hop endpoint),
-// edge slot 1 = alpha
+// edge slot 0 = draw progress (0–1, drawn from the higher-hop endpoint inward
+// toward the anchor), edge slot 1 = alpha
 export const STRIDE = 7;
 export const EDGE_BASE = NODE_COUNT * STRIDE;
 export const ATTR_SIZE = (NODE_COUNT + EDGE_COUNT) * STRIDE;
@@ -47,6 +47,9 @@ const HOP_RGB = [
 const MARGIN = 32;
 
 const lin = (v, d0, d1, r0, r1) => r0 + ((v - d0) / (d1 - d0)) * (r1 - r0);
+
+// unordered endpoint key so an edge can be looked up regardless of orientation
+const pairKey = (a, b) => (a < b ? `${a}-${b}` : `${b}-${a}`);
 
 function set(attrs, id, x, y, r, [red, green, blue], alpha) {
 	const i = id * STRIDE;
@@ -109,8 +112,29 @@ function introPosition(k, w, h, spread = 1) {
 const INTRO_ANCHOR_RADIUS = 14;
 const INTRO_RADIUS = 7;
 const INTRO_EDGE_ALPHA = 0.5;
-const INTRO_NODE_STAGGER_MS = 150;
-// a node grows for this long before its connecting line starts drawing
+
+// Reveal is authored as paths, each traced from a source actor inward to Bacon
+// (id 0, already on screen). Per segment: the line grows from the outer node
+// toward the next one, and that next node pops as the line reaches it — so the
+// step reads as building routes to Bacon rather than a graph dump. Shared
+// nodes/lines animate once, at first mention; the first two paths are the
+// headline examples. Bacon is the implicit destination and is not listed.
+const INTRO_PATHS = [
+	[12, 3], // Margot Robbie → Ryan Gosling → Bacon
+	[14, 5], // Zendaya → Benedict Cumberbatch → Bacon
+	[7, 6], // Timothée Chalamet → Meryl Streep → Bacon
+	[11, 4], // Austin Butler → Tom Hanks → Bacon
+	[2, 1], // Cillian Murphy → Robert De Niro → Bacon
+	[9, 1], // Anya Taylor-Joy → Robert De Niro → Bacon
+	[8, 6], // Saoirse Ronan → Meryl Streep → Bacon
+	[10, 5], // Jessie Buckley → Benedict Cumberbatch → Bacon
+	[11, 13] // Austin Butler → Emma Stone → Bacon
+];
+// mirrors ScrollyVisual's TWEEN_MS so a node lands just as its line arrives
+const INTRO_LINE_MS = 700;
+const INTRO_POP_MS = 130; // beat between a node landing and the next line leaving it
+const INTRO_PATH_STEP_MS = 500; // stagger between path starts (paths overlap)
+// secondary lines (not on any authored path) draw this long after both ends appear
 const INTRO_EDGE_LAG_MS = 400;
 
 /** @type {LayoutFn} */
@@ -138,6 +162,35 @@ function layoutNetworkIntro(nodes, w, h, edges) {
 	const attrs = new Float64Array(ATTR_SIZE);
 	const delays = new Float64Array(DELAY_SIZE);
 	const introSet = new Set(INTRO_IDS);
+
+	// index edges by unordered endpoint pair so paths can look them up by name
+	const edgeByPair = new Map();
+	edges.forEach(({ source, target }, e) => {
+		edgeByPair.set(pairKey(source, target), e);
+	});
+
+	// Walk each path from its source actor inward to Bacon: the source pops, then
+	// each line grows toward the next node and that node lands as the line
+	// arrives (delay = line start + INTRO_LINE_MS). Paths start on a stagger and
+	// overlap, so the reveal stays brisk while each reads as one thread to Bacon.
+	// Everything animates once, at first mention; Bacon is already on screen.
+	const nodeDelay = new Map([[ANCHOR_ID, 0]]);
+	const edgeDelay = new Map();
+	INTRO_PATHS.forEach((path, k) => {
+		const walk = [...path, ANCHOR_ID];
+		let clock = k * INTRO_PATH_STEP_MS;
+		if (!nodeDelay.has(walk[0])) nodeDelay.set(walk[0], clock);
+		clock += INTRO_POP_MS;
+		for (let i = 1; i < walk.length; i++) {
+			const e = edgeByPair.get(pairKey(walk[i - 1], walk[i]));
+			if (e === undefined || edgeDelay.has(e)) continue;
+			edgeDelay.set(e, clock); // line leaves the (already-visible) outer node
+			clock += INTRO_LINE_MS;
+			if (!nodeDelay.has(walk[i])) nodeDelay.set(walk[i], clock); // lands on arrival
+			clock += INTRO_POP_MS;
+		}
+	});
+
 	for (const n of nodes) {
 		if (introSet.has(n.id)) {
 			const [x, y] = introPosition(n.id, w, h);
@@ -150,8 +203,7 @@ function layoutNetworkIntro(nodes, w, h, edges) {
 				HOP_RGB[n.hop],
 				1
 			);
-			// INTRO_IDS is reveal order and id order: hubs pop before outer actors
-			delays[n.id] = n.id * INTRO_NODE_STAGGER_MS;
+			delays[n.id] = nodeDelay.get(n.id) ?? 0;
 		} else {
 			const [x, y] = networkPosition(n, w, h);
 			set(attrs, n.id, x, y, NETWORK_RADIUS[n.hop], HOP_RGB[n.hop], 0);
@@ -159,8 +211,11 @@ function layoutNetworkIntro(nodes, w, h, edges) {
 	}
 	edges.forEach(({ source, target }, e) => {
 		setEdge(attrs, e, 1, INTRO_EDGE_ALPHA);
+		// secondary links (not on any path) fill in once both ends are up
 		delays[NODE_COUNT + e] =
-			Math.max(delays[source], delays[target]) + INTRO_EDGE_LAG_MS;
+			edgeDelay.get(e) ??
+			Math.max(nodeDelay.get(source) ?? 0, nodeDelay.get(target) ?? 0) +
+				INTRO_EDGE_LAG_MS;
 	});
 	return { attrs, delays };
 }
