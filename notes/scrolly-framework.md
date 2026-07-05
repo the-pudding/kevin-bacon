@@ -1,18 +1,21 @@
 # Scrolly visual framework (object-constancy PoC)
 
-Status as of 2026-07-04: working PoC, committed. This documents the framework in
-`src/components/scrolly/` so a fresh session (or collaborator) can pick it up.
+Status as of 2026-07-05: all storyboard visuals implemented end-to-end on real
+data (28 steps, 21 states across Present/Past/Future) and awaiting Owen's
+review pass. This documents the framework in `src/components/scrolly/` so a
+fresh session (or collaborator) can pick it up.
 
 ## What it is
 
 A scroll-driven visual for the sticky `.scrolly-visual` container in
-`src/components/Index.svelte`. ~1,000 dots ("actors") with **stable identities**
+`src/components/Index.svelte`. ~2,300 dots ("actors") with **stable identities**
 live on one canvas for the whole story; as the reader scrolls between steps, the
 dots tween seamlessly between per-step layout **states** (object constancy — dots
-travel, they don't fade out/in wholesale). As of 2026-07-05 the framework runs on
-**real data** (see "Data" below) and the first three story steps (`lone` →
-`networkIntro` → `network`) are implemented; later states are still placeholders
-for the visuals in `notes/storyboard.md`.
+travel, they don't fade out/in wholesale). A second tweener does the same for
+**trails** (polylines: race-chart lines, career curves, the prediction
+diagonal), so lines morph/unspool rather than popping. Interactive steps
+(rank guess, pair quiz, prediction toggles, win-bar picker) re-run the current
+layout via params — see "Interactivity" below.
 
 ## Files
 
@@ -75,15 +78,47 @@ second canvas writer would corrupt tween starts.
 **Step → state.** Declared per step in `Index.svelte` markup: each
 `<Step state="…">` registers itself (in document order) with the
 `"scrolly-steps"` context, which builds the `stepConfigs` array —
-`{ state: string, params?: Object }` per step. `Index.svelte` passes
-`stepConfigs[value ?? 0]?.state` to `ScrollyVisual`; the prop is `undefined`
-for a beat on first client render (the visual mounts before the steps
-register), so ScrollyVisual guards on it. `params` is reserved for per-step
-layout variation (e.g. which actor a rankLine step highlights) — registered
-now, not yet consumed. Current mapping: 0 lone · 1 networkIntro · 2 network ·
-3–4 hopBands · 5–9 rankLine · 10+ scatter. Steps needing _different visuals_
-get _distinct state keys_ (networkIntro vs network); `params` is reserved for
-variation within one layout.
+`{ state: string, params?: Object }` per step. `Index.svelte` passes the
+active step's `state` and `params` to `ScrollyVisual`; the props are
+`undefined` for a beat on first client render (the visual mounts before the
+steps register), so ScrollyVisual guards on them. Steps needing _different
+visuals_ get _distinct state keys_ (networkIntro vs network); `params` is for
+variation within one layout. `<Step dwell>` doubles the step height and pins
+the card (free-exploration steps).
+
+Current states, in story order: `lone` · `networkIntro` · `network` (zoom-out
+dwell) · `hopBands`/`hopCalc` (degree rows, then the ×-hops calc) ·
+`rankFocus` (fisheye ladder + guess) · `rankReveal` (SLJ) · `raceRecent`/
+`raceTrades`/`raceFull` (avg-distance-by-year race, three zooms) ·
+`scatterCenters`/`scatterWalters`/`scatterQuiz` (films-vs-distance scatter
+family) · `concurrenceScatter` · `degScatter` · `predictionScatter`
+(toggleable predictors) · `scatterGenZ` · `careerTrio`/`careerMany`
+(films-by-career-age trails) · `winBars` (dot-waffle sim wins; each dot ≈ 25
+of 10k runs) · `sljFan` (SLJ trajectory vs projected winners).
+
+**Trails.** `states.js` exports `TRAIL_META` (fixed slots: 15 race anchors,
+the career trio, 40 cohort career lines, 1 prediction diagonal) and a second
+tweener in ScrollyVisual morphs `TRAIL_POINTS`-vertex polylines between
+states with the same interruption-safe semantics as dots. A layout returns
+`trails` (vertices + per-trail alpha) or omits it — omission fades the last
+trails out in place; `collapseTrail` parks a trail's vertices on its owner
+dot so lines unspool out of dots and retract back into them.
+
+**Chart furniture.** A layout can also return `axes` (`x`/`y` tick arrays +
+`xBase`) and `notes` (positioned callouts, `nowrap` by default) — rendered as
+HTML in the overlay and crossfaded per state. `OVERLAYS[state].caption`
+renders top-centre in small caps.
+
+**Interactivity.** `story.svelte.js` holds shared `$state` (rankGuess,
+quizPicks, prediction toggles, winFocus) written by the step-card components
+(`GuessRank`, `PairQuiz`, `PredictToggles`, `BarPicker`). `STATE_PARAMS`
+selectors pluck the fields a state consumes and merge them with the step's
+static params; a change re-runs the _current_ layout with a short
+choreography-free tween (`PARAM_TWEEN_MS`). Every interaction is skippable —
+the following step reveals its answer unconditionally. `STATE_LABELS` values
+may be functions of the current params (dynamic labels, e.g. answered quiz
+pairs); their possible ids are declared in `STATE_TRACKED` for per-frame
+tracking.
 
 ## How to add a state
 
@@ -99,27 +134,46 @@ salt integer (used so far: 1–5 in layouts, 9 in tween.js).
 
 ## Data
 
-`src/data/scrolly-nodes.json` is generated by `npm run scrolly-data`
-(`tasks/build-scrolly-nodes.js`) — deterministic (no RNG; byte-identical re-runs),
-asserts its own correctness (Kevin Bacon rank 175, derived ranks reproduce
-`closeness-ranking-top200.json`, intro hops cross-checked against the hop tree).
-Sources, all in the `references/pudding-post` submodule:
+`src/data/scrolly-nodes.json` + `src/data/scrolly-story.json` are generated by
+`npm run scrolly-data` (`tasks/build-scrolly-nodes.js`) — deterministic (no
+RNG; byte-identical re-runs; both files are in `.prettierignore` to stay
+byte-stable), asserting its own correctness (KB rank 175, SLJ/Dafoe/De Niro
+podium, derived ranks reproduce `closeness-ranking-top200.json`, bucket totals
+reproduce KB's 2.2823, quiz answers re-derived, career trio hits 16 films at
+age 15, CGM tops the 10k-run sim with the lowest current avg distance).
 
-- `design/data/intro-bacon-network.json` — the curated 15-actor intro graph
-  (ids 0–14, baked planar layout, 18 edges, node order = reveal order).
-- `design/data/hop-tree-shared.json` — 10,136 real actors with hop distance from
-  Kevin Bacon; sampled stratified by hop (all of hops 1 and 4, top-degree slices
-  of hops 2 and 3) to ~1k.
-- `data/actor-metrics.sqlite` — films/avgDistance for every sampled actor; rank
-  is the ordinal position over all 162k corpus actors (ties by person_id). This
-  file is **gitignored in the submodule** — the generated JSON is committed, and
-  the script only re-runs on machines that have the submodule's data locally.
+Node rows: ids 0–14 curated intro graph, then the hop-stratified network crowd
+(ids < `NETWORK_COUNT` = 1,008 — stable vs. earlier builds), then appended
+actors the later chapters plot (prediction cohort, quiz pairs, Gen-Z
+candidates, race anchors, Julie Walters…), 2,347 total. Each row joins sqlite
+films/avgDistance/rank with concurrence, top-50 costar log-degree and the four
+predicted-distance variants (null when a metric doesn't exist for that actor;
+layouts hide non-participants at their distance-scatter park spot). `hop` is
+-1 when unknown — those nodes are hidden in hop-coloured states.
+
+`scrolly-story.json` carries the non-dot data: `bacon` bucket totals, `corr`
+(prediction correlations), `quiz` pairs, race `eras` + `raceSeries`
+(time-machine anchors), `careers` (trio + 40-line cohort), `genz` (10k-run
+k-NN bootstrap winners) and `slj` (his avg-distance trajectory by career age).
+
+Submodule sources: `design/data/` (intro network, hop tree, top-200,
+prediction/concurrence/top50 scatters, quiz, actor-trajectories,
+actor-trajectory-anchors) and `data/` (actor-metrics.sqlite — **gitignored in
+the submodule**, so the generated JSON is committed and the script only
+re-runs on machines with the data — plus hop-tree-kevin-bacon-10000,
+time-machine, actor-year-rows, genz-mc-knn-bootstrap).
 
 Ranks are corpus-global (up to ~162k), so ranked layouts must plot by _sampled
-rank order_ (see `layoutRankLine`), never by raw rank vs `nodes.length`.
-`hopBands` note: sample proportions per hop (96/538/240/133) are not the true
-corpus `bucket_totals` (1,581/113,396/47,119/133) — if a step's copy cites true
-proportions, scale bands by `bucket_totals`, not sample counts.
+rank order_ (see `layoutRank`), never by raw rank vs `nodes.length`. Hop-band
+_notes_ cite the true corpus `bucket_totals` (1,581/113,396/47,119/133) while
+band thickness follows the on-screen sample.
+
+Known copy/data gaps (flagged 2026-07-05, for editorial): the storyboard's
+"average winning score 2.24" isn't reproducible from the persisted sim outputs
+(per-run winner scores weren't saved) — the closest sourced statistic is 2.33
+(win-weighted mean of winners' projected medians), which the step copy now
+cites; De Niro's career totals 87 films in the design data (storyboard said 72) and Chevy Chase 27 (storyboard 26); prediction correlation from films
+alone is 86, not the storyboard's 82.
 
 ## Rendering / mobile notes
 
@@ -131,7 +185,7 @@ proportions, scale bands by `bucket_totals`, not sample counts.
 - Perf headroom: 1k nodes is trivial; if node count approaches 10k, bucket dots
   by color instead of an `rgba()` string per dot in `draw()`.
 
-## Required: interaction / drop-off points (agreed 2026-07-05, not built)
+## Required: interaction / drop-off points (agreed 2026-07-05; patterns 1–3 now built — see "Interactivity")
 
 The story has moments where the reader stops scrolling and interacts (guessing
 the #1 actor on the rank ladder, exploring the race-chart timeline, the
