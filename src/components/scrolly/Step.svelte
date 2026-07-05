@@ -1,4 +1,5 @@
 <script>
+	// @ts-check
 	import { getContext } from "svelte";
 
 	/**
@@ -7,6 +8,7 @@
 	 * the parent can map the active step index back to a layout state.
 	 *
 	 * @see notes/scrolly-framework.md
+	 * @type {{ state: import("./states.js").LayoutState, params?: unknown, children: import("svelte").Snippet }}
 	 */
 	let { state: layoutState, params, children } = $props();
 

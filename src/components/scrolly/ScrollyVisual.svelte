@@ -1,4 +1,5 @@
 <script>
+	// @ts-check
 	import { makeNodes } from "./nodes.js";
 	import { createTweener } from "./tween.js";
 	import {
@@ -10,6 +11,7 @@
 	} from "./states.js";
 
 	// undefined until the <Step> registry has populated (first client render)
+	/** @type {{ state: import("./states.js").LayoutState }} */
 	let { state: stateName } = $props();
 
 	const TWEEN_MS = 700;

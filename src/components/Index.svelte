@@ -1,4 +1,5 @@
 <script>
+	// @ts-check
 	import { setContext } from "svelte";
 	import Scrolly from "$components/helpers/Scrolly.svelte";
 	import ScrollyVisual from "$components/scrolly/ScrollyVisual.svelte";
@@ -11,15 +12,18 @@
 	/**
 	 * Filled by each <Step> as it mounts, in document order — the single source
 	 * of truth mapping step index → visual state (+ future per-step params).
-	 * @type {{ state: string, params?: Object }[]}
+	 * @type {{ state: import("$components/scrolly/states.js").LayoutState, params?: Object }[]}
 	 */
 	const stepConfigs = $state([]);
-	setContext("scrolly-steps", {
+
+	/** @type {{ register: (state: import("$components/scrolly/states.js").LayoutState, params?: Object) => number, current: number|undefined }} */
+	const scrollySteps = {
 		register: (state, params) => stepConfigs.push({ state, params }) - 1,
 		get current() {
 			return value;
 		}
-	});
+	};
+	setContext("scrolly-steps", scrollySteps);
 </script>
 
 <svelte:boundary onerror={(e) => console.error(e)}>
@@ -43,8 +47,6 @@
 						</p>
 						<!--
               KB appears alone. Establish a subtle animation we'll use going forward to highlight someone as the center actor.
-							
-							Code reference: references/pudding-post/design/stories/components/network-graph.js
 						-->
 					</Step>
 					<Step state="network">
@@ -57,6 +59,8 @@
 						<!--
               New nodes appear far away from KB, and paths towards KB animate into view.
               Eventually, a graph of a couple of dozen nodes is visible.
+
+							Code reference: references/pudding-post/design/stories/components/network-graph.js
 						-->
 					</Step>
 					<Step state="network">
@@ -66,7 +70,7 @@
 							<b>never will</b>.
 						</p>
 						<!--
-              Graph fades into the background
+              Graph zooms out and the full 1k subset is visible.
 						-->
 					</Step>
 					<!-- TODO: chapters! At this point, full screen "present" -->

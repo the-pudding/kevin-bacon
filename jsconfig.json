@@ -1,4 +1,17 @@
 {
+	"compilerOptions": {
+		"baseUrl": ".",
+		"paths": {
+			"$actions/*": ["./src/actions/*"],
+			"$components/*": ["./src/components/*"],
+			"$data/*": ["./src/data/*"],
+			"$routes/*": ["./src/routes/*"],
+			"$runes/*": ["./src/runes/*"],
+			"$styles/*": ["./src/styles/*"],
+			"$svg/*": ["./src/svg/*"],
+			"$utils/*": ["./src/utils/*"]
+		}
+	},
 	"kit": {
 		"alias": {
 			"$actions/*": "./src/actions/*",

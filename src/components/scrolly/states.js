@@ -165,7 +165,6 @@ function layoutScatter(nodes, w, h) {
 	return { attrs };
 }
 
-/** @type {Record<string, LayoutFn>} */
 export const STATES = {
 	lone: layoutLone,
 	network: layoutNetwork,
@@ -173,6 +172,8 @@ export const STATES = {
 	rankLine: layoutRankLine,
 	scatter: layoutScatter
 };
+
+/** @typedef {keyof typeof STATES} LayoutState */
 
 export const OVERLAYS = {
 	lone: { caption: "Kevin Bacon" },
