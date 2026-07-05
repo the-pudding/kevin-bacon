@@ -155,6 +155,7 @@
 	.overlay p {
 		position: absolute;
 		margin: 0;
+		font-family: var(--font-mono);
 		font-size: 0.75rem;
 		color: var(--color-gray-600, #666);
 	}
