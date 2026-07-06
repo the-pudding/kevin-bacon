@@ -11,6 +11,7 @@
 		STATE_LABELS,
 		STATE_PULSE,
 		STATE_PARAMS,
+		STATE_REVEAL_FROM,
 		STATE_TRACKED,
 		TRAIL_SIZE,
 		TRAIL_STRIDE,
@@ -247,13 +248,19 @@
 		}
 		const stateChange = stateName !== prevState;
 		const paramChange = !stateChange && paramsKey !== prevParamsKey;
+		// a state's authored reveal only plays when arriving from the states
+		// it was choreographed for (STATE_REVEAL_FROM); any other direction
+		// (e.g. scrolling backwards) is one plain tween
+		const revealFrom = STATE_REVEAL_FROM[stateName];
+		const stateDelays =
+			!revealFrom || revealFrom.includes(prevState) ? delays : null;
 		prevState = stateName;
 		prevParamsKey = paramsKey;
 		if (resized || reducedMotion) {
 			tweener.to(attrs, 0);
 			trailTweener.to(trailTarget, 0);
 		} else if (stateChange) {
-			tweener.to(attrs, TWEEN_MS, TWEEN_JITTER, delays);
+			tweener.to(attrs, TWEEN_MS, TWEEN_JITTER, stateDelays);
 			trailTweener.to(trailTarget, TWEEN_MS, 0, layout.trailDelays);
 		} else if (paramChange) {
 			// interaction: retarget quickly, no choreography (delays would make

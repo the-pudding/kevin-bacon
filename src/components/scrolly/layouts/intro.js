@@ -230,6 +230,9 @@ export const states = {
 		layout: layoutNetworkIntro,
 		labels: INTRO_IDS,
 		pulse: ANCHOR_ID,
+		// the path-walk reveal is authored for the forward arrival from `lone`;
+		// scrolling back from `network` just tweens the actors into place
+		revealFrom: ["lone"],
 		overlay: { caption: "Bacon's costar network" }
 	},
 	// network: no labels — the zoom-out drops labels and edges (feedback 2026-07-05)

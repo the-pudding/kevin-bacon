@@ -93,6 +93,15 @@ export const STATE_PARAMS = pick("params");
 /** per-state "center actor" node id — gets the ripple pulse */
 export const STATE_PULSE = pick("pulse");
 
+/**
+ * Per-state list of prior states the layout's `delays` choreography is
+ * authored for. Arriving from any other state (e.g. scrolling backwards)
+ * skips the delays — one plain tween instead of replaying the reveal.
+ * States without an entry use their delays from every direction.
+ * @type {Partial<Record<LayoutState, LayoutState[]>>}
+ */
+export const STATE_REVEAL_FROM = pick("revealFrom");
+
 export const OVERLAYS = pick("overlay");
 
 /** every id a dynamic STATE_LABELS function could return (for frame tracking) */
