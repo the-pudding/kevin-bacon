@@ -30,10 +30,10 @@
 	const TWEEN_JITTER = 0.5;
 
 	const { nodes, edges } = makeNodes();
-	// edges draw inward toward the anchor: orient each from its higher-hop end so
-	// the line grows from the outer actor toward Bacon
+	// edges draw outward from the anchor: orient each from its lower-hop end so
+	// the line grows from Bacon toward the outer actor
 	const edgeEnds = edges.map(({ source, target }) =>
-		nodes[source].hop >= nodes[target].hop ? [source, target] : [target, source]
+		nodes[source].hop <= nodes[target].hop ? [source, target] : [target, source]
 	);
 	// every id any state labels or pulses — tracked out of the attr array each
 	// frame so the HTML annotations stay glued to their dots mid-tween.
@@ -132,6 +132,10 @@
 			ctx.stroke();
 		}
 		ctx.lineWidth = 1;
+		// the inner endpoint is drawn to its final spot (not its live position) so
+		// a line points to where the actor is going and the actor slides onto it,
+		// instead of the line's angle swinging as the actor tweens into place
+		const target = layoutFor(stateName, width, height, layoutParams).attrs;
 		for (let e = 0; e < edgeEnds.length; e++) {
 			const i = EDGE_BASE + e * STRIDE;
 			const progress = attrs[i];
@@ -140,8 +144,8 @@
 			const [from, to] = edgeEnds[e];
 			const xa = attrs[from * STRIDE];
 			const ya = attrs[from * STRIDE + 1];
-			const xb = attrs[to * STRIDE];
-			const yb = attrs[to * STRIDE + 1];
+			const xb = target[to * STRIDE];
+			const yb = target[to * STRIDE + 1];
 			ctx.strokeStyle = `rgba(120, 120, 120, ${alpha})`;
 			ctx.beginPath();
 			ctx.moveTo(xa, ya);

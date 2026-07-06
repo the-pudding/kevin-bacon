@@ -11,8 +11,8 @@ import story from "$data/scrolly-story.json";
 
 // x, y, radius, red, green, blue, alpha — one group per node, then one
 // (mostly empty) group per edge so the tweener staggers edges individually:
-// edge slot 0 = draw progress (0–1, drawn from the higher-hop endpoint inward
-// toward the anchor), edge slot 1 = alpha
+// edge slot 0 = draw progress (0–1, drawn from the anchor outward toward the
+// higher-hop endpoint), edge slot 1 = alpha
 export const STRIDE = 7;
 export const EDGE_BASE = NODE_COUNT * STRIDE;
 export const ATTR_SIZE = (NODE_COUNT + EDGE_COUNT) * STRIDE;
@@ -310,12 +310,14 @@ const INTRO_ANCHOR_RADIUS = 14;
 const INTRO_RADIUS = 7;
 const INTRO_EDGE_ALPHA = 0.5;
 
-// Reveal is authored as paths, each traced from a source actor inward to Bacon
-// (id 0, already on screen). Per segment: the line grows from the outer node
-// toward the next one, and that next node pops as the line reaches it — so the
-// step reads as building routes to Bacon rather than a graph dump. Shared
-// nodes/lines animate once, at first mention; the first two paths are the
-// headline examples. Bacon is the implicit destination and is not listed.
+// Reveal is authored as paths (still keyed source→…→Bacon), but each is walked
+// outward from Bacon (id 0, already on screen) to its source actor, so the graph
+// grows out of Bacon. Per segment: the line grows from the inner node toward the
+// next one, and that next node pops as the line reaches it — so the step reads as
+// routes sprouting from Bacon rather than a graph dump. The first two paths
+// (Bacon→Ryan→Margot, Bacon→Cumberbatch→Zendaya) play strictly one at a time as a
+// deliberate walk; the rest fill in freely afterwards. Shared nodes/lines animate
+// once, at first mention. Bacon is the shared origin.
 const INTRO_PATHS = [
 	[12, 3], // Margot Robbie → Ryan Gosling → Bacon
 	[14, 5], // Zendaya → Benedict Cumberbatch → Bacon
@@ -329,8 +331,11 @@ const INTRO_PATHS = [
 ];
 // mirrors ScrollyVisual's TWEEN_MS so a node lands just as its line arrives
 const INTRO_LINE_MS = 700;
-const INTRO_POP_MS = 130; // beat between a node landing and the next line leaving it
-const INTRO_PATH_STEP_MS = 500; // stagger between path starts (paths overlap)
+const INTRO_START_DWELL_MS = 350; // beat after a new source appears before its line draws
+const INTRO_POP_MS = 0; // no beat between segments so the walk reads continuous
+const INTRO_PATH_GAP_MS = 400; // pause after a sequential route reaches Bacon
+const INTRO_SEQ_COUNT = 2; // first N routes play strictly one at a time; rest fill freely
+const INTRO_PATH_STEP_MS = 500; // stagger between the free-for-all routes
 // secondary lines (not on any authored path) draw this long after both ends appear
 const INTRO_EDGE_LAG_MS = 400;
 
@@ -342,8 +347,8 @@ function layoutLone(nodes, w, h) {
 		if (n.id === ANCHOR_ID) {
 			set(attrs, n.id, w / 2, h / 2, 18, HOP_RGB[0], 1);
 		} else if (introSet.has(n.id)) {
-			// parked far out along their eventual inbound path (alpha 0)
-			const [x, y] = introPosition(n.id, w, h, 1.6);
+			// parked at their eventual networkIntro spot (alpha 0) so they fade in place
+			const [x, y] = introPosition(n.id, w, h);
 			set(attrs, n.id, x, y, INTRO_RADIUS, HOP_RGB[n.hop], 0);
 		} else {
 			parkHidden(attrs, n, w, h);
@@ -364,25 +369,43 @@ function layoutNetworkIntro(nodes, w, h, edges) {
 		edgeByPair.set(pairKey(source, target), e);
 	});
 
-	// Walk each path from its source actor inward to Bacon: the source pops, then
-	// each line grows toward the next node and that node lands as the line
-	// arrives (delay = line start + INTRO_LINE_MS). Paths start on a stagger and
-	// overlap, so the reveal stays brisk while each reads as one thread to Bacon.
-	// Everything animates once, at first mention; Bacon is already on screen.
+	// Walk each path from its source actor inward to Bacon: the source appears and
+	// dwells, then each line grows toward the next node while that node pops in step
+	// with it, so both finish together as the line arrives. The first INTRO_SEQ_COUNT
+	// paths run on one running clock — strictly one at a time — so the opening reads
+	// as a single continuous walk to Bacon; the rest start after those complete and
+	// overlap on a stagger. Everything animates once, at first mention; Bacon is
+	// already on screen.
 	const nodeDelay = new Map([[ANCHOR_ID, 0]]);
 	const edgeDelay = new Map();
+	// Bacon is already on screen, so seed the sequential clock with an opening
+	// beat before the first line leaves him (mirrors the source-dwell the old
+	// inward walk got for free from its first, appearing, source node)
+	let seqClock = INTRO_START_DWELL_MS; // running clock through the sequential routes
+	let freeStart = seqClock; // when the free-for-all routes begin
 	INTRO_PATHS.forEach((path, k) => {
-		const walk = [...path, ANCHOR_ID];
-		let clock = k * INTRO_PATH_STEP_MS;
-		if (!nodeDelay.has(walk[0])) nodeDelay.set(walk[0], clock);
-		clock += INTRO_POP_MS;
+		const walk = [ANCHOR_ID, ...[...path].reverse()];
+		const sequential = k < INTRO_SEQ_COUNT;
+		let clock = sequential
+			? seqClock
+			: freeStart + (k - INTRO_SEQ_COUNT) * INTRO_PATH_STEP_MS;
+		const src = walk[0];
+		if (!nodeDelay.has(src)) {
+			nodeDelay.set(src, clock); // source appears, then dwells before its line leaves
+			clock += INTRO_START_DWELL_MS;
+		}
 		for (let i = 1; i < walk.length; i++) {
 			const e = edgeByPair.get(pairKey(walk[i - 1], walk[i]));
 			if (e === undefined || edgeDelay.has(e)) continue;
 			edgeDelay.set(e, clock); // line leaves the (already-visible) outer node
-			clock += INTRO_LINE_MS;
-			if (!nodeDelay.has(walk[i])) nodeDelay.set(walk[i], clock); // lands on arrival
-			clock += INTRO_POP_MS;
+			// node pops in step with the line so both finish together as it arrives
+			if (!nodeDelay.has(walk[i])) nodeDelay.set(walk[i], clock);
+			clock += INTRO_LINE_MS + INTRO_POP_MS;
+		}
+		if (sequential) {
+			clock += INTRO_PATH_GAP_MS;
+			seqClock = clock;
+			freeStart = clock; // free-for-all begins after the last sequential route
 		}
 	});
 
