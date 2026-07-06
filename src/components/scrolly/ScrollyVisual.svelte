@@ -4,6 +4,7 @@
 	import { createTweener } from "./tween.js";
 	import {
 		ATTR_SIZE,
+		DELAY_SIZE,
 		STRIDE,
 		EDGE_BASE,
 		STATES,
@@ -31,6 +32,12 @@
 	const TWEEN_JITTER = 0.5;
 
 	const { nodes, edges } = makeNodes();
+	// delays for a skipped reveal (see STATE_REVEAL_FROM below): dots retarget
+	// in unison, but edges hold back until the dots have mostly landed — edges
+	// draw toward their endpoints' *final* spots, so fading them in earlier
+	// strings lines between mid-flight dots and far-away destinations
+	const SKIP_REVEAL_DELAYS = new Float64Array(DELAY_SIZE);
+	SKIP_REVEAL_DELAYS.fill(TWEEN_MS * 0.75, nodes.length);
 	// edges draw outward from the anchor: orient each from its lower-hop end so
 	// the line grows from Bacon toward the outer actor
 	const edgeEnds = edges.map(({ source, target }) =>
@@ -253,7 +260,9 @@
 		// (e.g. scrolling backwards) is one plain tween
 		const revealFrom = STATE_REVEAL_FROM[stateName];
 		const stateDelays =
-			!revealFrom || revealFrom.includes(prevState) ? delays : null;
+			!revealFrom || revealFrom.includes(prevState)
+				? delays
+				: SKIP_REVEAL_DELAYS;
 		prevState = stateName;
 		prevParamsKey = paramsKey;
 		if (resized || reducedMotion) {
