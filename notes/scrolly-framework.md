@@ -23,14 +23,16 @@ layout via params — see "Interactivity" below.
 | --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `src/components/scrolly/nodes.js`             | Real data: `makeNodes()` → `{ nodes, edges }` decoded from `src/data/scrolly-nodes.json` (built by `npm run scrolly-data`). 1,008 `ActorNode`s (`id, pid, name, hop, films, avgDistance, rank`); node 0 is the anchor (Kevin Bacon), ids 0–14 are the curated intro network in reveal order (`INTRO_IDS`), edges are the 18 intro edges. Also exports `ANCHOR_ID`, `INTRO_LAYOUT` (baked 860×680 planar intro coords) and `hash01(id, salt)` — deterministic per-node randomness used everywhere (never `Math.random`, which would flicker between renders). |
 | `src/components/scrolly/tween.js`             | `createTweener(size, draw, stride)` → `{ current, to, stop }`. One rAF loop lerping a flat `Float64Array` from the _currently rendered_ values to a target. `to(next, ms, jitter, nodeDelays?)`. Vanilla (hand-rolled `easeCubicInOut`), no d3.                                                                                                                                                                                                                                                                                                              |
-| `src/components/scrolly/states.js`            | One pure layout function per state + `OVERLAYS` captions. All geometry/color constants live here.                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| `src/components/scrolly/layout-shared.js`     | Geometry/color constants, attr/trail helpers (`set`, `setEdge`, `setTrail`, `collapseTrail`, `clipSeries`), named-actor id lookups (`SLJ`, `HANKS`, …), and the `LayoutFn`/`LayoutResult`/`Note`/`Tick` JSDoc typedefs — everything shared across more than one chapter.                                                                                                                                                                                                                                                                                     |
+| `src/components/scrolly/layouts/*.js`         | One module per story chapter (`intro`, `hop-bands`, `rank`, `race`, `scatters`, `prediction`, `career`, `win-bars`, `slj-fan`). Each exports a `states` object mapping state key → `{ layout, labels?, params?, pulse?, overlay? }` — everything about one state colocated in one object, instead of spread across parallel top-level maps.                                                                                                                                                                                                                  |
+| `src/components/scrolly/states.js`            | Thin aggregator: merges every chapter's `states` object into one registry and derives the public `STATES`/`STATE_LABELS`/`STATE_PARAMS`/`STATE_PULSE`/`OVERLAYS` exports from it, plus `STATE_TRACKED`, `INTERACTIVE_IDS`, and the `nodeName`/`nodeRank`/`nodeAvgDistance` lookups. This is still the only module other files import from.                                                                                                                                                                                                                   |
 | `src/components/scrolly/Step.svelte`          | One scrolly step: prose in the slot, visual state declared on the tag (`<Step state="network">…</Step>`). Registers `{ state, params }` in document order with the `"scrolly-steps"` context provided by `Index.svelte`, and derives its own active styling — no hand-numbered step indices anywhere.                                                                                                                                                                                                                                                        |
 | `src/components/scrolly/ScrollyVisual.svelte` | Canvas host wired into `Index.svelte` as `<ScrollyVisual state={…} />` (a state name, not a step number). Owns dpr scaling, resize, reduced-motion, the HTML overlay, and the `$effect` that reacts to state changes.                                                                                                                                                                                                                                                                                                                                        |
 
 JSDoc typedefs (`ActorNode`, `Edge`, `LayoutResult`, `LayoutFn`, `Tweener`) are in
-`nodes.js` / `states.js` / `tween.js` — VS Code type-checks them without any build
-config. If the framework graduates to production, converting the folder to `.ts`
-is mechanical.
+`nodes.js` / `layout-shared.js` / `tween.js` — VS Code type-checks them without any
+build config. If the framework graduates to production, converting the folder to
+`.ts` is mechanical.
 
 ## Core contracts
 
@@ -122,12 +124,14 @@ tracking.
 
 ## How to add a state
 
-1. Write `layoutFoo(nodes, w, h)` in states.js: fill a `Float64Array(ATTR_SIZE)`
-   via the `set()` helper, return `{ attrs }` (plus `delays` if choreographed).
-2. Register it in `STATES`, then use it from `Index.svelte`:
-   `<Step state="foo"><p>…</p></Step>`.
-3. Optionally add an `OVERLAYS.foo` entry (`caption`, `xLabel`, `yLabel`) — the
-   overlay is plain HTML absolutely positioned over the canvas and fades per state.
+1. Pick the chapter module it belongs to under `layouts/` (or add a new one for
+   a new chapter). Write `layoutFoo(nodes, w, h)`: fill a `Float64Array(ATTR_SIZE)`
+   via the `set()` helper from `layout-shared.js`, return `{ attrs }` (plus
+   `delays` if choreographed).
+2. Add one entry to that module's exported `states` object:
+   `foo: { layout: layoutFoo, labels?, params?, pulse?, overlay? }` — everything
+   about the state lives in this one object (no need to touch `states.js`).
+3. Use it from `Index.svelte`: `<Step state="foo"><p>…</p></Step>`.
 
 Use `hash01(n.id, <new salt>)` for any per-node scatter/jitter — pick an unused
 salt integer (used so far: 1–5 in layouts, 9 in tween.js).
