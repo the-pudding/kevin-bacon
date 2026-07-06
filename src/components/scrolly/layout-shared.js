@@ -1,11 +1,17 @@
-import { NODE_COUNT, EDGE_COUNT, hash01 } from "./nodes.js";
+import {
+	NODE_COUNT,
+	EDGE_COUNT,
+	ANCHOR_ID,
+	INTRO_LAYOUT,
+	NETWORK_LAYOUT
+} from "./nodes.js";
 import rawNodes from "$data/scrolly-nodes.json";
 import story from "$data/scrolly-story.json";
 
 // x, y, radius, red, green, blue, alpha — one group per node, then one
 // (mostly empty) group per edge so the tweener staggers edges individually:
-// edge slot 0 = draw progress (0–1, drawn from the higher-hop endpoint inward
-// toward the anchor), edge slot 1 = alpha
+// edge slot 0 = draw progress (0–1, drawn from the anchor outward toward the
+// higher-hop endpoint), edge slot 1 = alpha
 export const STRIDE = 7;
 export const EDGE_BASE = NODE_COUNT * STRIDE;
 export const ATTR_SIZE = (NODE_COUNT + EDGE_COUNT) * STRIDE;
@@ -244,17 +250,56 @@ export const NETWORK_ALPHA = [1, 0.9, 0.45, 0.2, 0.12];
 export const NETWORK_RADIUS = [16, 6, 3.5, 2.5, 2];
 export const NETWORK_HOP_DELAY_MS = 250;
 
+// anisotropy cap when fitting the landscape intro layout to portrait screens —
+// planarity survives axis scaling, and without it 320px viewports squash the
+// graph to ~200px tall with the name labels colliding
+export const INTRO_MAX_STRETCH = 1.6;
+
 /**
- * Radial full-graph position — shared so other states can pre-park the crowd.
- * `spread` > 1 inflates the radius: earlier states park the (invisible) crowd
- * spread out, so arriving at `network` contracts everything inward — the
- * whole graph reads as the camera zooming out to reveal the full dataset.
+ * Screen position of the anchor node (Bacon) once the baked 860×680 intro
+ * layout is fit into the top ~72% of the canvas — the single "center of the
+ * network" every hop-based layout (lone/networkIntro/network) anchors on, so
+ * Bacon doesn't jump between those states.
+ */
+export function graphCenter(w, h) {
+	const availW = w - MARGIN * 2;
+	const availH = h * 0.72 - MARGIN;
+	const sxRaw = availW / INTRO_LAYOUT.w;
+	const syRaw = availH / INTRO_LAYOUT.h;
+	const sx = Math.min(sxRaw, syRaw * INTRO_MAX_STRETCH);
+	const sy = Math.min(syRaw, sxRaw * INTRO_MAX_STRETCH);
+	const ox = (w - INTRO_LAYOUT.w * sx) / 2;
+	const oy = MARGIN + (availH - INTRO_LAYOUT.h * sy) / 2;
+	const [ax, ay] = INTRO_LAYOUT.xy[ANCHOR_ID];
+	return [ox + ax * sx, oy + ay * sy];
+}
+
+// the baked full-network layout's furthest node from Bacon, in layout units —
+// the fit below maps this onto the canvas' inscribed radius
+const NETWORK_MAX_DIST = (() => {
+	const [ax, ay] = NETWORK_LAYOUT.xy[ANCHOR_ID];
+	let max = 0;
+	for (const p of NETWORK_LAYOUT.xy) {
+		if (p) max = Math.max(max, Math.hypot(p[0] - ax, p[1] - ay));
+	}
+	return max;
+})();
+
+/**
+ * Full-graph position from the baked force-directed layout (NETWORK_LAYOUT),
+ * fit so Bacon stays on graphCenter — shared so other states can pre-park the
+ * crowd. The intro actors are pinned inside the bake, so their network spots
+ * are their intro geometry at the smaller full-graph scale: arriving from
+ * `networkIntro` contracts the cluster in place, reading as a zoom-out.
+ * `spread` > 1 inflates radially from Bacon: earlier states park the
+ * (invisible) crowd spread out, so it too contracts inward on arrival.
  */
 export function networkPosition(n, w, h, spread = 1) {
-	const maxR = Math.min(w, h) / 2 - MARGIN;
-	const angle = hash01(n.id, 1) * Math.PI * 2;
-	const radius = maxR * (n.hop / 4) * (0.78 + 0.22 * hash01(n.id, 2)) * spread;
-	return [w / 2 + Math.cos(angle) * radius, h / 2 + Math.sin(angle) * radius];
+	const [cx, cy] = graphCenter(w, h);
+	const s = (Math.min(w, h) / 2 - MARGIN) / NETWORK_MAX_DIST;
+	const [ax, ay] = NETWORK_LAYOUT.xy[ANCHOR_ID];
+	const [x, y] = NETWORK_LAYOUT.xy[n.id];
+	return [cx + (x - ax) * s * spread, cy + (y - ay) * s * spread];
 }
 
 // how far beyond their resting radius the crowd parks before fading in

@@ -8,6 +8,12 @@ export const INTRO_IDS = data.introIds;
 /** baked planar layout of the intro network — `xy` aligned with INTRO_IDS */
 export const INTRO_LAYOUT = data.introLayout;
 /**
+ * baked force-directed layout of every hop-mapped node (`xy[id]` null for
+ * hop -1), same coordinate units as INTRO_LAYOUT with the intro actors pinned
+ * at their intro positions — the `network` state is the intro graph grown out
+ */
+export const NETWORK_LAYOUT = data.networkLayout;
+/**
  * ids < NETWORK_COUNT are the hop-stratified network-chapter sample; ids from
  * NETWORK_COUNT up are appended actors the later chapters plot (prediction
  * cohort, quiz pairs, Gen-Z candidates, race anchors…).

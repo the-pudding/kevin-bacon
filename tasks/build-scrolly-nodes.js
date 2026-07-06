@@ -11,6 +11,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { DatabaseSync } from "node:sqlite";
+import * as d3 from "d3";
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 const sub = path.join(root, "references/pudding-post");
@@ -225,6 +226,126 @@ assert(
 );
 
 // ---------------------------------------------------------------------------
+// networkLayout: force-directed layout of every hop-mapped node, in the intro
+// layout's coordinate space with the 15 intro actors pinned at their baked
+// intro positions — so the `network` state reads as the intro graph growing/
+// zooming out rather than nodes teleporting to fresh spots. Deterministic:
+// d3-force's internal LCG, seeded positions, fixed tick count, no RNG.
+// ---------------------------------------------------------------------------
+
+const introXY = intro.nodes.map((n) => [n.x, n.y]);
+const [anchorX, anchorY] = introXY[0];
+// hop-ring radii calibrated to the intro layout (hop 1 ≈ 180, hop 2 ≈ 330
+// units from Bacon), extrapolated outward so the crowd extends the same scale
+const HOP_RING = [0, 180, 330, 480, 630];
+// stable pseudo-random matching src/components/scrolly/nodes.js hash01
+const hash01 = (id, salt) => {
+	const x = Math.sin(id * 127.1 + salt * 311.7) * 43758.5453;
+	return x - Math.floor(x);
+};
+
+const treeIndexByPid = new Map(kbTree.nodes.map((n, i) => [n.person_id, i]));
+const simNodes = sample.flatMap((n, id) =>
+	n.hop >= 0 ? [{ id, hop: n.hop, pid: n.pid }] : []
+);
+const simById = new Map(simNodes.map((n) => [n.id, n]));
+for (const n of simNodes) {
+	if (n.id < intro.nodes.length) {
+		[n.fx, n.fy] = introXY[n.id];
+	} else {
+		const angle = hash01(n.id, 1) * Math.PI * 2;
+		const radius = HOP_RING[n.hop] * (0.7 + 0.6 * hash01(n.id, 2));
+		n.x = anchorX + Math.cos(angle) * radius;
+		n.y = anchorY + Math.sin(angle) * radius;
+	}
+}
+
+// links: each node's nearest sampled ancestor along the KB spanning tree
+let unlinked = 0;
+const simLinks = [];
+for (const n of simNodes) {
+	if (n.id === 0) continue;
+	let ti = treeIndexByPid.get(n.pid);
+	let ancestor = null;
+	while (ti != null && kbTree.nodes[ti].parent != null) {
+		ti = kbTree.nodes[ti].parent;
+		const aid = idByPid.get(kbTree.nodes[ti].person_id);
+		if (aid !== undefined && simById.has(aid)) {
+			ancestor = aid;
+			break;
+		}
+	}
+	if (ancestor == null && ti != null) ancestor = 0; // tree root = Bacon
+	if (ancestor == null) {
+		// most of the sample comes from the shared hop tree, which has no parent
+		// links — those nodes are placed by the radial + charge forces alone
+		unlinked++;
+		continue;
+	}
+	simLinks.push({ source: n.id, target: ancestor });
+}
+assert(
+	unlinked < simNodes.length / 2,
+	`${unlinked} of ${simNodes.length} network nodes missing from the KB tree`
+);
+
+const sim = d3
+	.forceSimulation(simNodes)
+	.force(
+		"link",
+		d3
+			.forceLink(simLinks)
+			.id((n) => n.id)
+			.distance(
+				({ source, target }) =>
+					Math.max(40, Math.abs(HOP_RING[source.hop] - HOP_RING[target.hop])) *
+					(0.6 + 0.8 * hash01(source.id, 3))
+			)
+			.strength(0.25)
+	)
+	.force("charge", d3.forceManyBody().strength(-30))
+	// per-node jittered target radius: keeps the hop strata loosely ordered
+	// without collapsing each hop onto a clean ring (which reads as artifice)
+	.force(
+		"radial",
+		d3
+			.forceRadial(
+				(n) => HOP_RING[n.hop] * (0.7 + 0.6 * hash01(n.id, 4)),
+				anchorX,
+				anchorY
+			)
+			.strength(0.12)
+	)
+	.force("collide", d3.forceCollide(4.5).iterations(2))
+	.stop();
+for (let i = 0; i < 400; i++) sim.tick();
+
+const round1 = (v) => Math.round(v * 10) / 10;
+let minX = Infinity;
+let minY = Infinity;
+let maxX = -Infinity;
+let maxY = -Infinity;
+for (const n of simNodes) {
+	minX = Math.min(minX, n.x);
+	minY = Math.min(minY, n.y);
+	maxX = Math.max(maxX, n.x);
+	maxY = Math.max(maxY, n.y);
+}
+const networkXY = sample.map((_, id) => {
+	const s = simById.get(id);
+	return s ? [round1(s.x - minX), round1(s.y - minY)] : null;
+});
+assert(
+	sample.every((n, id) => n.hop >= 0 === (networkXY[id] !== null)),
+	"networkLayout coverage !== hop-mapped nodes"
+);
+const networkLayout = {
+	w: round1(maxX - minX),
+	h: round1(maxY - minY),
+	xy: networkXY
+};
+
+// ---------------------------------------------------------------------------
 // Story blob.
 // ---------------------------------------------------------------------------
 
@@ -393,8 +514,11 @@ const nodesOut = {
 	introLayout: {
 		w: 860,
 		h: 680,
-		xy: intro.nodes.map((n) => [n.x, n.y])
+		xy: introXY
 	},
+	// force-directed layout of every hop-mapped node (null for hop -1), same
+	// coordinate units as introLayout with the intro actors pinned in place
+	networkLayout,
 	networkCount,
 	nodes,
 	edges

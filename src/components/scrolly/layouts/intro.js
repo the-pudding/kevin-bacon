@@ -15,15 +15,12 @@ import {
 	pairKey,
 	parkHidden,
 	networkPosition,
+	graphCenter,
+	INTRO_MAX_STRETCH,
 	NETWORK_RADIUS,
 	NETWORK_ALPHA,
 	NETWORK_HOP_DELAY_MS
 } from "../layout-shared.js";
-
-// anisotropy cap when fitting the landscape intro layout to portrait screens —
-// planarity survives axis scaling, and without it 320px viewports squash the
-// graph to ~200px tall with the name labels colliding
-const INTRO_MAX_STRETCH = 1.6;
 
 /**
  * Fits the intro network's baked 860×680 planar layout into the top ~72% of
@@ -39,9 +36,10 @@ function introPosition(k, w, h, spread = 1) {
 	const syRaw = availH / INTRO_LAYOUT.h;
 	const sx = Math.min(sxRaw, syRaw * INTRO_MAX_STRETCH);
 	const sy = Math.min(syRaw, sxRaw * INTRO_MAX_STRETCH);
-	const ox = (w - INTRO_LAYOUT.w * sx) / 2;
-	const oy = MARGIN + (availH - INTRO_LAYOUT.h * sy) / 2;
+	const [cx, cy] = graphCenter(w, h);
 	const [ax, ay] = INTRO_LAYOUT.xy[ANCHOR_ID];
+	const ox = cx - ax * sx;
+	const oy = cy - ay * sy;
 	const [x, y] = INTRO_LAYOUT.xy[k];
 	return [
 		ox + (ax + (x - ax) * spread) * sx,
@@ -53,13 +51,14 @@ const INTRO_ANCHOR_RADIUS = 14;
 const INTRO_RADIUS = 7;
 const INTRO_EDGE_ALPHA = 0.5;
 
-// Reveal is authored as paths, each traced from a source actor inward to Bacon
-// (id 0, already on screen). Per segment: the line grows from the outer node
-// toward the next one, and that next node pops as the line reaches it — so the
-// step reads as building routes to Bacon rather than a graph dump. The first
-// two paths (Margot→Ryan→Bacon, Zendaya→Cumberbatch→Bacon) play strictly one at
-// a time as a deliberate walk; the rest fill in freely afterwards. Shared
-// nodes/lines animate once, at first mention. Bacon is the implicit destination.
+// Reveal is authored as paths (still keyed source→…→Bacon), but each is walked
+// outward from Bacon (id 0, already on screen) to its source actor, so the graph
+// grows out of Bacon. Per segment: the line grows from the inner node toward the
+// next one, and that next node pops as the line reaches it — so the step reads as
+// routes sprouting from Bacon rather than a graph dump. The first two paths
+// (Bacon→Ryan→Margot, Bacon→Cumberbatch→Zendaya) play strictly one at a time as a
+// deliberate walk; the rest fill in freely afterwards. Shared nodes/lines animate
+// once, at first mention. Bacon is the shared origin.
 const INTRO_PATHS = [
 	[12, 3], // Margot Robbie → Ryan Gosling → Bacon
 	[14, 5], // Zendaya → Benedict Cumberbatch → Bacon
@@ -87,7 +86,8 @@ function layoutLone(nodes, w, h) {
 	const introSet = new Set(INTRO_IDS);
 	for (const n of nodes) {
 		if (n.id === ANCHOR_ID) {
-			set(attrs, n.id, w / 2, h / 2, 18, HOP_RGB[0], 1);
+			const [cx, cy] = graphCenter(w, h);
+			set(attrs, n.id, cx, cy, 18, HOP_RGB[0], 1);
 		} else if (introSet.has(n.id)) {
 			// parked at their eventual networkIntro spot (alpha 0) so they fade in place
 			const [x, y] = introPosition(n.id, w, h);
@@ -111,19 +111,22 @@ function layoutNetworkIntro(nodes, w, h, edges) {
 		edgeByPair.set(pairKey(source, target), e);
 	});
 
-	// Walk each path from its source actor inward to Bacon: the source appears and
-	// dwells, then each line grows toward the next node while that node pops in step
+	// Walk each path outward from Bacon to its source actor: a line grows from the
+	// (already-visible) inner node toward the next one while that node pops in step
 	// with it, so both finish together as the line arrives. The first INTRO_SEQ_COUNT
 	// paths run on one running clock — strictly one at a time — so the opening reads
-	// as a single continuous walk to Bacon; the rest start after those complete and
-	// overlap on a stagger. Everything animates once, at first mention; Bacon is
+	// as a single continuous walk out of Bacon; the rest start after those complete
+	// and overlap on a stagger. Everything animates once, at first mention; Bacon is
 	// already on screen.
 	const nodeDelay = new Map([[ANCHOR_ID, 0]]);
 	const edgeDelay = new Map();
-	let seqClock = 0; // running clock through the sequential routes
-	let freeStart = 0; // when the free-for-all routes begin
+	// Bacon is already on screen, so seed the sequential clock with an opening
+	// beat before the first line leaves him (mirrors the source-dwell the old
+	// inward walk got for free from its first, appearing, source node)
+	let seqClock = INTRO_START_DWELL_MS; // running clock through the sequential routes
+	let freeStart = seqClock; // when the free-for-all routes begin
 	INTRO_PATHS.forEach((path, k) => {
-		const walk = [...path, ANCHOR_ID];
+		const walk = [ANCHOR_ID, ...[...path].reverse()];
 		const sequential = k < INTRO_SEQ_COUNT;
 		let clock = sequential
 			? seqClock
@@ -176,10 +179,17 @@ function layoutNetworkIntro(nodes, w, h, edges) {
 	return { attrs, delays };
 }
 
+// zoom-out staging: labels and edges dissolve on arrival, the intro cluster
+// holds that beat then contracts to its full-graph spot, and the crowd starts
+// arriving while the cluster is still shrinking
+const NETWORK_ZOOM_DELAY_MS = 200;
+const NETWORK_CROWD_START_MS = 350;
+
 /** @type {import("../layout-shared.js").LayoutFn} */
-function layoutNetwork(nodes, w, h) {
+function layoutNetwork(nodes, w, h, edges) {
 	const attrs = new Float64Array(ATTR_SIZE);
 	const delays = new Float64Array(DELAY_SIZE);
+	const introSet = new Set(INTRO_IDS);
 	for (const n of nodes) {
 		if (n.hop < 0) {
 			parkHidden(attrs, n, w, h);
@@ -197,9 +207,15 @@ function layoutNetwork(nodes, w, h) {
 		);
 		// more and more actors: hop ripple plus per-node scatter inside each
 		// wave, so the crowd accumulates rather than arriving in 4 blocks
-		delays[n.id] = n.hop * NETWORK_HOP_DELAY_MS + hash01(n.id, 6) * 350;
+		delays[n.id] = introSet.has(n.id)
+			? NETWORK_ZOOM_DELAY_MS
+			: NETWORK_CROWD_START_MS +
+				n.hop * NETWORK_HOP_DELAY_MS +
+				hash01(n.id, 6) * 350;
 	}
-	// intro edges (progress/alpha 0, delay 0) retract as the crowd fades up
+	// intro edges dissolve in place (full length, alpha → 0, delay 0) instead
+	// of retracting — the graph fades to dots as the zoom-out begins
+	edges.forEach((_, e) => setEdge(attrs, e, 1, 0));
 	return { attrs, delays };
 }
 
