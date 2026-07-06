@@ -140,9 +140,12 @@
 			ctx.stroke();
 		}
 		ctx.lineWidth = 1;
-		// the inner endpoint is drawn to its final spot (not its live position) so
-		// a line points to where the actor is going and the actor slides onto it,
-		// instead of the line's angle swinging as the actor tweens into place
+		// a live (target alpha > 0) line's endpoint is drawn at its final spot
+		// (not its live position) so the line points to where the actor is going
+		// and the actor slides onto it, instead of the angle swinging as the
+		// actor tweens into place; a dying line (faded out in the target state)
+		// tracks both live dots instead — the target state's endpoint positions
+		// belong to a layout this edge isn't part of
 		const target = layoutFor(stateName, width, height, layoutParams).attrs;
 		for (let e = 0; e < edgeEnds.length; e++) {
 			const i = EDGE_BASE + e * STRIDE;
@@ -150,10 +153,11 @@
 			const alpha = attrs[i + 1];
 			if (alpha <= 0.004 || progress <= 0.004) continue;
 			const [from, to] = edgeEnds[e];
+			const dying = target[i + 1] <= 0.004;
 			const xa = attrs[from * STRIDE];
 			const ya = attrs[from * STRIDE + 1];
-			const xb = target[to * STRIDE];
-			const yb = target[to * STRIDE + 1];
+			const xb = dying ? attrs[to * STRIDE] : target[to * STRIDE];
+			const yb = dying ? attrs[to * STRIDE + 1] : target[to * STRIDE + 1];
 			ctx.strokeStyle = `rgba(120, 120, 120, ${alpha})`;
 			ctx.beginPath();
 			ctx.moveTo(xa, ya);
