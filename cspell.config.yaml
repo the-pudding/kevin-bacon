@@ -31,7 +31,10 @@ words:
   - unspool
   - toggleable
   - crossfaded
+  - crossfades
+  - tweening
   - genz
+  - awkwafina
 ignorePaths:
   - node_modules
   - build
