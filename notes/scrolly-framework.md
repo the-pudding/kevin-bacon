@@ -158,11 +158,22 @@ layouts hide non-participants at their distance-scatter park spot). `hop` is
 
 `networkLayout` is a build-time d3-force layout of every hop-mapped node
 (links = each node's nearest sampled ancestor in the KB spanning tree; the
-shared-tree majority without parent links settles on radial + charge forces
-alone), in `introLayout`'s coordinate units with the 15 intro actors pinned at
-their intro positions — so `network` reads as the intro graph growing/zooming
-out, and `networkPosition()` in `layout-shared.js` just fits it with Bacon on
-`graphCenter`.
+majority without a parent link — most of the shared hop tree — attach instead
+to a same-hop "local hub", the best-connected sampled node in that hop that's
+already anchored to the tree, so the crowd forms secondary clusters rather
+than orbiting Bacon alone), in `introLayout`'s coordinate units with the 15
+intro actors pinned at their intro positions — so `network` reads as the intro
+graph growing/zooming out. There's deliberately no radial force keyed off
+distance from Bacon: hop distance _is_ distance-from-Bacon by definition, so a
+Bacon-anchored radial force would always draw a bullseye regardless of the
+real graph (this was the 2026-07-06 feedback fix). `networkPosition()` in
+`layout-shared.js` also pans the fit so Bacon lands off `graphCenter` rather
+than dead-on it (`NETWORK_BACON_OFFSET`) — `lone`/`networkIntro` still anchor
+on `graphCenter` exactly, so only the `network` state's reveal drifts him
+aside. Note this is a layout/camera device, not a claim that the underlying
+graph isn't Bacon-rooted — the source data only encodes hop-distance-from-
+Bacon, so no amount of force-layout tuning makes him topologically
+non-central in it.
 
 `scrolly-story.json` carries the non-dot data: `bacon` bucket totals, `corr`
 (prediction correlations), `quiz` pairs, race `eras` + `raceSeries`

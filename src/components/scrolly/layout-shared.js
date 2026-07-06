@@ -285,21 +285,32 @@ const NETWORK_MAX_DIST = (() => {
 	return max;
 })();
 
+// how far left of dead-center Bacon sits once the full crowd is on screen, as
+// a fraction of the fitted radius — `lone`/`networkIntro` still put him on
+// graphCenter (see above), so this offset only takes effect as `network`
+// pans away from it, landing the reveal off to a side instead of dead center
+// (a Bacon-centered frame reads as "he IS the center", which is the opposite
+// of this chapter's point)
+const NETWORK_BACON_OFFSET = 0.22;
+
 /**
  * Full-graph position from the baked force-directed layout (NETWORK_LAYOUT),
- * fit so Bacon stays on graphCenter — shared so other states can pre-park the
- * crowd. The intro actors are pinned inside the bake, so their network spots
- * are their intro geometry at the smaller full-graph scale: arriving from
- * `networkIntro` contracts the cluster in place, reading as a zoom-out.
+ * panned so Bacon lands off-center (see NETWORK_BACON_OFFSET) — shared so
+ * other states can pre-park the crowd. The intro actors are pinned inside the
+ * bake, so their network spots are their intro geometry at the smaller
+ * full-graph scale: arriving from `networkIntro` contracts the cluster in
+ * place while panning off graphCenter, reading as a zoom-out that drifts.
  * `spread` > 1 inflates radially from Bacon: earlier states park the
  * (invisible) crowd spread out, so it too contracts inward on arrival.
  */
 export function networkPosition(n, w, h, spread = 1) {
-	const [cx, cy] = graphCenter(w, h);
-	const s = (Math.min(w, h) / 2 - MARGIN) / NETWORK_MAX_DIST;
+	const [gx, gy] = graphCenter(w, h);
+	const r = Math.min(w, h) / 2 - MARGIN;
+	const s = (r * (1 - NETWORK_BACON_OFFSET)) / NETWORK_MAX_DIST;
+	const cx = gx - r * NETWORK_BACON_OFFSET;
 	const [ax, ay] = NETWORK_LAYOUT.xy[ANCHOR_ID];
 	const [x, y] = NETWORK_LAYOUT.xy[n.id];
-	return [cx + (x - ax) * s * spread, cy + (y - ay) * s * spread];
+	return [cx + (x - ax) * s * spread, gy + (y - ay) * s * spread];
 }
 
 // how far beyond their resting radius the crowd parks before fading in

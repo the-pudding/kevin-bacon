@@ -229,14 +229,20 @@ assert(
 // networkLayout: force-directed layout of every hop-mapped node, in the intro
 // layout's coordinate space with the 15 intro actors pinned at their baked
 // intro positions — so the `network` state reads as the intro graph growing/
-// zooming out rather than nodes teleporting to fresh spots. Deterministic:
+// zooming out rather than nodes teleporting to fresh spots. No radial force
+// anchored on Bacon: hop distance is *from* Bacon by definition (this is a
+// Bacon-number tree), so a Bacon-centered radial force would always draw a
+// bullseye regardless of the real graph. Structure instead comes from tree
+// links (KB spanning tree, or a same-hop "local hub" for the ~half of the
+// sample the tree doesn't reach) plus charge/collide, so the crowd reads as
+// several loose clusters rather than concentric rings. Deterministic:
 // d3-force's internal LCG, seeded positions, fixed tick count, no RNG.
 // ---------------------------------------------------------------------------
 
 const introXY = intro.nodes.map((n) => [n.x, n.y]);
 const [anchorX, anchorY] = introXY[0];
-// hop-ring radii calibrated to the intro layout (hop 1 ≈ 180, hop 2 ≈ 330
-// units from Bacon), extrapolated outward so the crowd extends the same scale
+// hop-ring radii used only to seed a reasonable starting spread — the forces
+// below don't target these, so the settled shape isn't constrained to rings
 const HOP_RING = [0, 180, 330, 480, 630];
 // stable pseudo-random matching src/components/scrolly/nodes.js hash01
 const hash01 = (id, salt) => {
@@ -260,9 +266,10 @@ for (const n of simNodes) {
 	}
 }
 
-// links: each node's nearest sampled ancestor along the KB spanning tree
-let unlinked = 0;
-const simLinks = [];
+// pass 1: each node's nearest sampled ancestor along the KB spanning tree —
+// this is the set of nodes genuinely anchored (via chains of these links) to
+// Bacon's fixed position, so the resulting component can't drift
+const treeAncestor = new Map();
 for (const n of simNodes) {
 	if (n.id === 0) continue;
 	let ti = treeIndexByPid.get(n.pid);
@@ -276,9 +283,51 @@ for (const n of simNodes) {
 		}
 	}
 	if (ancestor == null && ti != null) ancestor = 0; // tree root = Bacon
+	if (ancestor != null) treeAncestor.set(n.id, ancestor);
+}
+
+// local hubs: the best-connected *tree-anchored* node per hop, used below as
+// a fallback attachment point for the rest of the sample (the shared hop
+// tree, which has no parent chain into the sample) — gives the crowd
+// secondary centers of gravity instead of orbiting Bacon alone, while
+// guaranteeing every hub is itself already anchored so no subtree can drift
+// off as a disconnected island
+const degreeByPid = new Map(hopTree.nodes.map((n) => [n.person_id, n.degree]));
+// more hubs = fewer followers per hub, so no single hub's crowding pressure
+// is strong enough to fling its whole star cluster away from the rest
+const HUBS_PER_HOP = 24;
+const hubsByHop = new Map();
+function hubsFor(hop) {
+	if (!hubsByHop.has(hop)) {
+		hubsByHop.set(
+			hop,
+			simNodes
+				.filter(
+					(n) =>
+						n.hop === hop &&
+						(n.id < intro.nodes.length || treeAncestor.has(n.id))
+				)
+				.map((n) => ({ id: n.id, degree: degreeByPid.get(n.pid) ?? 0 }))
+				.sort((a, b) => b.degree - a.degree || a.id - b.id)
+				.slice(0, HUBS_PER_HOP)
+		);
+	}
+	return hubsByHop.get(hop);
+}
+
+// pass 2: link every node to its tree ancestor where one exists, else to a
+// same-hop local hub
+let unlinked = 0;
+const simLinks = [];
+for (const n of simNodes) {
+	if (n.id === 0) continue;
+	let ancestor = treeAncestor.get(n.id) ?? null;
 	if (ancestor == null) {
-		// most of the sample comes from the shared hop tree, which has no parent
-		// links — those nodes are placed by the radial + charge forces alone
+		const hubs = hubsFor(n.hop).filter((h) => h.id !== n.id);
+		if (hubs.length)
+			ancestor = hubs[Math.floor(hash01(n.id, 7) * hubs.length)].id;
+	}
+	if (ancestor == null) {
 		unlinked++;
 		continue;
 	}
@@ -298,24 +347,12 @@ const sim = d3
 			.id((n) => n.id)
 			.distance(
 				({ source, target }) =>
-					Math.max(40, Math.abs(HOP_RING[source.hop] - HOP_RING[target.hop])) *
+					(28 + 12 * Math.max(source.hop, target.hop)) *
 					(0.6 + 0.8 * hash01(source.id, 3))
 			)
-			.strength(0.25)
+			.strength(0.5)
 	)
-	.force("charge", d3.forceManyBody().strength(-30))
-	// per-node jittered target radius: keeps the hop strata loosely ordered
-	// without collapsing each hop onto a clean ring (which reads as artifice)
-	.force(
-		"radial",
-		d3
-			.forceRadial(
-				(n) => HOP_RING[n.hop] * (0.7 + 0.6 * hash01(n.id, 4)),
-				anchorX,
-				anchorY
-			)
-			.strength(0.12)
-	)
+	.force("charge", d3.forceManyBody().strength(-14))
 	.force("collide", d3.forceCollide(4.5).iterations(2))
 	.stop();
 for (let i = 0; i < 400; i++) sim.tick();
