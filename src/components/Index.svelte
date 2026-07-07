@@ -1,6 +1,6 @@
 <script>
 	// @ts-check
-	import { setContext } from "svelte";
+	import { setContext, onMount } from "svelte";
 	import Wizard from "$components/helpers/Wizard.svelte";
 	import ScrollyVisual from "$components/scrolly/ScrollyVisual.svelte";
 	import Step from "$components/scrolly/Step.svelte";
@@ -9,6 +9,9 @@
 	import PredictToggles from "$components/scrolly/PredictToggles.svelte";
 	import BarPicker from "$components/scrolly/BarPicker.svelte";
 	import useWindowDimensions from "$runes/useWindowDimensions.svelte.js";
+	import localStorage from "$utils/localStorage.js";
+
+	const STEP_STORAGE_KEY = "kb-step";
 
 	let value = $state(0);
 	let dimensions = new useWindowDimensions();
@@ -29,6 +32,17 @@
 		mode: "wizard"
 	};
 	setContext("scrolly-steps", scrollySteps);
+
+	onMount(() => {
+		const saved = localStorage.get(STEP_STORAGE_KEY);
+		if (typeof saved === "number" && saved > 0 && saved < stepConfigs.length) {
+			value = saved;
+		}
+	});
+
+	$effect(() => {
+		localStorage.set(STEP_STORAGE_KEY, value);
+	});
 </script>
 
 <svelte:boundary onerror={(e) => console.error(e)}>
