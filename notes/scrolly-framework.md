@@ -64,9 +64,10 @@ second canvas writer would corrupt tween starts.
 
 **Tween timing.** `tweener.to(attrs, ms, jitter, delays)`:
 
-- `delays` provided → choreographed reveal (e.g. `network` fades its edges and
-  contracts the intro cluster first, then ripples the crowd outward at
-  `hop * 250ms`).
+- `delays` provided → choreographed reveal (e.g. `network` fades its edges
+  while the crowd grows outward on a distance-from-Bacon ramp with per-node
+  scatter; the intro cluster contracts only once the inner crowd is filling in,
+  so the zoom-out reads as a reaction to the growth).
 - no `delays` → each node starts after a deterministic hashed delay in
   `[0, ms * jitter]` (currently `TWEEN_JITTER = 0.5` in ScrollyVisual) so nodes
   start/finish at different times.

@@ -19,7 +19,7 @@ import {
 	INTRO_MAX_STRETCH,
 	NETWORK_RADIUS,
 	NETWORK_ALPHA,
-	NETWORK_HOP_DELAY_MS
+	networkDistNorm
 } from "../layout-shared.js";
 
 /**
@@ -179,11 +179,15 @@ function layoutNetworkIntro(nodes, w, h, edges) {
 	return { attrs, delays };
 }
 
-// zoom-out staging: labels and edges dissolve on arrival, the intro cluster
-// holds that beat then contracts to its full-graph spot, and the crowd starts
-// arriving while the cluster is still shrinking
-const NETWORK_ZOOM_DELAY_MS = 200;
-const NETWORK_CROWD_START_MS = 350;
+// growth-then-zoom staging: labels and edges dissolve on arrival while the
+// crowd immediately starts popping in, growing outward from the center (a
+// continuous distance ramp with per-node scatter — no hop waves); the intro
+// cluster holds until the inner crowd is visibly filling in, then contracts to
+// its full-graph spot, so the zoom-out reads as a reaction to the growth
+// needing more space
+const NETWORK_CROWD_SPREAD_MS = 600;
+const NETWORK_CROWD_JITTER_MS = 300;
+const NETWORK_ZOOM_DELAY_MS = 220;
 
 /** @type {import("../layout-shared.js").LayoutFn} */
 function layoutNetwork(nodes, w, h, edges) {
@@ -205,13 +209,12 @@ function layoutNetwork(nodes, w, h, edges) {
 			HOP_RGB[n.hop],
 			NETWORK_ALPHA[n.hop]
 		);
-		// more and more actors: hop ripple plus per-node scatter inside each
-		// wave, so the crowd accumulates rather than arriving in 4 blocks
+		// more and more actors: the crowd grows outward from the center at
+		// random, each node's delay riding its distance from Bacon plus scatter
 		delays[n.id] = introSet.has(n.id)
 			? NETWORK_ZOOM_DELAY_MS
-			: NETWORK_CROWD_START_MS +
-				n.hop * NETWORK_HOP_DELAY_MS +
-				hash01(n.id, 6) * 350;
+			: networkDistNorm(n.id) * NETWORK_CROWD_SPREAD_MS +
+				hash01(n.id, 6) * NETWORK_CROWD_JITTER_MS;
 	}
 	// intro edges dissolve in place (full length, alpha → 0, delay 0) instead
 	// of retracting — the graph fades to dots as the zoom-out begins

@@ -285,6 +285,13 @@ const NETWORK_MAX_DIST = (() => {
 	return max;
 })();
 
+/** Node's distance from Bacon in the baked full-network layout, 0..1. */
+export function networkDistNorm(id) {
+	const [ax, ay] = NETWORK_LAYOUT.xy[ANCHOR_ID];
+	const [x, y] = NETWORK_LAYOUT.xy[id];
+	return Math.hypot(x - ax, y - ay) / NETWORK_MAX_DIST;
+}
+
 // how far left of dead-center Bacon sits once the full crowd is on screen, as
 // a fraction of the fitted radius — `lone`/`networkIntro` still put him on
 // graphCenter (see above), so this offset only takes effect as `network`
