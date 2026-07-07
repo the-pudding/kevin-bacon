@@ -18,13 +18,22 @@
 	const steps = getContext("scrolly-steps");
 	const index = steps.register(layoutState, params);
 	const active = $derived(steps.current === index);
+	// "wizard" mode shows one step at a time, headless; "scroll" mode (default)
+	// stacks all steps full-height for the IntersectionObserver in Scrolly.
+	const wizard = $derived(steps.mode === "wizard");
 </script>
 
-<div class="step" class:active class:dwell>
-	<div class="card">
+{#if wizard}
+	{#if active}
 		{@render children()}
+	{/if}
+{:else}
+	<div class="step" class:active class:dwell>
+		<div class="card">
+			{@render children()}
+		</div>
 	</div>
-</div>
+{/if}
 
 <style>
 	.step {

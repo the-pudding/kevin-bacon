@@ -1,7 +1,7 @@
 <script>
 	// @ts-check
 	import { setContext } from "svelte";
-	import Scrolly from "$components/helpers/Scrolly.svelte";
+	import Wizard from "$components/helpers/Wizard.svelte";
 	import ScrollyVisual from "$components/scrolly/ScrollyVisual.svelte";
 	import Step from "$components/scrolly/Step.svelte";
 	import GuessRank from "$components/scrolly/GuessRank.svelte";
@@ -10,7 +10,7 @@
 	import BarPicker from "$components/scrolly/BarPicker.svelte";
 	import useWindowDimensions from "$runes/useWindowDimensions.svelte.js";
 
-	let value = $state();
+	let value = $state(0);
 	let dimensions = new useWindowDimensions();
 
 	/**
@@ -20,12 +20,13 @@
 	 */
 	const stepConfigs = $state([]);
 
-	/** @type {{ register: (state: import("$components/scrolly/states.js").LayoutState, params?: Object) => number, current: number|undefined }} */
+	/** @type {{ register: (state: import("$components/scrolly/states.js").LayoutState, params?: Object) => number, current: number|undefined, mode: string }} */
 	const scrollySteps = {
 		register: (state, params) => stepConfigs.push({ state, params }) - 1,
 		get current() {
 			return value;
-		}
+		},
+		mode: "wizard"
 	};
 	setContext("scrolly-steps", scrollySteps);
 </script>
@@ -45,7 +46,7 @@
 				/>
 			</div>
 			<div class="scrolly-steps">
-				<Scrolly bind:value>
+				<Wizard bind:value count={stepConfigs.length}>
 					<!-- PRESENT -->
 					<Step state="lone">
 						<p>
@@ -289,7 +290,7 @@
 							women, perhaps not for a few years yet though.
 						</p>
 					</Step>
-				</Scrolly>
+				</Wizard>
 			</div>
 		</div>
 	</section>
@@ -303,19 +304,23 @@
 	}
 
 	.scrolly-layout {
-		display: flex;
-		flex-direction: column;
-	}
-
-	.scrolly-visual {
-		position: sticky;
-		top: 0;
+		position: relative;
 		height: var(--viewport-height);
 	}
 
+	/* Full-height, stable canvas: its size must NOT track the step text height,
+	   or a step change resizes the canvas and ScrollyVisual jumps (instant, no
+	   reveal) instead of tweening. Step text + nav overlay the bottom, where the
+	   layouts already keep clear. */
+	.scrolly-visual {
+		position: absolute;
+		inset: 0;
+	}
+
 	.scrolly-steps {
-		z-index: 1;
-		position: relative;
-		margin-top: calc(-1 * var(--viewport-height));
+		position: absolute;
+		left: 0;
+		right: 0;
+		bottom: 0;
 	}
 </style>
