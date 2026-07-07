@@ -1,50 +1,33 @@
-import {
-	NODE_COUNT,
-	ANCHOR_ID,
-	INTRO_IDS,
-	INTRO_LAYOUT,
-	hash01
-} from "../nodes.js";
+import { NODE_COUNT, ANCHOR_ID, INTRO_IDS, INTRO_LAYOUT } from "../nodes.js";
 import {
 	ATTR_SIZE,
 	DELAY_SIZE,
-	MARGIN,
 	HOP_RGB,
+	CROWD,
 	set,
 	setEdge,
 	pairKey,
 	parkHidden,
 	networkPosition,
 	graphCenter,
-	INTRO_MAX_STRETCH,
+	introFrame,
+	networkCrowdDelay,
+	NETWORK_ZOOM_DELAY_MS,
+	NETWORK_INTRO_RADIUS,
 	NETWORK_RADIUS,
-	NETWORK_ALPHA,
-	networkDistNorm
+	NETWORK_ALPHA
 } from "../layout-shared.js";
 
 /**
- * Fits the intro network's baked 860×680 planar layout into the top ~72% of
- * the canvas (bottom stays clear of the step card), stretching each axis
- * independently up to INTRO_MAX_STRETCH beyond uniform. Returns the position
- * of intro node k, optionally exaggerated radially away from the anchor
+ * Position of intro node k inside the intro fit (see introFrame in
+ * layout-shared.js), optionally exaggerated radially away from the anchor
  * (`spread` > 1 pushes nodes outward for "appear far away" starts).
  */
 function introPosition(k, w, h, spread = 1) {
-	const availW = w - MARGIN * 2;
-	const availH = h * 0.72 - MARGIN;
-	const sxRaw = availW / INTRO_LAYOUT.w;
-	const syRaw = availH / INTRO_LAYOUT.h;
-	const sx = Math.min(sxRaw, syRaw * INTRO_MAX_STRETCH);
-	const sy = Math.min(syRaw, sxRaw * INTRO_MAX_STRETCH);
-	const [cx, cy] = graphCenter(w, h);
+	const { cx, cy, sx, sy } = introFrame(w, h);
 	const [ax, ay] = INTRO_LAYOUT.xy[ANCHOR_ID];
-	const ox = cx - ax * sx;
-	const oy = cy - ay * sy;
 	const [x, y] = INTRO_LAYOUT.xy[k];
-	return [
-		ox + (ax + (x - ax) * spread) * sx,
-		oy + (ay + (y - ay) * spread) * sy
-	];
+	return [cx + (x - ax) * sx * spread, cy + (y - ay) * sy * spread];
 }
 
 const INTRO_ANCHOR_RADIUS = 14;
@@ -87,11 +70,11 @@ function layoutLone(nodes, w, h) {
 	for (const n of nodes) {
 		if (n.id === ANCHOR_ID) {
 			const [cx, cy] = graphCenter(w, h);
-			set(attrs, n.id, cx, cy, 18, HOP_RGB[0], 1);
+			set(attrs, n.id, cx, cy, INTRO_ANCHOR_RADIUS, HOP_RGB[0], 1);
 		} else if (introSet.has(n.id)) {
 			// parked at their eventual networkIntro spot (alpha 0) so they fade in place
 			const [x, y] = introPosition(n.id, w, h);
-			set(attrs, n.id, x, y, INTRO_RADIUS, HOP_RGB[n.hop], 0);
+			set(attrs, n.id, x, y, INTRO_RADIUS, CROWD, 0);
 		} else {
 			parkHidden(attrs, n, w, h);
 		}
@@ -159,8 +142,8 @@ function layoutNetworkIntro(nodes, w, h, edges) {
 				n.id,
 				x,
 				y,
-				n.id === ANCHOR_ID ? INTRO_ANCHOR_RADIUS : INTRO_RADIUS,
-				HOP_RGB[n.hop],
+				NETWORK_INTRO_RADIUS[n.hop],
+				n.id === ANCHOR_ID ? HOP_RGB[0] : CROWD,
 				1
 			);
 			delays[n.id] = nodeDelay.get(n.id) ?? 0;
@@ -180,15 +163,11 @@ function layoutNetworkIntro(nodes, w, h, edges) {
 }
 
 // growth-then-zoom staging: labels and edges dissolve on arrival while the
-// crowd immediately starts popping in, growing outward from the center (a
-// continuous distance ramp with per-node scatter — no hop waves); the intro
-// cluster holds until the inner crowd is visibly filling in, then contracts to
-// its full-graph spot, so the zoom-out reads as a reaction to the growth
-// needing more space
-const NETWORK_CROWD_SPREAD_MS = 600;
-const NETWORK_CROWD_JITTER_MS = 300;
-const NETWORK_ZOOM_DELAY_MS = 220;
-
+// inner crowd immediately starts popping in among the still-full-size cluster
+// — each dot parked where the network is drawn at the moment it starts fading
+// (see parkHidden in layout-shared.js) — and only once that crowding is
+// visible does the whole system contract to the full-graph fit, so the
+// zoom-out reads as a reaction to the growth needing more space
 /** @type {import("../layout-shared.js").LayoutFn} */
 function layoutNetwork(nodes, w, h, edges) {
 	const attrs = new Float64Array(ATTR_SIZE);
@@ -206,15 +185,14 @@ function layoutNetwork(nodes, w, h, edges) {
 			x,
 			y,
 			NETWORK_RADIUS[n.hop],
-			HOP_RGB[n.hop],
+			n.id === ANCHOR_ID ? HOP_RGB[0] : CROWD,
 			NETWORK_ALPHA[n.hop]
 		);
-		// more and more actors: the crowd grows outward from the center at
-		// random, each node's delay riding its distance from Bacon plus scatter
+		// more and more actors: the crowd accumulates inner-first on the shared
+		// distance ramp; the cluster holds its beat before contracting
 		delays[n.id] = introSet.has(n.id)
 			? NETWORK_ZOOM_DELAY_MS
-			: networkDistNorm(n.id) * NETWORK_CROWD_SPREAD_MS +
-				hash01(n.id, 6) * NETWORK_CROWD_JITTER_MS;
+			: networkCrowdDelay(n);
 	}
 	// intro edges dissolve in place (full length, alpha → 0, delay 0) instead
 	// of retracting — the graph fades to dots as the zoom-out begins
@@ -226,8 +204,7 @@ export const states = {
 	lone: {
 		layout: layoutLone,
 		labels: [ANCHOR_ID],
-		pulse: ANCHOR_ID,
-		overlay: { caption: "Kevin Bacon" }
+		pulse: ANCHOR_ID
 	},
 	networkIntro: {
 		layout: layoutNetworkIntro,
@@ -235,13 +212,15 @@ export const states = {
 		pulse: ANCHOR_ID,
 		// the path-walk reveal is authored for the forward arrival from `lone`;
 		// scrolling back from `network` just tweens the actors into place
-		revealFrom: ["lone"],
-		overlay: { caption: "Bacon's costar network" }
+		revealFrom: ["lone"]
 	},
 	// network: no labels — the zoom-out drops labels and edges (feedback 2026-07-05)
 	network: {
 		layout: layoutNetwork,
 		pulse: ANCHOR_ID,
-		overlay: { caption: "Bacon's costar network" }
+		// the growth-then-zoom reveal is authored for the forward arrival from
+		// `networkIntro`; from `hopBands` backwards the crowd is already visible,
+		// so the holds would read as lag — just tween back in unison
+		revealFrom: ["networkIntro"]
 	}
 };

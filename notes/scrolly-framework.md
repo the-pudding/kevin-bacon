@@ -65,9 +65,10 @@ second canvas writer would corrupt tween starts.
 **Tween timing.** `tweener.to(attrs, ms, jitter, delays)`:
 
 - `delays` provided → choreographed reveal (e.g. `network` fades its edges
-  while the crowd grows outward on a distance-from-Bacon ramp with per-node
-  scatter; the intro cluster contracts only once the inner crowd is filling in,
-  so the zoom-out reads as a reaction to the growth).
+  while the crowd pops in inner-first on a distance-from-Bacon ramp, each dot
+  parked where the network is drawn at the moment it starts fading; the intro
+  cluster holds until the inner crowd is visibly filling in, then everything
+  contracts together — the zoom-out reads as a reaction to the growth).
 - no `delays` → each node starts after a deterministic hashed delay in
   `[0, ms * jitter]` (currently `TWEEN_JITTER = 0.5` in ScrollyVisual) so nodes
   start/finish at different times.
@@ -136,7 +137,7 @@ tracking.
 3. Use it from `Index.svelte`: `<Step state="foo"><p>…</p></Step>`.
 
 Use `hash01(n.id, <new salt>)` for any per-node scatter/jitter — pick an unused
-salt integer (used so far: 1–5 in layouts, 9 in tween.js).
+salt integer (used so far: 3–8 across layouts and layout-shared, 9 in tween.js).
 
 ## Data
 
@@ -171,7 +172,12 @@ real graph (this was the 2026-07-06 feedback fix). `networkPosition()` in
 `layout-shared.js` also pans the fit so Bacon lands off `graphCenter` rather
 than dead-on it (`NETWORK_BACON_OFFSET`) — `lone`/`networkIntro` still anchor
 on `graphCenter` exactly, so only the `network` state's reveal drifts him
-aside. Note this is a layout/camera device, not a claim that the underlying
+aside. Hidden crowd nodes park on an entry gradient (`parkHidden`), not at a
+fixed pre-spread: each dot waits where the network is drawn at the moment its
+reveal delay lands — inner dots at the intro frame's scale, later dots
+progressively closer to their resting spot — so the crowd materializes at the
+current zoom and rides the contraction in, and disperses back out on the way
+up. Note this is a layout/camera device, not a claim that the underlying
 graph isn't Bacon-rooted — the source data only encodes hop-distance-from-
 Bacon, so no amount of force-layout tuning makes him topologically
 non-central in it.

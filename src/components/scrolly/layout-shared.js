@@ -3,8 +3,10 @@ import {
 	EDGE_COUNT,
 	ANCHOR_ID,
 	INTRO_LAYOUT,
-	NETWORK_LAYOUT
+	NETWORK_LAYOUT,
+	hash01
 } from "./nodes.js";
+import { easeCubicInOut } from "./tween.js";
 import rawNodes from "$data/scrolly-nodes.json";
 import story from "$data/scrolly-story.json";
 
@@ -246,8 +248,9 @@ export function clipSeries(pairs, x0, x1) {
 	return out.length >= 2 ? out : null;
 }
 
+export const NETWORK_RADIUS = [3, 1, 1, 1, 1];
 export const NETWORK_ALPHA = [1, 0.9, 0.45, 0.2, 0.12];
-export const NETWORK_RADIUS = [16, 6, 3.5, 2.5, 2];
+export const NETWORK_INTRO_RADIUS = [16, 6, 6, 6, 6];
 export const NETWORK_HOP_DELAY_MS = 250;
 
 // anisotropy cap when fitting the landscape intro layout to portrait screens —
@@ -256,12 +259,13 @@ export const NETWORK_HOP_DELAY_MS = 250;
 export const INTRO_MAX_STRETCH = 1.6;
 
 /**
- * Screen position of the anchor node (Bacon) once the baked 860×680 intro
- * layout is fit into the top ~72% of the canvas — the single "center of the
- * network" every hop-based layout (lone/networkIntro/network) anchors on, so
- * Bacon doesn't jump between those states.
+ * The intro fit: scales the baked 860×680 intro layout into the top ~72% of
+ * the canvas (per-axis, each capped at INTRO_MAX_STRETCH beyond uniform) and
+ * returns the anchor's fitted screen position plus the axis scales — the one
+ * frame the intro-chapter layouts hang off, directly (lone/networkIntro) or
+ * as the zoom-out's starting scale (network's entry parks).
  */
-export function graphCenter(w, h) {
+export function introFrame(w, h) {
 	const availW = w - MARGIN * 2;
 	const availH = h * 0.72 - MARGIN;
 	const sxRaw = availW / INTRO_LAYOUT.w;
@@ -271,7 +275,17 @@ export function graphCenter(w, h) {
 	const ox = (w - INTRO_LAYOUT.w * sx) / 2;
 	const oy = MARGIN + (availH - INTRO_LAYOUT.h * sy) / 2;
 	const [ax, ay] = INTRO_LAYOUT.xy[ANCHOR_ID];
-	return [ox + ax * sx, oy + ay * sy];
+	return { cx: ox + ax * sx, cy: oy + ay * sy, sx, sy };
+}
+
+/**
+ * Screen position of the anchor node (Bacon) in the intro fit — the single
+ * "center of the network" every hop-based layout (lone/networkIntro/network)
+ * anchors on, so Bacon doesn't jump between those states.
+ */
+export function graphCenter(w, h) {
+	const { cx, cy } = introFrame(w, h);
+	return [cx, cy];
 }
 
 // the baked full-network layout's furthest node from Bacon, in layout units —
@@ -285,8 +299,10 @@ const NETWORK_MAX_DIST = (() => {
 	return max;
 })();
 
-/** Node's distance from Bacon in the baked full-network layout, 0..1. */
-export function networkDistNorm(id) {
+// distance from Bacon in baked layout units, normalized by the furthest node —
+// the crowd's reveal ramp and entry parks both key off it (hop >= 0 ids only;
+// the rest have no baked network spot)
+function networkDistNorm(id) {
 	const [ax, ay] = NETWORK_LAYOUT.xy[ANCHOR_ID];
 	const [x, y] = NETWORK_LAYOUT.xy[id];
 	return Math.hypot(x - ax, y - ay) / NETWORK_MAX_DIST;
@@ -307,8 +323,8 @@ const NETWORK_BACON_OFFSET = 0.22;
  * bake, so their network spots are their intro geometry at the smaller
  * full-graph scale: arriving from `networkIntro` contracts the cluster in
  * place while panning off graphCenter, reading as a zoom-out that drifts.
- * `spread` > 1 inflates radially from Bacon: earlier states park the
- * (invisible) crowd spread out, so it too contracts inward on arrival.
+ * `spread` > 1 inflates radially from Bacon (the entry gradient's residual
+ * settle drift below uses it).
  */
 export function networkPosition(n, w, h, spread = 1) {
 	const [gx, gy] = graphCenter(w, h);
@@ -320,13 +336,62 @@ export function networkPosition(n, w, h, spread = 1) {
 	return [cx + (x - ax) * s * spread, gy + (y - ay) * s * spread];
 }
 
-// how far beyond their resting radius the crowd parks before fading in
-export const NETWORK_PRESPREAD = 1.35;
+// networkIntro → network choreography: the crowd arrives on a
+// distance-from-Bacon ramp (inner neighbours first, fringe last) while the
+// intro cluster holds full-size for NETWORK_ZOOM_DELAY_MS — the zoom-out
+// starts only once the inner crowd is visibly filling in, so the pull-back
+// reads as a reaction to the growth rather than a precondition for it
+export const NETWORK_ZOOM_DELAY_MS = 450;
+const NETWORK_ZOOM_MS = 700; // mirrors ScrollyVisual's TWEEN_MS (the contraction tween)
+const NETWORK_CROWD_START_MS = 80;
+const NETWORK_CROWD_RAMP_MS = 3000;
+const NETWORK_CROWD_JITTER_MS = 280;
+// residual inward drift for dots entering after the zoom has finished
+const NETWORK_ENTRY_SETTLE = 1.12;
+
+/** when crowd node n starts fading in during the `network` reveal */
+export function networkCrowdDelay(n) {
+	return (
+		NETWORK_CROWD_START_MS +
+		networkDistNorm(n.id) * NETWORK_CROWD_RAMP_MS +
+		hash01(n.id, 6) * NETWORK_CROWD_JITTER_MS
+	);
+}
+
+/**
+ * Hidden park spot for crowd node n (hop >= 0 only): where the network is
+ * drawn at the moment the dot starts fading in. A dot whose delay lands
+ * before the cluster contracts parks at the intro frame's scale — interleaved
+ * with the still-full-size cluster — while later dots park progressively
+ * closer to their resting spot, tracking the contraction (eased like the
+ * tween that drives it). Entering `network`, each dot materializes at the
+ * current zoom and rides the pull-back; leaving it, the crowd disperses back
+ * out as the cluster grows — the same zoom mirrored. The intro-frame endpoint
+ * is exact because the two bakes share offsets-from-Bacon (the intro actors
+ * are pinned) — only offsets are comparable; the bakes' absolutes differ.
+ */
+function networkEntryPosition(n, w, h) {
+	const { cx, cy, sx, sy } = introFrame(w, h);
+	const [ax, ay] = NETWORK_LAYOUT.xy[ANCHOR_ID];
+	const [x, y] = NETWORK_LAYOUT.xy[n.id];
+	const ix = cx + (x - ax) * sx;
+	const iy = cy + (y - ay) * sy;
+	const [fx, fy] = networkPosition(n, w, h, NETWORK_ENTRY_SETTLE);
+	const zoomT = Math.min(
+		1,
+		Math.max(
+			0,
+			(networkCrowdDelay(n) - NETWORK_ZOOM_DELAY_MS) / NETWORK_ZOOM_MS
+		)
+	);
+	const t = easeCubicInOut(zoomT);
+	return [ix + (fx - ix) * t, iy + (fy - iy) * t];
+}
 
 /** hidden park spot for any node not participating in a hop-based state */
 export function parkHidden(attrs, n, w, h) {
 	if (n.hop >= 0) {
-		const [x, y] = networkPosition(n, w, h, NETWORK_PRESPREAD);
+		const [x, y] = networkEntryPosition(n, w, h);
 		set(attrs, n.id, x, y, NETWORK_RADIUS[n.hop], HOP_RGB[n.hop], 0);
 	} else {
 		const [x, y] = scatterPosition(n, w, h);
