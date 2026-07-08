@@ -103,7 +103,6 @@ function careerLayout(showCohort) {
 }
 
 const CAREER_OVERLAY = {
-	caption: "Films by career age",
 	xLabel: "Career age (years)",
 	yLabel: "Films"
 };

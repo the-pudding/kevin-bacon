@@ -218,7 +218,6 @@ function layoutScatterGenZ(nodes, w, h) {
 }
 
 const AVG_OVERLAY = {
-	caption: "Average distance vs. films",
 	xLabel: "Films (log scale)",
 	yLabel: "Avg distance"
 };
@@ -250,7 +249,6 @@ export const states = {
 		layout: layoutConcScatter,
 		labels: [QUIZ_IDS[0], QUIZ_IDS[1]],
 		overlay: {
-			caption: "Concurrence vs. films",
 			xLabel: "Films (log scale)",
 			yLabel: "Concurrence"
 		}
@@ -259,7 +257,6 @@ export const states = {
 		layout: layoutDegScatter,
 		labels: [QUIZ_IDS[0], QUIZ_IDS[1], QUIZ_IDS[2], QUIZ_IDS[4]],
 		overlay: {
-			caption: "Top-50 costar degree vs. films",
 			xLabel: "Films (log scale)",
 			yLabel: "Costar degree (log)"
 		}

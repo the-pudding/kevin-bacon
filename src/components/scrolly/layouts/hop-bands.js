@@ -83,12 +83,10 @@ function layoutHopBands(nodes, w, h, _edges, params) {
 export const states = {
 	hopBands: {
 		layout: (n, w, h, e) => layoutHopBands(n, w, h, e, {}),
-		labels: [ANCHOR_ID],
-		overlay: { caption: "Actors by degrees of separation from Bacon" }
+		labels: [ANCHOR_ID]
 	},
 	hopCalc: {
 		layout: (n, w, h, e) => layoutHopBands(n, w, h, e, { calc: true }),
-		labels: [ANCHOR_ID],
-		overlay: { caption: "Kevin Bacon's average distance" }
+		labels: [ANCHOR_ID]
 	}
 };

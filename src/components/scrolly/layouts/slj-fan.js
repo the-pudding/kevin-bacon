@@ -107,7 +107,6 @@ export const states = {
 		labels: [CGM],
 		pulse: SLJ,
 		overlay: {
-			caption: "Can anyone catch Samuel L. Jackson?",
 			xLabel: "Career age (years)",
 			yLabel: "Avg distance"
 		}

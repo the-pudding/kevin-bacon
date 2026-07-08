@@ -108,7 +108,6 @@ export const states = {
 	winBars: {
 		layout: layoutWinBars,
 		pulse: CGM,
-		params: (s) => ({ focus: s.winFocus ?? CGM }),
-		overlay: { caption: "Simulation wins out of 10,000 runs" }
+		params: (s) => ({ focus: s.winFocus ?? CGM })
 	}
 };

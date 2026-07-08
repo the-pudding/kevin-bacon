@@ -163,16 +163,16 @@ export const states = {
 	raceRecent: {
 		layout: raceLayout([2004, 2026.2], 5, 3, 2.3),
 		labels: [SLJ],
-		overlay: { caption: "Center of Hollywood over time", ...OVERLAY }
+		overlay: OVERLAY
 	},
 	raceTrades: {
 		layout: raceLayout([1998.5, 2007], 2, 0.4, 2.25),
 		labels: [SLJ, HACKMAN, DENIRO, WELKER],
-		overlay: { caption: "Center of Hollywood over time", ...OVERLAY }
+		overlay: OVERLAY
 	},
 	raceFull: {
 		layout: raceLayout([1970, 2026.2], 10, 4),
 		labels: [HACKMAN],
-		overlay: { caption: "Center of Hollywood, 1970–2026", ...OVERLAY }
+		overlay: OVERLAY
 	}
 };

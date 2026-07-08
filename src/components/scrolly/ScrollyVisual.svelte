@@ -319,9 +319,6 @@
 	</div>
 	{#key stateName}
 		<div class="overlay">
-			{#if overlay?.caption}
-				<p class="caption">{overlay.caption}</p>
-			{/if}
 			{#if overlay?.xLabel}
 				<p
 					class="x-label"
@@ -521,15 +518,6 @@
 	.note.wrap {
 		white-space: normal;
 		max-width: 16rem;
-	}
-
-	.caption {
-		top: 0.6rem;
-		left: 50%;
-		transform: translateX(-50%);
-		font-variant: small-caps;
-		letter-spacing: 0.06em;
-		color: var(--color-gray-700, #444);
 	}
 
 	.note.center {

@@ -84,12 +84,10 @@ function layoutRank(nodes, w, h, _edges, params) {
 export const states = {
 	rankFocus: {
 		layout: layoutRank,
-		params: (s) => ({ focusId: s.rankGuess ?? ANCHOR_ID }),
-		overlay: { caption: "All actors, ranked by average distance" }
+		params: (s) => ({ focusId: s.rankGuess ?? ANCHOR_ID })
 	},
 	rankReveal: {
 		layout: (n, w, h, e) => layoutRank(n, w, h, e, { focusId: SLJ }),
-		pulse: SLJ,
-		overlay: { caption: "All actors, ranked by average distance" }
+		pulse: SLJ
 	}
 };

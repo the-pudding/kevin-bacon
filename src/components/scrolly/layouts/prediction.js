@@ -109,7 +109,6 @@ export const states = {
 							: "film"
 		}),
 		overlay: {
-			caption: "Predicted vs. actual average distance",
 			xLabel: "Predicted",
 			yLabel: "Actual"
 		}
