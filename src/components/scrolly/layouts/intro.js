@@ -3,19 +3,20 @@ import {
 	ATTR_SIZE,
 	DELAY_SIZE,
 	HOP_RGB,
+	INK,
 	CROWD,
 	set,
 	setEdge,
 	pairKey,
 	parkHidden,
 	networkPosition,
+	networkRadius,
 	graphCenter,
 	introFrame,
 	networkCrowdDelay,
 	NETWORK_ZOOM_DELAY_MS,
 	NETWORK_INTRO_RADIUS,
-	NETWORK_RADIUS,
-	NETWORK_ALPHA
+	NETWORK_CROWD_ALPHA
 } from "../layout-shared.js";
 
 /**
@@ -174,25 +175,25 @@ function layoutNetwork(nodes, w, h, edges) {
 	const delays = new Float64Array(DELAY_SIZE);
 	const introSet = new Set(INTRO_IDS);
 	for (const n of nodes) {
-		if (n.hop < 0) {
+		const pos = networkPosition(n, w, h);
+		if (!pos) {
+			// no saved position (outside the 10k corpus) — hidden here
 			parkHidden(attrs, n, w, h);
 			continue;
 		}
-		const [x, y] = networkPosition(n, w, h);
+		const isIntro = introSet.has(n.id);
 		set(
 			attrs,
 			n.id,
-			x,
-			y,
-			NETWORK_RADIUS[n.hop],
-			n.id === ANCHOR_ID ? HOP_RGB[0] : CROWD,
-			NETWORK_ALPHA[n.hop]
+			pos[0],
+			pos[1],
+			networkRadius(n, w, h),
+			n.id === ANCHOR_ID ? INK : CROWD,
+			n.id === ANCHOR_ID || isIntro ? 1 : NETWORK_CROWD_ALPHA
 		);
 		// more and more actors: the crowd accumulates inner-first on the shared
-		// distance ramp; the cluster holds its beat before contracting
-		delays[n.id] = introSet.has(n.id)
-			? NETWORK_ZOOM_DELAY_MS
-			: networkCrowdDelay(n);
+		// distance ramp; the intro cluster holds its beat before contracting
+		delays[n.id] = isIntro ? NETWORK_ZOOM_DELAY_MS : networkCrowdDelay(n);
 	}
 	// intro edges dissolve in place (full length, alpha → 0, delay 0) instead
 	// of retracting — the graph fades to dots as the zoom-out begins

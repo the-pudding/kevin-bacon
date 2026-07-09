@@ -35,6 +35,8 @@ words:
   - tweening
   - genz
   - awkwafina
+  - beeswarm
+  - tunables
 ignorePaths:
   - node_modules
   - build

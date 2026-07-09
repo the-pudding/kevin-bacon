@@ -1,0 +1,2 @@
+- [x] step 3 should basically be a ramp up from step 2 remove the labels and the edges. and add more and more actors to the graph as the graph zooms out top show the full dataset
+- [x] going backwards from 2 doesn't look nice

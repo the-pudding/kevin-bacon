@@ -158,29 +158,53 @@ predicted-distance variants (null when a metric doesn't exist for that actor;
 layouts hide non-participants at their distance-scatter park spot). `hop` is
 -1 when unknown — those nodes are hidden in hop-coloured states.
 
-`networkLayout` is a build-time d3-force layout of every hop-mapped node
-(links = each node's nearest sampled ancestor in the KB spanning tree; the
-majority without a parent link — most of the shared hop tree — attach instead
-to a same-hop "local hub", the best-connected sampled node in that hop that's
-already anchored to the tree, so the crowd forms secondary clusters rather
-than orbiting Bacon alone), in `introLayout`'s coordinate units with the 15
-intro actors pinned at their intro positions — so `network` reads as the intro
-graph growing/zooming out. There's deliberately no radial force keyed off
-distance from Bacon: hop distance _is_ distance-from-Bacon by definition, so a
-Bacon-anchored radial force would always draw a bullseye regardless of the
-real graph (this was the 2026-07-06 feedback fix). `networkPosition()` in
-`layout-shared.js` also pans the fit so Bacon lands off `graphCenter` rather
-than dead-on it (`NETWORK_BACON_OFFSET`) — `lone`/`networkIntro` still anchor
-on `graphCenter` exactly, so only the `network` state's reveal drifts him
-aside. Hidden crowd nodes park on an entry gradient (`parkHidden`), not at a
-fixed pre-spread: each dot waits where the network is drawn at the moment its
-reveal delay lands — inner dots at the intro frame's scale, later dots
-progressively closer to their resting spot — so the crowd materializes at the
-current zoom and rides the contraction in, and disperses back out on the way
-up. Note this is a layout/camera device, not a claim that the underlying
-graph isn't Bacon-rooted — the source data only encodes hop-distance-from-
-Bacon, so no amount of force-layout tuning makes him topologically
-non-central in it.
+`networkLayout` is a build-time d3-force graph layout of the full top-10k
+corpus. Structure comes from the **real costar edges** (`top10000-edges.json`,
+~1.09M weighted edges), capped to each node's top-`NETWORK_EDGE_CAP` by
+shared-film count (~71k links) and fed to `forceLink`, so connected actors pull
+into genre/era communities; `forceManyBody` (charge) + `forceCollide` keep dots
+apart and a weak `forceX`/`forceY` to the crowd centroid bounds the graph
+without flattening structure — an organic core-plus-filaments shape, not a disc.
+The prototype beeswarm (`saved-layout-x.json`) is only the SEED (initial
+positions). A second **pull-in pass** then tightens the mass: the settled layout
+is grid-binned to detect its **spatial islands** (everything outside the dense
+central blob — filaments and detached community clumps), then those islands are
+dragged toward the core centroid by a short second force sim (`forceX`/`forceY`
+on the islands only + `forceCollide` so they pack into gaps + their real costar
+links retained, so connected filaments retract along their edges), with the core
+and pinned intro actors held fixed (`fx`/`fy`). The handful of graph-severed
+islands are first wired to their strongest real costar in the core so links pull
+them in too. This settles to a stable, still-organic mass (Bacon off-centre, a
+plumed/clumpy silhouette) that fills the frame instead of a tiny dense core lost
+in a sprawl of strays. The 15 intro actors are pinned
+(`fx/fy`) in their `networkIntro` burst arrangement — scaled down
+(`INTRO_BURST_SCALE`) and anchored off-centre (`INTRO_BURST_OFFSET`, up-left of
+the centroid) — so they hold a recognisable constellation and Bacon lands ≈68%
+of the radius from centre (the "not the centre" caption is shown, not
+asserted); the ~10k crowd relaxes around them. Output `xy[id] = [x, y]` in
+translated relaxed units (min → 0), `null` for the ~600 later-chapter actors
+outside the 10k corpus. Every 10k actor not already sampled is appended as a
+minimal "crowd" row (`hop -1`, so it appears only here, never in the hop
+chapter); `networkCount` marks the boundary between metric-carrying rich nodes
+and the crowd. `networkPosition()` in `layout-shared.js` renders it as a camera
+(`networkCamera`): `cameraT 0` frames Bacon's neighbourhood at `graphCenter`
+(continuous with `networkIntro`, where Bacon sits there too), `cameraT 1` fits
+the full extent centred on the canvas so Bacon drifts to his off-centre spot —
+the pull-back between the two is the zoom-out that reveals the whole dataset
+(`feedback.md`: "add more and more actors as the graph zooms out"). Every dot
+renders one size (`networkRadius` → `NETWORK_DOT_R`); the crowd holds a faint
+alpha (`NETWORK_CROWD_ALPHA`) so Bacon (dark + pulsing) and the intro
+constellation read. Hidden crowd nodes park on the entry gradient (`parkHidden`
+→ `networkEntryPosition`): each waits at the zoom level its reveal delay lands
+on, so it materialises at the current pull-back and rides it in, dispersing back
+out on the way up. Deterministic: seeded positions, fixed tick count,
+d3-force's internal LCG, no RNG. Force params (`NETWORK_CHARGE`,
+`NETWORK_LINK_D`/`_STRENGTH`, `NETWORK_CENTER`, `NETWORK_EDGE_CAP`,
+`NETWORK_TICKS`) and the pull-in tunables (`NETWORK_PULL`,
+`NETWORK_PULL_TICKS`, `ISLAND_CELL`, `ISLAND_MIN`) are at the top of the bake's
+layout block. The pull-in converges to a stable equilibrium (links + collision
+balance the centroid spring), so its exact strength is not sensitive within a
+broad range.
 
 `scrolly-story.json` carries the non-dot data: `bacon` bucket totals, `corr`
 (prediction correlations), `quiz` pairs, race `eras` + `raceSeries`

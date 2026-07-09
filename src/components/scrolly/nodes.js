@@ -8,15 +8,15 @@ export const INTRO_IDS = data.introIds;
 /** baked planar layout of the intro network — `xy` aligned with INTRO_IDS */
 export const INTRO_LAYOUT = data.introLayout;
 /**
- * baked force-directed layout of every hop-mapped node (`xy[id]` null for
- * hop -1), same coordinate units as INTRO_LAYOUT with the intro actors pinned
- * at their intro positions — the `network` state is the intro graph grown out
+ * the reused 10k prototype force layout: `xy[id] = [x, y, radius]` in
+ * translated saved-layout units, `null` for actors outside the 10k corpus —
+ * the `network` state is a camera zoom-out over it (see layout-shared.js)
  */
 export const NETWORK_LAYOUT = data.networkLayout;
 /**
- * ids < NETWORK_COUNT are the hop-stratified network-chapter sample; ids from
- * NETWORK_COUNT up are appended actors the later chapters plot (prediction
- * cohort, quiz pairs, Gen-Z candidates, race anchors…).
+ * ids < NETWORK_COUNT carry full metrics (intro + hop sample + later-chapter
+ * cohort — prediction, quiz, Gen-Z, race anchors…); ids from NETWORK_COUNT up
+ * are minimal "crowd" rows that exist only for the `network` map.
  */
 export const NETWORK_COUNT = data.networkCount;
 

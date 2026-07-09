@@ -248,10 +248,17 @@ export function clipSeries(pairs, x0, x1) {
 	return out.length >= 2 ? out : null;
 }
 
-export const NETWORK_RADIUS = [3, 1, 1, 1, 1];
-export const NETWORK_ALPHA = [1, 0.9, 0.45, 0.2, 0.12];
 export const NETWORK_INTRO_RADIUS = [16, 6, 6, 6, 6];
 export const NETWORK_HOP_DELAY_MS = 250;
+
+// network map (force-relaxed 10k layout): every dot renders the same size; the
+// crowd holds a faint alpha so Bacon (dark + pulsing) and the intro actors read
+// against ~10k background dots
+export const NETWORK_CROWD_ALPHA = 0.55;
+const NETWORK_DOT_R = 1.5;
+// layout units spanning the frame at the start of the zoom-out: Bacon's
+// neighbourhood fills the view, then the camera pulls back to the full extent
+const NETWORK_ZOOM_SPAN = 340;
 
 // anisotropy cap when fitting the landscape intro layout to portrait screens —
 // planarity survives axis scaling, and without it 320px viewports squash the
@@ -288,8 +295,9 @@ export function graphCenter(w, h) {
 	return [cx, cy];
 }
 
-// the baked full-network layout's furthest node from Bacon, in layout units —
-// the fit below maps this onto the canvas' inscribed radius
+// the network map's furthest node from Bacon, in saved-layout units — the
+// crowd's reveal ramp normalises against it so the reveal radiates outward
+// from the Bacon cluster
 const NETWORK_MAX_DIST = (() => {
 	const [ax, ay] = NETWORK_LAYOUT.xy[ANCHOR_ID];
 	let max = 0;
@@ -308,32 +316,50 @@ function networkDistNorm(id) {
 	return Math.hypot(x - ax, y - ay) / NETWORK_MAX_DIST;
 }
 
-// how far left of dead-center Bacon sits once the full crowd is on screen, as
-// a fraction of the fitted radius — `lone`/`networkIntro` still put him on
-// graphCenter (see above), so this offset only takes effect as `network`
-// pans away from it, landing the reveal off to a side instead of dead center
-// (a Bacon-centered frame reads as "he IS the center", which is the opposite
-// of this chapter's point)
-const NETWORK_BACON_OFFSET = 0.22;
+// camera over the reused 10k map. cameraT 0 frames Bacon's neighbourhood at
+// graphCenter — continuous with `networkIntro`, where Bacon sits there too;
+// cameraT 1 fits the full extent centred on the canvas, so Bacon settles
+// visibly off-centre (a Bacon-centred frame would read as "he IS the centre",
+// the opposite of this chapter's point). The pull-back between the two is the
+// zoom-out that reveals the full dataset.
+function networkCamera(w, h, t) {
+	const [bx, by] = NETWORK_LAYOUT.xy[ANCHOR_ID];
+	const lcx = NETWORK_LAYOUT.w / 2;
+	const lcy = NETWORK_LAYOUT.h / 2;
+	const sFull = Math.min(
+		(w - MARGIN * 2) / NETWORK_LAYOUT.w,
+		(h - MARGIN * 2) / NETWORK_LAYOUT.h
+	);
+	const sZoom = Math.max(
+		sFull,
+		(Math.min(w, h) - MARGIN * 2) / NETWORK_ZOOM_SPAN
+	);
+	const [gx, gy] = graphCenter(w, h);
+	return {
+		scale: sZoom + (sFull - sZoom) * t,
+		fx: bx + (lcx - bx) * t, // focus point in layout units
+		fy: by + (lcy - by) * t,
+		ex: gx + (w / 2 - gx) * t, // where the focus lands on screen
+		ey: gy + (h / 2 - gy) * t
+	};
+}
 
 /**
- * Full-graph position from the baked force-directed layout (NETWORK_LAYOUT),
- * panned so Bacon lands off-center (see NETWORK_BACON_OFFSET) — shared so
- * other states can pre-park the crowd. The intro actors are pinned inside the
- * bake, so their network spots are their intro geometry at the smaller
- * full-graph scale: arriving from `networkIntro` contracts the cluster in
- * place while panning off graphCenter, reading as a zoom-out that drifts.
- * `spread` > 1 inflates radially from Bacon (the entry gradient's residual
- * settle drift below uses it).
+ * Screen position of node n on the network map at zoom level `cameraT`
+ * (0 = entry framing on Bacon, 1 = settled full-extent fit). Returns null for
+ * actors with no saved position (outside the 10k corpus) — callers park those
+ * elsewhere.
  */
-export function networkPosition(n, w, h, spread = 1) {
-	const [gx, gy] = graphCenter(w, h);
-	const r = Math.min(w, h) / 2 - MARGIN;
-	const s = (r * (1 - NETWORK_BACON_OFFSET)) / NETWORK_MAX_DIST;
-	const cx = gx - r * NETWORK_BACON_OFFSET;
-	const [ax, ay] = NETWORK_LAYOUT.xy[ANCHOR_ID];
-	const [x, y] = NETWORK_LAYOUT.xy[n.id];
-	return [cx + (x - ax) * s * spread, gy + (y - ay) * s * spread];
+export function networkPosition(n, w, h, cameraT = 1) {
+	const p = NETWORK_LAYOUT.xy[n.id];
+	if (!p) return null;
+	const c = networkCamera(w, h, cameraT);
+	return [c.ex + (p[0] - c.fx) * c.scale, c.ey + (p[1] - c.fy) * c.scale];
+}
+
+/** radius of any node on the map — uniform across every dot */
+export function networkRadius() {
+	return NETWORK_DOT_R;
 }
 
 // networkIntro → network choreography: the crowd arrives on a
@@ -346,8 +372,6 @@ const NETWORK_ZOOM_MS = 700; // mirrors ScrollyVisual's TWEEN_MS (the contractio
 const NETWORK_CROWD_START_MS = 80;
 const NETWORK_CROWD_RAMP_MS = 3000;
 const NETWORK_CROWD_JITTER_MS = 280;
-// residual inward drift for dots entering after the zoom has finished
-const NETWORK_ENTRY_SETTLE = 1.12;
 
 /** when crowd node n starts fading in during the `network` reveal */
 export function networkCrowdDelay(n) {
@@ -359,24 +383,15 @@ export function networkCrowdDelay(n) {
 }
 
 /**
- * Hidden park spot for crowd node n (hop >= 0 only): where the network is
- * drawn at the moment the dot starts fading in. A dot whose delay lands
- * before the cluster contracts parks at the intro frame's scale — interleaved
- * with the still-full-size cluster — while later dots park progressively
- * closer to their resting spot, tracking the contraction (eased like the
- * tween that drives it). Entering `network`, each dot materializes at the
- * current zoom and rides the pull-back; leaving it, the crowd disperses back
- * out as the cluster grows — the same zoom mirrored. The intro-frame endpoint
- * is exact because the two bakes share offsets-from-Bacon (the intro actors
- * are pinned) — only offsets are comparable; the bakes' absolutes differ.
+ * Hidden park spot for a network-map node: the map drawn at the zoom level its
+ * reveal delay lands on, so it materialises at the current pull-back and rides
+ * it in (a dot revealing before the zoom starts parks at the entry framing on
+ * Bacon; later dots park progressively closer to the settled fit). Leaving
+ * `network`, the crowd disperses back out as the camera zooms in — the same
+ * pull-back mirrored. Returns null for actors with no saved position.
  */
 function networkEntryPosition(n, w, h) {
-	const { cx, cy, sx, sy } = introFrame(w, h);
-	const [ax, ay] = NETWORK_LAYOUT.xy[ANCHOR_ID];
-	const [x, y] = NETWORK_LAYOUT.xy[n.id];
-	const ix = cx + (x - ax) * sx;
-	const iy = cy + (y - ay) * sy;
-	const [fx, fy] = networkPosition(n, w, h, NETWORK_ENTRY_SETTLE);
+	if (!NETWORK_LAYOUT.xy[n.id]) return null;
 	const zoomT = Math.min(
 		1,
 		Math.max(
@@ -384,15 +399,18 @@ function networkEntryPosition(n, w, h) {
 			(networkCrowdDelay(n) - NETWORK_ZOOM_DELAY_MS) / NETWORK_ZOOM_MS
 		)
 	);
-	const t = easeCubicInOut(zoomT);
-	return [ix + (fx - ix) * t, iy + (fy - iy) * t];
+	return networkPosition(n, w, h, easeCubicInOut(zoomT));
 }
 
-/** hidden park spot for any node not participating in a hop-based state */
+/**
+ * Hidden park spot for any node not placed by the current state: network-map
+ * actors park along the zoom-out entry gradient (alpha 0); the rest
+ * (later-chapter actors outside the 10k corpus) park on the scatter plot.
+ */
 export function parkHidden(attrs, n, w, h) {
-	if (n.hop >= 0) {
-		const [x, y] = networkEntryPosition(n, w, h);
-		set(attrs, n.id, x, y, NETWORK_RADIUS[n.hop], HOP_RGB[n.hop], 0);
+	const pos = networkEntryPosition(n, w, h);
+	if (pos) {
+		set(attrs, n.id, pos[0], pos[1], networkRadius(n, w, h), CROWD, 0);
 	} else {
 		const [x, y] = scatterPosition(n, w, h);
 		set(attrs, n.id, x, y, 2, CROWD, 0);
