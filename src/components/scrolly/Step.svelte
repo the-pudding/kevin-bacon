@@ -10,29 +10,43 @@
 	 * `dwell` marks a free-exploration step (taller, so the reader can stop and
 	 * interact before scrolling on — framework doc "Dwell steps").
 	 *
+	 * `ready` gates whether this step ships in a production build (it always
+	 * shows in `npm run dev` regardless, so work-in-progress sections stay
+	 * visible locally). Flip it to `true` once a step's visual is finished.
+	 *
 	 * @see notes/scrolly-framework.md
-	 * @type {{ state: import("./states.js").LayoutState, params?: unknown, dwell?: boolean, children: import("svelte").Snippet }}
+	 * @type {{ state: import("./states.js").LayoutState, params?: unknown, dwell?: boolean, ready?: boolean, children: import("svelte").Snippet }}
 	 */
-	let { state: layoutState, params, dwell = false, children } = $props();
+	let {
+		state: layoutState,
+		params,
+		dwell = false,
+		ready = true,
+		children
+	} = $props();
+
+	const visible = ready || import.meta.env.DEV;
 
 	const steps = getContext("scrolly-steps");
-	const index = steps.register(layoutState, params);
-	const active = $derived(steps.current === index);
+	const index = visible ? steps.register(layoutState, params) : undefined;
+	const active = $derived(index !== undefined && steps.current === index);
 	// "wizard" mode shows one step at a time, headless; "scroll" mode (default)
 	// stacks all steps full-height for the IntersectionObserver in Scrolly.
 	const wizard = $derived(steps.mode === "wizard");
 </script>
 
-{#if wizard}
-	{#if active}
-		{@render children()}
-	{/if}
-{:else}
-	<div class="step" class:active class:dwell>
-		<div class="card">
+{#if visible}
+	{#if wizard}
+		{#if active}
 			{@render children()}
+		{/if}
+	{:else}
+		<div class="step" class:active class:dwell>
+			<div class="card">
+				{@render children()}
+			</div>
 		</div>
-	</div>
+	{/if}
 {/if}
 
 <style>

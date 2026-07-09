@@ -84,13 +84,13 @@
 							<b>never will</b>.
 						</p>
 					</Step>
-					<Step state="hopBands">
+					<Step state="hopBands" ready={false}>
 						<p>
 							No doubt, he's well connected. You can get from any Hollywood
 							actor to Kevin Bacon in four movies or less.
 						</p>
 					</Step>
-					<Step state="hopCalc">
+					<Step state="hopCalc" ready={false}>
 						<p>
 							The reality is that Kevin Bacon isn't special in this respect;
 							there are 16,429 actors who can be reached by everyone within 4
@@ -100,7 +100,7 @@
 							>.
 						</p>
 					</Step>
-					<Step state="rankFocus" dwell>
+					<Step state="rankFocus" dwell ready={false}>
 						<p>
 							As of 2026, I can tell you that Kevin Bacon ranks #175 of all
 							Hollywood actors based on average distance. Can you guess who #1
@@ -108,7 +108,7 @@
 						</p>
 						<GuessRank />
 					</Step>
-					<Step state="rankReveal">
+					<Step state="rankReveal" ready={false}>
 						<p>
 							Yes, Samuel L. Jackson is the <i>center of Hollywood</i>. You can
 							get to him in an average distance of just 2.09. Willem Dafoe is
@@ -117,19 +117,19 @@
 					</Step>
 
 					<!-- PAST -->
-					<Step state="raceRecent">
+					<Step state="raceRecent" ready={false}>
 						<p>
 							Samuel L. Jackson has been the center of hollywood since 2006,
 							taking over from Gene Hackman.
 						</p>
 					</Step>
-					<Step state="raceTrades">
+					<Step state="raceTrades" ready={false}>
 						<p>
 							Before then, the crown changed hands frequently. Gene Hackman and
 							Robert De Niro fighting over top spot for half a decade.
 						</p>
 					</Step>
-					<Step state="raceFull" dwell>
+					<Step state="raceFull" dwell ready={false}>
 						<p>
 							Repeating this process, we can go all the way back to 1970 to
 							create a timeline of centers from when we started recording this
@@ -137,7 +137,7 @@
 						</p>
 					</Step>
 
-					<Step state="scatterCenters">
+					<Step state="scatterCenters" ready={false}>
 						<p>
 							As you just learned, Samuel L. Jackson has been dominating
 							Hollywood by his sheer prolificacy since 2006. His reign has
@@ -149,7 +149,7 @@
 							could we use to accurately predict an actor's average distance?
 						</p>
 					</Step>
-					<Step state="scatterCenters">
+					<Step state="scatterCenters" ready={false}>
 						<p>
 							Just because you're in loads of films doesn't necessarily mean
 							you've got a lot of connections in the graph. And just because
@@ -157,7 +157,7 @@
 							got the <i>right</i> connections to make you the center of Hollywood.
 						</p>
 					</Step>
-					<Step state="scatterWalters">
+					<Step state="scatterWalters" ready={false}>
 						<p>
 							Dame Julie Walters under-performs drastically on average distance.
 							In this respect, she's got two things going against her:
@@ -174,7 +174,7 @@
 							distance down for her.
 						</p>
 					</Step>
-					<Step state="scatterQuiz" dwell>
+					<Step state="scatterQuiz" dwell ready={false}>
 						<p>
 							Let's generalise this idea into two hypotheses:
 							<br />
@@ -187,7 +187,7 @@
 						</p>
 						<PairQuiz />
 					</Step>
-					<Step state="scatterQuiz">
+					<Step state="scatterQuiz" ready={false}>
 						<p>
 							Seth Rogen and Charlize Theron are in similar numbers of films -
 							they even costarred in "Long Shot". However, Charlize Theron tends
@@ -196,14 +196,14 @@
 							Hill is in 8 of his films.
 						</p>
 					</Step>
-					<Step state="concurrenceScatter">
+					<Step state="concurrenceScatter" ready={false}>
 						<p>
 							<i>Concurrency</i> is a measure of how frequently you work with the
 							same actors. Seth Rogen having a concurrency of 0.28 means that for
 							each of his films, he would have worked with 28% of the cast before.
 						</p>
 					</Step>
-					<Step state="concurrenceScatter">
+					<Step state="concurrenceScatter" ready={false}>
 						<p>
 							If your concurrency is low, you work for the first time with
 							actors more often. This means you create more connections in the
@@ -211,14 +211,14 @@
 							distance down.
 						</p>
 					</Step>
-					<Step state="concurrenceScatter">
+					<Step state="concurrenceScatter" ready={false}>
 						<p>
 							If you starred in one film with Samuel L Jackson and him alone,
 							you would immediately have an average distance of 3.08, putting
 							you in the top 75% of hollywood.
 						</p>
 					</Step>
-					<Step state="concurrenceScatter">
+					<Step state="concurrenceScatter" ready={false}>
 						<p>
 							Due to its circular nature, we can't use "low costar average
 							distance" as a signal for explaining someone's average distance.
@@ -226,7 +226,7 @@
 							graph i.e their costars' <i>degree</i>.
 						</p>
 					</Step>
-					<Step state="degScatter">
+					<Step state="degScatter" ready={false}>
 						<p>
 							Here's the same graph, but measuring the average degree of their
 							top 50 costars.
@@ -234,7 +234,7 @@
 					</Step>
 
 					<!-- FUTURE -->
-					<Step state="predictionScatter" dwell>
+					<Step state="predictionScatter" dwell ready={false}>
 						<p>
 							So both of our hypotheses hold up against our example pairs. These
 							two new pieces of information can be used to explain why two
@@ -245,7 +245,7 @@
 						</p>
 						<PredictToggles />
 					</Step>
-					<Step state="scatterGenZ">
+					<Step state="scatterGenZ" ready={false}>
 						<p>
 							Now, Samuel L. Jackson can't be the center forever. At some point,
 							someone must overtake him. Which Gen Z actor do we think is going
@@ -255,14 +255,14 @@
 							Bacon.
 						</p>
 					</Step>
-					<Step state="scatterGenZ">
+					<Step state="scatterGenZ" ready={false}>
 						<p>
 							Using all the data we have, we can model an actor's career by
 							looking at what has happened to actors with similar stats in the
 							past.
 						</p>
 					</Step>
-					<Step state="careerTrio">
+					<Step state="careerTrio" ready={false}>
 						<p>
 							Take Sydney Sweeney. She's been in 16 films since her debut 15
 							years ago. At the same point in their career, Robert De Niro had
@@ -271,7 +271,7 @@
 							in the same time — and only ever appeared in 27.
 						</p>
 					</Step>
-					<Step state="careerMany">
+					<Step state="careerMany" ready={false}>
 						<p>
 							This means that whatever actor we use to model a Gen Z's career
 							trajectory can massively impact the results. For each actor, we
@@ -281,7 +281,7 @@
 							top.
 						</p>
 					</Step>
-					<Step state="winBars" dwell>
+					<Step state="winBars" dwell ready={false}>
 						<p>
 							Indeed, Chloë Grace Moretz wins in a quarter of simulations. She
 							doesn't exactly have a clear majority, despite already being
@@ -289,7 +289,7 @@
 						</p>
 						<BarPicker />
 					</Step>
-					<Step state="sljFan">
+					<Step state="sljFan" ready={false}>
 						<p>
 							On average, the winning score is 2.33, nowhere near SLJ's current
 							average distance. We're counting on SLJ's average distance getting
@@ -297,7 +297,7 @@
 							universe being spawned again.
 						</p>
 					</Step>
-					<Step state="sljFan">
+					<Step state="sljFan" ready={false}>
 						<p>
 							What I can tell you is that our first female center of hollywood
 							is very likely to happen next, with 77% of the wins going to
