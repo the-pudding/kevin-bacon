@@ -19,19 +19,29 @@
 	/**
 	 * Filled by each <Step> as it mounts, in document order — the single source
 	 * of truth mapping step index → visual state (+ future per-step params).
-	 * @type {{ state: import("$components/scrolly/states.js").LayoutState, params?: Object }[]}
+	 * `ready === false` marks a step whose visual isn't finished: in a
+	 * production build its ScrollyVisual is swapped for a "visuals tbd"
+	 * placeholder (dev always shows the real visual).
+	 * @type {{ state: import("$components/scrolly/states.js").LayoutState, params?: Object, ready?: boolean }[]}
 	 */
 	const stepConfigs = $state([]);
 
-	/** @type {{ register: (state: import("$components/scrolly/states.js").LayoutState, params?: Object) => number, current: number|undefined, mode: string }} */
+	/** @type {{ register: (state: import("$components/scrolly/states.js").LayoutState, params?: Object, ready?: boolean) => number, current: number|undefined, mode: string }} */
 	const scrollySteps = {
-		register: (state, params) => stepConfigs.push({ state, params }) - 1,
+		register: (state, params, ready) =>
+			stepConfigs.push({ state, params, ready }) - 1,
 		get current() {
 			return value;
 		},
 		mode: "wizard"
 	};
 	setContext("scrolly-steps", scrollySteps);
+
+	// unfinished visuals show a placeholder in the deployed build only; local
+	// dev keeps rendering the real ScrollyVisual so they stay editable
+	const showTbd = $derived(
+		!import.meta.env.DEV && stepConfigs[value ?? 0]?.ready === false
+	);
 
 	onMount(() => {
 		const saved = localStorage.get(STEP_STORAGE_KEY);
@@ -58,6 +68,11 @@
 					state={stepConfigs[value ?? 0]?.state}
 					params={stepConfigs[value ?? 0]?.params}
 				/>
+				{#if showTbd}
+					<div class="visual-tbd">
+						<p>visuals tbd</p>
+					</div>
+				{/if}
 			</div>
 			<div class="scrolly-steps">
 				<Wizard bind:value count={stepConfigs.length}>
@@ -329,6 +344,26 @@
 	.scrolly-visual {
 		position: absolute;
 		inset: 0;
+	}
+
+	/* covers the in-progress ScrollyVisual for steps flagged not-ready in a
+	   production build (see showTbd) */
+	.visual-tbd {
+		position: absolute;
+		inset: 0;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		background: var(--color-bg);
+	}
+
+	.visual-tbd p {
+		margin: 0;
+		font-family: var(--font-mono);
+		font-size: 0.85rem;
+		text-transform: uppercase;
+		letter-spacing: 0.15em;
+		color: var(--color-gray-500, #888);
 	}
 
 	.scrolly-steps {
