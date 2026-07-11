@@ -1,15 +1,14 @@
 # Scrolly visual framework (object-constancy PoC)
 
 Status as of 2026-07-05: all storyboard visuals implemented end-to-end on real
-data (28 steps, 21 states across Present/Past/Future) and awaiting Owen's
+data (28 steps, 20 states across Present/Past/Future) and awaiting Owen's
 review pass. This documents the framework in `src/components/scrolly/` so a
 fresh session (or collaborator) can pick it up.
 
 ## What it is
 
 A scroll-driven visual for the sticky `.scrolly-visual` container in
-`src/components/Index.svelte`. ~10,600 dots ("actors", most of them the
-`network` map's anonymous crowd) with **stable identities**
+`src/components/Index.svelte`. ~11,500 dots ("actors") with **stable identities**
 live on one canvas for the whole story; as the reader scrolls between steps, the
 dots tween seamlessly between per-step layout **states** (object constancy — dots
 travel, they don't fade out/in wholesale). A second tweener does the same for
@@ -20,15 +19,15 @@ layout via params — see "Interactivity" below.
 
 ## Files
 
-| File                                          | Role                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
-| --------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `src/components/scrolly/nodes.js`             | Real data: `makeNodes()` → `{ nodes, edges }` decoded from `src/data/scrolly-nodes.json` (built by `npm run scrolly-data`). 1,008 `ActorNode`s (`id, pid, name, hop, films, avgDistance, rank`); node 0 is the anchor (Kevin Bacon), ids 0–14 are the curated intro network in reveal order (`INTRO_IDS`), edges are the 18 intro edges. Also exports `ANCHOR_ID`, `INTRO_LAYOUT` (baked 860×680 planar intro coords), `NETWORK_COUNT` (ids from here up are anonymous crowd rows that exist only for the `network` map) and `hash01(id, salt)` — deterministic per-node randomness used everywhere (never `Math.random`, which would flicker between renders). |
-| `src/components/scrolly/tween.js`             | `createTweener(size, draw, stride)` → `{ current, to, stop }`. One rAF loop lerping a flat `Float64Array` from the _currently rendered_ values to a target. `to(next, ms, jitter, nodeDelays?)`. Vanilla (hand-rolled `easeCubicInOut`), no d3.                                                                                                                                                                                                                                                                                                                                                                                                                 |
-| `src/components/scrolly/layout-shared.js`     | Geometry/color constants, attr/trail helpers (`set`, `setEdge`, `setTrail`, `collapseTrail`, `clipSeries`), named-actor id lookups (`SLJ`, `HANKS`, …), and the `LayoutFn`/`LayoutResult`/`Note`/`Tick` JSDoc typedefs — everything shared across more than one chapter.                                                                                                                                                                                                                                                                                                                                                                                        |
-| `src/components/scrolly/layouts/*.js`         | One module per story chapter (`intro`, `hop-bands`, `rank`, `race`, `scatters`, `prediction`, `career`, `win-bars`, `slj-fan`). Each exports a `states` object mapping state key → `{ layout, labels?, params?, pulse?, revealFrom?, keyframes?, overlay? }` (`revealFrom` scopes the layout's `delays` choreography — or its `keyframes` sequence — to specific prior states — arriving from any other state is one plain tween) — everything about one state colocated in one object, instead of spread across parallel top-level maps.                                                                                                                       |
-| `src/components/scrolly/states.js`            | Thin aggregator: merges every chapter's `states` object into one registry and derives the public `STATES`/`STATE_LABELS`/`STATE_PARAMS`/`STATE_PULSE`/`STATE_KEYFRAMES`/`OVERLAYS` exports from it, plus `STATE_TRACKED`, `INTERACTIVE_IDS`, and the `nodeName`/`nodeRank`/`nodeAvgDistance` lookups. This is still the only module other files import from.                                                                                                                                                                                                                                                                                                    |
-| `src/components/scrolly/Step.svelte`          | One scrolly step: prose in the slot, visual state declared on the tag (`<Step state="network">…</Step>`). Registers `{ state, params }` in document order with the `"scrolly-steps"` context provided by `Index.svelte`, and derives its own active styling — no hand-numbered step indices anywhere.                                                                                                                                                                                                                                                                                                                                                           |
-| `src/components/scrolly/ScrollyVisual.svelte` | Canvas host wired into `Index.svelte` as `<ScrollyVisual state={…} />` (a state name, not a step number). Owns dpr scaling, resize, reduced-motion, the HTML overlay, and the `$effect` that reacts to state changes.                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| File                                          | Role                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/components/scrolly/nodes.js`             | Real data: `makeNodes()` → `{ nodes, edges }` decoded from `src/data/scrolly-nodes.json` (built by `npm run scrolly-data`). 11,486 `ActorNode`s (`id, pid, name, hop, films, avgDistance, rank`); node 0 is the anchor (Kevin Bacon), ids 0–14 are the curated intro network in reveal order (`INTRO_IDS`), edges are the 18 intro edges. Also exports `ANCHOR_ID`, `INTRO_LAYOUT` (baked 860×680 planar intro coords) and `hash01(id, salt)` — deterministic per-node randomness used everywhere (never `Math.random`, which would flicker between renders). |
+| `src/components/scrolly/tween.js`             | `createTweener(size, draw, stride)` → `{ current, to, stop }`. One rAF loop lerping a flat `Float64Array` from the _currently rendered_ values to a target. `to(next, ms, jitter, nodeDelays?)`. Vanilla (hand-rolled `easeCubicInOut`), no d3.                                                                                                                                                                                                                                                                                                               |
+| `src/components/scrolly/layout-shared.js`     | Geometry/color constants, attr/trail helpers (`set`, `setEdge`, `setTrail`, `collapseTrail`, `clipSeries`), named-actor id lookups (`SLJ`, `HANKS`, …), and the `LayoutFn`/`LayoutResult`/`Note`/`Tick` JSDoc typedefs — everything shared across more than one chapter.                                                                                                                                                                                                                                                                                      |
+| `src/components/scrolly/layouts/*.js`         | One module per story chapter (`intro`, `hop-bands`, `rank`, `race`, `scatters`, `prediction`, `career`, `win-bars`, `slj-fan`). Each exports a `states` object mapping state key → `{ layout, labels?, params?, pulse?, revealFrom?, overlay? }` (`revealFrom` scopes the layout's `delays` choreography to specific prior states — arriving from any other state is one plain tween) — everything about one state colocated in one object, instead of spread across parallel top-level maps.                                                                 |
+| `src/components/scrolly/states.js`            | Thin aggregator: merges every chapter's `states` object into one registry and derives the public `STATES`/`STATE_LABELS`/`STATE_PARAMS`/`STATE_PULSE`/`OVERLAYS` exports from it, plus `STATE_TRACKED`, `INTERACTIVE_IDS`, and the `nodeName`/`nodeRank`/`nodeAvgDistance` lookups. This is still the only module other files import from.                                                                                                                                                                                                                    |
+| `src/components/scrolly/Step.svelte`          | One scrolly step: prose in the slot, visual state declared on the tag (`<Step state="lone">…</Step>`). Registers `{ state, params }` in document order with the `"scrolly-steps"` context provided by `Index.svelte`, and derives its own active styling — no hand-numbered step indices anywhere.                                                                                                                                                                                                                                                            |
+| `src/components/scrolly/ScrollyVisual.svelte` | Canvas host wired into `Index.svelte` as `<ScrollyVisual state={…} />` (a state name, not a step number). Owns dpr scaling, resize, reduced-motion, the HTML overlay, and the `$effect` that reacts to state changes.                                                                                                                                                                                                                                                                                                                                         |
 
 JSDoc typedefs (`ActorNode`, `Edge`, `LayoutResult`, `LayoutFn`, `Tweener`) are in
 `nodes.js` / `layout-shared.js` / `tween.js` — VS Code type-checks them without any
@@ -78,16 +77,6 @@ second canvas writer would corrupt tween starts.
 - Interruption-safe by construction: `to()` snapshots the live `current` array,
   so flick-scrolling retargets dots from wherever they are mid-flight.
 
-**Keyframe sequences.** A state can declare `keyframes(nodes, w, h, edges,
-params?)` → `[{ attrs, ms, delays?, wait }]` alongside its `layout`: a
-multi-stage reveal ScrollyVisual plays as a chain of tweener retargets
-(`playSequence`), each frame starting `wait` ms after the previous. The last
-frame must equal the state's own layout attrs. Direction-gated by the same
-`revealFrom` as `delays` choreography; any effect re-run (scroll, resize,
-interaction, reduced-motion flip) cancels the rest of the chain and the
-interruption-safe `to()` takes over from wherever the dots are. Used by
-`network` for the Google-Earth zoom ratchet (see "The network map" below).
-
 **Step → state.** Declared per step in `Index.svelte` markup: each
 `<Step state="…">` registers itself (in document order) with the
 `"scrolly-steps"` context, which builds the `stepConfigs` array —
@@ -95,9 +84,8 @@ interruption-safe `to()` takes over from wherever the dots are. Used by
 active step's `state` and `params` to `ScrollyVisual`; the props are
 `undefined` for a beat on first client render (the visual mounts before the
 steps register), so ScrollyVisual guards on them. Steps needing _different
-visuals_ get _distinct state keys_ (networkIntro vs network); `params` is for
-variation within one layout. `<Step dwell>` doubles the step height and pins
-the card (free-exploration steps).
+visuals_ get _distinct state keys_ (lone vs networkIntro); `params` is for
+variation within one layout.
 
 **Blank steps (no visual).** `<Step state="blank">` (the `BLANK` sentinel in
 `states.js`) declares a step with no visual at all. It has no layout entry, so
@@ -110,8 +98,9 @@ are a no-op (already hidden). Distinct from `ready={false}` (a build-gated
 "visuals tbd" placeholder over an _unfinished_ visual) — blank means the step
 is _meant_ to be visual-free.
 
-Current states, in story order: `lone` · `networkIntro` · `network` (zoom-out
-ratchet, dwell) · `hopBands`/`hopCalc` (degree rows, then the ×-hops calc) ·
+Current states, in story order: `lone` · `networkIntro` (the "not the centre"
+beat that follows is a blank step, no visual) · `hopBands`/`hopCalc` (degree
+rows, then the ×-hops calc) ·
 `rankFocus` (fisheye ladder + guess) · `rankReveal` (SLJ) · `raceRecent`/
 `raceTrades`/`raceFull` (avg-distance-by-year race, three zooms) ·
 `scatterCenters`/`scatterWalters`/`scatterQuiz` (films-vs-distance scatter
@@ -156,8 +145,7 @@ tracking.
 3. Use it from `Index.svelte`: `<Step state="foo"><p>…</p></Step>`.
 
 Use `hash01(n.id, <new salt>)` for any per-node scatter/jitter — pick an unused
-salt integer (used so far: 3–8 across layouts and layout-shared, 9 in tween.js,
-10–16 in the network map and its ratchet).
+salt integer (used so far: 3–8 across layouts, 9 in tween.js).
 
 ## Data
 
@@ -169,80 +157,15 @@ podium, derived ranks reproduce `closeness-ranking-top200.json`, bucket totals
 reproduce KB's 2.2823, quiz answers re-derived, career trio hits 16 films at
 age 15, CGM tops the 10k-run sim with the lowest current avg distance).
 
-Node rows: ids 0–14 curated intro graph, then the hop-stratified network crowd
-(ids < `NETWORK_COUNT` = 1,008 — stable vs. earlier builds), then appended
-actors the later chapters plot (prediction cohort, quiz pairs, Gen-Z
-candidates, race anchors, Julie Walters…), 2,347 rich rows, then the ~8.3k
-anonymous crowd rows (see "The network map" below), 10,622 total. Each rich
-row joins sqlite
-films/avgDistance/rank with concurrence, top-50 costar log-degree and the four
-predicted-distance variants (null when a metric doesn't exist for that actor;
-layouts hide non-participants at their distance-scatter park spot). `hop` is
--1 when unknown — those nodes are hidden in hop-coloured states.
-
-### The network map (procedural, no bake)
-
-The `network` state's crowd has **no baked layout** — `networkMap(w, h)` in
-`layout-shared.js` generates it per canvas size, in pixel space, memoized per
-`w×h` (designed 2026-07-09 to replace the earlier d3-force bake, whose
-communities the story never referenced and whose overlap couldn't survive
-mobile scales). Design constraints it guarantees **by construction**:
-
-- **Every dot separable**: a jittered hex lattice — pitch floored at
-  `NETWORK_PITCH_MIN` (6px) with jitter small enough (`NETWORK_JITTER`) that
-  3px dots never touch (measured min separation ~4.2px at 320w). On large
-  screens the pitch grows so all ~9.8k participants spread across the frame;
-  on small ones it clamps and the anonymous crowd is trimmed to the screen's
-  separable capacity (~3k at 390w) — rich (hop-known) ids are assigned
-  points first, so every actor the hop chapter needs keeps object constancy.
-- **The constellation blends into the crowd**: `sigma` (the settled
-  constellation's scale) is derived so the burst's median neighbour spacing
-  equals the crowd pitch (measured ratio ~1.13× on every screen — the floor
-  set by the burst's uneven geometry and intro-dot no-overlap). And the whole
-  field shares one dot style per zoom level: intro actors and crowd alike
-  render at the current camera's apparent radius and alpha (new arrivals match
-  the dots already on screen), deflating and fading together from the intro
-  size/full alpha at camera 0 to `NETWORK_DOT_R`/`NETWORK_CROWD_ALPHA` when
-  settled — only Bacon keeps his ink and own size ramp.
-- **Fits the top ~80%** (`NETWORK_BOTTOM`), clear of the step card, clipped to
-  an organic blob (inward-only `wobble()` on an ellipse, plus `NETWORK_DROPOUT`
-  empty cells for texture).
-- **No crowd dots between the intro actors while the constellation is
-  legible**: a clearance disc per actor stays empty forever, and crowd dots
-  inside the constellation's hull ellipse defer their reveal to the final fill
-  — so the settled frame has no moat around Bacon (the crowd hugs his
-  neighbourhood), but nothing pops in between the actors mid-ratchet.
-- **Bacon visibly off-centre** (`BACON_OFFSET`, ≈0.67 of blob radius, up-left)
-  — the "not the centre" caption is shown, not asserted. The crowd's mass sits
-  away from him, so each pull-back recentres on the mass and he drifts
-  frame-edge-ward.
-
-A ladder of `NETWORK_CYCLES + 1` camera levels drives the **Google-Earth
-ratchet** (`networkKeyframes` in `layouts/intro.js`, played via the keyframe
-sequencer): camera 0 reproduces the `networkIntro` framing _exactly_ (Bacon at
-`graphCenter`, constellation at full intro scale — the seam is invisible);
-camera `NETWORK_CYCLES` is the identity over the settled map. Scale steps
-geometrically between them (cameras zoom in ratios, not increments). Each
-dot's **reveal cycle** is the first camera level whose viewport contains it,
-so the sequence is: dots pop into the empty rim of the current framing (fill,
-staggered by `hash01`) → the frame runs out of room → the camera pulls back
-one level (a rigid tween, jitter 0 — every dot moves with the camera; the
-intro actors also deflate toward `NETWORK_DOT_R`) → a new empty rim is exposed
-→ repeat. Reveal counts roughly double per cycle, so the growth crescendos.
-Edges dissolve in place during the first beat; `network` has no labels.
-
-Every dot renders one size (`NETWORK_DOT_R`); the crowd holds a faint alpha
-(`NETWORK_CROWD_ALPHA`) so Bacon (dark + pulsing) reads until he genuinely
-dissolves. Hidden participants park at their reveal-cycle framing
-(`parkHidden` → `map.at(id, reveal)`), so they fade in in place mid-ratchet
-and disperse back out along the same path when the camera zooms back in.
-`networkCount` marks the boundary between metric-carrying rich rows and the
-anonymous crowd rows (every 10k-corpus actor not already sampled, `hop -1`, so
-they appear only here, never in the hop chapter). Deterministic: all
-jitter/dropout/shuffle comes from `hash01` (salts 10–16). All tunables sit at
-the top of the network-map block in `layout-shared.js`; ratchet timing
-(`NET_ZOOM_MS`, `NET_FILL_MS`, `NET_FILL_STAGGER_MS`, `NET_HOLD_MS`) at the
-top of `layouts/intro.js`.
+Node rows: ids 0–14 curated intro graph, then the full shared hop tree (every
+reachable actor, best-connected first), then appended actors the later chapters
+plot (prediction cohort, quiz pairs, Gen-Z candidates, race anchors, Julie
+Walters…), 11,486 rows total. Each row joins
+sqlite films/avgDistance/rank with concurrence, top-50 costar log-degree and
+the four predicted-distance variants (null when a metric doesn't exist for that
+actor; layouts hide non-participants at their distance-scatter park spot —
+`parkHidden` in `layout-shared.js`). `hop` is -1 when unknown — those nodes are
+hidden in hop-coloured states.
 
 `scrolly-story.json` carries the non-dot data: `bacon` bucket totals, `corr`
 (prediction correlations), `quiz` pairs, race `eras` + `raceSeries`
@@ -275,8 +198,8 @@ alone is 86, not the storyboard's 82.
   change re-runs the layout with duration 0 (jump, no tween).
 - `prefers-reduced-motion: reduce` (live matchMedia listener) forces all
   transitions to jumps and disables the overlay fade (CSS media query).
-- Perf: ~10k dots per frame is fine because `draw()` buckets dots into one
-  `Path2D` per quantised (rgb, alpha) pair — a handful of fills, not a
+- Perf: ~11.5k dots per frame is fine because `draw()` buckets dots into
+  one `Path2D` per quantised (rgb, alpha) pair — a handful of fills, not a
   fillStyle per dot.
 
 ## Required: interaction / drop-off points (agreed 2026-07-05; patterns 1–3 now built — see "Interactivity")
@@ -302,12 +225,6 @@ Three patterns to build:
    the answer unconditionally (SLJ is revealed whether or not the reader
    guessed; quiz answers get highlighted regardless). No interaction may gate
    scroll progress.
-3. **Dwell steps for free exploration** (race-chart timeline, full ranking): one
-   extra-tall step where the canvas accepts pointer events via the planned
-   nearest-node hit-test (see "Known gaps"). Reader explores as long as they
-   like; scrolling on advances naturally. Prefer taps/buttons over drag gestures
-   on the canvas — drag-to-explore fights drag-to-scroll on touch and needs
-   fragile `touch-action` juggling. Keep the bottom quarter clear (step card).
 
 Exception: a section that abandons the dot metaphor entirely (e.g. the Future
 chapter's win-count bar chart) gains nothing from the shared canvas — use an

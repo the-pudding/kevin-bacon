@@ -1,9 +1,8 @@
-import { NODE_COUNT, ANCHOR_ID, INTRO_IDS, hash01 } from "../nodes.js";
+import { NODE_COUNT, ANCHOR_ID, INTRO_IDS } from "../nodes.js";
 import {
 	ATTR_SIZE,
 	DELAY_SIZE,
 	HOP_RGB,
-	INK,
 	CROWD,
 	set,
 	setEdge,
@@ -11,11 +10,7 @@ import {
 	parkHidden,
 	graphCenter,
 	introPosition,
-	networkMap,
-	NETWORK_CYCLES,
-	NETWORK_DOT_R,
-	NETWORK_INTRO_RADIUS,
-	NETWORK_CROWD_ALPHA
+	NETWORK_INTRO_RADIUS
 } from "../layout-shared.js";
 
 const INTRO_ANCHOR_RADIUS = 14;
@@ -150,107 +145,6 @@ function layoutNetworkIntro(nodes, w, h, edges) {
 	return { attrs, delays };
 }
 
-// Google-Earth ratchet timing (see networkKeyframes): fill the current
-// framing's rim → out of room → pull the camera back one level → repeat
-const NET_ZOOM_MS = 650; // one camera pull-back
-const NET_FILL_MS = 420; // one rim dot fading in
-const NET_FILL_STAGGER_MS = 320; // spread of a cycle's rim arrivals
-const NET_HOLD_MS = 120; // beat after a rim fills before pulling back again
-
-/**
- * Network-map attrs at camera level `cam` with every dot revealed in cycles
- * <= `upTo` visible. The settled layout is (NETWORK_CYCLES, NETWORK_CYCLES);
- * the ratchet keyframes are intermediate (cam, upTo) pairs. Unrevealed dots
- * wait (alpha 0) at their own reveal framing so they fade in in place and
- * ride the remaining pull-backs.
- */
-function networkAttrs(nodes, w, h, edges, cam, upTo) {
-	const attrs = new Float64Array(ATTR_SIZE);
-	const map = networkMap(w, h);
-	const t = cam / NETWORK_CYCLES;
-	// one dot style per zoom level, shared by intro actors and crowd alike:
-	// everyone renders at the current camera's apparent size and alpha (new
-	// arrivals match the dots already on screen) and the whole field deflates
-	// and fades together as the camera pulls back. Only Bacon differs — his
-	// own size ramp and full-alpha ink.
-	const fieldR =
-		NETWORK_DOT_R + (NETWORK_INTRO_RADIUS[1] - NETWORK_DOT_R) * (1 - t);
-	const fieldA = 1 + (NETWORK_CROWD_ALPHA - 1) * t;
-	const baconR =
-		NETWORK_DOT_R + (NETWORK_INTRO_RADIUS[0] - NETWORK_DOT_R) * (1 - t);
-	for (const n of nodes) {
-		const cycle = map.reveal[n.id];
-		if (cycle < 0) {
-			parkHidden(attrs, n, w, h);
-			continue;
-		}
-		const visible = cycle <= upTo;
-		const [x, y] = map.at(n.id, visible ? cam : cycle);
-		const anchor = n.id === ANCHOR_ID;
-		set(
-			attrs,
-			n.id,
-			x,
-			y,
-			anchor ? baconR : fieldR,
-			anchor ? INK : CROWD,
-			visible ? (anchor ? 1 : fieldA) : 0
-		);
-	}
-	// intro edges dissolve in place (full length, alpha → 0) instead of
-	// retracting — the graph fades to dots as the first pull-back begins
-	edges.forEach((_, e) => setEdge(attrs, e, 1, 0));
-	return attrs;
-}
-
-/** the settled full-extent frame of the zoom ratchet */
-/** @type {import("../layout-shared.js").LayoutFn} */
-function layoutNetwork(nodes, w, h, edges) {
-	return {
-		attrs: networkAttrs(nodes, w, h, edges, NETWORK_CYCLES, NETWORK_CYCLES)
-	};
-}
-
-/**
- * The networkIntro → network reveal, as a keyframe sequence (played by
- * ScrollyVisual's sequencer): dots pop into the empty rim of the current
- * framing, the frame runs out of room, the camera pulls back one level —
- * rigidly, jitter 0, every dot moving with it — exposing a new empty rim, and
- * the cycle repeats until the full extent settles. Cycles that reveal nothing
- * (typically cycle 0: the constellation already fills the intro framing
- * wall-to-wall) collapse into the neighbouring zoom, so the sequence opens on
- * a pull-back, not a pause.
- */
-function networkKeyframes(nodes, w, h, edges) {
-	const map = networkMap(w, h);
-	const frames = [];
-	for (let k = 0; k <= NETWORK_CYCLES; k++) {
-		if (k > 0) {
-			frames.push({
-				attrs: networkAttrs(nodes, w, h, edges, k, k - 1),
-				ms: NET_ZOOM_MS,
-				wait: NET_ZOOM_MS
-			});
-		}
-		// count intro ids out of cycle 0 — they're already on screen
-		if (k === 0 ? map.cycles[0] > INTRO_IDS.length : map.cycles[k] > 0) {
-			const delays = new Float64Array(DELAY_SIZE);
-			for (let id = 0; id < map.reveal.length; id++) {
-				if (map.reveal[id] === k && !INTRO_IDS.includes(id)) {
-					delays[id] = hash01(id, 16) * NET_FILL_STAGGER_MS;
-				}
-			}
-			frames.push({
-				attrs: networkAttrs(nodes, w, h, edges, k, k),
-				ms: NET_FILL_MS,
-				delays,
-				wait: NET_FILL_MS + NET_FILL_STAGGER_MS + NET_HOLD_MS
-			});
-		}
-	}
-	return frames;
-}
-
 export const states = {
 	lone: {
 		layout: layoutLone,
@@ -262,19 +156,7 @@ export const states = {
 		labels: INTRO_IDS,
 		pulse: ANCHOR_ID,
 		// the path-walk reveal is authored for the forward arrival from `lone`;
-		// scrolling back from `network` just tweens the actors into place
+		// scrolling back from the blank step just tweens the actors into place
 		revealFrom: ["lone"]
-	},
-	// network: no labels — the zoom-out drops labels and edges (feedback
-	// 2026-07-05); scrolling back into networkIntro re-adds them once the
-	// zoom-back settles (see labelsRevealed in ScrollyVisual.svelte)
-	network: {
-		layout: layoutNetwork,
-		keyframes: networkKeyframes,
-		pulse: ANCHOR_ID,
-		// the zoom ratchet is authored for the forward arrival from
-		// `networkIntro`; from `hopBands` backwards the crowd is already visible,
-		// so the staged reveal would read as lag — just tween back in unison
-		revealFrom: ["networkIntro"]
 	}
 };

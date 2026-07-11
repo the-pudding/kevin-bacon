@@ -92,7 +92,7 @@
 							is this all-encompassing center of Hollywood.
 						</p>
 					</Step>
-					<Step state="network" dwell>
+					<Step state="blank">
 						<p>
 							However, Kevin Bacon is <b>not</b> the center of hollywood. Not
 							only that, he <b>never has been</b>, and almost certainly

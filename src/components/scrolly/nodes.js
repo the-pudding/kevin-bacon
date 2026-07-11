@@ -7,12 +7,6 @@ export const ANCHOR_ID = data.anchorId;
 export const INTRO_IDS = data.introIds;
 /** baked planar layout of the intro network — `xy` aligned with INTRO_IDS */
 export const INTRO_LAYOUT = data.introLayout;
-/**
- * ids < NETWORK_COUNT carry full metrics (intro + hop sample + later-chapter
- * cohort — prediction, quiz, Gen-Z, race anchors…); ids from NETWORK_COUNT up
- * are minimal "crowd" rows that exist only for the `network` map.
- */
-export const NETWORK_COUNT = data.networkCount;
 
 /**
  * @typedef {Object} ActorNode

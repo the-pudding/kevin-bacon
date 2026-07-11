@@ -113,16 +113,6 @@ export const STATE_PULSE = pick("pulse");
  */
 export const STATE_REVEAL_FROM = pick("revealFrom");
 
-/**
- * Per-state authored multi-keyframe reveal (e.g. the network zoom ratchet),
- * played by ScrollyVisual's sequencer instead of the single state tween when
- * the arrival direction matches STATE_REVEAL_FROM. Each frame is
- * `{ attrs, ms, delays?, wait }` — `wait` is when the next frame starts.
- * The last frame must equal the state's own layout attrs.
- * @type {Partial<Record<LayoutState, (nodes: Object[], w: number, h: number, edges: Object[], params?: Object) => { attrs: Float64Array, ms: number, delays?: Float64Array, wait: number }[]>>}
- */
-export const STATE_KEYFRAMES = pick("keyframes");
-
 export const OVERLAYS = pick("overlay");
 
 /** every id a dynamic STATE_LABELS function could return (for frame tracking) */

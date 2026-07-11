@@ -27,9 +27,10 @@ const db = new DatabaseSync(path.join(sub, "data/actor-metrics.sqlite"), {
 
 const KEVIN_BACON = 4724;
 const KEVIN_BACON_RANK = 175;
-// intro's 15 actors + these per-hop targets ≈ 1k total, echoing the real
-// bucket proportions (hop 2 dwarfs the rest) while staying canvas-friendly
-const HOP_TARGETS = { 1: Infinity, 2: 530, 3: 240, 4: Infinity };
+// intro's 15 actors + the full shared hop tree ≈ 10k total: every reachable
+// actor the shared tree knows, echoing the real bucket proportions (hop 2
+// dwarfs the rest). Path2D (rgb, alpha) bucketing keeps this canvas-friendly.
+const HOP_TARGETS = { 1: Infinity, 2: Infinity, 3: Infinity, 4: Infinity };
 
 function assert(cond, message) {
 	if (!cond) throw new Error(`build-scrolly-nodes: ${message}`);
@@ -223,33 +224,7 @@ assert(
 	"intro edge endpoint missing from sample"
 );
 
-// ---------------------------------------------------------------------------
-// Crowd rows: every 10k-corpus actor not already in the sample, appended
-// pid-sorted so block-1/2 ids stay stable. Minimal rows — background dots that
-// exist only for the `network` state (hop -1 → never in the hop chapter).
-// Their positions are NOT baked: the network map is generated procedurally at
-// runtime in pixel space (see makeNetworkMap in layout-shared.js), so the
-// corpus roster is all the data the map needs.
-// ---------------------------------------------------------------------------
-
 const introXY = intro.nodes.map((n) => [n.x, n.y]);
-
-const corpus = raw("layout/saved-layout-x.json").actors;
-assert(
-	corpus.some((a) => a.person_id === KEVIN_BACON),
-	"Kevin Bacon missing from the 10k corpus"
-);
-
-const richCount = nodes.length;
-const crowdPids = corpus
-	.map((a) => a.person_id)
-	.filter((pid) => !idByPid.has(pid))
-	.sort((a, b) => a - b);
-for (const pid of crowdPids) {
-	sample.push({ pid, name: "", hop: -1 });
-	nodes.push([pid, "", -1]);
-}
-const networkCount = richCount;
 
 // ---------------------------------------------------------------------------
 // Story blob.
@@ -422,10 +397,6 @@ const nodesOut = {
 		h: 680,
 		xy: introXY
 	},
-	// nodes with id < networkCount carry full metrics (intro + hop sample +
-	// later-chapter cohort); ids from networkCount up are minimal crowd rows
-	// that exist only for the `network` map
-	networkCount,
 	nodes,
 	edges
 };
