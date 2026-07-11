@@ -17,11 +17,9 @@ console errors).
 
 ### Present
 
-- [ ] **Step 2 `network` (dwell)** — labels/edges removed, crowd contracts
+- [ ] **Step 2 `network`** — labels/edges removed, crowd contracts
       inward from a pre-spread park (zoom-out read), per-node stagger inside
-      each hop wave. Implements feedback items 2 & 3. **[design]** feedback
-      item 3 ("'never has, never will' can be the first dwell step") was read
-      as: make this step a dwell (2× height, pinned card). KB keeps his pulse
+      each hop wave. Implements feedback items 2 & 3. KB keeps his pulse
       ring here even though the copy says he's not the center — kept for
       object constancy; drop it if it reads wrong.
 - [ ] **Step 3 `hopBands`** — rows per hop, KB labelled on top. **[design]**
@@ -30,7 +28,7 @@ console errors).
       those two scales is a judgement call.
 - [ ] **Step 4 `hopCalc`** — same rows, notes become `count × hops` plus
       `÷ 162,229 actors = 2.2823` (verified against the sqlite exactly).
-- [ ] **Step 5 `rankFocus` (dwell)** — fisheye ladder (all 2,347 dots in one
+- [ ] **Step 5 `rankFocus`** — fisheye ladder (all 2,347 dots in one
       line, ±3 window magnified with `#rank name` callouts). **[scope]** the
       storyboard's free-text guess with "guess again / give up", and the
       "row-based graph becomes stacked horizontal bars showing distance-3
@@ -53,8 +51,7 @@ console errors).
       blue, De Niro green, Welker yellow, rest gray.
 - [ ] **[scope]** storyboard's per-handover "deep dive breakdown" opt-ins and
       the tap-a-timeline-point exploration are **not built** — annotations are
-      static. The dwell on step 9 exists but there's nothing extra to explore
-      yet (needs the canvas hit-test from "Known gaps").
+      static (needs the canvas hit-test from "Known gaps").
 
 ### Scatter chapter
 
@@ -66,7 +63,7 @@ console errors).
       data.
 - [ ] **Step 12 `scatterWalters`** — JW red, Oldman/Kidman/Streep blue, note
       "same films as far better-connected actors" (my phrasing, on-canvas).
-- [ ] **Steps 13–14 `scatterQuiz` (dwell)** — 3 pairs from
+- [ ] **Steps 13–14 `scatterQuiz`** — 3 pairs from
       `distance-quiz.json`; answers re-derived from sqlite at build.
       **[design]** after each pick: correct actor turns green; the other actor
       blue if you were right, red if you were wrong; verdict line shows both
@@ -79,7 +76,7 @@ console errors).
       "needed?".
 - [ ] **Step 19 `degScatter`** — y ticks converted from log units to actual
       costar counts. Same six highlights.
-- [ ] **Step 20 `predictionScatter` (dwell)** — toggles swap the predictor
+- [ ] **Step 20 `predictionScatter`** — toggles swap the predictor
       (film → +concurrence → +degree → all); dots slide toward the diagonal.
       **[data]** correlation shown is Pearson r × 100 computed at build over
       the 1,447-actor prediction cohort: film = **86** (storyboard said 82),
@@ -98,7 +95,7 @@ console errors).
       shows 11 films at age 15, not 16). Two sources on one chart — visually
       fine, definitionally inconsistent. Alternatives: draw cohort from the
       exhaustive trajectory file, or drop the named trio onto the same source.
-- [ ] **Step 25 `winBars` (dwell)** — **[data]** sim results are
+- [ ] **Step 25 `winBars`** — **[data]** sim results are
       `genz-mc-knn-bootstrap.json` (10,000 runs) — the only version matching
       the storyboard podium (CGM 24.65%, Greenblatt 9.7%, Fanning 9.7%).
       v6–v11 sims have different winners (v11: Awkwafina). **[design]**
@@ -141,7 +138,7 @@ console errors).
 - [ ] **[design]** `Step.svelte` now wraps slot content in a `.card` div
       (needed so buttons share the card background) — subtly changes every
       step card's box/shadow geometry, including steps 0–1 you'd already
-      reviewed. Dwell steps pin the card sticky at the viewport bottom.
+      reviewed.
 - [ ] **[design]** New chart furniture (HTML ticks/callouts/caption) crossfades
       per state rather than tweening; captions render top-centre small-caps.
 - [ ] Interaction plumbing: shared `story` state + `STATE_PARAMS` selectors;
@@ -158,8 +155,8 @@ console errors).
 
 - Chapter title dividers (Present / Past / Future) — TODOs removed from
   markup; decide treatment.
-- Canvas tap-to-inspect (nearest-node hit-test) for dwell steps — race
-  timeline and rank exploration are static without it.
+- Canvas tap-to-inspect (nearest-node hit-test) for free-exploration steps —
+  race timeline and rank exploration are static without it.
 - Step-visibility analytics beacon (framework notes: "required before
   publish").
 - Label edge-clamping (SLJ's dot label clips at the right canvas edge on the

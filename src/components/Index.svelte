@@ -115,7 +115,7 @@
 							>.
 						</p>
 					</Step>
-					<Step state="rankFocus" dwell ready={false}>
+					<Step state="rankFocus" ready={false}>
 						<p>
 							As of 2026, I can tell you that Kevin Bacon ranks #175 of all
 							Hollywood actors based on average distance. Can you guess who #1
@@ -144,7 +144,7 @@
 							Robert De Niro fighting over top spot for half a decade.
 						</p>
 					</Step>
-					<Step state="raceFull" dwell ready={false}>
+					<Step state="raceFull" ready={false}>
 						<p>
 							Repeating this process, we can go all the way back to 1970 to
 							create a timeline of centers from when we started recording this
@@ -189,7 +189,7 @@
 							distance down for her.
 						</p>
 					</Step>
-					<Step state="scatterQuiz" dwell ready={false}>
+					<Step state="scatterQuiz" ready={false}>
 						<p>
 							Let's generalise this idea into two hypotheses:
 							<br />
@@ -249,7 +249,7 @@
 					</Step>
 
 					<!-- FUTURE -->
-					<Step state="predictionScatter" dwell ready={false}>
+					<Step state="predictionScatter" ready={false}>
 						<p>
 							So both of our hypotheses hold up against our example pairs. These
 							two new pieces of information can be used to explain why two
@@ -296,7 +296,7 @@
 							top.
 						</p>
 					</Step>
-					<Step state="winBars" dwell ready={false}>
+					<Step state="winBars" ready={false}>
 						<p>
 							Indeed, Chloë Grace Moretz wins in a quarter of simulations. She
 							doesn't exactly have a clear majority, despite already being

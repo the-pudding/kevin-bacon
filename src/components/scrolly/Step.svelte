@@ -7,9 +7,6 @@
 	 * Registers itself in document order with the "scrolly-steps" context, so
 	 * the parent can map the active step index back to a layout state.
 	 *
-	 * `dwell` marks a free-exploration step (taller, so the reader can stop and
-	 * interact before scrolling on — framework doc "Dwell steps").
-	 *
 	 * `ready` gates whether this step's *visual* ships in a production build: an
 	 * unready step still renders (prose, nav, step count) but ScrollyVisual is
 	 * replaced by a "visuals tbd" placeholder (see Index.svelte). `npm run dev`
@@ -17,15 +14,9 @@
 	 * locally. Flip it to `true` once a step's visual is finished.
 	 *
 	 * @see notes/scrolly-framework.md
-	 * @type {{ state: import("./states.js").VisualState, params?: unknown, dwell?: boolean, ready?: boolean, children: import("svelte").Snippet }}
+	 * @type {{ state: import("./states.js").VisualState, params?: unknown, ready?: boolean, children: import("svelte").Snippet }}
 	 */
-	let {
-		state: layoutState,
-		params,
-		dwell = false,
-		ready = true,
-		children
-	} = $props();
+	let { state: layoutState, params, ready = true, children } = $props();
 
 	const steps = getContext("scrolly-steps");
 	const index = steps.register(layoutState, params, ready);
@@ -40,7 +31,7 @@
 		{@render children()}
 	{/if}
 {:else}
-	<div class="step" class:active class:dwell>
+	<div class="step" class:active>
 		<div class="card">
 			{@render children()}
 		</div>
@@ -74,16 +65,5 @@
 
 	.step.active {
 		opacity: 1;
-	}
-
-	/* free-exploration step: extra height so the reader dwells before advancing;
-	   the card stays pinned near the viewport bottom for the whole dwell */
-	.step.dwell {
-		min-height: calc(var(--viewport-height) * 2);
-	}
-
-	.step.dwell .card {
-		position: sticky;
-		bottom: 3rem;
 	}
 </style>
