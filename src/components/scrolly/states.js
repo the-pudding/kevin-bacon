@@ -76,6 +76,17 @@ export const STATES = Object.fromEntries(
 /** @typedef {keyof typeof STATES} LayoutState */
 
 /**
+ * Sentinel state for a step with no visual at all. It has no layout entry:
+ * ScrollyVisual fades every dot/trail/overlay out *in place* (positions held,
+ * alpha zeroed) so the canvas renders nothing, and scrolling back into a real
+ * state restores object constancy without teleporting. Use `<Step state="blank">`.
+ */
+export const BLANK = "blank";
+
+/** any value a step may declare as its visual — a real layout or the blank one */
+/** @typedef {LayoutState | typeof BLANK} VisualState */
+
+/**
  * per-state node ids whose names render as HTML labels over the canvas;
  * a function value derives the ids from the current layout params
  * @type {Partial<Record<LayoutState, number[] | ((params?: Object) => number[])>>}
@@ -101,6 +112,16 @@ export const STATE_PULSE = pick("pulse");
  * @type {Partial<Record<LayoutState, LayoutState[]>>}
  */
 export const STATE_REVEAL_FROM = pick("revealFrom");
+
+/**
+ * Per-state authored multi-keyframe reveal (e.g. the network zoom ratchet),
+ * played by ScrollyVisual's sequencer instead of the single state tween when
+ * the arrival direction matches STATE_REVEAL_FROM. Each frame is
+ * `{ attrs, ms, delays?, wait }` — `wait` is when the next frame starts.
+ * The last frame must equal the state's own layout attrs.
+ * @type {Partial<Record<LayoutState, (nodes: Object[], w: number, h: number, edges: Object[], params?: Object) => { attrs: Float64Array, ms: number, delays?: Float64Array, wait: number }[]>>}
+ */
+export const STATE_KEYFRAMES = pick("keyframes");
 
 export const OVERLAYS = pick("overlay");
 

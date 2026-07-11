@@ -37,6 +37,8 @@ words:
   - awkwafina
   - beeswarm
   - tunables
+  - jittered
+  - recentres
 ignorePaths:
   - node_modules
   - build

@@ -13,16 +13,18 @@
 		STATE_PULSE,
 		STATE_PARAMS,
 		STATE_REVEAL_FROM,
+		STATE_KEYFRAMES,
 		STATE_TRACKED,
 		TRAIL_SIZE,
 		TRAIL_STRIDE,
 		TRAIL_POINTS,
-		TRAIL_META
+		TRAIL_META,
+		BLANK
 	} from "./states.js";
 	import { story } from "./story.svelte.js";
 
 	// undefined until the <Step> registry has populated (first client render)
-	/** @type {{ state: import("./states.js").LayoutState, params?: Object }} */
+	/** @type {{ state: import("./states.js").VisualState, params?: Object }} */
 	let { state: stateName, params } = $props();
 
 	const TWEEN_MS = 700;
@@ -55,6 +57,24 @@
 		])
 	];
 	const tweener = createTweener(ATTR_SIZE, drawScene, STRIDE);
+	// a state's authored multi-keyframe reveal (STATE_KEYFRAMES, e.g. the
+	// network zoom ratchet) plays as a chain of tweener retargets. Any effect
+	// re-run (scroll, resize, interaction) cancels the rest of the chain and
+	// the interruption-safe to() takes over from wherever the dots are.
+	let seqTimer = null;
+	function cancelSequence() {
+		clearTimeout(seqTimer);
+		seqTimer = null;
+	}
+	function playSequence(frames) {
+		let i = 0;
+		const step = () => {
+			const f = frames[i++];
+			tweener.to(f.attrs, f.ms, 0, f.delays);
+			if (i < frames.length) seqTimer = setTimeout(step, f.wait);
+		};
+		step();
+	}
 	// trails (race/career lines) tween on their own array so polylines morph
 	// with the same interruption-safe semantics as dots
 	const trailTweener = createTweener(TRAIL_SIZE, drawScene, TRAIL_STRIDE);
@@ -97,7 +117,14 @@
 	let prevW = 0;
 	let prevH = 0;
 	let entered = false;
+	// scrolling back from `network` (no labels) into `networkIntro` re-adds the
+	// names, but only once the zoom-back has settled — showing them mid-tween
+	// would have them racing across the screen with the dots
+	let labelsRevealed = $state(true);
+	let labelRevealTimer = null;
 
+	// a step with no visual: everything fades out in place, canvas renders nothing
+	const isBlank = $derived(stateName === BLANK);
 	const overlay = $derived(OVERLAYS[stateName]);
 	// what the active layout actually varies on: the state's selector plucks
 	// the interaction fields it consumes (reading the `story` $state proxy
@@ -146,14 +173,16 @@
 		// actor tweens into place; a dying line (faded out in the target state)
 		// tracks both live dots instead — the target state's endpoint positions
 		// belong to a layout this edge isn't part of
-		const target = layoutFor(stateName, width, height, layoutParams).attrs;
+		const target = isBlank
+			? null
+			: layoutFor(stateName, width, height, layoutParams).attrs;
 		for (let e = 0; e < edgeEnds.length; e++) {
 			const i = EDGE_BASE + e * STRIDE;
 			const progress = attrs[i];
 			const alpha = attrs[i + 1];
 			if (alpha <= 0.004 || progress <= 0.004) continue;
 			const [from, to] = edgeEnds[e];
-			const dying = target[i + 1] <= 0.004;
+			const dying = !target || target[i + 1] <= 0.004;
 			const xa = attrs[from * STRIDE];
 			const ya = attrs[from * STRIDE + 1];
 			const xb = dying ? attrs[to * STRIDE] : target[to * STRIDE];
@@ -222,6 +251,33 @@
 			prevW = width;
 			prevH = height;
 		}
+		if (isBlank) {
+			// no visual: hold current positions, fade all dots/edges/trails out.
+			// Fading in place (not to a parked layout) means scrolling back into a
+			// real state restores object constancy from where the dots last sat.
+			cancelSequence();
+			clearTimeout(labelRevealTimer);
+			labelsRevealed = true;
+			decor = null;
+			const target = tweener.current.slice();
+			for (let i = 0; i < EDGE_BASE; i += STRIDE) target[i + 6] = 0;
+			for (let i = EDGE_BASE; i < ATTR_SIZE; i += STRIDE) target[i + 1] = 0;
+			const trailTarget = lastTrailTarget
+				? lastTrailTarget.slice()
+				: new Float64Array(TRAIL_SIZE);
+			for (let t = 0; t < TRAIL_META.length; t++) {
+				trailTarget[t * TRAIL_STRIDE + TRAIL_POINTS * 2] = 0;
+			}
+			lastTrailTarget = trailTarget;
+			const ms =
+				resized || reducedMotion || stateName === prevState ? 0 : TWEEN_MS;
+			entered = true;
+			prevState = stateName;
+			prevParamsKey = "";
+			tweener.to(target, ms);
+			trailTweener.to(trailTarget, ms);
+			return;
+		}
 		const paramsKey = JSON.stringify(layoutParams) ?? "";
 		const layout = layoutFor(stateName, width, height, layoutParams);
 		const { attrs, delays } = layout;
@@ -257,23 +313,46 @@
 			trailTweener.to(trailTarget, ENTER_MS, 0, layout.trailDelays);
 			return;
 		}
+		cancelSequence();
 		const stateChange = stateName !== prevState;
 		const paramChange = !stateChange && paramsKey !== prevParamsKey;
 		// a state's authored reveal only plays when arriving from the states
 		// it was choreographed for (STATE_REVEAL_FROM); any other direction
 		// (e.g. scrolling backwards) is one plain tween
 		const revealFrom = STATE_REVEAL_FROM[stateName];
-		const stateDelays =
-			!revealFrom || revealFrom.includes(prevState)
-				? delays
-				: SKIP_REVEAL_DELAYS;
+		const playReveal = !revealFrom || revealFrom.includes(prevState);
+		const stateDelays = playReveal ? delays : SKIP_REVEAL_DELAYS;
+		const enteringLabelsFromNetwork =
+			stateChange && stateName === "networkIntro" && prevState === "network";
 		prevState = stateName;
 		prevParamsKey = paramsKey;
+		if (stateChange) {
+			clearTimeout(labelRevealTimer);
+			if (enteringLabelsFromNetwork && !reducedMotion) {
+				labelsRevealed = false;
+				labelRevealTimer = setTimeout(() => {
+					labelsRevealed = true;
+				}, TWEEN_MS);
+			} else {
+				labelsRevealed = true;
+			}
+		}
 		if (resized || reducedMotion) {
 			tweener.to(attrs, 0);
 			trailTweener.to(trailTarget, 0);
 		} else if (stateChange) {
-			tweener.to(attrs, TWEEN_MS, TWEEN_JITTER, stateDelays);
+			const frames =
+				playReveal && STATE_KEYFRAMES[stateName]
+					? STATE_KEYFRAMES[stateName](
+							nodes,
+							width,
+							height,
+							edges,
+							layoutParams
+						)
+					: null;
+			if (frames?.length) playSequence(frames);
+			else tweener.to(attrs, TWEEN_MS, TWEEN_JITTER, stateDelays);
 			trailTweener.to(trailTarget, TWEEN_MS, 0, layout.trailDelays);
 		} else if (paramChange) {
 			// interaction: retarget quickly, no choreography (delays would make
@@ -289,6 +368,8 @@
 	$effect(() => () => {
 		tweener.stop();
 		trailTweener.stop();
+		cancelSequence();
+		clearTimeout(labelRevealTimer);
 	});
 </script>
 
@@ -311,7 +392,7 @@
 				class="node-label"
 				style="transform: translate(calc({t.x}px - 50%), {t.y +
 					t.r +
-					4}px); opacity: {labelIds.has(t.id) ? t.alpha : 0}"
+					4}px); opacity: {labelIds.has(t.id) && labelsRevealed ? t.alpha : 0}"
 			>
 				{t.name}
 			</p>

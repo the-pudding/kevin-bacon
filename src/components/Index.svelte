@@ -22,11 +22,11 @@
 	 * `ready === false` marks a step whose visual isn't finished: in a
 	 * production build its ScrollyVisual is swapped for a "visuals tbd"
 	 * placeholder (dev always shows the real visual).
-	 * @type {{ state: import("$components/scrolly/states.js").LayoutState, params?: Object, ready?: boolean }[]}
+	 * @type {{ state: import("$components/scrolly/states.js").VisualState, params?: Object, ready?: boolean }[]}
 	 */
 	const stepConfigs = $state([]);
 
-	/** @type {{ register: (state: import("$components/scrolly/states.js").LayoutState, params?: Object, ready?: boolean) => number, current: number|undefined, mode: string }} */
+	/** @type {{ register: (state: import("$components/scrolly/states.js").VisualState, params?: Object, ready?: boolean) => number, current: number|undefined, mode: string }} */
 	const scrollySteps = {
 		register: (state, params, ready) =>
 			stepConfigs.push({ state, params, ready }) - 1,

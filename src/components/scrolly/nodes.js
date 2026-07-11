@@ -8,12 +8,6 @@ export const INTRO_IDS = data.introIds;
 /** baked planar layout of the intro network — `xy` aligned with INTRO_IDS */
 export const INTRO_LAYOUT = data.introLayout;
 /**
- * the reused 10k prototype force layout: `xy[id] = [x, y, radius]` in
- * translated saved-layout units, `null` for actors outside the 10k corpus —
- * the `network` state is a camera zoom-out over it (see layout-shared.js)
- */
-export const NETWORK_LAYOUT = data.networkLayout;
-/**
  * ids < NETWORK_COUNT carry full metrics (intro + hop sample + later-chapter
  * cohort — prediction, quiz, Gen-Z, race anchors…); ids from NETWORK_COUNT up
  * are minimal "crowd" rows that exist only for the `network` map.

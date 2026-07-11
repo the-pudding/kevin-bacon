@@ -17,7 +17,7 @@
 	 * locally. Flip it to `true` once a step's visual is finished.
 	 *
 	 * @see notes/scrolly-framework.md
-	 * @type {{ state: import("./states.js").LayoutState, params?: unknown, dwell?: boolean, ready?: boolean, children: import("svelte").Snippet }}
+	 * @type {{ state: import("./states.js").VisualState, params?: unknown, dwell?: boolean, ready?: boolean, children: import("svelte").Snippet }}
 	 */
 	let {
 		state: layoutState,

@@ -11,7 +11,6 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { DatabaseSync } from "node:sqlite";
-import * as d3 from "d3";
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 const sub = path.join(root, "references/pudding-post");
@@ -225,34 +224,24 @@ assert(
 );
 
 // ---------------------------------------------------------------------------
-// networkLayout: a build-time d3-force graph layout of the full 10k corpus.
-// Structure comes from the real costar edges (top10000-edges.json, capped to
-// each node's top-K by shared-film count) fed to forceLink, so connected actors
-// pull into genre/era communities; charge + collision keep dots apart and a
-// weak centring spring bounds the graph — an organic core-plus-filaments shape,
-// not a disc. The 10k beeswarm (saved-layout-x.json) is only the SEED. A second
-// pull-in pass then drags the sprawl (the spatial islands: filaments + detached
-// clumps) toward the core so the whole mass reads tight, holding the core and
-// pinned intro actors fixed. The 15 intro actors are pinned (fx/fy) in their
-// networkIntro burst arrangement, off-centre, so they hold a recognisable
-// constellation and Bacon stays off-centre (the chapter's point) while the ~10k
-// crowd settles around them. Dots all render one size — no per-node radius is
-// baked. Every 10k actor not already sampled is appended as a minimal "crowd"
-// row (hop -1 → appears only in `network`, never in the hop chapter). Deterministic:
-// seeded positions, fixed tick counts, d3-force's internal LCG, no RNG.
+// Crowd rows: every 10k-corpus actor not already in the sample, appended
+// pid-sorted so block-1/2 ids stay stable. Minimal rows — background dots that
+// exist only for the `network` state (hop -1 → never in the hop chapter).
+// Their positions are NOT baked: the network map is generated procedurally at
+// runtime in pixel space (see makeNetworkMap in layout-shared.js), so the
+// corpus roster is all the data the map needs.
 // ---------------------------------------------------------------------------
 
 const introXY = intro.nodes.map((n) => [n.x, n.y]);
-const round1 = (v) => Math.round(v * 10) / 10;
 
-const savedLayout = raw("layout/saved-layout-x.json").actors;
-const savedByPid = new Map(savedLayout.map((a) => [a.person_id, a]));
-assert(savedByPid.get(KEVIN_BACON), "Kevin Bacon missing from saved layout");
+const corpus = raw("layout/saved-layout-x.json").actors;
+assert(
+	corpus.some((a) => a.person_id === KEVIN_BACON),
+	"Kevin Bacon missing from the 10k corpus"
+);
 
-// crowd: every 10k actor not already in the sample, appended pid-sorted so
-// block-1/2 ids stay stable. Minimal rows — background dots carry no metrics.
 const richCount = nodes.length;
-const crowdPids = savedLayout
+const crowdPids = corpus
 	.map((a) => a.person_id)
 	.filter((pid) => !idByPid.has(pid))
 	.sort((a, b) => a - b);
@@ -261,284 +250,6 @@ for (const pid of crowdPids) {
 	nodes.push([pid, "", -1]);
 }
 const networkCount = richCount;
-
-const introCount = intro.nodes.length;
-
-// real costar edges → forceLink links, capped to each node's top-K by weight
-// (shared-film count) so the ~1.09M-edge corpus stays tractable. Edge endpoints
-// are skeleton array indices; join to our node ids by person_id.
-const NETWORK_EDGE_CAP = 8;
-const skeleton = raw("layout/01-skeleton-top10000.json").actors;
-const edgeCorpus = raw("layout/top10000-edges.json").links;
-const idByPidFull = new Map(nodes.map((row, id) => [row[0], id]));
-const incident = new Map();
-for (const [i, j, w] of edgeCorpus) {
-	const a = idByPidFull.get(skeleton[i].person_id);
-	const b = idByPidFull.get(skeleton[j].person_id);
-	if (a === undefined || b === undefined) continue;
-	(incident.get(a) ?? incident.set(a, []).get(a)).push([b, w]);
-	(incident.get(b) ?? incident.set(b, []).get(b)).push([a, w]);
-}
-const linkKeys = new Set();
-for (const [id, list] of incident) {
-	list.sort((x, y) => y[1] - x[1] || x[0] - y[0]);
-	for (const [other] of list.slice(0, NETWORK_EDGE_CAP)) {
-		linkKeys.add(id < other ? `${id}_${other}` : `${other}_${id}`);
-	}
-}
-
-// force-directed layout: costar links pull connected actors together into
-// genre/era communities, charge + collision keep dots apart, a weak spring to
-// the centre bounds the graph without flattening its structure. Seeded from the
-// beeswarm; the 15 intro actors are pinned in their networkIntro burst
-// arrangement, off-centre, so they stay a recognisable constellation and Bacon
-// lands away from the middle. Deterministic: seeded positions, fixed ticks.
-const NETWORK_CHARGE = -18;
-const NETWORK_LINK_D = 18;
-const NETWORK_LINK_STRENGTH = 0.35;
-const NETWORK_COLLIDE = 2.4;
-const NETWORK_CENTER = 0.015;
-const NETWORK_TICKS = 300;
-// pull-in pass: island spring strength toward the core centroid + its ticks,
-// plus an island-only charge that de-blobs the tight costar cliques (the core
-// is pinned, so this repulsion spreads island clumps without disturbing it)
-const NETWORK_PULL = 0.05;
-const NETWORK_PULL_TICKS = 160;
-const NETWORK_PULL_CHARGE = -6;
-
-// crowd seed = beeswarm positions (null for later-chapter actors outside 10k)
-const crowdSeed = nodes.map((row, id) =>
-	id < introCount ? null : (savedByPid.get(row[0]) ?? null)
-);
-const positioned = crowdSeed.filter(Boolean);
-const cx = positioned.reduce((a, s) => a + s.x, 0) / positioned.length;
-const cy = positioned.reduce((a, s) => a + s.y, 0) / positioned.length;
-
-const INTRO_BURST_SCALE = 0.35;
-const INTRO_BURST_OFFSET = [-260, -560]; // from the crowd centre, up and left
-const baconIntro = introXY[0];
-const introSeed = (id) => [
-	cx +
-		INTRO_BURST_OFFSET[0] +
-		(introXY[id][0] - baconIntro[0]) * INTRO_BURST_SCALE,
-	cy +
-		INTRO_BURST_OFFSET[1] +
-		(introXY[id][1] - baconIntro[1]) * INTRO_BURST_SCALE
-];
-
-const seed = nodes.map((_, id) => {
-	if (id < introCount) return introSeed(id);
-	const s = crowdSeed[id];
-	return s ? [s.x, s.y] : null;
-});
-const simNodes = seed.flatMap((p, id) => (p ? [{ id, x: p[0], y: p[1] }] : []));
-for (const n of simNodes) {
-	if (n.id < introCount) {
-		n.fx = n.x;
-		n.fy = n.y;
-	}
-}
-const simIds = new Set(simNodes.map((n) => n.id));
-const linkPairs = [...linkKeys]
-	.map((k) => k.split("_").map(Number))
-	.filter(([s, t]) => simIds.has(s) && simIds.has(t));
-
-const sim = d3
-	.forceSimulation(simNodes)
-	.force(
-		"link",
-		d3
-			.forceLink(linkPairs.map(([source, target]) => ({ source, target })))
-			.id((n) => n.id)
-			.distance(NETWORK_LINK_D)
-			.strength(NETWORK_LINK_STRENGTH)
-	)
-	.force("charge", d3.forceManyBody().strength(NETWORK_CHARGE))
-	.force("collide", d3.forceCollide(NETWORK_COLLIDE))
-	.force("x", d3.forceX(cx).strength(NETWORK_CENTER))
-	.force("y", d3.forceY(cy).strength(NETWORK_CENTER))
-	.stop();
-for (let i = 0; i < NETWORK_TICKS; i++) sim.tick();
-
-const relaxed = new Map(simNodes.map((n) => [n.id, n]));
-
-// spatial islands = everything that isn't part of the dense central mass. Bin
-// the settled layout into a grid; a cell is "core-dense" if it holds at least
-// ISLAND_MIN nodes. The core is the giant 8-connected blob of core-dense cells
-// (plus cells directly touching it, so the mass's fuzzy edge isn't clipped).
-// Any node outside that is an island: far clumps (dense but detached) and the
-// thin filaments/strays alike (sparse cells). Tunables: ISLAND_CELL (grid
-// scale), ISLAND_MIN (density that counts as "the mass").
-const ISLAND_CELL = 55;
-const ISLAND_MIN = 6;
-const cellKey = (n) =>
-	`${Math.floor(n.x / ISLAND_CELL)}_${Math.floor(n.y / ISLAND_CELL)}`;
-const cellNodes = new Map();
-for (const n of simNodes) {
-	const k = cellKey(n);
-	(cellNodes.get(k) ?? cellNodes.set(k, []).get(k)).push(n.id);
-}
-const neighbours = (k) => {
-	const [gx, gy] = k.split("_").map(Number);
-	const out = [];
-	for (let dx = -1; dx <= 1; dx++) {
-		for (let dy = -1; dy <= 1; dy++) {
-			if (dx || dy) out.push(`${gx + dx}_${gy + dy}`);
-		}
-	}
-	return out;
-};
-const dense = new Set(
-	[...cellNodes].filter(([, ids]) => ids.length >= ISLAND_MIN).map(([k]) => k)
-);
-const denseComp = new Map();
-const compNodeCount = [];
-for (const k of dense) {
-	if (denseComp.has(k)) continue;
-	const cid = compNodeCount.length;
-	let count = 0;
-	const stack = [k];
-	denseComp.set(k, cid);
-	while (stack.length) {
-		const cur = stack.pop();
-		count += cellNodes.get(cur).length;
-		for (const nk of neighbours(cur)) {
-			if (dense.has(nk) && !denseComp.has(nk)) {
-				denseComp.set(nk, cid);
-				stack.push(nk);
-			}
-		}
-	}
-	compNodeCount.push(count);
-}
-const giantCell = compNodeCount.indexOf(Math.max(...compNodeCount));
-const coreCells = new Set(
-	[...denseComp].filter(([, cid]) => cid === giantCell).map(([k]) => k)
-);
-const isCore = (k) =>
-	coreCells.has(k) || neighbours(k).some((nk) => coreCells.has(nk));
-const islandIds = simNodes.filter((n) => !isCore(cellKey(n))).map((n) => n.id);
-console.log(
-	`spatial islands: ${islandIds.length} of ${simNodes.length} (core ${Math.max(...compNodeCount)})`
-);
-
-// pull-in pass: drag the island sprawl (filaments + detached clumps) toward the
-// core so the whole mass reads tight, without disturbing the core's organic
-// structure. The core + pinned intro nodes are held fixed (fx/fy); islands get
-// a spring to the core centroid, keep their costar links (connected filaments
-// retract along real edges), and collide (pack into gaps, not stacks). Islands
-// with no path to the core over the capped link set are first wired to their
-// strongest real costar in the core, so links pull them in too. Deterministic:
-// seeded from the settled layout, fixed ticks, d3's internal LCG, no RNG.
-const islandSet = new Set(islandIds);
-const coreNodes = simNodes.filter((n) => !islandSet.has(n.id));
-const coreCx = coreNodes.reduce((a, n) => a + n.x, 0) / coreNodes.length;
-const coreCy = coreNodes.reduce((a, n) => a + n.y, 0) / coreNodes.length;
-
-// graph components over the capped link set; the largest is the core component
-const adj = new Map();
-for (const [s, t] of linkPairs) {
-	(adj.get(s) ?? adj.set(s, []).get(s)).push(t);
-	(adj.get(t) ?? adj.set(t, []).get(t)).push(s);
-}
-const compOf = new Map();
-let comp = 0;
-for (const n of simNodes) {
-	if (compOf.has(n.id)) continue;
-	const cid = comp++;
-	const stack = [n.id];
-	compOf.set(n.id, cid);
-	while (stack.length) {
-		for (const nb of adj.get(stack.pop()) ?? []) {
-			if (!compOf.has(nb)) {
-				compOf.set(nb, cid);
-				stack.push(nb);
-			}
-		}
-	}
-}
-const compSize = new Map();
-for (const cid of compOf.values())
-	compSize.set(cid, (compSize.get(cid) ?? 0) + 1);
-const coreComp = [...compSize].sort((a, b) => b[1] - a[1])[0][0];
-// severed islands (own component): reconnect each to its strongest core costar
-const extraLinks = [];
-for (const n of simNodes) {
-	if (compOf.get(n.id) === coreComp) continue;
-	const costar = (incident.get(n.id) ?? []).find(
-		([other]) => compOf.get(other) === coreComp
-	);
-	if (costar) extraLinks.push({ source: n.id, target: costar[0] });
-}
-console.log(`reconnected ${extraLinks.length} severed islands to the core`);
-
-for (const n of simNodes) {
-	if (!islandSet.has(n.id) || n.id < introCount) {
-		n.fx = n.x;
-		n.fy = n.y;
-	}
-}
-const pull = d3
-	.forceSimulation(simNodes)
-	.force(
-		"link",
-		d3
-			.forceLink([
-				...linkPairs.map(([source, target]) => ({ source, target })),
-				...extraLinks
-			])
-			.id((n) => n.id)
-			.distance(NETWORK_LINK_D)
-			.strength(NETWORK_LINK_STRENGTH)
-	)
-	.force("collide", d3.forceCollide(NETWORK_COLLIDE))
-	.force(
-		"charge",
-		d3
-			.forceManyBody()
-			.strength((n) => (islandSet.has(n.id) ? NETWORK_PULL_CHARGE : 0))
-	)
-	.force(
-		"x",
-		d3.forceX(coreCx).strength((n) => (islandSet.has(n.id) ? NETWORK_PULL : 0))
-	)
-	.force(
-		"y",
-		d3.forceY(coreCy).strength((n) => (islandSet.has(n.id) ? NETWORK_PULL : 0))
-	)
-	.stop();
-for (let i = 0; i < NETWORK_PULL_TICKS; i++) pull.tick();
-
-let minX = Infinity;
-let minY = Infinity;
-let maxX = -Infinity;
-let maxY = -Infinity;
-for (const n of simNodes) {
-	minX = Math.min(minX, n.x);
-	minY = Math.min(minY, n.y);
-	maxX = Math.max(maxX, n.x);
-	maxY = Math.max(maxY, n.y);
-}
-
-// xy[id] = [x, y] in translated relaxed units (min → 0), or null for the ~600
-// later-chapter actors outside the 10k corpus (hidden in `network`, shown in
-// their own chapters)
-const networkXY = nodes.map((_, id) => {
-	const n = relaxed.get(id);
-	return n ? [round1(n.x - minX), round1(n.y - minY)] : null;
-});
-assert(
-	Array.from({ length: introCount }, (_, id) => id).every(
-		(id) => networkXY[id] !== null
-	),
-	"every intro actor needs a network position"
-);
-assert(networkXY.length === nodes.length, "networkXY not aligned with nodes");
-const networkLayout = {
-	w: round1(maxX - minX),
-	h: round1(maxY - minY),
-	xy: networkXY
-};
 
 // ---------------------------------------------------------------------------
 // Story blob.
@@ -711,9 +422,6 @@ const nodesOut = {
 		h: 680,
 		xy: introXY
 	},
-	// the reused 10k prototype layout: xy[id] = [x, y, radius] in translated
-	// saved-layout units (null where an actor is outside the 10k corpus)
-	networkLayout,
 	// nodes with id < networkCount carry full metrics (intro + hop sample +
 	// later-chapter cohort); ids from networkCount up are minimal crowd rows
 	// that exist only for the `network` map
