@@ -87,20 +87,19 @@ steps register), so ScrollyVisual guards on them. Steps needing _different
 visuals_ get _distinct state keys_ (lone vs networkIntro); `params` is for
 variation within one layout.
 
-**Blank steps (no visual).** `<Step state="blank">` (the `BLANK` sentinel in
-`states.js`) declares a step with no visual at all. It has no layout entry, so
-it carries no labels/pulse/overlay/trails; ScrollyVisual special-cases it,
-fading every dot/edge/trail out _in place_ (current positions held, alpha
-zeroed) so the canvas renders nothing. Because the dots aren't parked at some
-blank layout, scrolling back into a real state restores object constancy from
-wherever they last sat — a plain fade-in, no teleport. Consecutive blank steps
-are a no-op (already hidden). Distinct from `ready={false}` (a build-gated
-"visuals tbd" placeholder over an _unfinished_ visual) — blank means the step
-is _meant_ to be visual-free.
+**Empty-canvas beats via a seed state.** A step that should read as an empty
+canvas gets a _seed_ layout: a real state that positions every node exactly
+where the next visual wants it but with alpha 0, so the canvas renders nothing.
+The following step then reveals from that shared frame as a pure fade-in — no
+teleport and, crucially, the same animation regardless of scroll speed
+(`hopSeed` → `hopBands`, paired with `hopBands`'s `revealFrom: ["hopSeed"]`).
+Prefer this over a truly visual-free step whenever the empty beat sits directly
+before the layout it seeds. Distinct from `ready={false}` (a build-gated
+"visuals tbd" placeholder over an _unfinished_ visual).
 
-Current states, in story order: `lone` · `networkIntro` (the "not the centre"
-beat that follows is a blank step, no visual) · `hopBands`/`hopCalc` (degree
-rows, then the ×-hops calc) ·
+Current states, in story order: `lone` · `networkIntro` · `hopSeed` (the "not
+the centre" beat — an empty canvas seeding the bands) · `hopBands`/`hopCalc`
+(degree rows, then the ×-hops calc) ·
 `rankFocus` (fisheye ladder + guess) · `rankReveal` (SLJ) · `raceRecent`/
 `raceTrades`/`raceFull` (avg-distance-by-year race, three zooms) ·
 `scatterCenters`/`scatterWalters`/`scatterQuiz` (films-vs-distance scatter

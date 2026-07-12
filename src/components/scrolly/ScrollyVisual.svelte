@@ -13,12 +13,12 @@
 		STATE_PULSE,
 		STATE_PARAMS,
 		STATE_REVEAL_FROM,
+		STATE_SEED,
 		STATE_TRACKED,
 		TRAIL_SIZE,
 		TRAIL_STRIDE,
 		TRAIL_POINTS,
-		TRAIL_META,
-		BLANK
+		TRAIL_META
 	} from "./states.js";
 	import { story } from "./story.svelte.js";
 
@@ -99,8 +99,6 @@
 	let prevH = 0;
 	let entered = false;
 
-	// a step with no visual: everything fades out in place, canvas renders nothing
-	const isBlank = $derived(stateName === BLANK);
 	const overlay = $derived(OVERLAYS[stateName]);
 	// what the active layout actually varies on: the state's selector plucks
 	// the interaction fields it consumes (reading the `story` $state proxy
@@ -149,16 +147,14 @@
 		// actor tweens into place; a dying line (faded out in the target state)
 		// tracks both live dots instead — the target state's endpoint positions
 		// belong to a layout this edge isn't part of
-		const target = isBlank
-			? null
-			: layoutFor(stateName, width, height, layoutParams).attrs;
+		const target = layoutFor(stateName, width, height, layoutParams).attrs;
 		for (let e = 0; e < edgeEnds.length; e++) {
 			const i = EDGE_BASE + e * STRIDE;
 			const progress = attrs[i];
 			const alpha = attrs[i + 1];
 			if (alpha <= 0.004 || progress <= 0.004) continue;
 			const [from, to] = edgeEnds[e];
-			const dying = !target || target[i + 1] <= 0.004;
+			const dying = target[i + 1] <= 0.004;
 			const xa = attrs[from * STRIDE];
 			const ya = attrs[from * STRIDE + 1];
 			const xb = dying ? attrs[to * STRIDE] : target[to * STRIDE];
@@ -227,30 +223,6 @@
 			prevW = width;
 			prevH = height;
 		}
-		if (isBlank) {
-			// no visual: hold current positions, fade all dots/edges/trails out.
-			// Fading in place (not to a parked layout) means scrolling back into a
-			// real state restores object constancy from where the dots last sat.
-			decor = null;
-			const target = tweener.current.slice();
-			for (let i = 0; i < EDGE_BASE; i += STRIDE) target[i + 6] = 0;
-			for (let i = EDGE_BASE; i < ATTR_SIZE; i += STRIDE) target[i + 1] = 0;
-			const trailTarget = lastTrailTarget
-				? lastTrailTarget.slice()
-				: new Float64Array(TRAIL_SIZE);
-			for (let t = 0; t < TRAIL_META.length; t++) {
-				trailTarget[t * TRAIL_STRIDE + TRAIL_POINTS * 2] = 0;
-			}
-			lastTrailTarget = trailTarget;
-			const ms =
-				resized || reducedMotion || stateName === prevState ? 0 : TWEEN_MS;
-			entered = true;
-			prevState = stateName;
-			prevParamsKey = "";
-			tweener.to(target, ms);
-			trailTweener.to(trailTarget, ms);
-			return;
-		}
 		const paramsKey = JSON.stringify(layoutParams) ?? "";
 		const layout = layoutFor(stateName, width, height, layoutParams);
 		const { attrs, delays } = layout;
@@ -299,6 +271,16 @@
 		if (resized || reducedMotion) {
 			tweener.to(attrs, 0);
 			trailTweener.to(trailTarget, 0);
+		} else if (stateChange && STATE_SEED[stateName]) {
+			// seed frame: fade the prior visual out where it lies (alpha → 0, no
+			// movement), then once faded snap invisibly into the seed positions —
+			// so the next state reveals from a consistent frame without any dot
+			// being seen changing xy
+			const fade = Float64Array.from(tweener.current);
+			for (let i = 0; i < EDGE_BASE; i += STRIDE) fade[i + 6] = 0;
+			for (let i = EDGE_BASE; i < ATTR_SIZE; i += STRIDE) fade[i + 1] = 0;
+			tweener.to(fade, TWEEN_MS, 0, null, () => tweener.to(attrs, 0));
+			trailTweener.to(trailTarget, TWEEN_MS, 0, layout.trailDelays);
 		} else if (stateChange) {
 			tweener.to(attrs, TWEEN_MS, TWEEN_JITTER, stateDelays);
 			trailTweener.to(trailTarget, TWEEN_MS, 0, layout.trailDelays);

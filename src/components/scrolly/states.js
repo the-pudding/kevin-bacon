@@ -75,16 +75,8 @@ export const STATES = Object.fromEntries(
 
 /** @typedef {keyof typeof STATES} LayoutState */
 
-/**
- * Sentinel state for a step with no visual at all. It has no layout entry:
- * ScrollyVisual fades every dot/trail/overlay out *in place* (positions held,
- * alpha zeroed) so the canvas renders nothing, and scrolling back into a real
- * state restores object constancy without teleporting. Use `<Step state="blank">`.
- */
-export const BLANK = "blank";
-
-/** any value a step may declare as its visual — a real layout or the blank one */
-/** @typedef {LayoutState | typeof BLANK} VisualState */
+/** the visual a step declares; every step maps to a real layout */
+/** @typedef {LayoutState} VisualState */
 
 /**
  * per-state node ids whose names render as HTML labels over the canvas;
@@ -112,6 +104,15 @@ export const STATE_PULSE = pick("pulse");
  * @type {Partial<Record<LayoutState, LayoutState[]>>}
  */
 export const STATE_REVEAL_FROM = pick("revealFrom");
+
+/**
+ * Empty seed frames: states that pre-position every node (invisible) where the
+ * next visual wants it. ScrollyVisual fades the prior visual out *in place*
+ * first, then snaps into this frame while invisible — so no dot is seen changing
+ * position, only fading.
+ * @type {Partial<Record<LayoutState, boolean>>}
+ */
+export const STATE_SEED = pick("seed");
 
 export const OVERLAYS = pick("overlay");
 

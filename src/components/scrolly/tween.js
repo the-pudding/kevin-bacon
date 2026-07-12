@@ -7,7 +7,7 @@ export const easeCubicInOut = (t) =>
 /**
  * @typedef {Object} Tweener
  * @property {Float32Array} current live rendered values
- * @property {(next: Float64Array, ms: number, jitter?: number, nodeDelays?: Float64Array) => void} to
+ * @property {(next: Float64Array, ms: number, jitter?: number, nodeDelays?: Float64Array, onDone?: (() => void) | null) => void} to
  * @property {() => void} stop
  */
 
@@ -32,6 +32,8 @@ export function createTweener(size, draw, stride = 1) {
 	let startTime = 0;
 	let duration = 0;
 	let frame = 0;
+	// fired once when the current tween settles; cleared if a new `to` supersedes
+	let onDone = null;
 
 	function tick(now) {
 		const elapsed = now - startTime;
@@ -46,14 +48,25 @@ export function createTweener(size, draw, stride = 1) {
 			}
 		}
 		draw(current);
-		if (!done) frame = requestAnimationFrame(tick);
+		if (!done) {
+			frame = requestAnimationFrame(tick);
+		} else if (onDone) {
+			const cb = onDone;
+			onDone = null;
+			cb();
+		}
 	}
 
-	function to(next, ms, jitter = 0, nodeDelays = null) {
+	function to(next, ms, jitter = 0, nodeDelays = null, done = null) {
 		cancelAnimationFrame(frame);
+		onDone = done;
 		if (ms <= 0) {
 			current.set(next);
 			draw(current);
+			if (done) {
+				onDone = null;
+				done();
+			}
 			return;
 		}
 		start.set(current);
@@ -68,6 +81,7 @@ export function createTweener(size, draw, stride = 1) {
 
 	function stop() {
 		cancelAnimationFrame(frame);
+		onDone = null;
 	}
 
 	return { current, to, stop };
