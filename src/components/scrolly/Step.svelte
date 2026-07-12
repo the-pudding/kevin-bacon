@@ -3,9 +3,11 @@
 	import { getContext } from "svelte";
 
 	/**
-	 * One scrolly step: prose in the slot, visual state declared alongside it.
+	 * One story step: prose in the slot, visual state declared alongside it.
 	 * Registers itself in document order with the "scrolly-steps" context, so
-	 * the parent can map the active step index back to a layout state.
+	 * the parent can map the active step index back to a layout state. Only the
+	 * active step's prose renders (the Wizard shows one step at a time);
+	 * presentation is left to the parent's step container.
 	 *
 	 * `ready` gates whether this step's *visual* ships in a production build: an
 	 * unready step still renders (prose, nav, step count) but ScrollyVisual is
@@ -21,49 +23,8 @@
 	const steps = getContext("scrolly-steps");
 	const index = steps.register(layoutState, params, ready);
 	const active = $derived(steps.current === index);
-	// "wizard" mode shows one step at a time, headless; "scroll" mode (default)
-	// stacks all steps full-height for the IntersectionObserver in Scrolly.
-	const wizard = $derived(steps.mode === "wizard");
 </script>
 
-{#if wizard}
-	{#if active}
-		{@render children()}
-	{/if}
-{:else}
-	<div class="step" class:active>
-		<div class="card">
-			{@render children()}
-		</div>
-	</div>
+{#if active}
+	{@render children()}
 {/if}
-
-<style>
-	.step {
-		min-height: calc(var(--viewport-height));
-		display: flex;
-		align-items: flex-end;
-		padding: 1rem;
-		padding-bottom: 3rem;
-		opacity: 0.3;
-		transition: opacity 0.2s ease;
-	}
-
-	.card {
-		background: var(--color-bg);
-		padding: 1.5rem;
-		box-shadow: 0 0 1.5rem 1rem var(--color-bg);
-	}
-
-	.card :global(p) {
-		margin: 0;
-	}
-
-	.card :global(p + p) {
-		margin-top: 0.75rem;
-	}
-
-	.step.active {
-		opacity: 1;
-	}
-</style>

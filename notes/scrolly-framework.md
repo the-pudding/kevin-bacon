@@ -5,11 +5,18 @@ data (28 steps, 20 states across Present/Past/Future) and awaiting Owen's
 review pass. This documents the framework in `src/components/scrolly/` so a
 fresh session (or collaborator) can pick it up.
 
+> **Naming note (2026-07-12).** The story is no longer scroll-driven: the
+> Scrolly mechanism was replaced by a headless prev/next **Wizard**
+> (`helpers/Wizard.svelte` — buttons + arrow keys) that advances the same
+> 0-based step index. Only the mechanism setting the active step changed; the
+> visual framework below is driven purely by that index. The "scrolly" in
+> folder/file/context names is historical and kept to avoid churn.
+
 ## What it is
 
-A scroll-driven visual for the sticky `.scrolly-visual` container in
+A step-driven visual filling the `.scrolly-visual` container in
 `src/components/Index.svelte`. ~11,500 dots ("actors") with **stable identities**
-live on one canvas for the whole story; as the reader scrolls between steps, the
+live on one canvas for the whole story; as the reader advances between steps, the
 dots tween seamlessly between per-step layout **states** (object constancy — dots
 travel, they don't fade out/in wholesale). A second tweener does the same for
 **trails** (polylines: race-chart lines, career curves, the prediction
@@ -26,7 +33,8 @@ layout via params — see "Interactivity" below.
 | `src/components/scrolly/layout-shared.js`     | Geometry/color constants, attr/trail helpers (`set`, `setEdge`, `setTrail`, `collapseTrail`, `clipSeries`), named-actor id lookups (`SLJ`, `HANKS`, …), and the `LayoutFn`/`LayoutResult`/`Note`/`Tick` JSDoc typedefs — everything shared across more than one chapter.                                                                                                                                                                                                                                                                                      |
 | `src/components/scrolly/layouts/*.js`         | One module per story chapter (`intro`, `hop-bands`, `rank`, `race`, `scatters`, `prediction`, `career`, `win-bars`, `slj-fan`). Each exports a `states` object mapping state key → `{ layout, labels?, params?, pulse?, revealFrom?, overlay? }` (`revealFrom` scopes the layout's `delays` choreography to specific prior states — arriving from any other state is one plain tween) — everything about one state colocated in one object, instead of spread across parallel top-level maps.                                                                 |
 | `src/components/scrolly/states.js`            | Thin aggregator: merges every chapter's `states` object into one registry and derives the public `STATES`/`STATE_LABELS`/`STATE_PARAMS`/`STATE_PULSE`/`OVERLAYS` exports from it, plus `STATE_TRACKED`, `INTERACTIVE_IDS`, and the `nodeName`/`nodeRank`/`nodeAvgDistance` lookups. This is still the only module other files import from.                                                                                                                                                                                                                    |
-| `src/components/scrolly/Step.svelte`          | One scrolly step: prose in the slot, visual state declared on the tag (`<Step state="lone">…</Step>`). Registers `{ state, params }` in document order with the `"scrolly-steps"` context provided by `Index.svelte`, and derives its own active styling — no hand-numbered step indices anywhere.                                                                                                                                                                                                                                                            |
+| `src/components/scrolly/Step.svelte`          | One story step: prose in the slot, visual state declared on the tag (`<Step state="lone">…</Step>`). Registers `{ state, params }` in document order with the `"scrolly-steps"` context provided by `Index.svelte`; renders its prose only while active — no hand-numbered step indices anywhere.                                                                                                                                                                                                                                                             |
+| `src/components/helpers/Wizard.svelte`        | The step driver: headless Previous/Next buttons + ArrowLeft/ArrowRight advancing a bindable 0-based `value`, which `Index.svelte` maps through `stepConfigs` to the active state/params.                                                                                                                                                                                                                                                                                                                                                                      |
 | `src/components/scrolly/ScrollyVisual.svelte` | Canvas host wired into `Index.svelte` as `<ScrollyVisual state={…} />` (a state name, not a step number). Owns dpr scaling, resize, reduced-motion, the HTML overlay, and the `$effect` that reacts to state changes.                                                                                                                                                                                                                                                                                                                                         |
 
 JSDoc typedefs (`ActorNode`, `Edge`, `LayoutResult`, `LayoutFn`, `Tweener`) are in
@@ -75,13 +83,14 @@ second canvas writer would corrupt tween starts.
   positions are seeded instantly with radius/alpha zeroed, then tweened to the
   first state so visible dots grow in place instead of popping.
 - Interruption-safe by construction: `to()` snapshots the live `current` array,
-  so flick-scrolling retargets dots from wherever they are mid-flight.
+  so mashing Next/Previous (or arrow keys) retargets dots from wherever they
+  are mid-flight.
 
 **Step → state.** Declared per step in `Index.svelte` markup: each
 `<Step state="…">` registers itself (in document order) with the
 `"scrolly-steps"` context, which builds the `stepConfigs` array —
 `{ state: string, params?: Object }` per step. `Index.svelte` passes the
-active step's `state` and `params` to `ScrollyVisual`; the props are
+Wizard-selected step's `state` and `params` to `ScrollyVisual`; the props are
 `undefined` for a beat on first client render (the visual mounts before the
 steps register), so ScrollyVisual guards on them. Steps needing _different
 visuals_ get _distinct state keys_ (lone vs networkIntro); `params` is for
@@ -91,7 +100,7 @@ variation within one layout.
 canvas gets a _seed_ layout: a real state that positions every node exactly
 where the next visual wants it but with alpha 0, so the canvas renders nothing.
 The following step then reveals from that shared frame as a pure fade-in — no
-teleport and, crucially, the same animation regardless of scroll speed
+teleport and, crucially, the same animation however fast the reader steps
 (`hopSeed` → `hopBands`, paired with `hopBands`'s `revealFrom: ["hopSeed"]`).
 Prefer this over a truly visual-free step whenever the empty beat sits directly
 before the layout it seeds. Distinct from `ready={false}` (a build-gated
@@ -202,17 +211,17 @@ alone is 86, not the storyboard's 82.
   one `Path2D` per quantised (rgb, alpha) pair — a handful of fills, not a
   fillStyle per dot.
 
-## Required: interaction / drop-off points (agreed 2026-07-05; patterns 1–3 now built — see "Interactivity")
+## Required: interaction / drop-off points (agreed 2026-07-05; both patterns now built — see "Interactivity")
 
-The story has moments where the reader stops scrolling and interacts (guessing
+The story has moments where the reader pauses on a step and interacts (guessing
 the #1 actor on the rank ladder, exploring the race-chart timeline, the
-scatter-pair quiz). These are handled **inside the single Scrolly** — do not
-split into one Scrolly per chapter. Object constancy is the framework's premise,
-and every Scrolly boundary is a seam where the canvas unmounts, the entry
-animation re-runs, and dot identity is lost — chapter transitions (e.g. Present→
+scatter-pair quiz). These are handled **on the one persistent canvas** — do not
+split the story into one canvas instance per chapter. Object constancy is the
+framework's premise, and every canvas unmount is a seam where the entry
+animation re-runs and dot identity is lost — chapter transitions (e.g. Present→
 Past: rank line → race chart) are exactly where constancy pays off most.
 
-Three patterns to build:
+Two patterns:
 
 1. **Interactive steps.** The step card hosts the UI (buttons/input); the result
    writes into shared state consumed by the layout function. Implementation
@@ -220,26 +229,28 @@ Three patterns to build:
    "Step → state" above) — a param change re-runs the _current_ layout with a
    short tween, so e.g. panning the rank ladder to the reader's guess is a param
    update, not a step change. The interruption-safe `to()` already covers a
-   reader who interacts then immediately flick-scrolls away.
+   reader who interacts then immediately steps away.
 2. **Every interaction is skippable.** The step _after_ an interaction reveals
    the answer unconditionally (SLJ is revealed whether or not the reader
    guessed; quiz answers get highlighted regardless). No interaction may gate
-   scroll progress.
+   the Next button.
 
-Exception: a section that abandons the dot metaphor entirely (e.g. the Future
-chapter's win-count bar chart) gains nothing from the shared canvas — use an
-inline standalone component _between_ Scrolly blocks there ("Scrolly + inline
-interlude + Scrolly"), never one Scrolly per chapter.
+Exception: a visual that abandons the dot metaphor entirely gains nothing from
+the shared canvas — layer a plain HTML component over (or beside) the canvas
+for those states instead of forcing a canvas layout. `RankBars.svelte` (the
+rank chapter's scrollable "everyone else" bar list, mounted by `Index.svelte`
+over the canvas during `rankFocus`/`rankReveal`) is the built example.
 
-Also required before publish: a step-visibility analytics beacon (the step
-IntersectionObserver already fires per step) so real reader drop-off is
-measurable — cheap now, impossible to retrofit meaningfully after launch.
+Also required before publish: a step-visibility analytics beacon — fire on
+`value` changes in `Index.svelte` (the wizard equivalent of the old per-step
+IntersectionObserver) so real reader drop-off is measurable — cheap now,
+impossible to retrofit meaningfully after launch.
 
 ## Known gaps / next steps
 
-- Step cards are bottom-anchored (Step.svelte `align-items: flex-end`) so the
-  visual's center stays clear on mobile; real visuals should still avoid the
-  bottom quarter where the card sits.
+- Step prose and the wizard nav overlay the bottom of the full-height canvas
+  (`.scrolly-steps` in Index.svelte); layouts should keep essential marks out
+  of the bottom quarter where they sit.
 - Overlay label swap uses `{#key}`: new label fades in, old one is removed
   instantly (no crossfade). Fine for PoC; use Svelte transitions later.
 - Tap support for annotations: nearest-node hit-test on canvas click (~40
@@ -252,6 +263,7 @@ measurable — cheap now, impossible to retrofit meaningfully after launch.
 
 ## Verify
 
-`npm run dev`, scroll steps 0–10: dots travel between states; flick-scroll fast —
-dots retarget mid-flight (no snap-back). Check 375px and 320px emulation, rotate,
-and DevTools "emulate prefers-reduced-motion". `npm run build` must stay green.
+`npm run dev`, step through with Next/ArrowRight: dots travel between states;
+mash Next/Previous quickly — dots retarget mid-flight (no snap-back). Check
+375px and 320px emulation, rotate, and DevTools "emulate
+prefers-reduced-motion". `npm run build` must stay green.

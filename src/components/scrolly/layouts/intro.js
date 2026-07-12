@@ -156,7 +156,7 @@ export const states = {
 		labels: INTRO_IDS,
 		pulse: ANCHOR_ID,
 		// the path-walk reveal is authored for the forward arrival from `lone`;
-		// scrolling back from the hopSeed step just tweens the actors into place
+		// stepping back from the hopSeed step just tweens the actors into place
 		revealFrom: ["lone"]
 	}
 };

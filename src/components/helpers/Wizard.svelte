@@ -1,10 +1,9 @@
 <script>
 	/**
-	 * Wizard-style step driver: an alternative to Scrolly that advances the
-	 * active step index via Previous/Next buttons and Arrow keys instead of
-	 * scroll position. Headless — no styling. Produces the same bindable `value`
-	 * (0-based step index) that Scrolly does, so the object-constancy visual
-	 * framework downstream is unaffected.
+	 * The story's step driver: advances the active step index via
+	 * Previous/Next buttons and Arrow keys. Headless — no styling. Exposes a
+	 * bindable `value` (0-based step index); the object-constancy visual
+	 * framework downstream only ever sees that index.
 	 *
 	 * <Wizard bind:value count={stepCount}>
 	 * 	**steps here**

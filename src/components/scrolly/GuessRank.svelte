@@ -19,7 +19,7 @@
 	{#if story.rankGuess != null}
 		<p class="verdict">
 			{nodeName(story.rankGuess)} ranks #{nodeRank(story.rankGuess)}.
-			{nodeRank(story.rankGuess) === 1 ? "Spot on!" : "Keep scrolling…"}
+			{nodeRank(story.rankGuess) === 1 ? "Spot on!" : "Keep going…"}
 		</p>
 	{/if}
 </div>

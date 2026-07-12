@@ -27,14 +27,13 @@
 	 */
 	const stepConfigs = $state([]);
 
-	/** @type {{ register: (state: import("$components/scrolly/states.js").VisualState, params?: Object, ready?: boolean) => number, current: number|undefined, mode: string }} */
+	/** @type {{ register: (state: import("$components/scrolly/states.js").VisualState, params?: Object, ready?: boolean) => number, current: number|undefined }} */
 	const scrollySteps = {
 		register: (state, params, ready) =>
 			stepConfigs.push({ state, params, ready }) - 1,
 		get current() {
 			return value;
-		},
-		mode: "wizard"
+		}
 	};
 	setContext("scrolly-steps", scrollySteps);
 

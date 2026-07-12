@@ -98,7 +98,7 @@ export const STATE_PULSE = pick("pulse");
 
 /**
  * Per-state list of prior states the layout's `delays` choreography is
- * authored for. Arriving from any other state (e.g. scrolling backwards)
+ * authored for. Arriving from any other state (e.g. stepping backwards)
  * skips the delays — one plain tween instead of replaying the reveal.
  * States without an entry use their delays from every direction.
  * @type {Partial<Record<LayoutState, LayoutState[]>>}
