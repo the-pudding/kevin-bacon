@@ -1,5 +1,4 @@
 import { ANCHOR_ID, hash01 } from "../nodes.js";
-import story from "$data/scrolly-story.json";
 import {
 	ATTR_SIZE,
 	DELAY_SIZE,
@@ -13,8 +12,7 @@ import {
 
 // ---------------------------------------------------------------------------
 // Hop bands (Present chapter): row per degree of separation. Band thickness
-// follows the on-screen sample; the notes cite the TRUE corpus bucket totals
-// (sample proportions would misstate them — see notes/scrolly-framework.md).
+// follows the on-screen sample.
 // ---------------------------------------------------------------------------
 
 /** @type {import("../layout-shared.js").LayoutFn} */
@@ -65,33 +63,13 @@ function layoutHopBands(nodes, w, h, _edges, params) {
 		// stagger in rather than snapping on together
 		delays[n.id] = n.hop * NETWORK_HOP_DELAY_MS + hash01(n.id, 5) * 400;
 	}
-	// seed carries no reveal choreography or annotations — it only pre-positions
+	// seed carries no reveal choreography or legend — it only pre-positions
 	if (seed) return { attrs };
-	// annotate each band: real corpus counts (and the weighted calc when asked)
-	const calc = params?.calc;
-	const notes = story.bacon.buckets.map((total, i) => {
-		const hop = i + 1;
-		const mid = (bandTops[hop] + bandTops[hop + 1]) / 2;
-		const count = total.toLocaleString("en-US");
-		return {
-			x: w - MARGIN,
-			y: mid - 8,
-			align: /** @type {const} */ ("right"),
-			text: calc
-				? `${count} × ${hop} movie${hop > 1 ? "s" : ""}`
-				: `${count} actor${total === 1 ? "" : "s"} — ${hop} movie${hop > 1 ? "s" : ""} away`
-		};
-	});
-	if (calc) {
-		notes.push({
-			x: w / 2,
-			y: plotBottom(h) + 14,
-			align: "center",
-			strong: true,
-			text: `÷ ${story.bacon.reachable.toLocaleString("en-US")} actors = ${story.bacon.avgDistance} movies on average`
-		});
-	}
-	return { attrs, delays, notes };
+	const legend = [1, 2, 3, 4].map((hop) => ({
+		color: HOP_RGB[hop],
+		label: `${hop} movie${hop > 1 ? "s" : ""}`
+	}));
+	return { attrs, delays, legend, legendY: plotBottom(h) + 14 };
 }
 
 export const states = {
@@ -106,11 +84,7 @@ export const states = {
 		layout: (n, w, h, e) => layoutHopBands(n, w, h, e, {}),
 		labels: [ANCHOR_ID],
 		// the cascade fade-in is authored for arrival from the seed; any other
-		// direction (backward from hopCalc) is one plain tween
+		// direction is one plain tween
 		revealFrom: ["hopSeed"]
-	},
-	hopCalc: {
-		layout: (n, w, h, e) => layoutHopBands(n, w, h, e, { calc: true }),
-		labels: [ANCHOR_ID]
 	}
 };

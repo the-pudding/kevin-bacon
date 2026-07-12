@@ -29,6 +29,10 @@ export const edgeIndex = (e) => EDGE_BASE + e * STRIDE;
  * @property {boolean} [strong] render emphasised
  * @property {boolean} [wrap] allow multi-line (default nowrap)
  *
+ * @typedef {Object} LegendItem
+ * @property {number[]} color rgb triple
+ * @property {string} label
+ *
  * @typedef {Object} LayoutResult
  * @property {Float64Array} attrs ATTR_SIZE values, STRIDE per node + STRIDE per edge
  * @property {Float64Array} [delays] DELAY_SIZE per-node/per-edge start delays in ms;
@@ -38,6 +42,8 @@ export const edgeIndex = (e) => EDGE_BASE + e * STRIDE;
  * @property {Float64Array} [trailDelays] per-trail start delays in ms
  * @property {{ x?: Tick[], y?: Tick[], xBase?: number, yBase?: number }} [axes]
  * @property {Note[]} [notes]
+ * @property {LegendItem[]} [legend]
+ * @property {number} [legendY] px, top of the legend row; omitted = pinned to bottom
  *
  * @callback LayoutFn
  * @param {ActorNode[]} nodes

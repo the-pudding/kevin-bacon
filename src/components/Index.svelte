@@ -104,13 +104,11 @@
 							No doubt, he's well connected. You can get from any Hollywood
 							actor to Kevin Bacon in four movies or less.
 						</p>
-					</Step>
-					<Step state="hopCalc" ready={false}>
 						<p>
 							The reality is that Kevin Bacon isn't special in this respect;
 							there are 16,429 actors who can be reached by everyone within 4
 							movies. A more meaningful measure of Hollywood connectivity is how
-							many movies on average it takes to get to them - we'll call this <i
+							many movies on average it takes to get to them i.e. <i
 								>average distance</i
 							>.
 						</p>

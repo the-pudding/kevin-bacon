@@ -226,7 +226,12 @@
 		const paramsKey = JSON.stringify(layoutParams) ?? "";
 		const layout = layoutFor(stateName, width, height, layoutParams);
 		const { attrs, delays } = layout;
-		decor = { axes: layout.axes, notes: layout.notes };
+		decor = {
+			axes: layout.axes,
+			notes: layout.notes,
+			legend: layout.legend,
+			legendY: layout.legendY
+		};
 		// states without trails fade the previous ones out where they lie
 		let trailTarget = layout.trails;
 		if (!trailTarget) {
@@ -364,6 +369,24 @@
 					{note.text}
 				</p>
 			{/each}
+			{#if decor?.legend}
+				<ul
+					class="legend"
+					style={decor.legendY != null
+						? `top: ${decor.legendY}px; bottom: auto`
+						: ""}
+				>
+					{#each decor.legend as item}
+						<li class="legend-item">
+							<span
+								class="legend-swatch"
+								style="background: rgb({item.color.join(',')})"
+							></span>
+							{item.label}
+						</li>
+					{/each}
+				</ul>
+			{/if}
 		</div>
 	{/key}
 </div>
@@ -544,5 +567,37 @@
 		transform: translateY(-50%);
 		writing-mode: vertical-rl;
 		rotate: 180deg;
+	}
+
+	.legend {
+		position: absolute;
+		bottom: 0.5rem;
+		left: 50%;
+		transform: translateX(-50%);
+		display: flex;
+		flex-wrap: nowrap;
+		justify-content: center;
+		gap: 0.6rem;
+		margin: 0;
+		padding: 0;
+		list-style: none;
+		white-space: nowrap;
+		font-family: var(--font-mono);
+	}
+
+	.legend-item {
+		display: flex;
+		align-items: center;
+		gap: 0.3rem;
+		font-size: 0.6rem;
+		color: var(--color-gray-700, #444);
+		white-space: nowrap;
+	}
+
+	.legend-swatch {
+		width: 0.6rem;
+		height: 0.6rem;
+		border-radius: 50%;
+		flex-shrink: 0;
 	}
 </style>

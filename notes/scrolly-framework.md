@@ -98,8 +98,8 @@ before the layout it seeds. Distinct from `ready={false}` (a build-gated
 "visuals tbd" placeholder over an _unfinished_ visual).
 
 Current states, in story order: `lone` · `networkIntro` · `hopSeed` (the "not
-the centre" beat — an empty canvas seeding the bands) · `hopBands`/`hopCalc`
-(degree rows, then the ×-hops calc) ·
+the centre" beat — an empty canvas seeding the bands) · `hopBands`
+(degree rows, with a bottom legend keying each hop's color) ·
 `rankFocus` (fisheye ladder + guess) · `rankReveal` (SLJ) · `raceRecent`/
 `raceTrades`/`raceFull` (avg-distance-by-year race, three zooms) ·
 `scatterCenters`/`scatterWalters`/`scatterQuiz` (films-vs-distance scatter
@@ -117,8 +117,9 @@ trails out in place; `collapseTrail` parks a trail's vertices on its owner
 dot so lines unspool out of dots and retract back into them.
 
 **Chart furniture.** A layout can also return `axes` (`x`/`y` tick arrays +
-`xBase`) and `notes` (positioned callouts, `nowrap` by default) — rendered as
-HTML in the overlay and crossfaded per state. `OVERLAYS[state].caption`
+`xBase`), `notes` (positioned callouts, `nowrap` by default), and `legend`
+(color swatch + label pairs, pinned to the bottom of the chart) — all
+rendered as HTML in the overlay and crossfaded per state. `OVERLAYS[state].caption`
 renders top-centre in small caps.
 
 **Interactivity.** `story.svelte.js` holds shared `$state` (rankGuess,
