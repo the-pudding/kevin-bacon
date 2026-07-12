@@ -5,6 +5,7 @@
 	import ScrollyVisual from "$components/scrolly/ScrollyVisual.svelte";
 	import Step from "$components/scrolly/Step.svelte";
 	import GuessRank from "$components/scrolly/GuessRank.svelte";
+	import RankBars from "$components/scrolly/RankBars.svelte";
 	import PairQuiz from "$components/scrolly/PairQuiz.svelte";
 	import PredictToggles from "$components/scrolly/PredictToggles.svelte";
 	import BarPicker from "$components/scrolly/BarPicker.svelte";
@@ -42,6 +43,7 @@
 	const showTbd = $derived(
 		!import.meta.env.DEV && stepConfigs[value ?? 0]?.ready === false
 	);
+	const currentState = $derived(stepConfigs[value ?? 0]?.state);
 
 	onMount(() => {
 		const saved = localStorage.get(STEP_STORAGE_KEY);
@@ -68,6 +70,11 @@
 					state={stepConfigs[value ?? 0]?.state}
 					params={stepConfigs[value ?? 0]?.params}
 				/>
+				{#if currentState === "rankFocus" || currentState === "rankReveal"}
+					<div class="rank-bars-panel">
+						<RankBars reveal={currentState === "rankReveal"} />
+					</div>
+				{/if}
 				{#if showTbd}
 					<div class="visual-tbd">
 						<p>visuals tbd</p>
@@ -99,7 +106,7 @@
 							<b>never will</b>.
 						</p>
 					</Step>
-					<Step state="hopBands" ready={false}>
+					<Step state="hopBands">
 						<p>
 							No doubt, he's well connected. You can get from any Hollywood
 							actor to Kevin Bacon in four movies or less.
@@ -113,7 +120,7 @@
 							>.
 						</p>
 					</Step>
-					<Step state="rankFocus" ready={false}>
+					<Step state="rankFocus">
 						<p>
 							As of 2026, I can tell you that Kevin Bacon ranks #175 of all
 							Hollywood actors based on average distance. Can you guess who #1
@@ -342,6 +349,17 @@
 	.scrolly-visual {
 		position: absolute;
 		inset: 0;
+	}
+
+	/* the rank chapter's "everyone else" list: sits below Kevin Bacon's small
+	   pinned canvas bar (see layouts/rank.js), above the step card overlay */
+	.rank-bars-panel {
+		position: absolute;
+		top: 100px;
+		left: 0;
+		right: 0;
+		bottom: 35%;
+		background: var(--color-bg);
 	}
 
 	/* covers the in-progress ScrollyVisual for steps flagged not-ready in a
