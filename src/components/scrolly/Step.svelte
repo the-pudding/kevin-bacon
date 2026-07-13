@@ -15,13 +15,19 @@
 	 * always shows the real visual so work-in-progress sections stay editable
 	 * locally. Flip it to `true` once a step's visual is finished.
 	 *
+	 * `panel` is an optional snippet rendered *over the canvas* (not in the step
+	 * card) while this step is active — for visuals that abandon the dot
+	 * metaphor (see "Exception" in notes/scrolly-framework.md). Steps sharing
+	 * one visual should pass the same snippet reference so it survives the step
+	 * change without remounting (RankBars keeps its scroll position this way).
+	 *
 	 * @see notes/scrolly-framework.md
-	 * @type {{ state: import("./states.js").VisualState, params?: unknown, ready?: boolean, children: import("svelte").Snippet }}
+	 * @type {{ state: import("./states.js").VisualState, params?: unknown, ready?: boolean, panel?: import("svelte").Snippet, children: import("svelte").Snippet }}
 	 */
-	let { state: layoutState, params, ready = true, children } = $props();
+	let { state: layoutState, params, ready = true, panel, children } = $props();
 
 	const steps = getContext("scrolly-steps");
-	const index = steps.register(layoutState, params, ready);
+	const index = steps.register(layoutState, params, ready, panel);
 	const active = $derived(steps.current === index);
 </script>
 

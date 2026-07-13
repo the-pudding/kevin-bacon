@@ -88,8 +88,8 @@
 	let reducedMotion = $state(false);
 	/** @type {{ id: number, name: string, x: number, y: number, r: number, alpha: number }[]} */
 	let tracked = $state([]);
-	// static per-state chart furniture (ticks/callouts) from the layout result
-	/** @type {{ axes?: { x?: {pos:number,label:string}[], y?: {pos:number,label:string}[], xBase?: number, yBase?: number }, notes?: import("./states.js").Note[] } | null} */
+	// static per-state chart furniture (ticks/callouts/legend) from the layout result
+	/** @type {{ axes?: { x?: {pos:number,label:string}[], y?: {pos:number,label:string}[], xBase?: number, yBase?: number }, notes?: import("./states.js").Note[], legend?: import("./layout-shared.js").LegendItem[], legendY?: number } | null} */
 	let decor = $state(null);
 
 	let ctx = null;

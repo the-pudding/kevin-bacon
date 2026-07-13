@@ -33,7 +33,7 @@ layout via params — see "Interactivity" below.
 | `src/components/scrolly/layout-shared.js`     | Geometry/color constants, attr/trail helpers (`set`, `setEdge`, `setTrail`, `collapseTrail`, `clipSeries`), named-actor id lookups (`SLJ`, `HANKS`, …), and the `LayoutFn`/`LayoutResult`/`Note`/`Tick` JSDoc typedefs — everything shared across more than one chapter.                                                                                                                                                                                                                                                                                      |
 | `src/components/scrolly/layouts/*.js`         | One module per story chapter (`intro`, `hop-bands`, `rank`, `race`, `scatters`, `prediction`, `career`, `win-bars`, `slj-fan`). Each exports a `states` object mapping state key → `{ layout, labels?, params?, pulse?, revealFrom?, overlay? }` (`revealFrom` scopes the layout's `delays` choreography to specific prior states — arriving from any other state is one plain tween) — everything about one state colocated in one object, instead of spread across parallel top-level maps.                                                                 |
 | `src/components/scrolly/states.js`            | Thin aggregator: merges every chapter's `states` object into one registry and derives the public `STATES`/`STATE_LABELS`/`STATE_PARAMS`/`STATE_PULSE`/`OVERLAYS` exports from it, plus `STATE_TRACKED`, `INTERACTIVE_IDS`, and the `nodeName`/`nodeRank`/`nodeAvgDistance` lookups. This is still the only module other files import from.                                                                                                                                                                                                                    |
-| `src/components/scrolly/Step.svelte`          | One story step: prose in the slot, visual state declared on the tag (`<Step state="lone">…</Step>`). Registers `{ state, params }` in document order with the `"scrolly-steps"` context provided by `Index.svelte`; renders its prose only while active — no hand-numbered step indices anywhere.                                                                                                                                                                                                                                                             |
+| `src/components/scrolly/Step.svelte`          | One story step: prose in the slot, visual state declared on the tag (`<Step state="lone">…</Step>`). Registers `{ state, params, panel? }` in document order with the `"scrolly-steps"` context provided by `Index.svelte`; renders its prose only while active — no hand-numbered step indices anywhere. `panel` is an optional snippet rendered over the canvas while the step is active (see "Exception" under interaction patterns).                                                                                                                      |
 | `src/components/helpers/Wizard.svelte`        | The step driver: headless Previous/Next buttons + ArrowLeft/ArrowRight advancing a bindable 0-based `value`, which `Index.svelte` maps through `stepConfigs` to the active state/params.                                                                                                                                                                                                                                                                                                                                                                      |
 | `src/components/scrolly/ScrollyVisual.svelte` | Canvas host wired into `Index.svelte` as `<ScrollyVisual state={…} />` (a state name, not a step number). Owns dpr scaling, resize, reduced-motion, the HTML overlay, and the `$effect` that reacts to state changes.                                                                                                                                                                                                                                                                                                                                         |
 
@@ -109,7 +109,8 @@ before the layout it seeds. Distinct from `ready={false}` (a build-gated
 Current states, in story order: `lone` · `networkIntro` · `hopSeed` (the "not
 the centre" beat — an empty canvas seeding the bands) · `hopBands`
 (degree rows, with a bottom legend keying each hop's color) ·
-`rankFocus` (fisheye ladder + guess) · `rankReveal` (SLJ) · `raceRecent`/
+`rankFocus` (Bacon's hop bar dissolves; the HTML `RankBars` panel + guess
+take over) · `rankReveal` (SLJ) · `raceRecent`/
 `raceTrades`/`raceFull` (avg-distance-by-year race, three zooms) ·
 `scatterCenters`/`scatterWalters`/`scatterQuiz` (films-vs-distance scatter
 family) · `concurrenceScatter` · `degScatter` · `predictionScatter`
@@ -237,9 +238,14 @@ Two patterns:
 
 Exception: a visual that abandons the dot metaphor entirely gains nothing from
 the shared canvas — layer a plain HTML component over (or beside) the canvas
-for those states instead of forcing a canvas layout. `RankBars.svelte` (the
-rank chapter's scrollable "everyone else" bar list, mounted by `Index.svelte`
-over the canvas during `rankFocus`/`rankReveal`) is the built example.
+for those states instead of forcing a canvas layout. Declare it as a `panel`
+snippet on the `<Step>`s that use it (Step registers it alongside
+state/params; `Index.svelte` renders the active step's panel over the canvas)
+so the markup lives next to the step that owns it. Steps sharing one visual
+must pass the same snippet reference — that's what keeps the component alive
+across the step change. `RankBars.svelte` (the rank chapter's scrollable
+"everyone else" bar list, shown during `rankFocus`/`rankReveal`) is the built
+example.
 
 Also required before publish: a step-visibility analytics beacon — fire on
 `value` changes in `Index.svelte` (the wizard equivalent of the old per-step

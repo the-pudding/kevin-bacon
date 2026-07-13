@@ -16,21 +16,25 @@
 
 	let value = $state(0);
 	let dimensions = new useWindowDimensions();
+	// measured height of the step card + nav overlaying the canvas bottom, so
+	// panels sized against it (rank-bars) neither overlap it nor leave a gap
+	let stepsHeight = $state(0);
 
 	/**
 	 * Filled by each <Step> as it mounts, in document order — the single source
-	 * of truth mapping step index → visual state (+ future per-step params).
-	 * `ready === false` marks a step whose visual isn't finished: in a
+	 * of truth mapping step index → visual state (+ per-step params, plus an
+	 * optional `panel` snippet rendered over the canvas while the step is
+	 * active). `ready === false` marks a step whose visual isn't finished: in a
 	 * production build its ScrollyVisual is swapped for a "visuals tbd"
 	 * placeholder (dev always shows the real visual).
-	 * @type {{ state: import("$components/scrolly/states.js").VisualState, params?: Object, ready?: boolean }[]}
+	 * @type {{ state: import("$components/scrolly/states.js").VisualState, params?: Object, ready?: boolean, panel?: import("svelte").Snippet }[]}
 	 */
 	const stepConfigs = $state([]);
 
-	/** @type {{ register: (state: import("$components/scrolly/states.js").VisualState, params?: Object, ready?: boolean) => number, current: number|undefined }} */
+	/** @type {{ register: (state: import("$components/scrolly/states.js").VisualState, params?: Object, ready?: boolean, panel?: import("svelte").Snippet) => number, current: number|undefined }} */
 	const scrollySteps = {
-		register: (state, params, ready) =>
-			stepConfigs.push({ state, params, ready }) - 1,
+		register: (state, params, ready, panel) =>
+			stepConfigs.push({ state, params, ready, panel }) - 1,
 		get current() {
 			return value;
 		}
@@ -69,18 +73,26 @@
 					state={stepConfigs[value ?? 0]?.state}
 					params={stepConfigs[value ?? 0]?.params}
 				/>
-				{#if currentState === "rankFocus" || currentState === "rankReveal"}
-					<div class="rank-bars-panel">
-						<RankBars reveal={currentState === "rankReveal"} />
-					</div>
-				{/if}
+				<!-- the active step's over-canvas panel, if it declared one — the
+				     markup lives next to the <Step> that owns it -->
+				{@render stepConfigs[value ?? 0]?.panel?.()}
 				{#if showTbd}
 					<div class="visual-tbd">
 						<p>visuals tbd</p>
 					</div>
 				{/if}
 			</div>
-			<div class="scrolly-steps">
+			<div class="scrolly-steps" bind:clientHeight={stepsHeight}>
+				<!-- shared over-canvas panels live here, NOT inside <Wizard> — a
+				     snippet declared directly inside a component's tags becomes a
+				     prop of that component (that's how single-step panels nest
+				     inside <Step> directly). Both rank steps reference this one
+				     snippet so RankBars survives the step change without remounting. -->
+				{#snippet rankPanel()}
+					<div class="rank-bars-panel" style="bottom: {stepsHeight + 12}px">
+						<RankBars reveal={currentState === "rankReveal"} />
+					</div>
+				{/snippet}
 				<Wizard bind:value count={stepConfigs.length}>
 					<!-- PRESENT -->
 					<Step state="lone">
@@ -119,7 +131,7 @@
 							>.
 						</p>
 					</Step>
-					<Step state="rankFocus">
+					<Step state="rankFocus" panel={rankPanel}>
 						<p>
 							As of 2026, I can tell you that Kevin Bacon ranks #175 of all
 							Hollywood actors based on average distance. Can you guess who #1
@@ -127,7 +139,7 @@
 						</p>
 						<GuessRank />
 					</Step>
-					<Step state="rankReveal" ready={false}>
+					<Step state="rankReveal" panel={rankPanel} ready={false}>
 						<p>
 							Yes, Samuel L. Jackson is the <i>center of Hollywood</i>. You can
 							get to him in an average distance of just 2.09. Willem Dafoe is
@@ -350,15 +362,33 @@
 		inset: 0;
 	}
 
-	/* the rank chapter's "everyone else" list: sits below Kevin Bacon's small
-	   pinned canvas bar (see layouts/rank.js), above the step card overlay */
+	/* the rank chapter's "everyone else" list: sits below the space where
+	   Bacon's hop bar dissolves (see layouts/rank.js) and above the measured
+	   step card (inline `bottom`). The delayed fade-in keeps the panel's opaque
+	   background from hiding the hopBands → rankFocus canvas tween — the
+	   dissolve gets ~TWEEN_MS to read before the list covers that area. */
 	.rank-bars-panel {
 		position: absolute;
 		top: 100px;
 		left: 0;
 		right: 0;
-		bottom: 35%;
 		background: var(--color-bg);
+		animation: panel-in 0.4s ease 0.55s both;
+	}
+
+	@keyframes panel-in {
+		from {
+			opacity: 0;
+		}
+		to {
+			opacity: 1;
+		}
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.rank-bars-panel {
+			animation: none;
+		}
 	}
 
 	/* covers the in-progress ScrollyVisual for steps flagged not-ready in a

@@ -17,6 +17,18 @@ const sub = path.join(root, "references/pudding-post");
 const readJson = (p) => JSON.parse(fs.readFileSync(p, "utf8"));
 const design = (f) => readJson(path.join(sub, "design/data", f));
 const raw = (f) => readJson(path.join(sub, "data", f));
+const rawCsv = (f) => {
+	const [header, ...lines] = fs
+		.readFileSync(path.join(sub, "data", f), "utf8")
+		.trim()
+		.split("\n")
+		.map((line) => line.trimEnd());
+	const cols = header.split(",");
+	return lines.map((line) => {
+		const cells = line.split(",");
+		return Object.fromEntries(cols.map((c, i) => [c, cells[i]]));
+	});
+};
 
 const intro = design("intro-bacon-network.json");
 const hopTree = design("hop-tree-shared.json");
@@ -246,6 +258,26 @@ assert(
 	`bucket-weighted avg ${weighted / reachable} !== ${bacon.avg_distance}`
 );
 
+// rank chapter's per-actor hop breakdown for the top 250 (mirrors the bacon
+// bucket blob above, one row per actor instead of one row for Bacon)
+const rankHopBands = {};
+for (const row of rawCsv("top-250-hop-bands-with-hop-counts.csv")) {
+	const id = idOf(Number(row.pid));
+	assert(
+		nodes[id][5] === Number(row.rank),
+		`rank ${row.rank} !== derived ${nodes[id][5]} for ${row.name}`
+	);
+	assert(
+		Math.abs(Number(row.avgDistance_diff)) < 1e-3,
+		`hop counts don't reproduce avgDistance for ${row.name}`
+	);
+	rankHopBands[id] = [
+		Number(row.hop1_count),
+		Number(row.hop2_count),
+		Number(row.hop3_count)
+	];
+}
+
 // quiz pairs, remapped to node ids; answers re-checked against the sqlite
 const quiz = quizSrc.pairs.map(({ options, answer }) => {
 	const [a, b] = options.map((o) => idOf(o.person_id));
@@ -407,6 +439,7 @@ const storyOut = {
 		avgDistance: bacon.avg_distance
 	},
 	corr,
+	rankHopBands,
 	quiz,
 	eras,
 	raceSeries,

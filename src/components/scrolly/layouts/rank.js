@@ -12,12 +12,10 @@ import {
 // Rank chapter (present): the canvas's only job now is the handoff from
 // hopBands — Bacon's own hop-breakdown bar tweens from his hopBands position
 // into this small stacked dot-waffle, fading out as it arrives (target alpha
-// 0), so the motion reads as "Bacon flies up here, dissolving into the
-// legend." The legend (the "key" explaining the bar colours) is the only
-// thing left standing once the tween settles; everyone else's bar lives in
-// the plain HTML/CSS list (RankBars.svelte) rendered underneath — see
-// notes/scrolly-framework.md for why per-actor hop-breakdowns beyond Bacon's
-// aren't real data we have.
+// 0), so the motion reads as "Bacon flies up here, dissolving into the rank
+// list." The rank list itself (legend and per-actor hop-band bars) is plain
+// HTML/CSS (RankBars.svelte), which Index.svelte fades in under the dissolve
+// after the canvas tween has had time to read.
 // ---------------------------------------------------------------------------
 
 const BACON_BAR_DOTS = 60;
@@ -63,12 +61,8 @@ function layoutRank(nodes, w, h) {
 		parkHidden(attrs, n, w, h);
 	}
 
-	const legend = [1, 2, 3, 4].map((hop) => ({
-		color: HOP_RGB[hop],
-		label: `${hop} movie${hop > 1 ? "s" : ""}`
-	}));
-
-	return { attrs, legend, legendY: BACON_Y + 20 };
+	// no canvas legend: the hop key lives inside the RankBars panel it explains
+	return { attrs };
 }
 
 export const states = {
