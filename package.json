@@ -8,14 +8,15 @@
 		"dev": "vite dev",
 		"build": "vite build",
 		"preview": "vite preview",
-		"lint": "prettier --check --plugin-search-dir=. .",
+		"lint": "prettier --check .",
 		"check": "svelte-check --tsconfig ./jsconfig.json",
 		"spellcheck": "cspell \"src/data/**\" \"notes/**\" \"README.md\" \"src/routes/**/*.svelte\" \"src/components/Index.svelte\" \"src/components/Header.svelte\" \"src/components/Meta.svelte\"",
-		"format": "prettier --write --plugin-search-dir=. .",
+		"format": "prettier --write .",
+		"gates": "bash scripts/run-ci-quality-gates.sh",
 		"prepare": "simple-git-hooks"
 	},
 	"simple-git-hooks": {
-		"pre-commit": "npx lint-staged"
+		"pre-commit": "npx lint-staged && bash scripts/run-ci-quality-gates.sh --local"
 	},
 	"lint-staged": {
 		"*.{js,svelte,json,css,md,html}": "prettier --write",
