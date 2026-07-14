@@ -8,31 +8,44 @@
 	// Search is scoped to the same top-N actors RankBars renders, so every
 	// result here has a visible row to scroll to and highlight.
 	let query = $state("");
+	let editing = $state(false);
 	const matches = $derived(searchRankOptions(query));
+	// "Guess again" only reopens search — it doesn't clear story.rankGuess,
+	// so RankBars keeps focus on the prior guess until a new one is picked
+	const showSearch = $derived(story.rankGuess == null || editing);
+
+	function pick(id) {
+		story.rankGuess = id;
+		editing = false;
+		query = "";
+	}
 </script>
 
 <div class="guess">
-	{#if story.rankGuess == null}
+	{#if story.rankGuess != null}
+		<p class="verdict">
+			{nodeName(story.rankGuess)} ranks #{nodeRank(story.rankGuess)}.
+			{nodeRank(story.rankGuess) === 1 ? "Spot on!" : "Keep going…"}
+			{#if !editing}
+				<button class="change" onclick={() => (editing = true)}>
+					Guess again
+				</button>
+			{/if}
+		</p>
+	{/if}
+	{#if showSearch}
 		<input type="text" placeholder="Search for an actor…" bind:value={query} />
 		{#if query.trim().length >= 2}
 			{#if matches.length > 0}
 				<div class="matches">
 					{#each matches as { id, name } (id)}
-						<button onclick={() => (story.rankGuess = id)}>{name}</button>
+						<button onclick={() => pick(id)}>{name}</button>
 					{/each}
 				</div>
 			{:else}
 				<p class="hint">No matches in the top 250.</p>
 			{/if}
 		{/if}
-	{:else}
-		<p class="verdict">
-			{nodeName(story.rankGuess)} ranks #{nodeRank(story.rankGuess)}.
-			{nodeRank(story.rankGuess) === 1 ? "Spot on!" : "Keep going…"}
-			<button class="change" onclick={() => (story.rankGuess = null)}>
-				Guess again
-			</button>
-		</p>
 	{/if}
 </div>
 

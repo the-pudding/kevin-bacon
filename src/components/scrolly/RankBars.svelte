@@ -54,6 +54,9 @@
 	$effect(() => {
 		const id = focusId;
 		if (!list || !listHeight || id == null) return;
+		// clearing a guess ("guess again") reverts focus to Bacon, but the
+		// reader deliberately scrolled to their pick — don't yank them back
+		if (hasScrolled && story.rankGuess == null && !reveal) return;
 		const row = list.querySelector(`[data-id="${id}"]`);
 		if (!(row instanceof HTMLElement)) return;
 		const behavior =
@@ -155,6 +158,20 @@
 		padding: 0.5rem 1rem;
 		overflow-y: auto;
 		flex: 1;
+		mask-image: linear-gradient(
+			to bottom,
+			transparent,
+			black 1.5rem,
+			black calc(100% - 1.5rem),
+			transparent
+		);
+		-webkit-mask-image: linear-gradient(
+			to bottom,
+			transparent,
+			black 1.5rem,
+			black calc(100% - 1.5rem),
+			transparent
+		);
 	}
 
 	.rows li {
@@ -165,11 +182,14 @@
 		font-family: var(--font-mono);
 		font-size: 0.75rem;
 		color: var(--color-gray-700, #444);
+		opacity: 0.35;
+		transition: opacity 0.25s ease;
 	}
 
 	.rows li.focus {
 		font-weight: bold;
 		color: var(--color-gray-900);
+		opacity: 1;
 	}
 
 	.label-row {
