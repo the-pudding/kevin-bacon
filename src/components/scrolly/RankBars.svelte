@@ -1,5 +1,6 @@
 <script>
 	// @ts-check
+	import { onMount } from "svelte";
 	import rawNodes from "$data/scrolly-nodes.json";
 	import storyData from "$data/scrolly-story.json";
 	import { story } from "./story.svelte.js";
@@ -38,40 +39,80 @@
 
 	// pre-guess the list centers on Bacon (#175, the step copy's anchor) rather
 	// than opening on #1 and spoiling the guess
-	const focusId = $derived(reveal ? SLJ : (story.rankGuess ?? ANCHOR_ID));
+	const focusId = $derived(
+		reveal || story.rankGaveUp ? SLJ : (story.rankGuess ?? ANCHOR_ID)
+	);
 
-	// names stay hidden (bars/rank still shown) until the guess/reveal
-	// introduces who's who — only Bacon's name is known up front
-	const namesRevealed = $derived(reveal || story.rankGuess != null);
+	// names stay hidden (bars/rank still shown) until the final reveal step
+	// or giving up — a guess only reveals the guessed row (see focusId below),
+	// not the whole list
+	const namesRevealed = $derived(reveal || story.rankGaveUp);
 
 	/** @type {HTMLUListElement | undefined} */
 	let list = $state();
 	let listHeight = $state(0);
-	let hasScrolled = false;
+	let scrolledByReader = false;
+	// the very first row-position measurement can land a few px off if it
+	// runs before the mono webfont has swapped in (font.css: font-display:
+	// swap) — re-measuring once fonts settle catches that without treating
+	// it as a reader-driven scroll (see the guard below)
+	let fontsReady = $state(false);
+
+	onMount(() => {
+		if (!document.fonts) {
+			fontsReady = true;
+			return;
+		}
+		document.fonts.ready.then(() => {
+			fontsReady = true;
+		});
+	});
 
 	// keep the focused row centered: instant on first paint (no spoiler pan
 	// from the top), smooth when a guess/reveal moves the focus
 	$effect(() => {
 		const id = focusId;
+		const ready = fontsReady;
 		if (!list || !listHeight || id == null) return;
 		// clearing a guess ("guess again") reverts focus to Bacon, but the
 		// reader deliberately scrolled to their pick — don't yank them back
-		if (hasScrolled && story.rankGuess == null && !reveal) return;
+		if (
+			scrolledByReader &&
+			story.rankGuess == null &&
+			!reveal &&
+			!story.rankGaveUp
+		)
+			return;
 		const row = list.querySelector(`[data-id="${id}"]`);
 		if (!(row instanceof HTMLElement)) return;
 		const behavior =
-			hasScrolled &&
+			scrolledByReader &&
 			!window.matchMedia("(prefers-reduced-motion: reduce)").matches
 				? "smooth"
 				: "auto";
-		hasScrolled = true;
-		list.scrollTo({
-			top:
-				row.offsetTop -
-				list.offsetTop -
-				(list.clientHeight - row.offsetHeight) / 2,
-			behavior
-		});
+		// only count this as reader-driven once fonts have settled — the
+		// fonts-ready re-run right after mount is a correction, not a move
+		if (ready) scrolledByReader = true;
+		const target =
+			row.offsetTop -
+			list.offsetTop -
+			(list.clientHeight - row.offsetHeight) / 2;
+		const clampedTop = Math.max(
+			0,
+			Math.min(target, list.scrollHeight - list.clientHeight)
+		);
+		list.scrollTo({ top: clampedTop, behavior });
+
+		// canvas handoff: `list`'s offsetParent is the rank-bars-panel div, which
+		// sits inside the same absolutely-positioned box as the canvas (see
+		// Index.svelte/layouts/rank.js) — so this row's landing position, in that
+		// shared coordinate space, is what Bacon's hop bar should tween to meet
+		const panel = list.offsetParent;
+		if (panel instanceof HTMLElement) {
+			story.rankFocusY = Math.round(
+				panel.offsetTop + row.offsetTop - clampedTop + row.offsetHeight / 2
+			);
+		}
 	});
 </script>
 
@@ -184,12 +225,33 @@
 		color: var(--color-gray-700, #444);
 		opacity: 0.35;
 		transition: opacity 0.25s ease;
+		/* everyone but Bacon starts invisible and fades in slowly, after the
+		   canvas bar has landed and the step text has had its moment (see
+		   Index.svelte's rank-focus-text) — Bacon's own row is exempted below
+		   so it's there from the start, matching the bar dissolving into it */
+		animation: row-in 1.4s ease 1.6s both;
 	}
 
 	.rows li.focus {
 		font-weight: bold;
 		color: var(--color-gray-900);
 		opacity: 1;
+		animation: none;
+	}
+
+	@keyframes row-in {
+		from {
+			opacity: 0;
+		}
+		to {
+			opacity: 0.35;
+		}
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.rows li {
+			animation: none;
+		}
 	}
 
 	.label-row {

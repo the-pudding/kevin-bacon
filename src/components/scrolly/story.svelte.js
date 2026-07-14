@@ -7,11 +7,17 @@
 export const story = $state({
 	/** rank ladder: corpus rank the reader guessed (null = not guessed) */
 	rankGuess: null,
+	/** rank ladder: reader gave up instead of guessing #1 */
+	rankGaveUp: false,
 	/** pair quiz: per-pair pick, keyed by pair index → picked pid */
 	quizPicks: {},
 	/** prediction scatter feature toggles */
 	predictConcurrence: false,
 	predictDegree: false,
 	/** win-bar breakdown: pid of the bar the reader tapped (null = none) */
-	winFocus: null
+	winFocus: null,
+	/** rank ladder: on-screen y (canvas coordinate space) of RankBars' centered
+	 * focus row, measured live by RankBars itself — null until it has mounted
+	 * and reported a position (see layouts/rank.js) */
+	rankFocusY: null
 });

@@ -234,7 +234,11 @@ Two patterns:
 2. **Every interaction is skippable.** The step _after_ an interaction reveals
    the answer unconditionally (SLJ is revealed whether or not the reader
    guessed; quiz answers get highlighted regardless). No interaction may gate
-   the Next button.
+   the Next button — Next must always be clickable. An interaction _may_
+   auto-advance on completion (e.g. guessing SLJ or giving up on the rank
+   ladder calls the `scrolly-steps` context's `advance()`, the same step-index
+   bump Next performs) as long as that never removes the reader's own ability
+   to skip via Next/ArrowRight.
 
 Exception: a visual that abandons the dot metaphor entirely gains nothing from
 the shared canvas — layer a plain HTML component over (or beside) the canvas

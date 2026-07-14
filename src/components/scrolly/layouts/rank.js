@@ -1,4 +1,4 @@
-import { ANCHOR_ID, NODE_COUNT, hash01 } from "../nodes.js";
+import { ANCHOR_ID, hash01 } from "../nodes.js";
 import {
 	ATTR_SIZE,
 	MARGIN,
@@ -10,54 +10,53 @@ import {
 
 // ---------------------------------------------------------------------------
 // Rank chapter (present): the canvas's only job now is the handoff from
-// hopBands — Bacon's own hop-breakdown bar tweens from his hopBands position
-// into this small stacked dot-waffle, fading out as it arrives (target alpha
-// 0), so the motion reads as "Bacon flies up here, dissolving into the rank
-// list." The rank list itself (legend and per-actor hop-band bars) is plain
-// HTML/CSS (RankBars.svelte), which Index.svelte fades in under the dissolve
-// after the canvas tween has had time to read.
+// hopBands — Bacon's hop-breakdown bar tweens from his hopBands position into
+// this small stacked dot-waffle, staying fully visible (no fade-out) since
+// the rank list's opaque HTML panel (RankBars.svelte, faded in by
+// Index.svelte once the tween has had time to read) lands on top and covers
+// it — the dots don't need to dissolve themselves.
 // ---------------------------------------------------------------------------
 
-const BACON_BAR_DOTS = 60;
+// fallback before RankBars has measured its centered focus row (see params
+// below) — only ever visible for a frame or two on first mount
 const BACON_Y = MARGIN + 40;
 
 /** @type {import("../layout-shared.js").LayoutFn} */
-function layoutRank(nodes, w, h) {
+function layoutRank(nodes, w, h, _edges, params) {
 	const attrs = new Float64Array(ATTR_SIZE);
 	const x0 = MARGIN;
+	// RankBars reports where its centered focus row actually lands on screen
+	// (story.rankFocusY) — the bar tweens to meet it there, not a fixed spot
+	const baconY = params?.baconY ?? BACON_Y;
 
 	const counts = [0, 0, 0, 0, 0];
 	for (const n of nodes) if (n.hop >= 0) counts[n.hop]++;
 	const dataTotal = counts[1] + counts[2] + counts[3] + counts[4];
 	const maxBarW = w - MARGIN * 2;
-	const cell = Math.min(5, maxBarW / BACON_BAR_DOTS);
 
-	// borrow spare node ids as waffle dots for Bacon's stacked bar (the
-	// renderer draws one dot per node id — see win-bars.js for the pattern)
-	const pool = [...Array(NODE_COUNT).keys()]
-		.filter((id) => id !== ANCHOR_ID)
-		.sort((a, b) => hash01(a, 6) - hash01(b, 6));
-	let p = 0;
-	const used = new Set();
-
-	// target alpha 0: these dots still tween into their bar position (the
-	// visible handoff from hopBands), they just arrive fully faded out
-	let segX = x0;
+	// segment boundaries mirror RankBars' own per-actor bar proportions
+	const segBounds = [x0];
 	for (let hop = 1; hop <= 4; hop++) {
-		const dots = Math.round((counts[hop] / dataTotal) * BACON_BAR_DOTS);
-		for (let k = 0; k < dots; k++) {
-			const id = pool[p++];
-			used.add(id);
-			set(attrs, id, segX + k * cell, BACON_Y, 2.4, HOP_RGB[hop], 0);
-		}
-		segX += dots * cell;
+		segBounds.push(segBounds[hop - 1] + (counts[hop] / dataTotal) * maxBarW);
 	}
-	set(attrs, ANCHOR_ID, x0 - 10, BACON_Y, 7, INK, 0);
+
+	// every hop 1–4 actor (not just a sample) tweens from its hopBands spot
+	// into its own color's segment — the whole band converges into the bar,
+	// not a borrowed handful of stand-ins
+	for (const n of nodes) {
+		if (n.hop < 1 || n.hop > 4) continue;
+		const segX = segBounds[n.hop - 1];
+		const segW = segBounds[n.hop] - segX;
+		const x = segX + hash01(n.id, 6) * segW;
+		const y = baconY + (hash01(n.id, 7) - 0.5) * 4;
+		set(attrs, n.id, x, y, 1.6, HOP_RGB[n.hop], 0.5);
+	}
+	set(attrs, ANCHOR_ID, x0 - 10, baconY, 7, INK, 1);
 
 	// everyone else parks off-canvas (hidden), ready for whichever chapter
 	// picks them up next, instead of jittering around as background noise
 	for (const n of nodes) {
-		if (n.id === ANCHOR_ID || used.has(n.id)) continue;
+		if (n.id === ANCHOR_ID || (n.hop >= 1 && n.hop <= 4)) continue;
 		parkHidden(attrs, n, w, h);
 	}
 
@@ -65,7 +64,9 @@ function layoutRank(nodes, w, h) {
 	return { attrs };
 }
 
+const params = (s) => ({ baconY: s.rankFocusY });
+
 export const states = {
-	rankFocus: { layout: layoutRank },
-	rankReveal: { layout: layoutRank }
+	rankFocus: { layout: layoutRank, params },
+	rankReveal: { layout: layoutRank, params }
 };

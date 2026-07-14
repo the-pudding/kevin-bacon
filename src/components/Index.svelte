@@ -11,8 +11,10 @@
 	import BarPicker from "$components/scrolly/BarPicker.svelte";
 	import useWindowDimensions from "$runes/useWindowDimensions.svelte.js";
 	import localStorage from "$utils/localStorage.js";
+	import { story } from "$components/scrolly/story.svelte.js";
 
 	const STEP_STORAGE_KEY = "kb-step";
+	const isRankState = (s) => s === "rankFocus" || s === "rankReveal";
 
 	let value = $state(0);
 	let dimensions = new useWindowDimensions();
@@ -31,12 +33,15 @@
 	 */
 	const stepConfigs = $state([]);
 
-	/** @type {{ register: (state: import("$components/scrolly/states.js").VisualState, params?: Object, ready?: boolean, panel?: import("svelte").Snippet) => number, current: number|undefined }} */
+	/** @type {{ register: (state: import("$components/scrolly/states.js").VisualState, params?: Object, ready?: boolean, panel?: import("svelte").Snippet) => number, current: number|undefined, advance: () => void }} */
 	const scrollySteps = {
 		register: (state, params, ready, panel) =>
 			stepConfigs.push({ state, params, ready, panel }) - 1,
 		get current() {
 			return value;
+		},
+		advance: () => {
+			if (value < stepConfigs.length - 1) value += 1;
 		}
 	};
 	setContext("scrolly-steps", scrollySteps);
@@ -57,6 +62,20 @@
 
 	$effect(() => {
 		localStorage.set(STEP_STORAGE_KEY, value);
+	});
+
+	let prevValue = 0;
+	$effect(() => {
+		const state = stepConfigs[value]?.state;
+		const prevState = stepConfigs[prevValue]?.state;
+		// stepping back out of the rank chapter resets the guess, so returning
+		// to it later starts the guessing game fresh instead of picking up
+		// where the reader left off (guessed, or already seeing the reveal)
+		if (value < prevValue && isRankState(prevState) && !isRankState(state)) {
+			story.rankGuess = null;
+			story.rankGaveUp = false;
+		}
+		prevValue = value;
 	});
 </script>
 
@@ -132,12 +151,14 @@
 						</p>
 					</Step>
 					<Step state="rankFocus" panel={rankPanel}>
-						<p>
-							As of 2026, I can tell you that Kevin Bacon ranks #175 of all
-							Hollywood actors based on average distance. Can you guess who #1
-							is?
-						</p>
-						<GuessRank />
+						<div class="rank-focus-text">
+							<p>
+								As of 2026, I can tell you that Kevin Bacon ranks #175 of all
+								Hollywood actors based on average distance. Can you guess who #1
+								is?
+							</p>
+							<GuessRank />
+						</div>
 					</Step>
 					<Step state="rankReveal" panel={rankPanel} ready={false}>
 						<p>
@@ -385,8 +406,17 @@
 		}
 	}
 
+	/* rankFocus' own staged reveal: Bacon's bar/row lands first (panel-in,
+	   above), then this text fades in once that's had time to read, so the
+	   reader meets Bacon before the question — see RankBars.svelte's row-in
+	   for the next stage (everyone else fading in after this). */
+	.rank-focus-text {
+		animation: panel-in 0.5s ease 1.1s both;
+	}
+
 	@media (prefers-reduced-motion: reduce) {
-		.rank-bars-panel {
+		.rank-bars-panel,
+		.rank-focus-text {
 			animation: none;
 		}
 	}
