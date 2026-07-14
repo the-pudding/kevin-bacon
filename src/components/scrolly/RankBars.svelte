@@ -85,6 +85,7 @@
 			return;
 		const row = list.querySelector(`[data-id="${id}"]`);
 		if (!(row instanceof HTMLElement)) return;
+		const bar = row.querySelector(".bar");
 		const behavior =
 			scrolledByReader &&
 			!window.matchMedia("(prefers-reduced-motion: reduce)").matches
@@ -106,11 +107,14 @@
 		// canvas handoff: `list`'s offsetParent is the rank-bars-panel div, which
 		// sits inside the same absolutely-positioned box as the canvas (see
 		// Index.svelte/layouts/rank.js) — so this row's landing position, in that
-		// shared coordinate space, is what Bacon's hop bar should tween to meet
+		// shared coordinate space, is what Bacon's hop bar should tween to meet.
+		// Target the `.bar` element itself, not the row's overall center — the
+		// row also carries the label text above the bar, so centering on the
+		// whole row overshoots upward past the bar's real position.
 		const panel = list.offsetParent;
-		if (panel instanceof HTMLElement) {
+		if (panel instanceof HTMLElement && bar instanceof HTMLElement) {
 			story.rankFocusY = Math.round(
-				panel.offsetTop + row.offsetTop - clampedTop + row.offsetHeight / 2
+				panel.offsetTop + bar.offsetTop - clampedTop + bar.offsetHeight / 2
 			);
 		}
 	});
