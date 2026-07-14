@@ -4,7 +4,7 @@
 	import storyData from "$data/scrolly-story.json";
 	import { story } from "./story.svelte.js";
 	import { ANCHOR_ID } from "./nodes.js";
-	import { BY_RANK, HOP_RGB, SLJ } from "./layout-shared.js";
+	import { BY_RANK, HOP_RGB, SLJ, RANK_TOP_N } from "./layout-shared.js";
 
 	// The rank chapter's "everyone else" list: plain HTML/CSS stacked hop-band
 	// bars (per-actor counts from scrolly-story.json's rankHopBands), not
@@ -13,10 +13,9 @@
 	/** @type {{ reveal?: boolean }} */
 	let { reveal = false } = $props();
 
-	const TOP_N = 250;
-	const BAR_MAX_PX = 160;
+	const SEGMENT_MIN_PX = 10;
 
-	const top = BY_RANK.slice(0, TOP_N);
+	const top = BY_RANK.slice(0, RANK_TOP_N);
 
 	const rows = top.map(({ id, rank }) => {
 		const [, name] = rawNodes.nodes[id];
@@ -25,20 +24,25 @@
 		const total = counts.reduce((s, v) => s + v, 0);
 		const segments = counts.map((count, i) => ({
 			color: HOP_RGB[i + 1],
-			width: (count / total) * BAR_MAX_PX
+			fraction: count / total
 		}));
 		return { id, rank, name, avgDistance, segments };
 	});
 
 	const legend = [
-		{ color: HOP_RGB[1], label: "1 hop from Bacon" },
-		{ color: HOP_RGB[2], label: "2 hops" },
-		{ color: HOP_RGB[3], label: "3 hops" }
+		{ color: HOP_RGB[1], label: "1 movie" },
+		{ color: HOP_RGB[2], label: "2 movies" },
+		{ color: HOP_RGB[3], label: "3 movies" },
+		{ color: HOP_RGB[4], label: "4 movies" }
 	];
 
 	// pre-guess the list centers on Bacon (#175, the step copy's anchor) rather
 	// than opening on #1 and spoiling the guess
 	const focusId = $derived(reveal ? SLJ : (story.rankGuess ?? ANCHOR_ID));
+
+	// names stay hidden (bars/rank still shown) until the guess/reveal
+	// introduces who's who — only Bacon's name is known up front
+	const namesRevealed = $derived(reveal || story.rankGuess != null);
 
 	/** @type {HTMLUListElement | undefined} */
 	let list = $state();
@@ -69,6 +73,34 @@
 </script>
 
 <div class="rank-bars">
+	<ul class="rows" bind:this={list} bind:clientHeight={listHeight}>
+		{#each rows as row (row.id)}
+			<li data-id={row.id} class:focus={row.id === focusId}>
+				<span class="label-row">
+					<span class="label"
+						>#{row.rank}
+						{namesRevealed || row.id === focusId ? row.name : "???"}</span
+					>
+					{#if row.id === focusId}
+						<span class="avg">{row.avgDistance.toFixed(2)}</span>
+					{/if}
+				</span>
+				<span class="bar">
+					{#each row.segments as segment}
+						<span
+							class="segment"
+							style="width: calc({SEGMENT_MIN_PX}px + (100% - {SEGMENT_MIN_PX *
+								row.segments
+									.length}px) * {segment.fraction}); background: rgb({segment.color.join(
+								','
+							)})"
+						></span>
+					{/each}
+				</span>
+			</li>
+		{/each}
+		<p class="footnote">Only the top {RANK_TOP_N} actors shown</p>
+	</ul>
 	<ul class="legend">
 		{#each legend as item}
 			<li>
@@ -78,27 +110,6 @@
 			</li>
 		{/each}
 	</ul>
-	<ul class="rows" bind:this={list} bind:clientHeight={listHeight}>
-		{#each rows as row (row.id)}
-			<li data-id={row.id} class:focus={row.id === focusId}>
-				<span class="bar">
-					{#each row.segments as segment}
-						<span
-							class="segment"
-							style="width: {segment.width}px; background: rgb({segment.color.join(
-								','
-							)})"
-						></span>
-					{/each}
-				</span>
-				<span class="label">#{row.rank} {row.name}</span>
-				{#if row.id === focusId}
-					<span class="avg">{row.avgDistance.toFixed(2)}</span>
-				{/if}
-			</li>
-		{/each}
-	</ul>
-	<p class="footnote">Only the top {TOP_N} actors shown</p>
 </div>
 
 <style>
@@ -123,7 +134,6 @@
 		padding: 0.4rem 1rem;
 		white-space: nowrap;
 		font-family: var(--font-mono);
-		border-bottom: 1px solid var(--color-gray-300, #ddd);
 	}
 
 	.legend li {
@@ -149,9 +159,9 @@
 
 	.rows li {
 		display: flex;
-		align-items: center;
-		gap: 0.4rem;
-		padding: 0.15rem 0;
+		flex-direction: column;
+		gap: 0.2rem;
+		padding: 0.3rem 0;
 		font-family: var(--font-mono);
 		font-size: 0.75rem;
 		color: var(--color-gray-700, #444);
@@ -162,10 +172,16 @@
 		color: var(--color-gray-900);
 	}
 
+	.label-row {
+		display: flex;
+		align-items: baseline;
+		gap: 0.4rem;
+	}
+
 	.bar {
 		display: flex;
+		width: 100%;
 		height: 6px;
-		flex-shrink: 0;
 		overflow: hidden;
 		border-radius: 2px;
 	}
@@ -194,6 +210,6 @@
 		font-size: 0.7rem;
 		font-style: italic;
 		color: var(--color-gray-500, #888);
-		border-top: 1px solid var(--color-gray-300, #ddd);
+		text-align: center;
 	}
 </style>

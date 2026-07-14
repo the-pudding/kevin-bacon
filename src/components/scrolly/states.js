@@ -13,7 +13,9 @@ import {
 	SLJ,
 	HANKS,
 	STREEP,
-	DENIRO
+	DENIRO,
+	BY_RANK,
+	RANK_TOP_N
 } from "./layout-shared.js";
 import { states as introStates } from "./layouts/intro.js";
 import { states as hopBandsStates } from "./layouts/hop-bands.js";
@@ -128,7 +130,6 @@ export const STATE_TRACKED = [
 
 /** ids the interactive step-card components need (see story.svelte.js) */
 export const INTERACTIVE_IDS = {
-	guessOptions: [SLJ, HANKS, STREEP, DENIRO],
 	quiz: story.quiz,
 	barCandidates: BAR_CANDIDATES.map((c) => c.id)
 };
@@ -137,3 +138,20 @@ export const INTERACTIVE_IDS = {
 export const nodeName = (id) => rawNodes.nodes[id][1];
 export const nodeRank = (id) => rawNodes.nodes[id][5];
 export const nodeAvgDistance = (id) => rawNodes.nodes[id][4];
+
+// same top-N slice RankBars renders, so every search result a reader can
+// pick is guaranteed a visible row to scroll to and highlight
+const RANK_OPTIONS = BY_RANK.slice(0, RANK_TOP_N);
+
+/** case-insensitive substring search over the top-ranked actors RankBars renders */
+export function searchRankOptions(query, limit = 8) {
+	const q = query.trim().toLowerCase();
+	if (q.length < 2) return [];
+	const results = [];
+	for (const { id, rank } of RANK_OPTIONS) {
+		if (!nodeName(id).toLowerCase().includes(q)) continue;
+		results.push({ id, rank, name: nodeName(id) });
+		if (results.length >= limit) break;
+	}
+	return results;
+}

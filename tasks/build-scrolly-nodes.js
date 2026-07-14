@@ -274,7 +274,8 @@ for (const row of rawCsv("top-250-hop-bands-with-hop-counts.csv")) {
 	rankHopBands[id] = [
 		Number(row.hop1_count),
 		Number(row.hop2_count),
-		Number(row.hop3_count)
+		Number(row.hop3_count),
+		Number(row.hop4_count)
 	];
 }
 

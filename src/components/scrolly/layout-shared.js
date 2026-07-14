@@ -130,6 +130,10 @@ export const BY_RANK = rawNodes.nodes
 	.sort((a, b) => a.rank - b.rank);
 export const ORDER_OF = new Map(BY_RANK.map((n, i) => [n.id, i]));
 
+// how many top-ranked actors RankBars renders — shared with the rank-guess
+// search so a search result is never outside the visible/scrollable list
+export const RANK_TOP_N = 250;
+
 // fixed film-count x-scale shared by every films-scatter variant so dots only
 // travel vertically when the y-metric changes
 const FILM_LOGS = rawNodes.nodes.map((n) => Math.log(Math.max(1, n[3])));

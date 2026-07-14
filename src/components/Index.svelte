@@ -369,7 +369,7 @@
 	   dissolve gets ~TWEEN_MS to read before the list covers that area. */
 	.rank-bars-panel {
 		position: absolute;
-		top: 100px;
+		top: 84px;
 		left: 0;
 		right: 0;
 		background: var(--color-bg);
