@@ -160,7 +160,7 @@
 							<GuessRank />
 						</div>
 					</Step>
-					<Step state="rankReveal" panel={rankPanel} ready={false}>
+					<Step state="rankReveal" panel={rankPanel}>
 						<p>
 							Yes, Samuel L. Jackson is the <i>center of Hollywood</i>. You can
 							get to him in an average distance of just 2.09. Willem Dafoe is
