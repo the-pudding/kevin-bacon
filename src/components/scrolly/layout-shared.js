@@ -198,20 +198,113 @@ export const CHASE_SLOT = RACE_IDS.length + 2;
 export const COHORT_SLOT = RACE_IDS.length + 3;
 export const DIAG_SLOT = TRAIL_META.length - 1;
 
-/** writes a polyline (data pairs → px via scales) into trail slot t */
+// ---------------------------------------------------------------------------
+// Monotone-cubic smoothing (ported from the pudding-post race-chart). A
+// Fritsch–Carlson monotone spline never overshoots the data between points, so
+// a dot riding the curve never dips below/above the real values. The x control
+// points are uniformly spaced within each interval (Bx(t) is linear in t), so a
+// screen-x maps to an exact t and the curve can be sampled at any x directly.
+// ---------------------------------------------------------------------------
+
+/** monotone-cubic segments through `points`: one cubic [p0, c1, c2, p3] per interval */
+export function monotoneSegments(points) {
+	const n = points.length;
+	if (n < 2) return [];
+	// secant slopes between consecutive points
+	const h = [];
+	const s = [];
+	for (let i = 0; i < n - 1; i++) {
+		const dx = points[i + 1][0] - points[i][0];
+		h.push(dx);
+		s.push(dx === 0 ? 0 : (points[i + 1][1] - points[i][1]) / dx);
+	}
+	// tangents: endpoints take the adjacent secant; interior points use the
+	// sign-aware bounded estimate that zeroes at extrema and caps magnitude
+	const m = [s[0]];
+	for (let i = 1; i < n - 1; i++) {
+		const p = (s[i - 1] * h[i] + s[i] * h[i - 1]) / (h[i - 1] + h[i]);
+		m.push(
+			(Math.sign(s[i - 1]) + Math.sign(s[i])) *
+				Math.min(Math.abs(s[i - 1]), Math.abs(s[i]), 0.5 * Math.abs(p)) || 0
+		);
+	}
+	m.push(s[n - 2]);
+	// one cubic per interval, control points a third of dx along each tangent
+	const segs = [];
+	for (let i = 0; i < n - 1; i++) {
+		const [x0, y0] = points[i];
+		const [x1, y1] = points[i + 1];
+		const dx = h[i] / 3;
+		segs.push([
+			[x0, y0],
+			[x0 + dx, y0 + dx * m[i]],
+			[x1 - dx, y1 - dx * m[i + 1]],
+			[x1, y1]
+		]);
+	}
+	return segs;
+}
+
+/** De Casteljau split of cubic [p0, c1, c2, p3] at t → { left, right } */
+export function splitCubic(seg, t) {
+	const lerp = (a, b) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
+	const [p0, c1, c2, p3] = seg;
+	const a = lerp(p0, c1);
+	const b = lerp(c1, c2);
+	const c = lerp(c2, p3);
+	const d = lerp(a, b);
+	const e = lerp(b, c);
+	const f = lerp(d, e);
+	return { left: [p0, a, d, f], right: [f, e, c, p3] };
+}
+
+/** curve y at data-x on monotone segments (Bx linear in t → exact t per segment) */
+export function curveYAt(segs, x) {
+	if (!segs.length) return null;
+	const xa = segs[0][0][0];
+	const xb = segs.at(-1)[3][0];
+	const cx = Math.max(xa, Math.min(xb, x));
+	let seg = segs[0];
+	for (const s of segs) {
+		if (cx <= s[3][0]) {
+			seg = s;
+			break;
+		}
+	}
+	const x0 = seg[0][0];
+	const x3 = seg[3][0];
+	const t = x3 === x0 ? 0 : (cx - x0) / (x3 - x0);
+	const u = 1 - t;
+	return (
+		u * u * u * seg[0][1] +
+		3 * u * u * t * seg[1][1] +
+		3 * u * t * t * seg[2][1] +
+		t * t * t * seg[3][1]
+	);
+}
+
+/**
+ * writes a polyline (data pairs → px via scales) into trail slot t.
+ * Resamples along the monotone-cubic curve so the 48 vertices land on a smooth
+ * line rather than on chords between data points.
+ *
+ * Stage-3 note: segments are (re)built from the `pairs` handed in. For a clipped
+ * race series that means window-edge tangents come from the clipped set, which is
+ * invisible for the static windows but would "snap" when the window animates —
+ * the per-frame path animator must instead build segments from the FULL series
+ * once and clip/sample those.
+ */
 export function setTrail(trails, t, pairs, xScale, yScale, alpha) {
 	const base = t * TRAIL_STRIDE;
+	const segs = monotoneSegments(pairs);
+	const x0 = pairs[0][0];
+	const xN = pairs.at(-1)[0];
 	for (let k = 0; k < TRAIL_POINTS; k++) {
-		// resample the series uniformly in x by walking segments
-		const target =
-			pairs[0][0] + ((pairs.at(-1)[0] - pairs[0][0]) * k) / (TRAIL_POINTS - 1);
-		let j = 1;
-		while (j < pairs.length - 1 && pairs[j][0] < target) j++;
-		const [x0, y0] = pairs[j - 1];
-		const [x1, y1] = pairs[j];
-		const t01 = x1 === x0 ? 0 : (target - x0) / (x1 - x0);
+		// resample uniformly in x, reading y off the smooth curve
+		const target = x0 + ((xN - x0) * k) / (TRAIL_POINTS - 1);
+		const y = segs.length ? curveYAt(segs, target) : pairs[0][1];
 		trails[base + k * 2] = xScale(target);
-		trails[base + k * 2 + 1] = yScale(y0 + (y1 - y0) * t01);
+		trails[base + k * 2 + 1] = yScale(y);
 	}
 	trails[base + TRAIL_POINTS * 2] = alpha;
 }
@@ -226,22 +319,25 @@ export function collapseTrail(trails, t, x, y, alpha = 0) {
 	trails[base + TRAIL_POINTS * 2] = alpha;
 }
 
-/** clip a [x, y][] series to [x0, x1], interpolating the cut ends */
+/** clip a [x, y][] series to [x0, x1], interpolating the cut ends on the curve */
 export function clipSeries(pairs, x0, x1) {
+	// cut-ends read off the monotone curve of the full series, so the clipped
+	// endpoints (and the dot placed at series.at(-1)) sit on the same smooth line
+	const segs = monotoneSegments(pairs);
 	const out = [];
 	for (let i = 0; i < pairs.length; i++) {
 		const [x, y] = pairs[i];
 		if (x < x0) {
 			const nxt = pairs[i + 1];
 			if (nxt && nxt[0] > x0) {
-				out.push([x0, y + ((nxt[1] - y) * (x0 - x)) / (nxt[0] - x)]);
+				out.push([x0, curveYAt(segs, x0)]);
 			}
 			continue;
 		}
 		if (x > x1) {
 			const prv = pairs[i - 1];
 			if (prv && prv[0] < x1 && (!out.length || out.at(-1)[0] < x1)) {
-				out.push([x1, prv[1] + ((y - prv[1]) * (x1 - prv[0])) / (x - prv[0])]);
+				out.push([x1, curveYAt(segs, x1)]);
 			}
 			break;
 		}
