@@ -71,9 +71,10 @@ export const YELLOW = [204, 187, 68]; // --category-yellow
 export const PURPLE = [170, 51, 119]; // --category-purple
 
 export const MARGIN = 32;
-// charts live in the top ~2/3 of the canvas — the step card owns the bottom,
-// and the x-axis ticks need to clear it too
-export const plotBottom = (h) => h * 0.66;
+// charts live in the top ~3/5 of the canvas — the step card owns the bottom,
+// and the x-axis ticks + axis label (drawn ~32px below this line) need to clear
+// the tallest step cards too, so keep the plot clear of the bottom ~40%
+export const plotBottom = (h) => h * 0.6;
 
 export const lin = (v, d0, d1, r0, r1) =>
 	r0 + ((v - d0) / (d1 - d0)) * (r1 - r0);
@@ -135,9 +136,13 @@ export const ORDER_OF = new Map(BY_RANK.map((n, i) => [n.id, i]));
 export const RANK_TOP_N = 250;
 
 // fixed film-count x-scale shared by every films-scatter variant so dots only
-// travel vertically when the y-metric changes
+// travel vertically when the y-metric changes. Floored at 10 films: the scatter
+// chapters only plot actors with more than 10 films — 85% of the corpus has ≤10
+// and just forms a low-signal vertical smear on the left — so the axis starts
+// there and sub-threshold actors park off the left edge (alpha 0).
+export const FILM_MIN_SHOWN = 10;
 const FILM_LOGS = rawNodes.nodes.map((n) => Math.log(Math.max(1, n[3])));
-export const FILM_LOG_MIN = Math.min(...FILM_LOGS);
+export const FILM_LOG_MIN = Math.log(FILM_MIN_SHOWN);
 export const FILM_LOG_MAX = Math.max(...FILM_LOGS);
 export const AVG_MIN = Math.min(...rawNodes.nodes.map((n) => n[4]));
 export const AVG_MAX = Math.max(...rawNodes.nodes.map((n) => n[4]));
@@ -184,9 +189,11 @@ export const TRAIL_META = [
 		rgb: raceRGB(id),
 		width: raceRGB(id) === CROWD ? 1 : 1.75
 	})),
-	{ id: SWEENEY, rgb: RED, width: 2 },
-	{ id: DENIRO, rgb: BLUE, width: 2 },
-	{ id: CHASE, rgb: YELLOW, width: 2 },
+	// career chapter: red hero trajectory, grey comparison lines (the dots are
+	// blue marks — see layouts/career.js)
+	{ id: SWEENEY, rgb: RED, width: 1.5 },
+	{ id: DENIRO, rgb: CROWD, width: 1.5 },
+	{ id: CHASE, rgb: CROWD, width: 1.5 },
 	...story.careers.cohort.map(() => ({ id: null, rgb: CROWD, width: 1 })),
 	{ id: null, rgb: CROWD, width: 1 } // prediction diagonal
 ];

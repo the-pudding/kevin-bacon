@@ -95,6 +95,7 @@
 					bind:this={visual}
 					state={stepConfigs[value ?? 0]?.state}
 					params={stepConfigs[value ?? 0]?.params}
+					{stepsHeight}
 				/>
 				<!-- the active step's over-canvas panel, if it declared one — the
 				     markup lives next to the <Step> that owns it -->
@@ -198,7 +199,7 @@
 						</p>
 					</Step>
 
-					<Step state="scatterCenters" ready={false}>
+					<Step state="scatterCenters">
 						<p>
 							As you just learned, Samuel L. Jackson has been dominating
 							Hollywood by his sheer prolificacy since 2006. His reign has
@@ -210,7 +211,7 @@
 							could we use to accurately predict an actor's average distance?
 						</p>
 					</Step>
-					<Step state="scatterCenters" ready={false}>
+					<Step state="scatterCenters">
 						<p>
 							Just because you're in loads of films doesn't necessarily mean
 							you've got a lot of connections in the graph. And just because
@@ -218,7 +219,7 @@
 							got the <i>right</i> connections to make you the center of Hollywood.
 						</p>
 					</Step>
-					<Step state="scatterWalters" ready={false}>
+					<Step state="scatterWalters">
 						<p>
 							Dame Julie Walters under-performs drastically on average distance.
 							In this respect, she's got two things going against her:
@@ -235,7 +236,7 @@
 							distance down for her.
 						</p>
 					</Step>
-					<Step state="scatterQuiz" ready={false} panel={quizPanel}>
+					<Step state="scatterQuiz" panel={quizPanel}>
 						<p>
 							Let's generalise this idea into two hypotheses:
 							<br />
@@ -247,7 +248,7 @@
 							the lower average distance?
 						</p>
 					</Step>
-					<Step state="scatterQuiz" ready={false}>
+					<Step state="scatterQuiz">
 						<p>
 							Seth Rogen and Charlize Theron are in similar numbers of films -
 							they even costarred in "Long Shot". However, Charlize Theron tends
@@ -256,14 +257,14 @@
 							Hill is in 8 of his films.
 						</p>
 					</Step>
-					<Step state="concurrenceScatter" ready={false}>
+					<Step state="concurrenceScatter">
 						<p>
 							<i>Concurrency</i> is a measure of how frequently you work with the
 							same actors. Seth Rogen having a concurrency of 0.28 means that for
 							each of his films, he would have worked with 28% of the cast before.
 						</p>
 					</Step>
-					<Step state="concurrenceScatter" ready={false}>
+					<Step state="concurrenceScatter">
 						<p>
 							If your concurrency is low, you work for the first time with
 							actors more often. This means you create more connections in the
@@ -271,14 +272,14 @@
 							distance down.
 						</p>
 					</Step>
-					<Step state="concurrenceScatter" ready={false}>
+					<Step state="concurrenceScatter">
 						<p>
 							If you starred in one film with Samuel L Jackson and him alone,
 							you would immediately have an average distance of 3.08, putting
 							you in the top 75% of hollywood.
 						</p>
 					</Step>
-					<Step state="concurrenceScatter" ready={false}>
+					<Step state="concurrenceScatter">
 						<p>
 							Due to its circular nature, we can't use "low costar average
 							distance" as a signal for explaining someone's average distance.
@@ -286,7 +287,7 @@
 							graph i.e their costars' <i>degree</i>.
 						</p>
 					</Step>
-					<Step state="degScatter" ready={false}>
+					<Step state="degScatter">
 						<p>
 							Here's the same graph, but measuring the average degree of their
 							top 50 costars.
@@ -294,7 +295,7 @@
 					</Step>
 
 					<!-- FUTURE -->
-					<Step state="predictionScatter" ready={false}>
+					<Step state="predictionScatter">
 						<p>
 							So both of our hypotheses hold up against our example pairs. These
 							two new pieces of information can be used to explain why two
@@ -322,7 +323,7 @@
 							past.
 						</p>
 					</Step>
-					<Step state="careerTrio" ready={false}>
+					<Step state="careerTrio">
 						<p>
 							Take Sydney Sweeney. She's been in 16 films since her debut 15
 							years ago. At the same point in their career, Robert De Niro had
@@ -331,7 +332,7 @@
 							in the same time — and only ever appeared in 27.
 						</p>
 					</Step>
-					<Step state="careerMany" ready={false}>
+					<Step state="careerMany">
 						<p>
 							This means that whatever actor we use to model a Gen Z's career
 							trajectory can massively impact the results. For each actor, we

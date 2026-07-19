@@ -1,4 +1,3 @@
-import { ANCHOR_ID } from "../nodes.js";
 import story from "$data/scrolly-story.json";
 import {
 	STRIDE,
@@ -8,22 +7,14 @@ import {
 	lin,
 	set,
 	scatterPosition,
-	FILM_LOG_MIN,
-	FILM_LOG_MAX,
-	AVG_MIN,
-	AVG_MAX,
-	INK,
+	FILM_MIN_SHOWN,
 	CROWD,
 	RED,
 	BLUE,
 	GREEN,
 	PURPLE,
 	SLJ,
-	CAGE,
 	WALTERS,
-	OLDMAN,
-	KIDMAN,
-	STREEP,
 	CGM
 } from "../layout-shared.js";
 
@@ -36,28 +27,38 @@ import {
 /**
  * @param {Object} cfg
  * @param {(n: import("../layout-shared.js").ActorNode) => number|null} cfg.yOf
- * @param {[number, number]} [cfg.yDomain] values beyond it clamp to the edge, faded
  * @param {boolean} [cfg.invert] smaller value = higher up (avg-distance charts)
- * @param {(v: number) => string} [cfg.fmt]
+ * @param {number} [cfg.tickStep] y ticks at even steps of the metric (default 0.5)
  * @param {Map<number, { rgb: number[], r: number, alpha?: number }>} [cfg.highlights]
  */
 function filmsScatter(nodes, w, h, cfg) {
 	const attrs = new Float64Array(ATTR_SIZE);
 	const values = nodes.map((n) => cfg.yOf(n));
-	const [vMin, vMax] = cfg.yDomain ?? [
-		Math.min(...values.filter((v) => v != null)),
-		Math.max(...values.filter((v) => v != null))
-	];
+	// y-domain from the SHOWN (>10-film) subset only — sub-threshold actors'
+	// long tail would stretch the domain and squash the plotted cloud
+	let vMin = Infinity;
+	let vMax = -Infinity;
+	for (const n of nodes) {
+		const v = values[n.id];
+		if (v == null || n.films <= FILM_MIN_SHOWN) continue;
+		vMin = Math.min(vMin, v);
+		vMax = Math.max(vMax, v);
+	}
+	const pad = (vMax - vMin) * 0.04;
 	const top = MARGIN + 8;
 	const bottom = plotBottom(h);
 	const yS = cfg.invert
-		? (v) => lin(v, vMin, vMax, top, bottom)
-		: (v) => lin(v, vMin, vMax, bottom, top);
+		? (v) => lin(v, vMin - pad, vMax + pad, top, bottom)
+		: (v) => lin(v, vMin - pad, vMax + pad, bottom, top);
 	for (const n of nodes) {
 		const v = values[n.id];
 		const [sx] = scatterPosition(n, w, h);
 		const hi = cfg.highlights?.get(n.id);
-		if (v == null) {
+		// only the >10-film actors are plotted (see FILM_LOG_MIN); everyone
+		// else — and anyone missing the y-metric — holds their scatter spot at
+		// alpha 0. Highlighted actors are always drawn, unless the metric is
+		// missing (nothing to plot).
+		if (v == null || (n.films <= FILM_MIN_SHOWN && !hi)) {
 			const [, sy] = scatterPosition(n, w, h);
 			set(attrs, n.id, sx, sy, 2, CROWD, 0);
 			continue;
@@ -73,33 +74,19 @@ function filmsScatter(nodes, w, h, cfg) {
 			(hi ? (hi.alpha ?? 1) : 0.3) * (clamped ? 0.35 : 1)
 		);
 	}
-	const fmt = cfg.fmt ?? ((v) => v.toFixed(2));
-	const axes = {
-		x: [3, 10, 30, 100]
-			.filter((f) => Math.log(f) >= FILM_LOG_MIN && Math.log(f) <= FILM_LOG_MAX)
-			.map((f) => ({
-				pos: lin(Math.log(f), FILM_LOG_MIN, FILM_LOG_MAX, MARGIN, w - MARGIN),
-				label: String(f)
-			})),
-		xBase: bottom + 10,
-		y: [vMin, (vMin + vMax) / 2, vMax].map((v) => ({
-			pos: yS(v),
-			label: fmt(v)
-		}))
-	};
-	return { attrs, axes };
+	// x-axis carries no ticks or numbers — just the title below (the log scale
+	// is described, not quantified); y ticks at even metric steps, no gridlines
+	const step = cfg.tickStep ?? 0.5;
+	const y = [];
+	for (let t = Math.ceil(vMin / step) * step; t <= vMax; t += step) {
+		y.push({ pos: yS(t), label: t.toFixed(1) });
+	}
+	return { attrs, axes: { xBase: bottom + 10, y } };
 }
 
-// clamp the long tail of barely-connected actors (max ~4.4) so the story's
-// cast isn't squashed into the top third
-const AVG_DOMAIN = /** @type {[number, number]} */ ([
-	AVG_MIN,
-	Math.min(AVG_MAX, 3.2)
-]);
 const avgScatter = (nodes, w, h, highlights) =>
 	filmsScatter(nodes, w, h, {
 		yOf: (n) => n.avgDistance,
-		yDomain: AVG_DOMAIN,
 		invert: true, // lower average distance = better connected = up
 		highlights
 	});
@@ -107,57 +94,35 @@ const avgScatter = (nodes, w, h, highlights) =>
 const attrX = (attrs, id) => attrs[id * STRIDE];
 const attrY = (attrs, id) => attrs[id * STRIDE + 1];
 
-/** @type {import("../layout-shared.js").LayoutFn} */
-function layoutScatterCenters(nodes, w, h) {
-	const result = avgScatter(
-		nodes,
-		w,
-		h,
-		new Map([
-			[SLJ, { rgb: PURPLE, r: 6 }],
-			[CAGE, { rgb: BLUE, r: 4.5 }],
-			[ANCHOR_ID, { rgb: INK, r: 4.5 }]
-		])
-	);
-	result.notes = [
-		{
-			x: attrX(result.attrs, SLJ) - 12,
-			y: attrY(result.attrs, SLJ) + 16,
-			align: "right",
-			text: `${nodes[SLJ].films} films — 20 more than Nicolas Cage`
-		}
-	];
-	return result;
-}
+// single-subject highlight discipline (prototype): exactly one ringed subject
+// per state, no supporting-cast dots, no on-canvas callouts — the facts live
+// in the step prose. SLJ takes the default red highlight; Walters the blue
+// variant (graph.css `.scatter--blue-highlight`).
 
 /** @type {import("../layout-shared.js").LayoutFn} */
-function layoutScatterWalters(nodes, w, h) {
-	const result = avgScatter(
-		nodes,
-		w,
-		h,
-		new Map([
-			[WALTERS, { rgb: RED, r: 6 }],
-			[OLDMAN, { rgb: BLUE, r: 4 }],
-			[KIDMAN, { rgb: BLUE, r: 4 }],
-			[STREEP, { rgb: BLUE, r: 4 }]
-		])
-	);
-	result.notes = [
-		{
-			x: attrX(result.attrs, WALTERS) + 10,
-			y: attrY(result.attrs, WALTERS) - 4,
-			text: "same films as far better-connected actors"
-		}
-	];
-	return result;
-}
+const layoutScatterCenters = (nodes, w, h) =>
+	avgScatter(nodes, w, h, new Map([[SLJ, { rgb: RED, r: 6 }]]));
+
+/** @type {import("../layout-shared.js").LayoutFn} */
+const layoutScatterWalters = (nodes, w, h) =>
+	avgScatter(nodes, w, h, new Map([[WALTERS, { rgb: BLUE, r: 6 }]]));
 
 export const QUIZ_IDS = story.quiz.flatMap((p) => [p.a, p.b]);
 
+// Label placement for the quiz dots, to keep names off each other in the tight
+// cluster: the high-film pair sits on the right of the cloud so their labels go
+// right; the low-film pair sits on the left so theirs go left.
+const QUIZ_LABEL_DIRS = {
+	[QUIZ_IDS[0]]: "right", // Charlize Theron
+	[QUIZ_IDS[1]]: "right", // Seth Rogen
+	[QUIZ_IDS[4]]: "left", // Margot Robbie
+	[QUIZ_IDS[5]]: "left" // Dave Franco
+};
+
 /** @type {import("../layout-shared.js").LayoutFn} */
 function layoutScatterQuiz(nodes, w, h, _edges, params) {
-	const highlights = new Map();
+	// SLJ stays ringed underneath the quiz, as on the prototype
+	const highlights = new Map([[SLJ, { rgb: RED, r: 6 }]]);
 	const picks = params?.picks ?? {};
 	// Neutral reveal: both actors in an answered pair land the same blue. The dot's
 	// height (closer = higher) is the answer — no right/wrong colour coding.
@@ -169,19 +134,17 @@ function layoutScatterQuiz(nodes, w, h, _edges, params) {
 	return avgScatter(nodes, w, h, highlights);
 }
 
-const PAIR_HIGHLIGHTS = new Map([
-	[QUIZ_IDS[0], { rgb: BLUE, r: 5.5 }], // Charlize Theron
-	[QUIZ_IDS[1], { rgb: RED, r: 5.5 }], // Seth Rogen
-	[QUIZ_IDS[2], { rgb: BLUE, r: 4 }],
-	[QUIZ_IDS[3], { rgb: RED, r: 4 }],
-	[QUIZ_IDS[4], { rgb: BLUE, r: 4 }],
-	[QUIZ_IDS[5], { rgb: RED, r: 4 }]
-]);
+// all six quiz actors as uniform blue marks (the prototype's single mark
+// family — no per-pair colour coding)
+const PAIR_HIGHLIGHTS = new Map(
+	QUIZ_IDS.map((id) => [id, { rgb: BLUE, r: 4.5 }])
+);
 
 /** @type {import("../layout-shared.js").LayoutFn} */
 const layoutConcScatter = (nodes, w, h) =>
 	filmsScatter(nodes, w, h, {
 		yOf: (n) => n.conc,
+		tickStep: 0.1,
 		highlights: PAIR_HIGHLIGHTS
 	});
 
@@ -189,8 +152,6 @@ const layoutConcScatter = (nodes, w, h) =>
 const layoutDegScatter = (nodes, w, h) =>
 	filmsScatter(nodes, w, h, {
 		yOf: (n) => n.top50,
-		// ticks in actual costars, not log units
-		fmt: (v) => Math.round(Math.exp(v)).toLocaleString("en-US"),
 		highlights: PAIR_HIGHLIGHTS
 	});
 
@@ -212,32 +173,39 @@ function layoutScatterGenZ(nodes, w, h) {
 	return result;
 }
 
+// directional y-axis titles (prototype): the y-axes are inverted/relative, so
+// the title carries the reading — the arrow points where "better" lives
 const AVG_OVERLAY = {
 	xLabel: "Films (log scale)",
-	yLabel: "Avg distance"
+	yLabel: "Closer to centre →"
 };
 
 export const states = {
 	scatterCenters: {
 		layout: layoutScatterCenters,
-		labels: [SLJ, CAGE, ANCHOR_ID],
+		labels: [SLJ],
 		pulse: SLJ,
 		overlay: AVG_OVERLAY
 	},
 	scatterWalters: {
 		layout: layoutScatterWalters,
-		labels: [WALTERS, OLDMAN, KIDMAN, STREEP],
+		labels: [WALTERS],
 		overlay: AVG_OVERLAY
 	},
 	scatterQuiz: {
 		layout: layoutScatterQuiz,
 		labels: (params) => {
 			const picks = params?.picks ?? {};
-			return story.quiz.flatMap((pair, i) =>
-				picks[i] === undefined ? [] : [pair.a, pair.b]
-			);
+			return [
+				SLJ,
+				...story.quiz.flatMap((pair, i) =>
+					picks[i] === undefined ? [] : [pair.a, pair.b]
+				)
+			];
 		},
+		pulse: SLJ,
 		params: (s) => ({ picks: { ...s.quizPicks } }),
+		labelDirs: QUIZ_LABEL_DIRS,
 		overlay: AVG_OVERLAY
 	},
 	concurrenceScatter: {
@@ -245,7 +213,7 @@ export const states = {
 		labels: [QUIZ_IDS[0], QUIZ_IDS[1]],
 		overlay: {
 			xLabel: "Films (log scale)",
-			yLabel: "Concurrence"
+			yLabel: "More recurring co-stars →"
 		}
 	},
 	degScatter: {
@@ -253,7 +221,7 @@ export const states = {
 		labels: [QUIZ_IDS[0], QUIZ_IDS[1], QUIZ_IDS[2], QUIZ_IDS[4]],
 		overlay: {
 			xLabel: "Films (log scale)",
-			yLabel: "Costar degree (log)"
+			yLabel: "Stronger co-stars →"
 		}
 	},
 	scatterGenZ: {

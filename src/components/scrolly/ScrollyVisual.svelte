@@ -10,6 +10,7 @@
 		STATES,
 		OVERLAYS,
 		STATE_LABELS,
+		STATE_LABEL_DIRS,
 		STATE_PULSE,
 		STATE_PARAMS,
 		STATE_REVEAL_FROM,
@@ -20,11 +21,12 @@
 		TRAIL_POINTS,
 		TRAIL_META
 	} from "./states.js";
+	import { MARGIN, plotBottom } from "./layout-shared.js";
 	import { story } from "./story.svelte.js";
 
 	// undefined until the <Step> registry has populated (first client render)
-	/** @type {{ state: import("./states.js").VisualState, params?: Object }} */
-	let { state: stateName, params } = $props();
+	/** @type {{ state: import("./states.js").VisualState, params?: Object, stepsHeight?: number }} */
+	let { state: stateName, params, stepsHeight = 0 } = $props();
 
 	const TWEEN_MS = 700;
 	const ENTER_MS = 900;
@@ -108,12 +110,30 @@
 	const layoutParams = $derived(
 		STATE_PARAMS[stateName]?.(story, params) ?? params ?? null
 	);
+	// vertical centre of the rotated y-axis title. Every scatter/line layout maps
+	// its y-domain onto the full plot area (top ≈ MARGIN+8 → plotBottom), so the
+	// plot-area centre IS the axis centre. NB the even-step tick labels don't reach
+	// the padded domain edges, so a (firstTick+lastTick)/2 would sit off-centre —
+	// use the plot bounds directly. This is the y-range of the plot, not half the
+	// tall canvas.
+	const yLabelTop = $derived(
+		height ? (MARGIN + 8 + plotBottom(height)) / 2 : 0
+	);
+	// x-axis title sits just under the plot, but never behind the step card: on
+	// long-prose steps the card climbs into the plot, so clamp the title up to
+	// stay above it (text-shadow keeps it legible over any dots it then overlaps)
+	const xLabelTop = $derived(
+		height ? Math.min(plotBottom(height) + 32, height - stepsHeight - 24) : 0
+	);
 	const labelIds = $derived.by(() => {
 		const spec = STATE_LABELS[stateName];
 		return new Set(
 			typeof spec === "function" ? spec(layoutParams) : (spec ?? [])
 		);
 	});
+	// per-node label placement overrides ("left"/"right" beside the dot instead
+	// of the default below-and-centred)
+	const labelDirs = $derived(STATE_LABEL_DIRS[stateName] ?? {});
 	const pulseId = $derived(STATE_PULSE[stateName] ?? null);
 	// keeps the ring anchored to the last center actor while it fades out
 	let lastPulseId = $state(null);
@@ -341,11 +361,28 @@
 			</div>
 		{/if}
 		{#each tracked as t (t.id)}
+			<!-- a per-node override ("left"/"right") sits the label beside the dot,
+			     vertically centred; otherwise it hangs below, anchored so it never
+			     spills past the canvas edge (right-align near the right edge,
+			     left-align near the left, else centred on the dot) -->
+			{@const dir = labelDirs[t.id]}
+			{@const transform =
+				dir === "right"
+					? `translate(${t.x + t.r + 4}px, calc(${t.y}px - 50%))`
+					: dir === "left"
+						? `translate(calc(${t.x - t.r - 4}px - 100%), calc(${t.y}px - 50%))`
+						: `translate(${
+								t.x > width - 96
+									? `calc(${t.x}px - 100%)`
+									: t.x < 96
+										? `${t.x}px`
+										: `calc(${t.x}px - 50%)`
+							}, ${t.y + t.r + 4}px)`}
 			<p
 				class="node-label"
-				style="transform: translate(calc({t.x}px - 50%), {t.y +
-					t.r +
-					4}px); opacity: {labelIds.has(t.id) ? t.alpha : 0}"
+				style="transform: {transform}; opacity: {labelIds.has(t.id)
+					? t.alpha
+					: 0}"
 			>
 				{t.name}
 			</p>
@@ -354,17 +391,15 @@
 	{#key stateName}
 		<div class="overlay">
 			{#if overlay?.xLabel}
-				<p
-					class="x-label"
-					style={decor?.axes?.xBase != null
-						? `top: ${decor.axes.xBase + 22}px; bottom: auto`
-						: ""}
-				>
+				<p class="x-label" style="top: {xLabelTop}px; bottom: auto">
 					{overlay.xLabel}
 				</p>
 			{/if}
 			{#if overlay?.yLabel}
-				<p class="y-label">{overlay.yLabel}</p>
+				<!-- centre the axis title on the graph's y-axis extent, not the tall canvas -->
+				<p class="y-label" style="top: {yLabelTop}px">
+					{overlay.yLabel}
+				</p>
 			{/if}
 			{#each decor?.axes?.x ?? [] as tick}
 				<p
@@ -532,11 +567,19 @@
 		bottom: 0.5rem;
 		left: 50%;
 		transform: translateX(-50%);
+		/* clamps above the step card on long-prose steps — may sit over dots */
+		text-shadow:
+			0 0 3px var(--color-bg, #fff),
+			0 0 6px var(--color-bg, #fff);
 	}
 
 	.tick {
 		font-size: 0.65rem;
 		color: var(--color-gray-500, #888);
+		/* tick numbers can sit over the dot cloud (tight left margin) — keep them legible */
+		text-shadow:
+			0 0 3px var(--color-bg, #fff),
+			0 0 6px var(--color-bg, #fff);
 	}
 
 	.tick-x {
@@ -554,7 +597,8 @@
 	}
 
 	.tick-y {
-		left: 0.5rem;
+		/* indented past the rotated axis title (.y-label sits in the x: 0 column) */
+		left: 1.1rem;
 		transform: translateY(-50%);
 	}
 
@@ -583,10 +627,13 @@
 
 	.y-label {
 		top: 50%;
-		left: 0.5rem;
-		transform: translateY(-50%);
+		left: 0;
+		/* rotate INSIDE transform (not the `rotate:` property): the property applies
+		   before `transform`, flipping the Y axis so translateY(-50%) would push the
+		   label DOWN by half its length instead of centring it. Order it here so the
+		   translate stays in screen space. */
+		transform: translateY(-50%) rotate(180deg);
 		writing-mode: vertical-rl;
-		rotate: 180deg;
 	}
 
 	.legend {

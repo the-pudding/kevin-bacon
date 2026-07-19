@@ -118,6 +118,15 @@ export const STATE_SEED = pick("seed");
 
 export const OVERLAYS = pick("overlay");
 
+/**
+ * Per-state override of where a node's label sits relative to its dot:
+ * `"left"` / `"right"` place it beside the dot (vertically centred) instead of
+ * the default below-and-centred. Keyed by node id. Used to de-clutter tight
+ * clusters (e.g. the quiz pairs).
+ * @type {Partial<Record<LayoutState, Record<number, "left" | "right">>>}
+ */
+export const STATE_LABEL_DIRS = pick("labelDirs");
+
 /** every id a dynamic STATE_LABELS function could return (for frame tracking) */
 export const STATE_TRACKED = [
 	SLJ,
@@ -137,7 +146,6 @@ export const INTERACTIVE_IDS = {
 /** name/rank lookups for the interactive step-card components */
 export const nodeName = (id) => rawNodes.nodes[id][1];
 export const nodeRank = (id) => rawNodes.nodes[id][5];
-export const nodeAvgDistance = (id) => rawNodes.nodes[id][4];
 
 // same top-N slice RankBars renders, so every search result a reader can
 // pick is guaranteed a visible row to scroll to and highlight
