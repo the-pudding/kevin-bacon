@@ -31,11 +31,15 @@ import {
 
 function raceLayout(windowYears, tickStep, minEraYears, yCap = Infinity) {
 	/** @type {import("../layout-shared.js").LayoutFn} */
-	return function layoutRace(nodes, w, h) {
+	return function layoutRace(nodes, w, h, _edges, params) {
 		const attrs = new Float64Array(ATTR_SIZE);
 		const trails = new Float64Array(TRAIL_SIZE);
 		const trailDelays = new Float64Array(TRAIL_META.length);
-		const [year0, year1] = windowYears;
+		// window clips the data; domain defines the x-scale. They coincide for
+		// the static states, but the Stage 3 path animator pans them separately
+		// (drawLine grows the clip window; rewind pans the domain).
+		const [year0, year1] = params?.window ?? windowYears;
+		const [dom0, dom1] = params?.domain ?? params?.window ?? windowYears;
 		const clipped = new Map();
 		let vMin = Infinity;
 		let vMax = -Infinity;
@@ -53,7 +57,7 @@ function raceLayout(windowYears, tickStep, minEraYears, yCap = Infinity) {
 		}
 		const top = MARGIN + 10;
 		const bottom = plotBottom(h);
-		const xS = (yr) => lin(yr, year0, year1, MARGIN + 14, w - MARGIN - 6);
+		const xS = (yr) => lin(yr, dom0, dom1, MARGIN + 14, w - MARGIN - 6);
 		// lower average distance = better = higher up the chart
 		const yS = (v) => lin(v, vMin, vMax, top, bottom);
 		const raceSet = new Set(clipped.keys());
@@ -122,8 +126,8 @@ function raceLayout(windowYears, tickStep, minEraYears, yCap = Infinity) {
 		}
 		const ticks = [];
 		for (
-			let yr = Math.ceil(year0 / tickStep) * tickStep;
-			yr <= year1;
+			let yr = Math.ceil(dom0 / tickStep) * tickStep;
+			yr <= dom1;
 			yr += tickStep
 		) {
 			ticks.push({ pos: xS(yr), label: String(yr) });
@@ -159,20 +163,27 @@ const OVERLAY = {
 	yLabel: "Avg distance"
 };
 
+// optional runtime override of the windowed frame; null while idle, so normal
+// stepping keeps its baked window and stays on the stateChange (reveal) path
+const params = (s) => s.raceView;
+
 export const states = {
 	raceRecent: {
 		layout: raceLayout([2004, 2026.2], 5, 3, 2.3),
 		labels: [SLJ],
-		overlay: OVERLAY
+		overlay: OVERLAY,
+		params
 	},
 	raceTrades: {
 		layout: raceLayout([1998.5, 2007], 2, 0.4, 2.25),
 		labels: [SLJ, HACKMAN, DENIRO, WELKER],
-		overlay: OVERLAY
+		overlay: OVERLAY,
+		params
 	},
 	raceFull: {
 		layout: raceLayout([1970, 2026.2], 10, 4),
 		labels: [HACKMAN],
-		overlay: OVERLAY
+		overlay: OVERLAY,
+		params
 	}
 };

@@ -18,5 +18,8 @@ export const story = $state({
 	/** rank ladder: on-screen y (canvas coordinate space) of RankBars' centered
 	 * focus row, measured live by RankBars itself — null until it has mounted
 	 * and reported a position (see layouts/rank.js) */
-	rankFocusY: null
+	rankFocusY: null,
+	/** race chart: optional { window:[y0,y1], domain:[d0,d1] } override for the
+	 * windowed/scrubbed frame; null = use the active race state's baked window */
+	raceView: null
 });
