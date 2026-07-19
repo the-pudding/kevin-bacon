@@ -11,9 +11,8 @@ export const story = $state({
 	rankGaveUp: false,
 	/** pair quiz: per-pair pick, keyed by pair index → picked pid */
 	quizPicks: {},
-	/** prediction scatter feature toggles */
-	predictConcurrence: false,
-	predictDegree: false,
+	/** prediction scatter: false = film count alone, true = the full model */
+	predictInsights: false,
 	/** win-bar breakdown: pid of the bar the reader tapped (null = none) */
 	winFocus: null,
 	/** rank ladder: on-screen y (canvas coordinate space) of RankBars' centered

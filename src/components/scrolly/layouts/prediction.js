@@ -1,4 +1,3 @@
-import story from "$data/scrolly-story.json";
 import {
 	ATTR_SIZE,
 	TRAIL_SIZE,
@@ -8,21 +7,35 @@ import {
 	set,
 	scatterPosition,
 	CROWD,
+	RED,
 	BLUE,
+	SLJ,
+	WALTERS,
 	TRAIL_META,
 	DIAG_SLOT,
 	setTrail,
 	collapseTrail
 } from "../layout-shared.js";
+import { QUIZ_IDS } from "./scatters.js";
 
 // ---------------------------------------------------------------------------
-// Prediction scatter: predicted (x) vs actual (y); toggles swap the predictor.
+// Prediction scatter (the finale): X = the actor's ACTUAL average distance
+// (fixed), Y = that distance PREDICTED by the model. One binary toggle swaps
+// the predictor between film count alone and the full model, so every dot
+// slides vertically and the cloud travels onto the y = x diagonal — the
+// perfect-prediction line. No correlation number is shown; the convergence on
+// the diagonal is the message (prototype: prediction-scatter.js).
+//
+// Both axes carry the SAME distance scale over a fixed domain (spanning every
+// actual + predicted value in both modes) and the plot is square, so the
+// diagonal is a true 45° line that never moves as the toggle changes. Both
+// axes run high → low: the largest distance sits at the bottom-left origin and
+// distance decreases toward the top-right, matching the distance scatters
+// where "closer to the centre" is the leading edge.
 // ---------------------------------------------------------------------------
 
 const PRED_FIELDS = {
 	film: "predFilm",
-	filmConc: "predFilmConc",
-	filmDeg: "predFilmDeg",
 	all: "predAll"
 };
 
@@ -32,24 +45,36 @@ function layoutPredScatter(nodes, w, h, _edges, params) {
 	const field = PRED_FIELDS[mode];
 	const attrs = new Float64Array(ATTR_SIZE);
 	const trails = new Float64Array(TRAIL_SIZE);
+	// fixed shared domain: every actual value plus BOTH modes' predictions, so
+	// axes + diagonal stay put while the toggle slides the dots
 	let vMin = Infinity;
 	let vMax = -Infinity;
 	for (const n of nodes) {
 		if (n.predFilm == null) continue;
-		vMin = Math.min(vMin, n.avgDistance, n[field]);
-		vMax = Math.max(vMax, n.avgDistance, n[field]);
+		vMin = Math.min(vMin, n.avgDistance, n.predFilm, n.predAll);
+		vMax = Math.max(vMax, n.avgDistance, n.predFilm, n.predAll);
 	}
+	const pad = (vMax - vMin) * 0.04;
+	const d0 = vMin - pad;
+	const d1 = vMax + pad;
+	// square plot, equal px-per-unit on both axes → true 45° diagonal
 	const top = MARGIN + 8;
-	const bottom = plotBottom(h);
-	const xS = (v) => lin(v, vMin, vMax, MARGIN + 14, w - MARGIN);
-	const yS = (v) => lin(v, vMin, vMax, bottom, top);
+	const left = MARGIN + 14;
+	const side = Math.min(w - left - MARGIN, plotBottom(h) - top);
+	const xS = (v) => lin(v, d0, d1, left + side, left); // low distance → right
+	const yS = (v) => lin(v, d0, d1, top, top + side); // low distance → top
+	const marks = new Set([...QUIZ_IDS, WALTERS]);
 	for (const n of nodes) {
 		if (n.predFilm == null) {
 			const [x, y] = scatterPosition(n, w, h);
 			set(attrs, n.id, x, y, 2, CROWD, 0);
 			continue;
 		}
-		set(attrs, n.id, xS(n[field]), yS(n.avgDistance), 2.2, BLUE, 0.35);
+		const x = xS(n.avgDistance);
+		const y = yS(n[field]);
+		if (n.id === SLJ) set(attrs, n.id, x, y, 6, RED, 1);
+		else if (marks.has(n.id)) set(attrs, n.id, x, y, 4.5, BLUE, 1);
+		else set(attrs, n.id, x, y, 2.2, CROWD, 0.35);
 	}
 	TRAIL_META.forEach((_meta, t) => {
 		if (t === DIAG_SLOT) {
@@ -57,60 +82,41 @@ function layoutPredScatter(nodes, w, h, _edges, params) {
 				trails,
 				t,
 				[
-					[vMin, vMin],
-					[vMax, vMax]
+					[d0, d0],
+					[d1, d1]
 				],
 				xS,
 				yS,
 				0.6
 			);
 		} else {
-			collapseTrail(trails, t, w / 2, bottom, 0);
+			collapseTrail(trails, t, w / 2, top + side, 0);
 		}
 	});
-	const r = story.corr[mode];
-	const ticks = (S) =>
-		[vMin, (vMin + vMax) / 2, vMax].map((v) => ({
-			pos: S(v),
-			label: v.toFixed(2)
-		}));
+	// same 0.5-distance steps on both axes to underline the shared scale
+	const ticks = (S) => {
+		const out = [];
+		for (let t = Math.ceil(vMin * 2) / 2; t <= vMax; t += 0.5) {
+			out.push({ pos: S(t), label: t.toFixed(1) });
+		}
+		return out;
+	};
 	return {
 		attrs,
 		trails,
-		notes: [
-			{
-				x: MARGIN + 20,
-				y: top + 4,
-				strong: true,
-				text: `correlation: ${Math.round(r * 100)}`
-			},
-			{
-				x: xS(vMax) - 8,
-				y: yS(vMax) + 14,
-				align: "right",
-				text: "perfect prediction"
-			}
-		],
-		axes: { x: ticks(xS), xBase: bottom + 10, y: ticks(yS) }
+		axes: { x: ticks(xS), xBase: top + side + 10, y: ticks(yS) }
 	};
 }
 
 export const states = {
 	predictionScatter: {
 		layout: layoutPredScatter,
-		params: (s) => ({
-			mode:
-				s.predictConcurrence && s.predictDegree
-					? "all"
-					: s.predictConcurrence
-						? "filmConc"
-						: s.predictDegree
-							? "filmDeg"
-							: "film"
-		}),
+		labels: [SLJ, ...QUIZ_IDS, WALTERS],
+		pulse: SLJ,
+		params: (s) => ({ mode: s.predictInsights ? "all" : "film" }),
 		overlay: {
-			xLabel: "Predicted",
-			yLabel: "Actual"
+			xLabel: "Actual distance",
+			yLabel: "Predicted distance"
 		}
 	}
 };

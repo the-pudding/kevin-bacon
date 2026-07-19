@@ -2,19 +2,15 @@
 	// @ts-check
 	import { story } from "./story.svelte.js";
 
-	// Each toggle swaps the prediction scatter's x metric (STATE_PARAMS
-	// .predictionScatter) — dots travel toward the diagonal as features are
-	// added.
+	// One binary toggle (film-count-only ↔ full model), matching the prototype:
+	// ticking it swaps the prediction scatter's predictor (STATE_PARAMS
+	// .predictionScatter) and the whole cloud slides onto the diagonal.
 </script>
 
 <div class="toggles">
 	<label>
-		<input type="checkbox" bind:checked={story.predictConcurrence} />
-		include concurrence
-	</label>
-	<label>
-		<input type="checkbox" bind:checked={story.predictDegree} />
-		include costar degree
+		<input type="checkbox" bind:checked={story.predictInsights} />
+		include co-star insights
 	</label>
 </div>
 
