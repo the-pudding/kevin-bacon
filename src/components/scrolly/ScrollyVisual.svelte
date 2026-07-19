@@ -83,6 +83,8 @@
 	}
 
 	let canvas = $state();
+	/** @type {HTMLElement | undefined} */
+	let container = $state();
 	let width = $state(0);
 	let height = $state(0);
 	let reducedMotion = $state(false);
@@ -119,6 +121,19 @@
 		if (pulseId != null) lastPulseId = pulseId;
 	});
 	const ring = $derived(tracked.find((t) => t.id === lastPulseId));
+
+	// Pudding's scatter.locate(): the live on-canvas position of a tracked dot, in
+	// VIEWPORT coordinates (canvas-relative x/y + the container's bounding rect), so
+	// callers don't have to share the canvas's offset parent. Used by the pair-quiz
+	// panel to fly option cards onto their true dot positions. null until the id has
+	// been tracked at least once. Quiz ids are always tracked (STATE_TRACKED) and
+	// never move on a pick, so this is a stable flight target.
+	export function locate(id) {
+		const t = tracked.find((entry) => entry.id === id);
+		if (!t || !container) return null;
+		const rect = container.getBoundingClientRect();
+		return { x: rect.left + t.x, y: rect.top + t.y };
+	}
 
 	function drawScene() {
 		if (!ctx) return;
@@ -306,7 +321,12 @@
 	});
 </script>
 
-<div class="visual" bind:clientWidth={width} bind:clientHeight={height}>
+<div
+	class="visual"
+	bind:this={container}
+	bind:clientWidth={width}
+	bind:clientHeight={height}
+>
 	<canvas bind:this={canvas}></canvas>
 	<div class="annotations">
 		{#if ring}

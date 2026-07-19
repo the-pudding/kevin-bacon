@@ -159,17 +159,12 @@ export const QUIZ_IDS = story.quiz.flatMap((p) => [p.a, p.b]);
 function layoutScatterQuiz(nodes, w, h, _edges, params) {
 	const highlights = new Map();
 	const picks = params?.picks ?? {};
+	// Neutral reveal: both actors in an answered pair land the same blue. The dot's
+	// height (closer = higher) is the answer — no right/wrong colour coding.
 	story.quiz.forEach((pair, i) => {
 		if (picks[i] === undefined) return;
-		const pickedRight = picks[i] === pair.answer;
-		highlights.set(pair.answer === 0 ? pair.a : pair.b, {
-			rgb: GREEN,
-			r: 5.5
-		});
-		highlights.set(pair.answer === 0 ? pair.b : pair.a, {
-			rgb: pickedRight ? BLUE : RED,
-			r: 5.5
-		});
+		highlights.set(pair.a, { rgb: BLUE, r: 5.5 });
+		highlights.set(pair.b, { rgb: BLUE, r: 5.5 });
 	});
 	return avgScatter(nodes, w, h, highlights);
 }

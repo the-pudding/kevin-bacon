@@ -18,6 +18,9 @@
 
 	let value = $state(0);
 	let dimensions = new useWindowDimensions();
+	// ScrollyVisual instance, for the pair-quiz panel's locate() flight targets
+	/** @type {ScrollyVisual | undefined} */
+	let visual = $state();
 	// measured height of the step card + nav overlaying the canvas bottom, so
 	// panels sized against it (rank-bars) neither overlap it nor leave a gap
 	let stepsHeight = $state(0);
@@ -89,6 +92,7 @@
 		>
 			<div class="scrolly-visual">
 				<ScrollyVisual
+					bind:this={visual}
 					state={stepConfigs[value ?? 0]?.state}
 					params={stepConfigs[value ?? 0]?.params}
 				/>
@@ -111,6 +115,11 @@
 					<div class="rank-bars-panel" style="bottom: {stepsHeight + 12}px">
 						<RankBars reveal={currentState === "rankReveal"} />
 					</div>
+				{/snippet}
+				<!-- the pair quiz renders as a blurred overlay over the scatter; the
+				     step below it just sets up the hypotheses -->
+				{#snippet quizPanel()}
+					<PairQuiz {visual} />
 				{/snippet}
 				<Wizard bind:value count={stepConfigs.length}>
 					<!-- PRESENT -->
@@ -226,7 +235,7 @@
 							distance down for her.
 						</p>
 					</Step>
-					<Step state="scatterQuiz" ready={false}>
+					<Step state="scatterQuiz" ready={false} panel={quizPanel}>
 						<p>
 							Let's generalise this idea into two hypotheses:
 							<br />
@@ -237,7 +246,6 @@
 							Consider these actors. Intuitively, who in each pair do you think has
 							the lower average distance?
 						</p>
-						<PairQuiz />
 					</Step>
 					<Step state="scatterQuiz" ready={false}>
 						<p>
