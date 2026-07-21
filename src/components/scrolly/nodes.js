@@ -24,6 +24,8 @@ export const INTRO_LAYOUT = data.introLayout;
  * @property {number|null} predFilmConc … + concurrence
  * @property {number|null} predFilmDeg … + top-50 costar degree
  * @property {number|null} predAll … all three features
+ * @property {number|null} careerAge years since first corpus film (career
+ *   chapter's background cloud x-position; null when unknown)
  *
  * @typedef {Object} Edge
  * @property {number} source node id
@@ -59,7 +61,8 @@ export function makeNodes() {
 				predFilm,
 				predFilmConc,
 				predFilmDeg,
-				predAll
+				predAll,
+				careerAge
 			],
 			id
 		) => ({
@@ -75,7 +78,8 @@ export function makeNodes() {
 			predFilm,
 			predFilmConc,
 			predFilmDeg,
-			predAll
+			predAll,
+			careerAge
 		})
 	);
 	const edges = data.edges.map(([source, target]) => ({ source, target }));

@@ -142,6 +142,15 @@ const raceSrc = design("actor-trajectory-anchors.json");
 const timeMachine = raw("time-machine.json");
 const trajectories = design("actor-trajectories.json");
 const distanceFilms = design("distance-films-scatter.json").points;
+// career-age cloud: every corpus actor's (career age, film count) — the
+// background the Future chapter's career lines are drawn over. career_age =
+// years since first corpus film (anchored to 2025).
+const careerAgeByPid = new Map(
+	design("career-age-scatter.json").points.map((p) => [
+		p.person_id,
+		p.career_age
+	])
+);
 
 const nameByPid = new Map(distanceFilms.map((p) => [p.person_id, p.name]));
 const TRIO_PIDS = { sweeney: 115440, deniro: 380, chase: 54812 };
@@ -207,10 +216,18 @@ const nodes = sample.map((n) => {
 		round4(pred?.pred_film ?? null),
 		round4(pred?.pred_film_conc ?? null),
 		round4(pred?.pred_film_deg ?? null),
-		round4(pred?.pred_all ?? null)
+		round4(pred?.pred_all ?? null),
+		careerAgeByPid.get(n.pid) ?? null
 	];
 });
 assert(nodes[0][5] === KEVIN_BACON_RANK, `Kevin Bacon rank ${nodes[0][5]}`);
+// the career-age cloud (col 12) must cover a real chunk of the sample, or the
+// Future chapter's background cloud would be too sparse to read
+const careerAgeCount = nodes.filter((r) => r[12] != null).length;
+assert(
+	careerAgeCount > 3000,
+	`only ${careerAgeCount} nodes carry a career age`
+);
 const idOf = (pid) => {
 	const id = idByPid.get(pid);
 	assert(id !== undefined, `pid ${pid} missing from sample`);
@@ -319,22 +336,32 @@ for (const k of Object.keys(TRIO_PIDS)) {
 	const at15 = trajectories[k].find((r) => r.career_age === 15);
 	assert(at15?.num_films === 16, `${k} is not at 16 films by career age 15`);
 }
-const yearRows = raw("actor-year-rows.json");
-const cols = Object.fromEntries(yearRows.columns.map((c, i) => [c, i]));
-const seriesByPid = new Map();
-for (const r of yearRows.rows) {
-	const pid = r[cols.person_id];
-	if (!seriesByPid.has(pid)) seriesByPid.set(pid, []);
-	seriesByPid.get(pid).push([r[cols.career_age], r[cols.cumulative_films]]);
-}
-const cohortPids = [...seriesByPid.keys()]
-	.filter((pid) => seriesByPid.get(pid).length >= 25)
-	.sort((a, b) => a - b);
-// every Nth pid: spread across the cohort without RNG
-const COHORT_LINES = 40;
-const step = Math.floor(cohortPids.length / COHORT_LINES);
-const cohort = Array.from({ length: COHORT_LINES }, (_, i) =>
-	seriesByPid.get(cohortPids[i * step]).sort((a, b) => a[0] - b[0])
+// cohort: the actual set of actors who — like the trio — reached 16 films by
+// career age 15, each as a (career age, film count) trajectory. This is the
+// prototype's own "add more lines" fan (cohort-16-at-15-trajectories.json),
+// not a synthetic spread.
+const cohortSrc = design("cohort-16-at-15-trajectories.json").actors;
+const cohort = cohortSrc.map((a) =>
+	a.trajectory
+		.map((r) => [r.career_age, r.num_films])
+		.sort((x, y) => x[0] - y[0])
+);
+assert(cohort.length >= 100, `cohort has only ${cohort.length} lines`);
+assert(
+	cohort.every((line) => line.length >= 2),
+	"a cohort trajectory has fewer than 2 points"
+);
+// like the trio, every cohort actor hit 16 films by career age 15 — the
+// trajectory only records ages where the count changed, so read the cumulative
+// count at 15 as the last point on or before age 15
+const filmsAtAge = (traj, age) => {
+	let films = null;
+	for (const r of traj) if (r.career_age <= age) films = r.num_films;
+	return films;
+};
+assert(
+	cohortSrc.every((a) => filmsAtAge(a.trajectory, 15) === 16),
+	"a cohort actor is not at 16 films by career age 15"
 );
 
 // Gen-Z simulation (10k-run k-NN bootstrap — matches the storyboard's
@@ -460,7 +487,7 @@ for (const n of sample) counts[n.hop] = (counts[n.hop] ?? 0) + 1;
 for (const [dest, label] of [
 	[
 		nodesDest,
-		`${nodes.length} nodes (by hop: ${JSON.stringify(counts)}), ${edges.length} edges`
+		`${nodes.length} nodes (by hop: ${JSON.stringify(counts)}, ${careerAgeCount} with career age), ${edges.length} edges`
 	],
 	[
 		storyDest,

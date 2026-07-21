@@ -47,13 +47,19 @@ function careerLayout(showCohort) {
 		];
 		// where Sweeney's story stops — comparison/cohort lines start here
 		const primaryAge = story.careers.sweeney.at(-1)[0];
+		// domain from the background cloud (every actor with a known career age),
+		// so both career states share one stable axis and the trajectory lines
+		// sit in the same space the cloud fills — matching the prototype's
+		// full-cloud scaling. The lines never exceed the cloud, but Math.max
+		// guards it anyway.
 		let ageMax = 0;
 		let filmsMax = 0;
-		const consider = [
-			...named.map(([k]) => story.careers[k]),
-			...(showCohort ? story.careers.cohort : [])
-		];
-		for (const series of consider) {
+		for (const n of nodes) {
+			if (n.careerAge == null) continue;
+			ageMax = Math.max(ageMax, n.careerAge);
+			filmsMax = Math.max(filmsMax, n.films);
+		}
+		for (const series of named.map(([k]) => story.careers[k])) {
 			ageMax = Math.max(ageMax, series.at(-1)[0]);
 			filmsMax = Math.max(filmsMax, ...series.map((p) => p[1]));
 		}
@@ -63,16 +69,20 @@ function careerLayout(showCohort) {
 		const yS = (f) => lin(f, 0, filmsMax, bottom, top); // more films = up
 		const namedIds = new Set(named.map(([, id]) => id));
 		for (const n of nodes) {
-			if (!namedIds.has(n.id)) {
+			if (namedIds.has(n.id)) {
+				const key = named.find(([, id]) => id === n.id)[0];
+				const [age, films] = story.careers[key].at(-1);
+				// blue marks all round; the comparisons read dimmed
+				const alpha = key === "sweeney" ? 1 : COMPARISON_ALPHA;
+				set(attrs, n.id, xS(age), yS(films), 5.5, BLUE, alpha);
+			} else if (n.careerAge != null) {
+				// background cloud: this actor's (career age, films) position
+				set(attrs, n.id, xS(n.careerAge), yS(n.films), 2, CROWD, 0.22);
+			} else {
+				// no career age known — park hidden at the distance-scatter spot
 				const [x, y] = scatterPosition(n, w, h);
 				set(attrs, n.id, x, y, 2, CROWD, 0);
-				continue;
 			}
-			const key = named.find(([, id]) => id === n.id)[0];
-			const [age, films] = story.careers[key].at(-1);
-			// blue marks all round; the comparisons read dimmed
-			const alpha = key === "sweeney" ? 1 : COMPARISON_ALPHA;
-			set(attrs, n.id, xS(age), yS(films), 5.5, BLUE, alpha);
 		}
 		TRAIL_META.forEach((_meta, t) => {
 			const namedEntry = named.find(([, , slot]) => slot === t);
