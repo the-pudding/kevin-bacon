@@ -18,9 +18,12 @@ import {
 	RACE_IDS,
 	TRAIL_META,
 	RACE_SLOT,
-	setTrail,
+	sampleTrail,
 	collapseTrail,
-	clipSeries
+	clipSeries,
+	monotoneSegments,
+	curveYAt,
+	curveYRange
 } from "../layout-shared.js";
 
 // ---------------------------------------------------------------------------
@@ -28,6 +31,82 @@ import {
 // windowed per step. Dots ride the right-hand end of their line; the era
 // timeline annotates handovers.
 // ---------------------------------------------------------------------------
+
+// full-series monotone-cubic segments per race actor, built once (the data is
+// static). Shared by the static layout and the per-frame sweep so both read the
+// same curve — window-edge tangents never come from a clipped subset.
+const RACE_SEGS = new Map(
+	RACE_IDS.map((id) => [id, monotoneSegments(story.raceSeries[id])])
+);
+// [firstYear, lastYear] per actor, so the sweep can clamp a trail to the actor's
+// real data extent rather than drawing flat stubs where it has no points
+const RACE_RANGE = new Map(
+	RACE_IDS.map((id) => {
+		const s = story.raceSeries[id];
+		return [id, [s[0][0], s.at(-1)[0]]];
+	})
+);
+
+// padded y-extent over [year0, year1] read off the curves (6% headroom so dots
+// riding near the extremes don't touch the plot edge — matches the reference)
+function raceYFit(segsList, year0, year1) {
+	const [lo, hi] = curveYRange(segsList, year0, year1) ?? [0, 1];
+	const pad = (hi - lo) * 0.06 || 0.05;
+	return [lo - pad, hi + pad, lo, hi];
+}
+
+// the x/y pixel scales for one frame. `domain` drives x; `[vMin,vMax]` (padded)
+// drives y. Lower average distance = better = higher up the chart.
+function raceScales(w, h, dom0, dom1, vMin, vMax) {
+	const top = MARGIN + 10;
+	const bottom = plotBottom(h);
+	return {
+		top,
+		bottom,
+		xS: (yr) => lin(yr, dom0, dom1, MARGIN + 14, w - MARGIN - 6),
+		yS: (v) => lin(v, vMin, vMax, top, bottom)
+	};
+}
+
+/**
+ * Writes ONLY the ~15 race dot slots + 15 race trail slots for one sweep frame,
+ * directly into the live Float32 tweener buffers (no allocation, crowd/other
+ * trails left untouched). All actors stay visible and ride their curves; a dot
+ * whose window edge runs past its data clamps to the curve endpoint.
+ * @param {Float32Array|Float64Array} attrsBuf live dot buffer (or a scratch clone)
+ * @param {Float32Array|Float64Array} trailBuf live trail buffer (or a scratch clone)
+ * @param {{year0:number,year1:number,dom0:number,dom1:number}} frame
+ */
+export function writeRaceSweepFrame(attrsBuf, trailBuf, w, h, frame) {
+	const { year0, year1, dom0, dom1 } = frame;
+	const segsList = RACE_IDS.map((id) => RACE_SEGS.get(id));
+	const [vMin, vMax] = raceYFit(segsList, year0, year1);
+	const { xS, yS } = raceScales(w, h, dom0, dom1, vMin, vMax);
+	for (const id of RACE_IDS) {
+		const rgb = raceRGB(id);
+		const major = rgb !== CROWD;
+		const segs = RACE_SEGS.get(id);
+		const slot = RACE_SLOT.get(id);
+		const [ds, de] = RACE_RANGE.get(id);
+		const sx0 = Math.max(year0, ds);
+		const sx1 = Math.min(year1, de);
+		// the dot rides the RIGHT END OF THE VISIBLE LINE, not the raw playhead:
+		// when the playhead is within the actor's data the two coincide (dot pinned
+		// centre), but once the playhead runs past the data the dot stays glued to
+		// the curve's endpoint (clamp to curve ends) instead of floating ahead of a
+		// shorter line. Matches the static layout's dot = xS(clipped.at(-1)).
+		const dotYr = Math.min(Math.max(year1, ds), de);
+		const dx = xS(dotYr);
+		const dy = yS(curveYAt(segs, dotYr));
+		set(attrsBuf, id, dx, dy, major ? 5 : 3, rgb, major ? 1 : 0.55);
+		if (sx1 > sx0) {
+			sampleTrail(trailBuf, slot, segs, sx0, sx1, xS, yS, major ? 0.8 : 0.35);
+		} else {
+			// window sits entirely outside this actor's data → no line, park on dot
+			collapseTrail(trailBuf, slot, dx, dy, major ? 0.8 : 0.35);
+		}
+	}
+}
 
 function raceLayout(windowYears, tickStep, minEraYears, yCap = Infinity) {
 	/** @type {import("../layout-shared.js").LayoutFn} */
@@ -41,8 +120,6 @@ function raceLayout(windowYears, tickStep, minEraYears, yCap = Infinity) {
 		const [year0, year1] = params?.window ?? windowYears;
 		const [dom0, dom1] = params?.domain ?? params?.window ?? windowYears;
 		const clipped = new Map();
-		let vMin = Infinity;
-		let vMax = -Infinity;
 		for (const id of RACE_IDS) {
 			const c = clipSeries(story.raceSeries[id], year0, year1);
 			if (!c) continue;
@@ -50,16 +127,12 @@ function raceLayout(windowYears, tickStep, minEraYears, yCap = Infinity) {
 			// near the lead in this window stay hidden
 			if (Math.min(...c.map(([, v]) => v)) > yCap) continue;
 			clipped.set(id, c);
-			for (const [, v] of c) {
-				vMin = Math.min(vMin, v);
-				vMax = Math.max(vMax, v);
-			}
 		}
-		const top = MARGIN + 10;
-		const bottom = plotBottom(h);
-		const xS = (yr) => lin(yr, dom0, dom1, MARGIN + 14, w - MARGIN - 6);
-		// lower average distance = better = higher up the chart
-		const yS = (v) => lin(v, vMin, vMax, top, bottom);
+		// y-fit off the (full-series) curves of the visible actors: vMin/vMax are
+		// padded (scale domain), vLo/vHi the raw data extent (for tick labels)
+		const segsList = [...clipped.keys()].map((id) => RACE_SEGS.get(id));
+		const [vMin, vMax, vLo, vHi] = raceYFit(segsList, year0, year1);
+		const { bottom, xS, yS } = raceScales(w, h, dom0, dom1, vMin, vMax);
 		const raceSet = new Set(clipped.keys());
 		for (const n of nodes) {
 			if (!raceSet.has(n.id)) {
@@ -86,10 +159,15 @@ function raceLayout(windowYears, tickStep, minEraYears, yCap = Infinity) {
 				clipped.has(meta.id) &&
 				RACE_SLOT.get(meta.id) === t
 			) {
-				setTrail(
+				// sample the FULL-series curve over the clipped extent (correct
+				// tangents at the window edges; pixel-identical to a sweep frame)
+				const c = clipped.get(meta.id);
+				sampleTrail(
 					trails,
 					t,
-					clipped.get(meta.id),
+					RACE_SEGS.get(meta.id),
+					c[0][0],
+					c.at(-1)[0],
 					xS,
 					yS,
 					meta.rgb === CROWD ? 0.35 : 0.8
@@ -132,7 +210,9 @@ function raceLayout(windowYears, tickStep, minEraYears, yCap = Infinity) {
 		) {
 			ticks.push({ pos: xS(yr), label: String(yr) });
 		}
-		const yTicks = [vMin, (vMin + vMax) / 2, vMax].map((v) => ({
+		// ticks label the raw data extent (not the padded scale domain) so the
+		// numbers read as real values and sit just inside the plot
+		const yTicks = [vLo, (vLo + vHi) / 2, vHi].map((v) => ({
 			pos: yS(v),
 			label: v.toFixed(2)
 		}));

@@ -291,29 +291,83 @@ export function curveYAt(segs, x) {
 }
 
 /**
- * writes a polyline (data pairs → px via scales) into trail slot t.
- * Resamples along the monotone-cubic curve so the 48 vertices land on a smooth
- * line rather than on chords between data points.
- *
- * Stage-3 note: segments are (re)built from the `pairs` handed in. For a clipped
- * race series that means window-edge tangents come from the clipped set, which is
- * invisible for the static windows but would "snap" when the window animates —
- * the per-frame path animator must instead build segments from the FULL series
- * once and clip/sample those.
+ * y-extent covered by a set of monotone-segment lists over the window [x0, x1]:
+ * each curve's value at both window edges (curveYAt clamps past-data to the
+ * terminal value) plus any of its data knots strictly inside the window. Monotone
+ * segments don't overshoot, so edges + interior knots bound the true range.
+ * Returns [lo, hi], or null if no curve contributes. Port of the reference
+ * race-chart's visibleYRange; feeds the per-frame y-refit during the sweep.
+ * @param {number[][][][]} segsList one segment array per curve
  */
-export function setTrail(trails, t, pairs, xScale, yScale, alpha) {
+export function curveYRange(segsList, x0, x1) {
+	let lo = Infinity;
+	let hi = -Infinity;
+	for (const segs of segsList) {
+		if (!segs.length) continue;
+		for (const x of [x0, x1]) {
+			const v = curveYAt(segs, x);
+			if (v < lo) lo = v;
+			if (v > hi) hi = v;
+		}
+		for (const seg of segs) {
+			const kx = seg[0][0];
+			if (kx > x0 && kx < x1) {
+				const v = seg[0][1];
+				if (v < lo) lo = v;
+				if (v > hi) hi = v;
+			}
+		}
+		// the last segment's endpoint knot (loop above only reads each seg's start)
+		const last = segs.at(-1)[3];
+		if (last[0] > x0 && last[0] < x1) {
+			if (last[1] < lo) lo = last[1];
+			if (last[1] > hi) hi = last[1];
+		}
+	}
+	return lo <= hi ? [lo, hi] : null;
+}
+
+/**
+ * resamples TRAIL_POINTS vertices uniformly in data-x over [x0, x1], reading y
+ * off PRE-BUILT monotone segments, into trail slot t. Because the segments are
+ * supplied (not rebuilt from a clipped subset here), the caller can pass segments
+ * of the FULL series and sample any window without the window-edge tangents
+ * snapping — the per-frame race sweep relies on this. `curveYAt` clamps a target
+ * past the segments' x-range to the terminal value, so a window wider than the
+ * data samples flat at the ends rather than extrapolating.
+ */
+export function sampleTrail(trails, t, segs, x0, x1, xScale, yScale, alpha) {
 	const base = t * TRAIL_STRIDE;
-	const segs = monotoneSegments(pairs);
-	const x0 = pairs[0][0];
-	const xN = pairs.at(-1)[0];
 	for (let k = 0; k < TRAIL_POINTS; k++) {
-		// resample uniformly in x, reading y off the smooth curve
-		const target = x0 + ((xN - x0) * k) / (TRAIL_POINTS - 1);
-		const y = segs.length ? curveYAt(segs, target) : pairs[0][1];
+		const target = x0 + ((x1 - x0) * k) / (TRAIL_POINTS - 1);
 		trails[base + k * 2] = xScale(target);
-		trails[base + k * 2 + 1] = yScale(y);
+		trails[base + k * 2 + 1] = yScale(curveYAt(segs, target));
 	}
 	trails[base + TRAIL_POINTS * 2] = alpha;
+}
+
+/**
+ * writes a polyline (data pairs → px via scales) into trail slot t, sampled along
+ * the monotone-cubic curve of `pairs` so the 48 vertices land on a smooth line.
+ * Thin wrapper over `sampleTrail` for callers holding raw pairs; a single data
+ * point collapses the slot onto its position.
+ */
+export function setTrail(trails, t, pairs, xScale, yScale, alpha) {
+	const segs = monotoneSegments(pairs);
+	if (!segs.length) {
+		collapseTrail(trails, t, xScale(pairs[0][0]), yScale(pairs[0][1]), alpha);
+		return;
+	}
+	sampleTrail(
+		trails,
+		t,
+		segs,
+		pairs[0][0],
+		pairs.at(-1)[0],
+		xScale,
+		yScale,
+		alpha
+	);
 }
 
 /** collapses trail slot t onto a point (line unspools from/retracts into a dot) */

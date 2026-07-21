@@ -1,7 +1,10 @@
 <script>
 	// @ts-check
+	import { untrack } from "svelte";
+	import { dev } from "$app/environment";
 	import { makeNodes } from "./nodes.js";
 	import { createTweener } from "./tween.js";
+	import { writeRaceSweepFrame } from "./layouts/race.js";
 	import {
 		ATTR_SIZE,
 		DELAY_SIZE,
@@ -63,6 +66,68 @@
 	const trailTweener = createTweener(TRAIL_SIZE, drawScene, TRAIL_STRIDE);
 	// last trail target, kept so states without trails fade them out in place
 	let lastTrailTarget = null;
+
+	// -- Race path animator ("time machine") -------------------------------------
+	// A third rAF writer. Unlike the two tweeners it does NOT lerp between two
+	// endpoints: each frame it evaluates the race layout at a moving playhead year
+	// (window/domain re-centred on the playhead) and writes the ~15 race dots +
+	// their trails straight into the live tweener buffers, then repaints. Plays a
+	// drawLine (lines grow from a pinned right edge) → rewind (playhead pans back,
+	// dots pinned centre-x riding their curves) sequence. See delivery-plan Stage 3.
+	const SWEEP_MS = 4000; // per phase
+	const PRE_ROLL_MS = 500; // ease the wide chart into the e=0 frame first
+	// trapezoidal speed profile (ported from the reference _animate): R = ramp
+	// fraction at each end, V = cruise speed so integrated progress is exactly 1.
+	// Each phase ramps to zero velocity, so the drawLine→rewind seam stays smooth.
+	const SWEEP_R = 0.18;
+	const SWEEP_V = 1 / (1 - SWEEP_R);
+	const sweepEase = (p) =>
+		p < SWEEP_R
+			? (SWEEP_V * p * p) / (2 * SWEEP_R)
+			: p > 1 - SWEEP_R
+				? 1 - (SWEEP_V * (1 - p) * (1 - p)) / (2 * SWEEP_R)
+				: SWEEP_V * (p - SWEEP_R / 2);
+	// window/domain for each phase at eased progress e. trailLen = from - to;
+	// drawLine e=1 ≡ rewind e=0, so the phases chain continuously.
+	const drawLineFrame = (from, trailLen) => (e) => ({
+		year0: from - trailLen * e,
+		year1: from,
+		dom0: from - trailLen,
+		dom1: from + trailLen
+	});
+	const rewindFrame = (from, to, trailLen) => (e) => {
+		const dot = from + (to - from) * e;
+		return {
+			year0: dot - trailLen,
+			year1: dot,
+			dom0: dot - trailLen,
+			dom1: dot + trailLen
+		};
+	};
+	let sweepRaf = 0;
+	function stopSweep() {
+		cancelAnimationFrame(sweepRaf);
+		sweepRaf = 0;
+	}
+	// run one eased phase; map(e) → the frame window/domain; onDone chains the next
+	function runSweepPhase(map, onDone) {
+		const t0 = performance.now();
+		const step = (now) => {
+			const p = Math.min(1, (now - t0) / SWEEP_MS);
+			writeRaceSweepFrame(
+				tweener.current,
+				trailTweener.current,
+				width,
+				height,
+				map(sweepEase(p))
+			);
+			drawScene();
+			if (p < 1) sweepRaf = requestAnimationFrame(step);
+			else onDone?.();
+		};
+		sweepRaf = requestAnimationFrame(step);
+	}
+
 	const TAU = Math.PI * 2;
 	// one Path2D per (quantised rgb, alpha bucket): batches ~1k dots into a
 	// handful of fills instead of a fillStyle + fill per dot
@@ -90,6 +155,9 @@
 	let width = $state(0);
 	let height = $state(0);
 	let reducedMotion = $state(false);
+	// true while the race path animator owns the rAF (see playRaceSweep); the
+	// render effect steps aside and the panning-domain axis furniture hides
+	let sweeping = $state(false);
 	/** @type {{ id: number, name: string, x: number, y: number, r: number, alpha: number }[]} */
 	let tracked = $state([]);
 	// static per-state chart furniture (ticks/callouts/legend) from the layout result
@@ -153,6 +221,47 @@
 		if (!t || !container) return null;
 		const rect = container.getBoundingClientRect();
 		return { x: rect.left + t.x, y: rect.top + t.y };
+	}
+
+	// Play the race "time machine": drawLine (from present) → rewind (back to `to`),
+	// landing on a static frame pinned via story.raceView. Skippable and reduced-
+	// motion safe. Fired manually for now (dev key `r`); Stage 4 wires it to arrival.
+	export function playRaceSweep(from = 2026, to = 2006) {
+		if (!width || !height) return;
+		const trailLen = from - to;
+		const final = rewindFrame(from, to, trailLen)(1);
+		const finalView = {
+			window: [final.year0, final.year1],
+			domain: [final.dom0, final.dom1]
+		};
+		if (reducedMotion) {
+			// no sweep — snap straight to the landed frame (the effect's reduced-
+			// motion branch does the instant jump)
+			story.raceView = finalView;
+			return;
+		}
+		// pre-roll: ease the current (wide) chart into the sweep's e=0 frame so the
+		// animation opens without a snap. Clone the live buffers so crowd dots and
+		// non-race trails are preserved; only the race slots are rewritten.
+		const a = Float64Array.from(tweener.current);
+		const tr = Float64Array.from(trailTweener.current);
+		writeRaceSweepFrame(a, tr, width, height, drawLineFrame(from, trailLen)(0));
+		trailTweener.to(tr, PRE_ROLL_MS);
+		tweener.to(a, PRE_ROLL_MS, 0, null, () => {
+			// hand the buffers to the sweep: stop the generic writers (single-writer
+			// discipline), play the two phases, then pin the chart on the final frame.
+			// Setting raceView triggers one param-tween settle: the target state's
+			// yCap now filters non-contenders, so they fade out over that tween.
+			tweener.stop();
+			trailTweener.stop();
+			sweeping = true;
+			runSweepPhase(drawLineFrame(from, trailLen), () =>
+				runSweepPhase(rewindFrame(from, to, trailLen), () => {
+					sweeping = false;
+					story.raceView = finalView;
+				})
+			);
+		});
 	}
 
 	function drawScene() {
@@ -246,8 +355,40 @@
 		return () => query.removeEventListener("change", update);
 	});
 
+	// The race sweep/scrub owns story.raceView; drop it whenever the active state
+	// changes so a freshly-entered state uses its baked window, not a stale
+	// override. Depends on stateName ONLY (untrack the read) — a sweep setting
+	// raceView while the state is unchanged must not re-fire this. Declared before
+	// the render effect so it wins the flush when a step change dirties both.
+	$effect(() => {
+		stateName;
+		untrack(() => {
+			if (story.raceView !== null) story.raceView = null;
+		});
+	});
+
+	// Dev-only manual trigger for the race sweep (Stage 3 verification); Stage 4
+	// replaces it with arrival wiring. Press `r` while on a race step.
+	$effect(() => {
+		if (!dev) return;
+		const onKey = (e) => {
+			if (e.key === "r" && String(stateName).startsWith("race"))
+				playRaceSweep();
+		};
+		window.addEventListener("keydown", onKey);
+		return () => window.removeEventListener("keydown", onKey);
+	});
+
 	$effect(() => {
 		if (!canvas || !width || !height || !stateName) return;
+		// while the path animator owns the rAF, step aside: a genuine state change
+		// abandons the sweep (dots tween on from wherever they are — Next stays
+		// live); a param/raceView change is the sweep's own handoff, so ignore it
+		if (sweeping) {
+			if (stateName === prevState) return;
+			stopSweep();
+			sweeping = false;
+		}
 		const resized = width !== prevW || height !== prevH;
 		if (resized) {
 			const dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -338,6 +479,7 @@
 	$effect(() => () => {
 		tweener.stop();
 		trailTweener.stop();
+		stopSweep();
 	});
 </script>
 
