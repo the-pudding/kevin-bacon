@@ -121,8 +121,7 @@ const QUIZ_LABEL_DIRS = {
 
 /** @type {import("../layout-shared.js").LayoutFn} */
 function layoutScatterQuiz(nodes, w, h, _edges, params) {
-	// SLJ stays ringed underneath the quiz, as on the prototype
-	const highlights = new Map([[SLJ, { rgb: RED, r: 6 }]]);
+	const highlights = new Map();
 	const picks = params?.picks ?? {};
 	// Neutral reveal: both actors in an answered pair land the same blue. The dot's
 	// height (closer = higher) is the answer — no right/wrong colour coding.
@@ -196,14 +195,10 @@ export const states = {
 		layout: layoutScatterQuiz,
 		labels: (params) => {
 			const picks = params?.picks ?? {};
-			return [
-				SLJ,
-				...story.quiz.flatMap((pair, i) =>
-					picks[i] === undefined ? [] : [pair.a, pair.b]
-				)
-			];
+			return story.quiz.flatMap((pair, i) =>
+				picks[i] === undefined ? [] : [pair.a, pair.b]
+			);
 		},
-		pulse: SLJ,
 		params: (s) => ({ picks: { ...s.quizPicks } }),
 		labelDirs: QUIZ_LABEL_DIRS,
 		overlay: AVG_OVERLAY
