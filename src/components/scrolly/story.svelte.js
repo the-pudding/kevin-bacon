@@ -20,6 +20,14 @@ export const story = $state({
 	 * and reported a position (see layouts/rank.js) */
 	rankFocusY: null,
 	/** race chart: optional { window:[y0,y1], domain:[d0,d1] } override for the
-	 * windowed/scrubbed frame; null = use the active race state's baked window */
-	raceView: null
+	 * windowed/scrubbed frame; null = use the active race state's baked window.
+	 * On raceFull it is the *hold* target written once when the reader releases a
+	 * scrub (ScrollyVisual owns the write; see scrubbing/scrubYear). */
+	raceView: null,
+	/** race chart (raceFull): playhead year while scrubbing (null = not set) */
+	scrubYear: null,
+	/** race chart (raceFull): true while the reader is actively dragging the plot
+	 * or keying the year slider — ScrollyVisual direct-writes the pinned-centre
+	 * frame per change instead of tweening (see delivery-plan Stage 5) */
+	scrubbing: false
 });

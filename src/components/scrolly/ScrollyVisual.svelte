@@ -1,10 +1,9 @@
 <script>
 	// @ts-check
 	import { untrack } from "svelte";
-	import { dev } from "$app/environment";
 	import { makeNodes } from "./nodes.js";
 	import { createTweener } from "./tween.js";
-	import { writeRaceSweepFrame } from "./layouts/race.js";
+	import { writeRaceSweepFrame, RACE_ENTRY_WINDOW } from "./layouts/race.js";
 	import {
 		ATTR_SIZE,
 		DELAY_SIZE,
@@ -28,8 +27,13 @@
 	import { story } from "./story.svelte.js";
 
 	// undefined until the <Step> registry has populated (first client render)
-	/** @type {{ state: import("./states.js").VisualState, params?: Object, stepsHeight?: number }} */
-	let { state: stateName, params, stepsHeight = 0 } = $props();
+	/** @type {{ state: import("./states.js").VisualState, params?: Object, stepsHeight?: number, coldStart?: boolean }} */
+	let {
+		state: stateName,
+		params,
+		stepsHeight = 0,
+		coldStart = false
+	} = $props();
 
 	const TWEEN_MS = 700;
 	const ENTER_MS = 900;
@@ -69,16 +73,14 @@
 
 	// -- Race path animator ("time machine") -------------------------------------
 	// A third rAF writer. Unlike the two tweeners it does NOT lerp between two
-	// endpoints: each frame it evaluates the race layout at a moving playhead year
-	// (window/domain re-centred on the playhead) and writes the ~15 race dots +
-	// their trails straight into the live tweener buffers, then repaints. Plays a
-	// drawLine (lines grow from a pinned right edge) → rewind (playhead pans back,
-	// dots pinned centre-x riding their curves) sequence. See delivery-plan Stage 3.
-	const SWEEP_MS = 4000; // per phase
-	const PRE_ROLL_MS = 500; // ease the wide chart into the e=0 frame first
+	// endpoints: each frame it evaluates the race layout at a moving window and
+	// writes the ~15 race dots + their trails straight into the live tweener
+	// buffers, then repaints. Entry choreography draws the actors' lines on from
+	// the present edge. See delivery-plan Stage 4.
+	const SWEEP_MS = 4000;
 	// trapezoidal speed profile (ported from the reference _animate): R = ramp
 	// fraction at each end, V = cruise speed so integrated progress is exactly 1.
-	// Each phase ramps to zero velocity, so the drawLine→rewind seam stays smooth.
+	// The phase ramps to zero velocity at each end so the draw-on lands softly.
 	const SWEEP_R = 0.18;
 	const SWEEP_V = 1 / (1 - SWEEP_R);
 	const sweepEase = (p) =>
@@ -87,23 +89,31 @@
 			: p > 1 - SWEEP_R
 				? 1 - (SWEEP_V * (1 - p) * (1 - p)) / (2 * SWEEP_R)
 				: SWEEP_V * (p - SWEEP_R / 2);
-	// window/domain for each phase at eased progress e. trailLen = from - to;
-	// drawLine e=1 ≡ rewind e=0, so the phases chain continuously.
-	const drawLineFrame = (from, trailLen) => (e) => ({
-		year0: from - trailLen * e,
-		year1: from,
-		dom0: from - trailLen,
-		dom1: from + trailLen
+	// draw-on entry: the clip window grows leftward from the newest year to the
+	// full window; the domain stays fixed at the static domain, so the newest
+	// point stays pinned at the right edge and e=1 == the static race frame.
+	const entryFrame = (win) => (e) => ({
+		year0: win[1] - (win[1] - win[0]) * e,
+		year1: win[1],
+		dom0: win[0],
+		dom1: win[1]
 	});
-	const rewindFrame = (from, to, trailLen) => (e) => {
-		const dot = from + (to - from) * e;
-		return {
-			year0: dot - trailLen,
-			year1: dot,
-			dom0: dot - trailLen,
-			dom1: dot + trailLen
-		};
-	};
+	// the one state whose arrival plays the draw-on entry (scoped by revealFrom)
+	const RACE_ENTRY_STATE = "raceRecent";
+	// scrub (Stage 5): the playhead pins to plot-centre — the clip window is the
+	// SCRUB_HALF years of history up to the playhead, and the domain is symmetric
+	// about it, so xS(playhead) lands mid-plot and dots move only vertically.
+	const SCRUB_HALF = 20;
+	const scrubFrame = (yr) => ({
+		year0: yr - SCRUB_HALF,
+		year1: yr,
+		dom0: yr - SCRUB_HALF,
+		dom1: yr + SCRUB_HALF
+	});
+	const scrubView = (yr) => ({
+		window: [yr - SCRUB_HALF, yr],
+		domain: [yr - SCRUB_HALF, yr + SCRUB_HALF]
+	});
 	let sweepRaf = 0;
 	function stopSweep() {
 		cancelAnimationFrame(sweepRaf);
@@ -155,7 +165,7 @@
 	let width = $state(0);
 	let height = $state(0);
 	let reducedMotion = $state(false);
-	// true while the race path animator owns the rAF (see playRaceSweep); the
+	// true while the race path animator owns the rAF (see playRaceEntry); the
 	// render effect steps aside and the panning-domain axis furniture hides
 	let sweeping = $state(false);
 	/** @type {{ id: number, name: string, x: number, y: number, r: number, alpha: number }[]} */
@@ -170,6 +180,10 @@
 	let prevW = 0;
 	let prevH = 0;
 	let entered = false;
+	// scrub bookkeeping: tracks the scrubbing false→true→false edges so the
+	// generic writers are stopped once on entry and the hold view is written once
+	// on release (see the scrub effect below)
+	let wasScrubbing = false;
 
 	const overlay = $derived(OVERLAYS[stateName]);
 	// what the active layout actually varies on: the state's selector plucks
@@ -223,44 +237,30 @@
 		return { x: rect.left + t.x, y: rect.top + t.y };
 	}
 
-	// Play the race "time machine": drawLine (from present) → rewind (back to `to`),
-	// landing on a static frame pinned via story.raceView. Skippable and reduced-
-	// motion safe. Fired manually for now (dev key `r`); Stage 4 wires it to arrival.
-	export function playRaceSweep(from = 2026, to = 2006) {
+	// Race-chapter entry: draw the actors' lines on across `win`, landing on the
+	// static race frame (window == domain == win). The render effect first tweens
+	// the buffers onto the empty e=0 frame (dots pinned at the present edge, lines
+	// undrawn), so this owns the rAF straight from there — no pre-roll. Skippable
+	// (a state change abandons the sweep) and reduced-motion safe.
+	function playRaceEntry(win) {
 		if (!width || !height) return;
-		const trailLen = from - to;
-		const final = rewindFrame(from, to, trailLen)(1);
-		const finalView = {
-			window: [final.year0, final.year1],
-			domain: [final.dom0, final.dom1]
-		};
+		const finalView = { window: win, domain: win };
 		if (reducedMotion) {
-			// no sweep — snap straight to the landed frame (the effect's reduced-
-			// motion branch does the instant jump)
+			// defensive: the effect's reduced-motion branch normally jumps before
+			// this runs, so the draw-on is skipped and we land on the static frame
 			story.raceView = finalView;
 			return;
 		}
-		// pre-roll: ease the current (wide) chart into the sweep's e=0 frame so the
-		// animation opens without a snap. Clone the live buffers so crowd dots and
-		// non-race trails are preserved; only the race slots are rewritten.
-		const a = Float64Array.from(tweener.current);
-		const tr = Float64Array.from(trailTweener.current);
-		writeRaceSweepFrame(a, tr, width, height, drawLineFrame(from, trailLen)(0));
-		trailTweener.to(tr, PRE_ROLL_MS);
-		tweener.to(a, PRE_ROLL_MS, 0, null, () => {
-			// hand the buffers to the sweep: stop the generic writers (single-writer
-			// discipline), play the two phases, then pin the chart on the final frame.
-			// Setting raceView triggers one param-tween settle: the target state's
-			// yCap now filters non-contenders, so they fade out over that tween.
-			tweener.stop();
-			trailTweener.stop();
-			sweeping = true;
-			runSweepPhase(drawLineFrame(from, trailLen), () =>
-				runSweepPhase(rewindFrame(from, to, trailLen), () => {
-					sweeping = false;
-					story.raceView = finalView;
-				})
-			);
+		// single-writer discipline: stop the generic writers before the sweep owns
+		// the rAF; on completion pin the chart via raceView, which triggers one
+		// param-tween settle — the target state's yCap now filters non-contenders,
+		// so they fade out over that tween (the sweep itself shows all 15).
+		tweener.stop();
+		trailTweener.stop();
+		sweeping = true;
+		runSweepPhase(entryFrame(win), () => {
+			sweeping = false;
+			story.raceView = finalView;
 		});
 	}
 
@@ -367,16 +367,46 @@
 		});
 	});
 
-	// Dev-only manual trigger for the race sweep (Stage 3 verification); Stage 4
-	// replaces it with arrival wiring. Press `r` while on a race step.
+	// Scrub (Stage 5): while the reader drags/keys the year control, direct-write
+	// the pinned-centre frame straight into the buffers — same render path as the
+	// autoplay sweep, but event-driven (one write per scrubYear change) and not
+	// eased, so it's already correct under reduced motion. Bypasses the reactive
+	// layout path (raceView/STATE_PARAMS) which would route through the straight-
+	// line tweener and leak a layoutFor cache entry per frame. Declared before the
+	// render effect so it wins the flush; buffer/state writes are untracked.
 	$effect(() => {
-		if (!dev) return;
-		const onKey = (e) => {
-			if (e.key === "r" && String(stateName).startsWith("race"))
-				playRaceSweep();
-		};
-		window.addEventListener("keydown", onKey);
-		return () => window.removeEventListener("keydown", onKey);
+		const scrubbing = story.scrubbing;
+		const yr = story.scrubYear;
+		const w = width; // track w/h so a resize re-renders the current scrub frame
+		const h = height;
+		untrack(() => {
+			if (scrubbing) {
+				if (!wasScrubbing) {
+					// single-writer discipline: take the rAF from the generic writers
+					stopSweep();
+					sweeping = false;
+					tweener.stop();
+					trailTweener.stop();
+					wasScrubbing = true;
+				}
+				if (yr != null && w && h) {
+					writeRaceSweepFrame(
+						tweener.current,
+						trailTweener.current,
+						w,
+						h,
+						scrubFrame(yr)
+					);
+					drawScene();
+				}
+			} else if (wasScrubbing) {
+				// release: hold at the scrubbed year. Setting raceView re-runs the
+				// render effect (paramChange) which settles onto the held layout and
+				// restarts the generic writer — no need to restart it here.
+				wasScrubbing = false;
+				if (yr != null) story.raceView = scrubView(yr);
+			}
+		});
 	});
 
 	$effect(() => {
@@ -388,6 +418,17 @@
 			if (stateName === prevState) return;
 			stopSweep();
 			sweeping = false;
+		}
+		// while scrubbing the scrub effect owns the buffers; step aside unless the
+		// reader hit Next (a real state change) — then end the scrub and fall
+		// through so the new state tweens on from the scrubbed frame (Next stays
+		// live). raceView is dropped by the stateName effect above.
+		if (story.scrubbing) {
+			if (stateName === prevState) return;
+			untrack(() => {
+				story.scrubbing = false;
+			});
+			wasScrubbing = false;
 		}
 		const resized = width !== prevW || height !== prevH;
 		if (resized) {
@@ -421,6 +462,17 @@
 		lastTrailTarget = trailTarget;
 		const firstPaint = !entered;
 		entered = true;
+		if (firstPaint && coldStart) {
+			// reader reloaded mid-story (step restored from localStorage): this is
+			// not their first-ever view, so settle straight onto the state instead
+			// of replaying the `lone`-authored pop-in (misread as an empty chart
+			// on faint/dense states like scatterQuiz)
+			tweener.to(attrs, 0);
+			trailTweener.to(trailTarget, 0);
+			prevState = stateName;
+			prevParamsKey = paramsKey;
+			return;
+		}
 		if (firstPaint && !reducedMotion) {
 			// entry: seed positions with radius/alpha zeroed so dots grow in place
 			const entry = attrs.slice();
@@ -447,11 +499,34 @@
 		const revealFrom = STATE_REVEAL_FROM[stateName];
 		const playReveal = !revealFrom || revealFrom.includes(prevState);
 		const stateDelays = playReveal ? delays : SKIP_REVEAL_DELAYS;
+		// race-chapter arrival (forward, from a revealFrom origin): play the draw-on
+		// entry choreography instead of a plain state tween. Only reached with real
+		// animation — reduced motion/resize are handled by the branch below.
+		const raceEntry =
+			stateChange && playReveal && stateName === RACE_ENTRY_STATE;
 		prevState = stateName;
 		prevParamsKey = paramsKey;
 		if (resized || reducedMotion) {
 			tweener.to(attrs, 0);
 			trailTweener.to(trailTarget, 0);
+		} else if (raceEntry) {
+			// arrive onto the empty draw-on frame (15 dots pinned at the present
+			// edge, lines not yet drawn, crowd faded), then draw the lines on. The
+			// arrival tween's onDone fires playRaceEntry only if uninterrupted — a
+			// superseding tween (Next mid-flight) drops it (see tween.js `to`).
+			const startAttrs = attrs.slice();
+			const startTrails = trailTarget.slice();
+			writeRaceSweepFrame(
+				startAttrs,
+				startTrails,
+				width,
+				height,
+				entryFrame(RACE_ENTRY_WINDOW)(0)
+			);
+			tweener.to(startAttrs, TWEEN_MS, TWEEN_JITTER, stateDelays, () =>
+				playRaceEntry(RACE_ENTRY_WINDOW)
+			);
+			trailTweener.to(startTrails, TWEEN_MS, 0);
 		} else if (stateChange && STATE_SEED[stateName]) {
 			// seed frame: fade the prior visual out where it lies (alpha → 0, no
 			// movement), then once faded snap invisibly into the seed positions —
@@ -547,10 +622,10 @@
 			{/if}
 		{/key}
 		{#key stateName}
-			<!-- ticks/notes are pixel-pinned to a fixed window; the sweep pans the
-			     domain per frame, so hide them for the fly and let them snap back on
-			     landing (per-frame animated furniture is Stage 6) -->
-			{#if !sweeping}
+			<!-- ticks/notes are pixel-pinned to a fixed window; the sweep and scrub
+			     pan the domain per frame, so hide them during motion and let them
+			     snap back on landing/hold (per-frame animated furniture is Stage 6) -->
+			{#if !sweeping && !story.scrubbing}
 				{#each decor?.axes?.x ?? [] as tick}
 					<p
 						class="tick tick-x fade-in"

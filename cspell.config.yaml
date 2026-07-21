@@ -40,6 +40,10 @@ words:
   - tunables
   - jittered
   - recentres
+  - misposition
+  - playhead
+  - gridlines
+  - conc
 ignorePaths:
   - node_modules
   - build

@@ -109,6 +109,10 @@ const layoutScatterWalters = (nodes, w, h) =>
 
 export const QUIZ_IDS = story.quiz.flatMap((p) => [p.a, p.b]);
 
+// every pair index marked picked: the shape layoutScatterQuiz's picks-lookup
+// expects, forcing its "answered" highlight regardless of story.quizPicks
+const ALL_PICKED = Object.fromEntries(story.quiz.map((_, i) => [i, true]));
+
 // Label placement for the quiz dots, to keep names off each other in the tight
 // cluster: the high-film pair sits on the right of the cloud so their labels go
 // right; the low-film pair sits on the left so theirs go left.
@@ -200,7 +204,13 @@ export const states = {
 				picks[i] === undefined ? [] : [pair.a, pair.b]
 			);
 		},
-		params: (s) => ({ picks: { ...s.quizPicks } }),
+		// the step *after* the interactive quiz card (params.revealed) recaps it,
+		// same as every downstream chapter: reveal all pairs unconditionally,
+		// regardless of whether the reader actually answered (see story.svelte.js
+		// — "every interaction is skippable... reveals its answer unconditionally")
+		params: (s, p) => ({
+			picks: p?.revealed ? ALL_PICKED : { ...s.quizPicks }
+		}),
 		labelDirs: QUIZ_LABEL_DIRS,
 		overlay: AVG_OVERLAY
 	},

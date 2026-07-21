@@ -6,6 +6,7 @@
 	import Step from "$components/scrolly/Step.svelte";
 	import GuessRank from "$components/scrolly/GuessRank.svelte";
 	import RankBars from "$components/scrolly/RankBars.svelte";
+	import RaceScrubber from "$components/scrolly/RaceScrubber.svelte";
 	import PairQuiz from "$components/scrolly/PairQuiz.svelte";
 	import PredictToggles from "$components/scrolly/PredictToggles.svelte";
 	import BarPicker from "$components/scrolly/BarPicker.svelte";
@@ -17,6 +18,15 @@
 	const isRankState = (s) => s === "rankFocus" || s === "rankReveal";
 
 	let value = $state(0);
+	// true only when a saved step from a prior visit exists, so this render
+	// isn't the reader's first-ever view — read synchronously (not in onMount)
+	// so it's already correct by the time ScrollyVisual's first paint effect
+	// runs; onMount fires too late, after that effect has already committed to
+	// the `lone`-authored pop-in. ScrollyVisual uses this to skip that pop-in,
+	// which would otherwise replay (and be misread as an empty chart) on every
+	// refresh regardless of which step it lands on
+	const restoredStep = localStorage.get(STEP_STORAGE_KEY);
+	let coldStart = $state(typeof restoredStep === "number" && restoredStep > 0);
 	let dimensions = new useWindowDimensions();
 	// ScrollyVisual instance, for the pair-quiz panel's locate() flight targets
 	/** @type {ScrollyVisual | undefined} */
@@ -57,9 +67,12 @@
 	const currentState = $derived(stepConfigs[value ?? 0]?.state);
 
 	onMount(() => {
-		const saved = localStorage.get(STEP_STORAGE_KEY);
-		if (typeof saved === "number" && saved > 0 && saved < stepConfigs.length) {
-			value = saved;
+		if (
+			typeof restoredStep === "number" &&
+			restoredStep > 0 &&
+			restoredStep < stepConfigs.length
+		) {
+			value = restoredStep;
 		}
 	});
 
@@ -95,6 +108,7 @@
 					bind:this={visual}
 					state={stepConfigs[value ?? 0]?.state}
 					params={stepConfigs[value ?? 0]?.params}
+					{coldStart}
 					{stepsHeight}
 				/>
 				<!-- the active step's over-canvas panel, if it declared one — the
@@ -121,6 +135,12 @@
 				     step below it just sets up the hypotheses -->
 				{#snippet quizPanel()}
 					<PairQuiz {visual} />
+				{/snippet}
+				<!-- raceFull year scrubber: drag surface + year slider over the plot -->
+				{#snippet racePanel()}
+					<div class="race-scrubber-panel" style="bottom: {stepsHeight + 12}px">
+						<RaceScrubber />
+					</div>
 				{/snippet}
 				<Wizard bind:value count={stepConfigs.length}>
 					<!-- PRESENT -->
@@ -179,19 +199,19 @@
 					</Step>
 
 					<!-- PAST -->
-					<Step state="raceRecent" ready={false}>
+					<Step state="raceRecent">
 						<p>
 							Samuel L. Jackson has been the center of hollywood since 2006,
 							taking over from Gene Hackman.
 						</p>
 					</Step>
-					<Step state="raceTrades" ready={false}>
+					<Step state="raceTrades">
 						<p>
 							Before then, the crown changed hands frequently. Gene Hackman and
 							Robert De Niro fighting over top spot for half a decade.
 						</p>
 					</Step>
-					<Step state="raceFull" ready={false}>
+					<Step state="raceFull" panel={racePanel}>
 						<p>
 							Repeating this process, we can go all the way back to 1970 to
 							create a timeline of centers from when we started recording this
@@ -248,7 +268,7 @@
 							the lower average distance?
 						</p>
 					</Step>
-					<Step state="scatterQuiz">
+					<Step state="scatterQuiz" params={{ revealed: true }}>
 						<p>
 							Seth Rogen and Charlize Theron are in similar numbers of films -
 							they even costarred in "Long Shot". However, Charlize Theron tends
@@ -413,6 +433,16 @@
 		to {
 			opacity: 1;
 		}
+	}
+
+	/* raceFull scrubber: spans the plot region above the step card (inline
+	   `bottom`). Transparent — the drag surface sits over the live canvas; only
+	   the slider control at its bottom edge is opaque. */
+	.race-scrubber-panel {
+		position: absolute;
+		top: 84px;
+		left: 0;
+		right: 0;
 	}
 
 	/* rankFocus' own staged reveal: Bacon's bar/row lands first (panel-in,

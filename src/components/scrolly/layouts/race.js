@@ -47,6 +47,13 @@ const RACE_RANGE = new Map(
 	})
 );
 
+// [earliest, latest] year across all race actors — the scrub slider's min/max
+// playhead bounds (Stage 5)
+export const RACE_SCRUB_BOUNDS = [
+	Math.min(...[...RACE_RANGE.values()].map(([s]) => s)),
+	Math.max(...[...RACE_RANGE.values()].map(([, e]) => e))
+];
+
 // padded y-extent over [year0, year1] read off the curves (6% headroom so dots
 // riding near the extremes don't touch the plot edge — matches the reference)
 function raceYFit(segsList, year0, year1) {
@@ -247,12 +254,18 @@ const OVERLAY = {
 // stepping keeps its baked window and stays on the stateChange (reveal) path
 const params = (s) => s.raceView;
 
+// the raceRecent window, exported so the entry animator (ScrollyVisual) lands
+// its draw-on sweep on a frame byte-identical to this static layout
+export const RACE_ENTRY_WINDOW = [2004, 2026.2];
+
 export const states = {
 	raceRecent: {
-		layout: raceLayout([2004, 2026.2], 5, 3, 2.3),
+		layout: raceLayout(RACE_ENTRY_WINDOW, 5, 3, 2.3),
 		labels: [SLJ],
 		overlay: OVERLAY,
-		params
+		params,
+		// entry choreography: draw the lines on when arriving from the rank chapter
+		revealFrom: ["rankReveal"]
 	},
 	raceTrades: {
 		layout: raceLayout([1998.5, 2007], 2, 0.4, 2.25),

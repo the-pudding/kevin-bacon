@@ -22,7 +22,15 @@
 
 	function onKeydown(e) {
 		const el = e.target;
-		if (el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA")) return;
+		// don't hijack arrow keys from text fields or a focused slider thumb
+		// (bits-ui thumbs are role="slider" and step by year themselves)
+		if (
+			el &&
+			(el.tagName === "INPUT" ||
+				el.tagName === "TEXTAREA" ||
+				el.closest?.('[role="slider"]'))
+		)
+			return;
 		if (e.key === "ArrowLeft") prev();
 		else if (e.key === "ArrowRight") next();
 	}

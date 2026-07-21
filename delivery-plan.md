@@ -123,7 +123,21 @@ There is no test suite. Verify each stage by running `npm run dev` and stepping 
 
 ---
 
-## Stage 4 — Entry choreography (orchestration)
+## Stage 4 — Entry choreography (orchestration) — ✅ DONE
+
+**Outcome:** arriving at the race chapter (`rankReveal → raceRecent`) now plays a **draw-on** entry: the 15 actors' lines draw on from the present (right) edge leftward, landing on `raceRecent`'s baked window. **Scope changed from the original sketch by decision this session:** the entry is **draw-on only, not drawLine→rewind** — the reference's rewind pans the playhead into the _past_, which lands on an old window and reads oddly against `raceRecent`'s "center since 2006" copy. The rewind/time-travel is deferred to the reader (stepping to `raceFull`, and Stage 5 scrub).
+
+New `entryFrame(win)` builder (in `ScrollyVisual.svelte`, replacing the removed `drawLineFrame`/`rewindFrame`): the clip window grows leftward while the **domain stays fixed at the static domain**, so the newest point stays pinned at the right edge and `e=1` is byte-identical to `raceLayout`'s static frame — the landing needs no correction. `race.js` exports `RACE_ENTRY_WINDOW = [2004, 2026.2]` (single source of truth, used both by the `raceRecent` state def and the animator) and adds `revealFrom: ["rankReveal"]` to `raceRecent`.
+
+Wiring: the render `$effect`'s new `raceEntry` branch (`stateChange && playReveal && stateName === "raceRecent"`) tweens the buffers onto the **empty `e=0` frame** (crowd faded via the normal `raceRecent` target, 15 dots pinned at the present edge with lines undrawn — `writeRaceSweepFrame(…, entryFrame(win)(0))`), then fires `playRaceEntry(win)` via the arrival tween's `onDone`. No pre-roll (the arrival tween _is_ the "get to e=0" motion — no retract flash). **Interruption is free:** `tween.js`'s `to()` reassigns `onDone` on every call, so a Next mid-arrival-tween silently drops the trigger; a Next mid-draw-on hits the existing `sweeping` guard (`stopSweep()` → plain tween to the new state). `playRaceEntry` lands via `story.raceView = {window:win, domain:win}` → one param-tween settle re-applies `yCap` (the sweep shows all 15; non-contenders fade on landing). The dev-only `r` keydown trigger and the now-unused `drawLineFrame`/`rewindFrame`/`PRE_ROLL_MS`/`dev` import were removed (per the "replace the dev trigger" decision + no-legacy rule); `sweepEase`/`runSweepPhase`/`writeRaceSweepFrame`/`stopSweep`/the `sweeping` guard/the `raceView`-clear effect are reused unchanged.
+
+**Verified** (headless-Chrome CDP against the live dev server, screenshots): stepping `rankReveal → raceRecent` plays the draw-on (dots pinned at the present edge, lines growing leftward) and lands on the full `raceRecent` frame with furniture restored and non-contenders faded; mashing Next through the chapter is fully responsive and morphs cleanly into the scatter chapter (no stuck sweep, no lingering `raceView`); **zero console errors/exceptions** across the whole flow (confirms the zero-width `e=0` window produces no NaN — `raceYFit`'s `|| 0.05` pad guard + the `sx1 > sx0` collapse branch handle it). Reduced-motion + backward-arrival correct by branch logic (the `if (resized || reducedMotion)` branch precedes `raceEntry`, so reduced motion never sweeps; backward arrival fails `playReveal`). `npm run lint` + `npm run check` clean on the two touched files (the 41 pre-existing errors are all unmigrated `migrate/`/`future/` templates); `npm run build` green.
+
+**Handoff notes for Stage 5:**
+
+- **UNCOMMITTED.** Stage 4 is implemented + verified but **not committed** (deliberate). The changed files are `src/components/scrolly/layouts/race.js`, `src/components/scrolly/ScrollyVisual.svelte`, and this `delivery-plan.md`.
+- **Commit is entangled with a separate in-progress `coldStart` feature** (skip the `lone` pop-in when a saved step is restored). That feature spans **`Index.svelte`** (all of its diff) **and parts of `ScrollyVisual.svelte`** (a `coldStart` prop in `$props()`, a `firstPaint && coldStart` branch, and a stray **`[DEBUG]` `console.log`** in the render effect). It pre-existed this session and was left untouched. Because Stage 4's core wiring is in `ScrollyVisual.svelte` too, and the pre-commit hook (`lint-staged` → `prettier --write` + re-add) **re-stages whole files** (partial `git add -p` won't isolate a concern), any commit touching `ScrollyVisual.svelte` drags the `coldStart` parts along. To commit Stage 4 alone, reverse-apply the `coldStart` hunks from `ScrollyVisual.svelte` first (the Stage 1 technique), leave `Index.svelte` unstaged, commit, then re-apply. **Remove the `[DEBUG]` `console.log` before any commit.**
+- **The rewind/time-machine is now Stage 5's job**, not a leftover here — `writeRaceSweepFrame` + `raceScales`/`raceYFit` are the per-frame scrub inputs (drive `frame` from `scrubYear`); `sweepEase`/`runSweepPhase` remain for snap animation. `rewindFrame` was **removed** (its domain-pan logic is what scrub rebuilds from `scrubYear`); re-derive it there if useful.
 
 **Why:** the sweep should play as interruptible _entry_ choreography, not a static state the reader waits on.
 
@@ -140,21 +154,22 @@ There is no test suite. Verify each stage by running `npm run dev` and stepping 
 
 ---
 
-## Stage 5 — Interactive scrub + snap
+## Stage 5 — Interactive scrub + hold — ✅ DONE
 
-**Why:** delivers the reader interaction pre-agreed at `scrolly-framework.md:217` ("exploring the race-chart timeline"). Same animator, playhead driven by pointer/slider instead of a clock.
+**Outcome:** `raceFull` now hosts a year scrubber — a full-plot pointer drag surface + a bits-ui year `Slider` — that winds the reel with the pinned-centre "time machine" feel. **Scope narrowed by decision this session:** _scrub + hold only_ (no magnetic snap-to-era/preset — deferred), and _`raceFull` only_ (not shared across the three race steps), because raceFull's `yCap === ∞` keeps all 15 actors visible so the hold behaviour is consistent, and it matches that step's "back to 1970" prose.
 
-**Scope**
+The scrub is the **same render path** as the Stage-3/4 sweep, just event-driven instead of eased: a new scrub `$effect` in `ScrollyVisual.svelte` (declared before the render effect) watches `story.scrubbing`/`story.scrubYear` and, while scrubbing, `stop()`s the generic tweeners once (single-writer) then calls `writeRaceSweepFrame(tweener.current, trailTweener.current, w, h, scrubFrame(yr))` + `drawScene()` per change — bypassing the reactive layout path (which would route through the straight-line tweener and leak a `layoutFor` cache entry per frame). `scrubFrame(yr)` is a local closure (sibling of `entryFrame`): clip `[yr-SCRUB_HALF, yr]`, domain symmetric `[yr-SCRUB_HALF, yr+SCRUB_HALF]` so the playhead pins to plot-centre and dots move only vertically. On release the effect writes `story.raceView = scrubView(yr)` **once**, and the main effect's `paramChange` branch settles onto the held layout (restarting the generic writer) — same handoff as the Stage-4 landing. Instant per frame ⇒ **reduced-motion needs no special-casing** (direct writes are already instant; the hold hits the main effect's `resized || reducedMotion` instant branch).
 
-- Add `scrubYear` (+ `scrubbing`) to `story.svelte.js`.
-- Host a bits-ui `Slider` (year control) + a pointer drag surface over the canvas as a `<Step>` `panel` snippet (RankBars pattern; same snippet reference across race steps). Slider `value` = playhead year and doubles as select-a-year.
-- Drag surface: Pointer Events, `touch-action: pan-y` so horizontal drag scrubs without fighting vertical page scroll. Drag winds the reel (pinned-centre, domain pans, dots move vertically) — **same code path as autoplay**, no second render mode.
-- **Wiring deviation:** race states read `scrubYear` but feed it to the **path animator's playhead** (per-frame curve eval), NOT `tweener.to()`.
-- **Snap:** era handovers (`notes`) and the three zoom presets are natural snap points; snapping animates the playhead via the same ease; reduced-motion snaps instantly.
+**Next stays clickable:** the render effect gained a `story.scrubbing` guard mirroring the `sweeping` one — it yields while scrubbing in place, but a real `stateName` change (Next) ends the scrub and falls through to a plain tween from the scrubbed buffers (the existing `stateName`→clear-`raceView` effect resets the window). The **Wizard arrow-key collision** is fixed by extending its `keydown` guard to also bail on `el.closest('[role="slider"]')`, so the slider thumb's ArrowLeft/Right step years without triggering step-nav. Furniture (ticks/notes) is gated `{#if !sweeping && !story.scrubbing}` — hidden during the pan, snapping back for the held frame (per-frame animated furniture remains Stage 6). The three race steps were flipped `ready={false}` → `ready={true}` (chapter visuals are finished; `ready` only gates the prod "visuals tbd" placeholder).
 
-**Files:** `story.svelte.js` (`scrubYear`/`scrubbing`); `ScrollyVisual.svelte` (playhead ← scrubYear; snap logic); a new panel component + its wiring in `Step.svelte`/`Index.svelte`; reuse `ui/Slider.svelte`.
+**New/changed files:** `story.svelte.js` (+`scrubYear`/`scrubbing`); `race.js` (export `RACE_SCRUB_BOUNDS` from `RACE_RANGE`); `ScrollyVisual.svelte` (`scrubFrame`/`scrubView`, scrub effect, render-effect guard, furniture gate); **new** `RaceScrubber.svelte` (panel component); `Index.svelte` (`racePanel` snippet on `raceFull`, `ready={true}`); `helpers/Wizard.svelte` (arrow-key guard).
 
-**Verify:** dragging left/right scrubs through years with the time-machine feel; the Slider scrubs and its arrow keys step years _without_ triggering Wizard step-nav; selecting/snapping to a year (and to era/zoom presets) animates smoothly; reduced-motion snaps instantly; Next remains clickable; touch drag doesn't hijack vertical page scroll.
+**Verified** (headless-Chrome CDP against the live dev server, screenshots): dragging scrubs the playhead pinned centre-x with history trailing left (2009→1978), furniture hides during the drag (9→0 ticks) and refits to the held window on release (7 ticks, y-axis rescaled); actors who debut _after_ the playhead show a transient parked dot during the drag and correctly vanish on hold (raceLayout clips them out) — consistent with the documented sweep→raceView handoff; the Slider's ArrowLeft stepped 2025→2022 with **no** wizard navigation; **Next mid-scrub** advanced cleanly to `scatterCenters` (scrubber gone, no stuck scrub); reduced-motion emulation scrubs+holds instantly; **zero console errors/exceptions** across every path. `npm run lint` + `npm run check` clean on the touched files (42 pre-existing `migrate/`/`future/` errors unrelated); `npm run build` green.
+
+**Handoff notes:**
+
+- **UNCOMMITTED.** Implemented + verified, **not committed** (per Owen's no-auto-commit rule). Stage 5's files stack on top of the still-uncommitted Stage 4 + `coldStart` work — same commit-isolation caveat as before (the pre-commit `lint-staged` hook re-stages whole files, so isolating a concern needs the reverse-apply-patch technique).
+- **Deferred (possible follow-ups):** magnetic snap-to-era/preset (the original Stage-5 sketch — `sweepEase`/`runSweepPhase` remain available to animate a snap); a short _eased_ reframe when entering scrub (currently an instant jump from the static full view to the centred frame); optionally hiding not-yet-debuted actors' parked dots _during_ the live drag (they only look odd mid-drag, not on hold). `SCRUB_HALF` (=20yr) is the tunable zoom half-width.
 
 ---
 
@@ -180,9 +195,9 @@ There is no test suite. Verify each stage by running `npm run dev` and stepping 
 ```
 Reference clone available (local path)
   └─ Stage 1 (monotone-cubic) ✅ ─ Stage 2 (parameterize) ✅ ─ Stage 3 (path animator core) ✅
-                                                                 ├─ Stage 4 (entry choreography) ⬅ NEXT
-                                                                 └─ Stage 5 (scrub + snap)
-Stage 6 (furniture polish) ── independent; sequenced last
+                                                                 ├─ Stage 4 (entry choreography) ✅
+                                                                 └─ Stage 5 (scrub + hold) ✅
+Stage 6 (furniture polish) ── independent; sequenced last ⬅ NEXT
 ```
 
 ## Global verification (end-to-end, after all stages)
