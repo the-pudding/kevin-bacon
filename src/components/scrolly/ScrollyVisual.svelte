@@ -3,7 +3,11 @@
 	import { untrack } from "svelte";
 	import { makeNodes } from "./nodes.js";
 	import { createTweener } from "./tween.js";
-	import { writeRaceSweepFrame, RACE_ENTRY_WINDOW } from "./layouts/race.js";
+	import {
+		writeRaceSweepFrame,
+		RACE_ENTRY_WINDOW,
+		RACE_SCRUB_BOUNDS
+	} from "./layouts/race.js";
 	import {
 		ATTR_SIZE,
 		DELAY_SIZE,
@@ -114,10 +118,15 @@
 		window: [yr - SCRUB_HALF, yr],
 		domain: [yr - SCRUB_HALF, yr + SCRUB_HALF]
 	});
+	// per-frame smoothing factor for the scrub glide: renderYear moves this
+	// fraction of the remaining distance to the target each frame (exponential
+	// ease-out — feels like a weighted reel). Reduced motion uses 1 (snap).
+	const SCRUB_EASE = 0.22;
 	let sweepRaf = 0;
 	function stopSweep() {
 		cancelAnimationFrame(sweepRaf);
 		sweepRaf = 0;
+		scrubActive = false;
 	}
 	// run one eased phase; map(e) → the frame window/domain; onDone chains the next
 	function runSweepPhase(map, onDone) {
@@ -136,6 +145,44 @@
 			else onDone?.();
 		};
 		sweepRaf = requestAnimationFrame(step);
+	}
+	// scrub glide (Stage 5): one rAF loop that eases `renderYear` toward the input
+	// target (story.scrubYear) and writes the pinned-centre frame each tick, so a
+	// year change glides instead of snapping. Runs while the reader is scrubbing OR
+	// until the reel catches up after release; once released AND settled it holds
+	// via raceView (one param-tween settle restarts the generic writers).
+	function scrubLoop() {
+		const target = story.scrubYear ?? renderYear;
+		const k = reducedMotion ? 1 : SCRUB_EASE;
+		const diff = target - renderYear;
+		const caughtUp = Math.abs(diff) < 0.02;
+		renderYear = caughtUp ? target : renderYear + diff * k;
+		writeRaceSweepFrame(
+			tweener.current,
+			trailTweener.current,
+			width,
+			height,
+			scrubFrame(renderYear)
+		);
+		drawScene();
+		if (story.scrubbing || !caughtUp) {
+			sweepRaf = requestAnimationFrame(scrubLoop);
+		} else {
+			scrubActive = false;
+			sweeping = false;
+			sweepRaf = 0;
+			story.raceView = scrubView(renderYear);
+		}
+	}
+	function startScrub() {
+		// single-writer discipline: take the rAF from the generic writers, then own
+		// it for the glide loop
+		stopSweep();
+		tweener.stop();
+		trailTweener.stop();
+		scrubActive = true;
+		sweeping = true;
+		sweepRaf = requestAnimationFrame(scrubLoop);
 	}
 
 	const TAU = Math.PI * 2;
@@ -180,10 +227,12 @@
 	let prevW = 0;
 	let prevH = 0;
 	let entered = false;
-	// scrub bookkeeping: tracks the scrubbing false→true→false edges so the
-	// generic writers are stopped once on entry and the hold view is written once
-	// on release (see the scrub effect below)
-	let wasScrubbing = false;
+	// scrub bookkeeping: `scrubActive` is true while the glide loop owns the rAF;
+	// `renderYear` is the *eased* playhead that chases story.scrubYear (the input
+	// target), so year changes glide instead of snapping. Persists across grabs so
+	// re-grabbing winds from where it was left.
+	let scrubActive = false;
+	let renderYear = RACE_SCRUB_BOUNDS[1];
 
 	const overlay = $derived(OVERLAYS[stateName]);
 	// what the active layout actually varies on: the state's selector plucks
@@ -367,68 +416,28 @@
 		});
 	});
 
-	// Scrub (Stage 5): while the reader drags/keys the year control, direct-write
-	// the pinned-centre frame straight into the buffers — same render path as the
-	// autoplay sweep, but event-driven (one write per scrubYear change) and not
-	// eased, so it's already correct under reduced motion. Bypasses the reactive
-	// layout path (raceView/STATE_PARAMS) which would route through the straight-
-	// line tweener and leak a layoutFor cache entry per frame. Declared before the
-	// render effect so it wins the flush; buffer/state writes are untracked.
+	// Scrub (Stage 5): when the reader starts dragging/keying the year control,
+	// kick off the glide loop (which then self-drives off story.scrubYear until it
+	// settles and hands off to raceView). Bypasses the reactive layout path
+	// (raceView/STATE_PARAMS) — that would route through the straight-line tweener
+	// and leak a layoutFor cache entry per frame. Declared before the render effect
+	// so it wins the flush; the loop-start is untracked.
 	$effect(() => {
-		const scrubbing = story.scrubbing;
-		const yr = story.scrubYear;
-		const w = width; // track w/h so a resize re-renders the current scrub frame
-		const h = height;
-		untrack(() => {
-			if (scrubbing) {
-				if (!wasScrubbing) {
-					// single-writer discipline: take the rAF from the generic writers
-					stopSweep();
-					sweeping = false;
-					tweener.stop();
-					trailTweener.stop();
-					wasScrubbing = true;
-				}
-				if (yr != null && w && h) {
-					writeRaceSweepFrame(
-						tweener.current,
-						trailTweener.current,
-						w,
-						h,
-						scrubFrame(yr)
-					);
-					drawScene();
-				}
-			} else if (wasScrubbing) {
-				// release: hold at the scrubbed year. Setting raceView re-runs the
-				// render effect (paramChange) which settles onto the held layout and
-				// restarts the generic writer — no need to restart it here.
-				wasScrubbing = false;
-				if (yr != null) story.raceView = scrubView(yr);
-			}
-		});
+		if (story.scrubbing) untrack(() => scrubActive || startScrub());
 	});
 
 	$effect(() => {
 		if (!canvas || !width || !height || !stateName) return;
-		// while the path animator owns the rAF, step aside: a genuine state change
-		// abandons the sweep (dots tween on from wherever they are — Next stays
-		// live); a param/raceView change is the sweep's own handoff, so ignore it
+		// while the path animator/scrub loop owns the rAF, step aside: a genuine
+		// state change (Next) abandons it — dots tween on from wherever they are, so
+		// Next stays live and any in-progress scrub ends; a param/raceView change is
+		// the animator's own handoff, so ignore it. (Scrubbing implies sweeping, so
+		// this one guard covers both.) raceView is dropped by the stateName effect.
 		if (sweeping) {
 			if (stateName === prevState) return;
 			stopSweep();
 			sweeping = false;
-		}
-		// while scrubbing the scrub effect owns the buffers; step aside unless the
-		// reader hit Next (a real state change) — then end the scrub and fall
-		// through so the new state tweens on from the scrubbed frame (Next stays
-		// live). raceView is dropped by the stateName effect above.
-		if (story.scrubbing) {
-			if (stateName === prevState) return;
-			untrack(() => {
-				story.scrubbing = false;
-			});
-			wasScrubbing = false;
+			if (story.scrubbing) untrack(() => (story.scrubbing = false));
 		}
 		const resized = width !== prevW || height !== prevH;
 		if (resized) {
@@ -623,9 +632,10 @@
 		{/key}
 		{#key stateName}
 			<!-- ticks/notes are pixel-pinned to a fixed window; the sweep and scrub
-			     pan the domain per frame, so hide them during motion and let them
-			     snap back on landing/hold (per-frame animated furniture is Stage 6) -->
-			{#if !sweeping && !story.scrubbing}
+			     glide pan the domain per frame (both set `sweeping`), so hide them
+			     during motion and let them snap back on landing/hold (per-frame
+			     animated furniture is Stage 6) -->
+			{#if !sweeping}
 				{#each decor?.axes?.x ?? [] as tick}
 					<p
 						class="tick tick-x fade-in"
