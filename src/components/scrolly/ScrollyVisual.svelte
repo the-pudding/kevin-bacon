@@ -388,45 +388,56 @@
 			</p>
 		{/each}
 	</div>
-	{#key stateName}
-		<div class="overlay">
+	<div class="overlay">
+		{#key overlay?.xLabel}
 			{#if overlay?.xLabel}
-				<p class="x-label" style="top: {xLabelTop}px; bottom: auto">
+				<p class="x-label fade-in" style="top: {xLabelTop}px; bottom: auto">
 					{overlay.xLabel}
 				</p>
 			{/if}
+		{/key}
+		{#key overlay?.yLabel}
 			{#if overlay?.yLabel}
 				<!-- centre the axis title on the graph's y-axis extent, not the tall canvas -->
-				<p class="y-label" style="top: {yLabelTop}px">
+				<p class="y-label fade-in" style="top: {yLabelTop}px">
 					{overlay.yLabel}
 				</p>
 			{/if}
-			{#each decor?.axes?.x ?? [] as tick}
-				<p
-					class="tick tick-x"
-					style="left: {tick.pos}px; {decor.axes.xBase != null
-						? `top: ${decor.axes.xBase}px`
-						: ''}"
-				>
-					{tick.label}
-				</p>
-			{/each}
-			{#each decor?.axes?.y ?? [] as tick}
-				<p class="tick tick-y" style="top: {tick.pos}px">{tick.label}</p>
-			{/each}
-			{#each decor?.notes ?? [] as note}
-				<p
-					class="note {note.align ?? 'left'}"
-					class:strong={note.strong}
-					class:wrap={note.wrap}
-					style="left: {note.x}px; top: {note.y}px"
-				>
-					{note.text}
-				</p>
-			{/each}
+		{/key}
+		{#key stateName}
+			<!-- ticks/notes are pixel-pinned to a fixed window; the sweep pans the
+			     domain per frame, so hide them for the fly and let them snap back on
+			     landing (per-frame animated furniture is Stage 6) -->
+			{#if !sweeping}
+				{#each decor?.axes?.x ?? [] as tick}
+					<p
+						class="tick tick-x fade-in"
+						style="left: {tick.pos}px; {decor.axes.xBase != null
+							? `top: ${decor.axes.xBase}px`
+							: ''}"
+					>
+						{tick.label}
+					</p>
+				{/each}
+				{#each decor?.axes?.y ?? [] as tick}
+					<p class="tick tick-y fade-in" style="top: {tick.pos}px">
+						{tick.label}
+					</p>
+				{/each}
+				{#each decor?.notes ?? [] as note}
+					<p
+						class="note fade-in {note.align ?? 'left'}"
+						class:strong={note.strong}
+						class:wrap={note.wrap}
+						style="left: {note.x}px; top: {note.y}px"
+					>
+						{note.text}
+					</p>
+				{/each}
+			{/if}
 			{#if decor?.legend}
 				<ul
-					class="legend"
+					class="legend fade-in"
 					style={decor.legendY != null
 						? `top: ${decor.legendY}px; bottom: auto`
 						: ""}
@@ -442,8 +453,8 @@
 					{/each}
 				</ul>
 			{/if}
-		</div>
-	{/key}
+		{/key}
+	</div>
 </div>
 
 <style>
@@ -519,11 +530,14 @@
 		position: absolute;
 		inset: 0;
 		pointer-events: none;
+	}
+
+	.fade-in {
 		animation: fade-in 0.4s ease both;
 	}
 
 	@media (prefers-reduced-motion: reduce) {
-		.overlay {
+		.fade-in {
 			animation: none;
 		}
 
