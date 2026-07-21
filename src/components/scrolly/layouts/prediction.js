@@ -70,8 +70,8 @@ function layoutPredScatter(nodes, w, h, _edges, params) {
 			set(attrs, n.id, x, y, 2, CROWD, 0);
 			continue;
 		}
-		const x = xS(n.avgDistance);
-		const y = yS(n[field]);
+		const x = xS(n[field]);
+		const y = yS(n.avgDistance);
 		if (n.id === SLJ) set(attrs, n.id, x, y, 6, RED, 1);
 		else if (marks.has(n.id)) set(attrs, n.id, x, y, 4.5, BLUE, 1);
 		else set(attrs, n.id, x, y, 2.2, CROWD, 0.35);
@@ -114,9 +114,12 @@ export const states = {
 		labels: [SLJ, ...QUIZ_IDS, WALTERS],
 		pulse: SLJ,
 		params: (s) => ({ mode: s.predictInsights ? "all" : "film" }),
+		// directional axis titles (matches scatters.js convention): both axes
+		// here run high → low, so each title carries an arrow pointing toward
+		// the lower/closer distance the story is guiding the reader to
 		overlay: {
-			xLabel: "Actual distance",
-			yLabel: "Predicted distance"
+			xLabel: "Predicted distance →",
+			yLabel: "Actual distance →"
 		}
 	}
 };
