@@ -136,13 +136,14 @@ function layoutScatterQuiz(nodes, w, h, _edges, params) {
 // all six quiz actors as uniform blue marks (the prototype's single mark
 // family — no per-pair colour coding)
 const PAIR_HIGHLIGHTS = new Map(
-	QUIZ_IDS.map((id) => [id, { rgb: BLUE, r: 4.5 }])
+	QUIZ_IDS.map((id) => [id, { rgb: BLUE, r: 5.5 }])
 );
 
 /** @type {import("../layout-shared.js").LayoutFn} */
 const layoutConcScatter = (nodes, w, h) =>
 	filmsScatter(nodes, w, h, {
 		yOf: (n) => n.conc,
+		invert: true, // lower concurrence = more new co-stars = better connected = up
 		tickStep: 0.1,
 		highlights: PAIR_HIGHLIGHTS
 	});
@@ -205,15 +206,17 @@ export const states = {
 	},
 	concurrenceScatter: {
 		layout: layoutConcScatter,
-		labels: [QUIZ_IDS[0], QUIZ_IDS[1]],
+		labels: QUIZ_IDS,
+		labelDirs: QUIZ_LABEL_DIRS,
 		overlay: {
 			xLabel: "Films (log scale)",
-			yLabel: "More recurring co-stars →"
+			yLabel: "Fewer recurring co-stars →"
 		}
 	},
 	degScatter: {
 		layout: layoutDegScatter,
-		labels: [QUIZ_IDS[0], QUIZ_IDS[1], QUIZ_IDS[2], QUIZ_IDS[4]],
+		labels: QUIZ_IDS,
+		labelDirs: QUIZ_LABEL_DIRS,
 		overlay: {
 			xLabel: "Films (log scale)",
 			yLabel: "Stronger co-stars →"
