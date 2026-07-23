@@ -7,6 +7,7 @@
 	import {
 		writeRaceSweepFrame,
 		RACE_ENTRY_WINDOW,
+		RACE_TRADES_WINDOW,
 		RACE_SCRUB_BOUNDS
 	} from "./layouts/race.js";
 	import {
@@ -104,6 +105,15 @@
 		dom0: win[0],
 		dom1: win[1]
 	});
+	// rewind (phase 2, chained after the draw-on): pans+zooms window AND domain
+	// together from the entry window to raceTrades' own window, so e=1 lands
+	// byte-identical to raceTrades' static layout (window == domain there too).
+	const rewindFrame = (fromWin, toWin) => (e) => ({
+		year0: fromWin[0] + (toWin[0] - fromWin[0]) * e,
+		year1: fromWin[1] + (toWin[1] - fromWin[1]) * e,
+		dom0: fromWin[0] + (toWin[0] - fromWin[0]) * e,
+		dom1: fromWin[1] + (toWin[1] - fromWin[1]) * e
+	});
 	// the one state whose arrival plays the draw-on entry (scoped by revealFrom)
 	const RACE_ENTRY_STATE = "raceRecent";
 	// scrub (Stage 5): the playhead pins to plot-centre — the clip window is the
@@ -128,7 +138,7 @@
 	function stopSweep() {
 		cancelAnimationFrame(sweepRaf);
 		sweepRaf = 0;
-		scrubActive = false;
+		domainPanning = false;
 	}
 	// run one eased phase; map(e) → the frame window/domain; onDone chains the next
 	function runSweepPhase(map, yCap, onDone) {
@@ -172,7 +182,7 @@
 		if (story.scrubbing || !caughtUp) {
 			sweepRaf = requestAnimationFrame(scrubLoop);
 		} else {
-			scrubActive = false;
+			domainPanning = false;
 			sweeping = false;
 			sweepRaf = 0;
 			story.raceView = scrubView(renderYear);
@@ -184,7 +194,7 @@
 		stopSweep();
 		tweener.stop();
 		trailTweener.stop();
-		scrubActive = true;
+		domainPanning = true;
 		sweeping = true;
 		sweepRaf = requestAnimationFrame(scrubLoop);
 	}
@@ -237,15 +247,16 @@
 	let prevW = 0;
 	let prevH = 0;
 	let entered = false;
-	// scrub bookkeeping: `scrubActive` is true while the glide loop owns the rAF;
-	// `renderYear` is the *eased* playhead that chases story.scrubYear (the input
-	// target), so year changes glide instead of snapping. Persists across grabs so
-	// re-grabbing winds from where it was left. Reactive ($state) because the
-	// template also reads it to hide axis ticks/notes ONLY while the domain is
-	// actually panning live (scrub) — the entry sweep keeps a fixed domain, so its
-	// ticks/notes stay pixel-accurate throughout and don't need to hide (see the
-	// `!scrubActive` guard below).
-	let scrubActive = $state(false);
+	// `domainPanning` is true whenever a sweep is actively panning dom0/dom1 live
+	// (scrub, and the rewind phase) — reactive ($state) because the template also
+	// reads it to hide axis ticks/notes while they're stale mid-pan. The entry
+	// sweep keeps a fixed domain (only the clip window grows), so its ticks/notes
+	// stay pixel-accurate throughout and don't need to hide (see the
+	// `!domainPanning` guard below). `renderYear` is the scrub glide's *eased*
+	// playhead, chasing story.scrubYear (the input target) so year changes glide
+	// instead of snapping; persists across grabs so re-grabbing winds from where
+	// it was left.
+	let domainPanning = $state(false);
 	let renderYear = RACE_SCRUB_BOUNDS[1];
 
 	const overlay = $derived(OVERLAYS[stateName]);
@@ -324,7 +335,37 @@
 		runSweepPhase(entryFrame(win), STATE_YCAP[RACE_ENTRY_STATE], () => {
 			sweeping = false;
 			story.raceView = finalView;
+			if (!reducedMotion) playRaceRewind();
 		});
+	}
+
+	// Race-chapter phase 2: chained straight off the present-day draw-on
+	// (playRaceEntry's onDone, no pause between them), rewind the domain back
+	// to raceTrades' own window so the eventual Next → raceTrades state change
+	// lands on identical attrs (a no-op tween motion-wise — only decor/notes
+	// crossfade). Only ever triggered from there, so it inherits the same
+	// one-shot/revealFrom-gated, reduced-motion-safe semantics.
+	function playRaceRewind() {
+		if (!width || !height) return;
+		const finalView = {
+			window: RACE_TRADES_WINDOW,
+			domain: RACE_TRADES_WINDOW
+		};
+		if (reducedMotion) {
+			story.raceView = finalView;
+			return;
+		}
+		sweeping = true;
+		domainPanning = true;
+		runSweepPhase(
+			rewindFrame(RACE_ENTRY_WINDOW, RACE_TRADES_WINDOW),
+			STATE_YCAP[RACE_ENTRY_STATE],
+			() => {
+				sweeping = false;
+				domainPanning = false;
+				story.raceView = finalView;
+			}
+		);
 	}
 
 	function drawScene() {
@@ -465,7 +506,7 @@
 	// and leak a layoutFor cache entry per frame. Declared before the render effect
 	// so it wins the flush; the loop-start is untracked.
 	$effect(() => {
-		if (story.scrubbing) untrack(() => scrubActive || startScrub());
+		if (story.scrubbing) untrack(() => domainPanning || startScrub());
 	});
 
 	$effect(() => {
@@ -680,7 +721,7 @@
 			     Stage 6). The entry sweep keeps a fixed domain throughout (only the
 			     clip window grows), so its ticks/notes stay accurate and can stay
 			     visible the whole time. -->
-			{#if !scrubActive}
+			{#if !domainPanning}
 				{#each decor?.axes?.x ?? [] as tick}
 					<p
 						class="tick tick-x fade-in"

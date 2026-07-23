@@ -309,6 +309,10 @@ export const RACE_ENTRY_WINDOW = [2004, 2026.2];
 const RACE_RECENT_YCAP = 2.3;
 const RACE_TRADES_YCAP = 2.25;
 
+// the raceTrades window, exported so the rewind animator (ScrollyVisual) lands
+// its second sweep phase on a frame byte-identical to this static layout
+export const RACE_TRADES_WINDOW = [1998.5, 2007];
+
 export const states = {
 	raceRecent: {
 		// no era-handover note here: the four contenders are already named beside
@@ -331,7 +335,7 @@ export const states = {
 		revealFrom: ["rankReveal"]
 	},
 	raceTrades: {
-		layout: raceLayout([1998.5, 2007], 0.4, RACE_TRADES_YCAP),
+		layout: raceLayout(RACE_TRADES_WINDOW, 0.4, RACE_TRADES_YCAP),
 		yCap: RACE_TRADES_YCAP,
 		labels: [SLJ, HACKMAN, DENIRO, WELKER],
 		// Hackman + Welker end coincident at the right edge; the label
