@@ -11,11 +11,20 @@
 	import PredictToggles from "$components/scrolly/PredictToggles.svelte";
 	import BarPicker from "$components/scrolly/BarPicker.svelte";
 	import useWindowDimensions from "$runes/useWindowDimensions.svelte.js";
-	import localStorage from "$utils/localStorage.js";
+	import urlParams from "$utils/urlParams.js";
 	import { story } from "$components/scrolly/story.svelte.js";
 
-	const STEP_STORAGE_KEY = "kb-step";
+	const STEP_PARAM = "step";
 	const isRankState = (s) => s === "rankFocus" || s === "rankReveal";
+
+	// current step lives in the URL query (?step=N) so each tab keeps its own
+	// place across refreshes independently — unlike localStorage, which is
+	// shared across every tab on the origin
+	function readStep() {
+		if (typeof window === "undefined") return null;
+		const n = parseInt(urlParams.get(STEP_PARAM), 10);
+		return Number.isInteger(n) ? n : null;
+	}
 
 	let value = $state(0);
 	// true only when a saved step from a prior visit exists, so this render
@@ -25,8 +34,8 @@
 	// the `lone`-authored pop-in. ScrollyVisual uses this to skip that pop-in,
 	// which would otherwise replay (and be misread as an empty chart) on every
 	// refresh regardless of which step it lands on
-	const restoredStep = localStorage.get(STEP_STORAGE_KEY);
-	let coldStart = $state(typeof restoredStep === "number" && restoredStep > 0);
+	const restoredStep = readStep();
+	let coldStart = $state(restoredStep !== null && restoredStep > 0);
 	let dimensions = new useWindowDimensions();
 	// ScrollyVisual instance, for the pair-quiz panel's locate() flight targets
 	/** @type {ScrollyVisual | undefined} */
@@ -68,7 +77,7 @@
 
 	onMount(() => {
 		if (
-			typeof restoredStep === "number" &&
+			restoredStep !== null &&
 			restoredStep > 0 &&
 			restoredStep < stepConfigs.length
 		) {
@@ -77,7 +86,7 @@
 	});
 
 	$effect(() => {
-		localStorage.set(STEP_STORAGE_KEY, value);
+		urlParams.set(STEP_PARAM, value);
 	});
 
 	let prevValue = 0;

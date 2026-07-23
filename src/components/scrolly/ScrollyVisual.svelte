@@ -472,7 +472,7 @@
 		const firstPaint = !entered;
 		entered = true;
 		if (firstPaint && coldStart) {
-			// reader reloaded mid-story (step restored from localStorage): this is
+			// reader reloaded mid-story (step restored from the URL): this is
 			// not their first-ever view, so settle straight onto the state instead
 			// of replaying the `lone`-authored pop-in (misread as an empty chart
 			// on faint/dense states like scatterQuiz)
