@@ -174,7 +174,23 @@ The scrub is the **same render path** as the Stage-3/4 sweep, driven by a **glid
 
 ---
 
-## Stage 6 — Chart furniture & correctness fixes (polish, last)
+## Stage 6 — Chart furniture & correctness fixes (polish, last) — ✅ DONE (uncommitted)
+
+**Outcome:** the three race states now read cleanly. Four fixes, all in `race.js` + `ScrollyVisual.svelte`, verified via headless-Chrome CDP screenshots at mobile width (414px) across raceRecent/raceTrades/raceFull:
+
+- **Name clipping → 2/3 plot + gutter.** `raceScales` (`race.js`) pulls the `xS` right bound in to `left + (fullInner)·2/3`; the right third is a name gutter. Race states gained `labelDirs` placing labelled actors `"right"` (beside the right-edge dots, in the gutter). **Decision this session: fixed 2/3 width** (not computed-from-widest-name). Applies to static + sweep + scrub (shared `raceScales`) with no motion regression (0 console errors through entry sweep + scrub drag).
+- **raceTrades label de-collision.** Hackman + Welker end coincident at the right edge; Welker was dropped from `labelDirs` so it falls to the default below-dot spot instead of stacking on Hackman's beside-label (was rendering garbled).
+- **Era-note clip → clamp.** The notes loop clamps each note's centre to `[xS(dom0)+hw, xS(dom1)-hw]` (hw ≈ half a label width) so the "Samuel L. Jackson · 2006" handover stays fully inside the plot on all three states (the earlier left/right align-switch spilled a long label off-plot on the wide raceFull window — replaced by the clamp).
+- **Y-axis density.** yTicks went from `[vLo, mid, vHi]` (3) to 5 evenly-spaced values across the raw data extent.
+- **X-axis → adaptive horizontal density.** `tickStep` factory arg removed; ticks now pick the densest "nice" step (1/2/5/10/25/50) that fits the plot width at ~32px/label, horizontal 4-digit labels. raceRecent → 2005–2025 (step 5), raceTrades → 2000–2006 (step 2), raceFull → 1975/2000/2025 (step 25).
+
+**Scope change this session (`race-chart-feedback.md` item 1):** Owen wanted _every year, full-4-digit, horizontal_. That is geometrically impossible in the fixed plot — a horizontal `2004` needs ~31px, and a phone plot fits only ~7–10 side-by-side; rotating/stacking to fit was rejected. The literal fix is a **horizontally-scrollable race chart** (plot wider than screen, pan the axis), but that is a substantial rearchitecture that takes the chart out of the shared fixed-canvas object-constancy model **and conflicts with the pinned-centre scrub** (two different pan mechanisms). **Decision: deferred the horizontal-scroll chart to Owen's upcoming raceFull rework**; this session shipped the adaptive-density horizontal axis (as many years as legibly fit) as the interim. raceFull still opens on the full 1970–2026 static window ("whatever's easiest — I'm changing it next session").
+
+**Handoff for the raceFull rework:**
+
+- **UNCOMMITTED** (no-auto-commit). Touched files: `src/components/scrolly/layouts/race.js`, `src/components/scrolly/ScrollyVisual.svelte`, this `delivery-plan.md`.
+- **Deferred:** horizontal-scroll race chart (all-years-horizontal). Needs a decision on how it coexists with / replaces the Stage-5 pinned-centre scrub before building. raceFull's static default window is also up for rework (Owen's call).
+- Gates: `npm run lint` + `npm run check` clean on the two touched files (41 pre-existing `migrate/`/`future/` errors unrelated); `npm run build` green.
 
 **Why last:** the animator reshapes axes and the y-scale per frame, so furniture should settle against its final rendering rather than be built twice. Batches the independent side-fix from `next-session.md` with the `race-chart-feedback.md` items.
 
@@ -198,7 +214,7 @@ Reference clone available (local path)
   └─ Stage 1 (monotone-cubic) ✅ ─ Stage 2 (parameterize) ✅ ─ Stage 3 (path animator core) ✅
                                                                  ├─ Stage 4 (entry choreography) ✅
                                                                  └─ Stage 5 (scrub + hold) ✅
-Stage 6 (furniture polish) ── independent; sequenced last ⬅ NEXT
+Stage 6 (furniture polish) ── independent; sequenced last ✅ (horizontal-scroll axis deferred to raceFull rework)
 ```
 
 ## Global verification (end-to-end, after all stages)

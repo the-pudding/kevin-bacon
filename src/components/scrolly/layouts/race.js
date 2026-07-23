@@ -64,13 +64,18 @@ function raceYFit(segsList, year0, year1) {
 
 // the x/y pixel scales for one frame. `domain` drives x; `[vMin,vMax]` (padded)
 // drives y. Lower average distance = better = higher up the chart.
+// The plot spans only the left 2/3 of the inner width — the right third is a
+// gutter reserved for the actor name labels (which sit beside the right-edge
+// dots), so names never clip off the canvas.
 function raceScales(w, h, dom0, dom1, vMin, vMax) {
 	const top = MARGIN + 10;
 	const bottom = plotBottom(h);
+	const left = MARGIN + 14;
+	const right = left + ((w - MARGIN - 6 - left) * 2) / 3;
 	return {
 		top,
 		bottom,
-		xS: (yr) => lin(yr, dom0, dom1, MARGIN + 14, w - MARGIN - 6),
+		xS: (yr) => lin(yr, dom0, dom1, left, right),
 		yS: (v) => lin(v, vMin, vMax, top, bottom)
 	};
 }
@@ -115,7 +120,7 @@ export function writeRaceSweepFrame(attrsBuf, trailBuf, w, h, frame) {
 	}
 }
 
-function raceLayout(windowYears, tickStep, minEraYears, yCap = Infinity) {
+function raceLayout(windowYears, minEraYears, yCap = Infinity) {
 	/** @type {import("../layout-shared.js").LayoutFn} */
 	return function layoutRace(nodes, w, h, _edges, params) {
 		const attrs = new Float64Array(ATTR_SIZE);
@@ -202,27 +207,39 @@ function raceLayout(windowYears, tickStep, minEraYears, yCap = Infinity) {
 			const series = clipped.get(era.id);
 			if (!series) continue;
 			const vAt = valueAt(series, Math.max(start, year0));
+			const nx = xS(Math.max(start, year0));
+			const text = `${node[1]} · ${Math.round(start)}`;
+			// centre-anchored notes clip when their anchor sits within half a label
+			// width of a plot edge (e.g. the SLJ·2006 handover near the left edge), so
+			// clamp the centre inward to keep the whole label inside the plot.
+			const hw = text.length * 3.4;
+			const cx = Math.min(Math.max(nx, xS(dom0) + hw), xS(dom1) - hw);
 			notes.push({
-				x: xS(Math.max(start, year0)),
+				x: cx,
 				y: yS(vAt) - (notes.length % 2 === 0 ? 24 : 42),
 				align: /** @type {const} */ ("center"),
-				text: `${node[1]} · ${Math.round(start)}`
+				text
 			});
 		}
+		// horizontal 4-digit year labels at the densest legible step that fits the
+		// plot width (~40px per label incl. gap): every year where it fits, coarser
+		// on wide spans. (Showing *every* year on the full span needs a wider-than-
+		// screen scrollable axis — deferred; the scrubber explores the full range.)
+		const plotW = xS(dom1) - xS(dom0);
+		const maxLabels = Math.max(2, Math.floor(plotW / 32));
+		const span = dom1 - dom0;
+		const step =
+			[1, 2, 5, 10, 25, 50].find((s) => span / s + 1 <= maxLabels) ?? 100;
 		const ticks = [];
-		for (
-			let yr = Math.ceil(dom0 / tickStep) * tickStep;
-			yr <= dom1;
-			yr += tickStep
-		) {
+		for (let yr = Math.ceil(dom0 / step) * step; yr <= dom1; yr += step) {
 			ticks.push({ pos: xS(yr), label: String(yr) });
 		}
 		// ticks label the raw data extent (not the padded scale domain) so the
 		// numbers read as real values and sit just inside the plot
-		const yTicks = [vLo, (vLo + vHi) / 2, vHi].map((v) => ({
-			pos: yS(v),
-			label: v.toFixed(2)
-		}));
+		const yTicks = Array.from({ length: 5 }, (_, i) => {
+			const v = vLo + ((vHi - vLo) * i) / 4;
+			return { pos: yS(v), label: v.toFixed(2) };
+		});
 		return {
 			attrs,
 			trails,
@@ -260,22 +277,33 @@ export const RACE_ENTRY_WINDOW = [2004, 2026.2];
 
 export const states = {
 	raceRecent: {
-		layout: raceLayout(RACE_ENTRY_WINDOW, 5, 3, 2.3),
+		layout: raceLayout(RACE_ENTRY_WINDOW, 3, 2.3),
 		labels: [SLJ],
+		// names sit in the reserved right gutter, beside the right-edge dots
+		labelDirs: { [SLJ]: "right" },
 		overlay: OVERLAY,
 		params,
 		// entry choreography: draw the lines on when arriving from the rank chapter
 		revealFrom: ["rankReveal"]
 	},
 	raceTrades: {
-		layout: raceLayout([1998.5, 2007], 2, 0.4, 2.25),
+		layout: raceLayout([1998.5, 2007], 0.4, 2.25),
 		labels: [SLJ, HACKMAN, DENIRO, WELKER],
+		// Hackman + Welker end coincident at the right edge; keep Hackman beside its
+		// dot and let Welker fall to the default below-dot spot so the two names
+		// don't stack on top of each other
+		labelDirs: {
+			[SLJ]: "right",
+			[HACKMAN]: "right",
+			[DENIRO]: "right"
+		},
 		overlay: OVERLAY,
 		params
 	},
 	raceFull: {
-		layout: raceLayout([1970, 2026.2], 10, 4),
+		layout: raceLayout([1970, 2026.2], 4),
 		labels: [HACKMAN],
+		labelDirs: { [HACKMAN]: "right" },
 		overlay: OVERLAY,
 		params
 	}
