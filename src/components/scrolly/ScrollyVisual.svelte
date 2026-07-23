@@ -18,6 +18,7 @@
 		STATE_LABELS,
 		STATE_LABEL_DIRS,
 		STATE_PULSE,
+		STATE_YCAP,
 		STATE_PARAMS,
 		STATE_REVEAL_FROM,
 		STATE_SEED,
@@ -129,7 +130,7 @@
 		scrubActive = false;
 	}
 	// run one eased phase; map(e) → the frame window/domain; onDone chains the next
-	function runSweepPhase(map, onDone) {
+	function runSweepPhase(map, yCap, onDone) {
 		const t0 = performance.now();
 		const step = (now) => {
 			const p = Math.min(1, (now - t0) / SWEEP_MS);
@@ -138,7 +139,8 @@
 				trailTweener.current,
 				width,
 				height,
-				map(sweepEase(p))
+				map(sweepEase(p)),
+				yCap
 			);
 			drawScene();
 			if (p < 1) sweepRaf = requestAnimationFrame(step);
@@ -162,7 +164,8 @@
 			trailTweener.current,
 			width,
 			height,
-			scrubFrame(renderYear)
+			scrubFrame(renderYear),
+			STATE_YCAP[stateName]
 		);
 		drawScene();
 		if (story.scrubbing || !caughtUp) {
@@ -307,7 +310,7 @@
 		tweener.stop();
 		trailTweener.stop();
 		sweeping = true;
-		runSweepPhase(entryFrame(win), () => {
+		runSweepPhase(entryFrame(win), STATE_YCAP[RACE_ENTRY_STATE], () => {
 			sweeping = false;
 			story.raceView = finalView;
 		});
@@ -530,7 +533,8 @@
 				startTrails,
 				width,
 				height,
-				entryFrame(RACE_ENTRY_WINDOW)(0)
+				entryFrame(RACE_ENTRY_WINDOW)(0),
+				STATE_YCAP[RACE_ENTRY_STATE]
 			);
 			tweener.to(startAttrs, TWEEN_MS, TWEEN_JITTER, stateDelays, () =>
 				playRaceEntry(RACE_ENTRY_WINDOW)

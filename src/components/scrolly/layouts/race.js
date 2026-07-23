@@ -88,10 +88,31 @@ function raceScales(w, h, dom0, dom1, vMin, vMax) {
  * @param {Float32Array|Float64Array} attrsBuf live dot buffer (or a scratch clone)
  * @param {Float32Array|Float64Array} trailBuf live trail buffer (or a scratch clone)
  * @param {{year0:number,year1:number,dom0:number,dom1:number}} frame
+ * @param {number} [yCap] matches the target static state's yCap: the y-fit only
+ * considers actors that would still qualify as a "contender" over [dom0,dom1] —
+ * the fixed target window, NOT the momentarily-revealed [year0,year1] clip —
+ * so membership stays constant for the whole sweep (a clip window that grows
+ * frame-to-frame would otherwise flip actors in/out of the fit as their history
+ * comes into view, snapping the y-scale mid-animation). The last frame's
+ * [year0,year1] == [dom0,dom1], so this still lands on the exact same vMin/vMax
+ * as raceLayout.
  */
-export function writeRaceSweepFrame(attrsBuf, trailBuf, w, h, frame) {
+export function writeRaceSweepFrame(
+	attrsBuf,
+	trailBuf,
+	w,
+	h,
+	frame,
+	yCap = Infinity
+) {
 	const { year0, year1, dom0, dom1 } = frame;
-	const segsList = RACE_IDS.map((id) => RACE_SEGS.get(id));
+	const segsList = [];
+	for (const id of RACE_IDS) {
+		const c = clipSeries(story.raceSeries[id], dom0, dom1);
+		if (!c) continue;
+		if (Math.min(...c.map(([, v]) => v)) > yCap) continue;
+		segsList.push(RACE_SEGS.get(id));
+	}
 	const [vMin, vMax] = raceYFit(segsList, year0, year1);
 	const { xS, yS } = raceScales(w, h, dom0, dom1, vMin, vMax);
 	for (const id of RACE_IDS) {
@@ -275,9 +296,16 @@ const params = (s) => s.raceView;
 // its draw-on sweep on a frame byte-identical to this static layout
 export const RACE_ENTRY_WINDOW = [2004, 2026.2];
 
+// per-state yCap, re-exported alongside each layout (as STATE_YCAP in states.js)
+// so the ScrollyVisual sweep/scrub animators can fit their y-scale the same way
+// the static layout does — see writeRaceSweepFrame's yCap param.
+const RACE_RECENT_YCAP = 2.3;
+const RACE_TRADES_YCAP = 2.25;
+
 export const states = {
 	raceRecent: {
-		layout: raceLayout(RACE_ENTRY_WINDOW, 3, 2.3),
+		layout: raceLayout(RACE_ENTRY_WINDOW, 3, RACE_RECENT_YCAP),
+		yCap: RACE_RECENT_YCAP,
 		labels: [SLJ],
 		// names sit in the reserved right gutter, beside the right-edge dots
 		labelDirs: { [SLJ]: "right" },
@@ -287,7 +315,8 @@ export const states = {
 		revealFrom: ["rankReveal"]
 	},
 	raceTrades: {
-		layout: raceLayout([1998.5, 2007], 0.4, 2.25),
+		layout: raceLayout([1998.5, 2007], 0.4, RACE_TRADES_YCAP),
+		yCap: RACE_TRADES_YCAP,
 		labels: [SLJ, HACKMAN, DENIRO, WELKER],
 		// Hackman + Welker end coincident at the right edge; keep Hackman beside its
 		// dot and let Welker fall to the default below-dot spot so the two names

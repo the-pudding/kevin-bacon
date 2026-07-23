@@ -98,6 +98,9 @@ export const STATE_PARAMS = pick("params");
 /** per-state "center actor" node id — gets the ripple pulse */
 export const STATE_PULSE = pick("pulse");
 
+/** per-state yCap for the race chart's y-fit — see writeRaceSweepFrame */
+export const STATE_YCAP = pick("yCap");
+
 /**
  * Per-state list of prior states the layout's `delays` choreography is
  * authored for. Arriving from any other state (e.g. stepping backwards)
