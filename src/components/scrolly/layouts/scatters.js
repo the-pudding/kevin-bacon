@@ -116,7 +116,7 @@ const ALL_PICKED = Object.fromEntries(story.quiz.map((_, i) => [i, true]));
 // Label placement for the quiz dots, to keep names off each other in the tight
 // cluster: the high-film pair sits on the right of the cloud so their labels go
 // right; the low-film pair sits on the left so theirs go left.
-const QUIZ_LABEL_DIRS = {
+export const QUIZ_LABEL_DIRS = {
 	[QUIZ_IDS[0]]: "right", // Charlize Theron
 	[QUIZ_IDS[1]]: "right", // Seth Rogen
 	[QUIZ_IDS[4]]: "left", // Margot Robbie

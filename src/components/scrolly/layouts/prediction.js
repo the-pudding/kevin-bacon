@@ -16,7 +16,7 @@ import {
 	setTrail,
 	collapseTrail
 } from "../layout-shared.js";
-import { QUIZ_IDS } from "./scatters.js";
+import { QUIZ_IDS, QUIZ_LABEL_DIRS } from "./scatters.js";
 
 // ---------------------------------------------------------------------------
 // Prediction scatter (the finale): X = the actor's ACTUAL average distance
@@ -112,6 +112,9 @@ export const states = {
 	predictionScatter: {
 		layout: layoutPredScatter,
 		labels: [SLJ, ...QUIZ_IDS, WALTERS],
+		// same side-anchors as the other scatters so the persisting quiz labels
+		// don't snap orientation on arrival
+		labelDirs: QUIZ_LABEL_DIRS,
 		pulse: SLJ,
 		params: (s) => ({ mode: s.predictInsights ? "all" : "film" }),
 		// directional axis titles (matches scatters.js convention): both axes
