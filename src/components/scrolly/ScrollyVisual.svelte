@@ -3,6 +3,7 @@
 	import { untrack } from "svelte";
 	import { makeNodes } from "./nodes.js";
 	import { createTweener } from "./tween.js";
+	import { createLabelDecollider } from "./label-decollide.js";
 	import {
 		writeRaceSweepFrame,
 		RACE_ENTRY_WINDOW,
@@ -192,6 +193,12 @@
 	// one Path2D per (quantised rgb, alpha bucket): batches ~1k dots into a
 	// handful of fills instead of a fillStyle + fill per dot
 	const dotBuckets = new Map();
+	// vertical de-collision for beside-dot name labels (labelDirs "left"/"right"):
+	// nudges apart labels whose dots have landed within a line-height of each
+	// other, easing the displacement per id so a rank swap slides names past
+	// each other instead of snapping. Ported from the pudding-post race-chart.
+	const decollideLabels = createLabelDecollider();
+	const LABEL_LINE_GAP_PX = 16; // ~11px label line-height * 1.15, matches reference
 
 	// layouts are pure in (state, w, h, params) — cache so re-visited states
 	// skip both the recompute and the per-call Float64Array allocation; the
@@ -218,7 +225,7 @@
 	// true while the race path animator owns the rAF (see playRaceEntry); the
 	// render effect steps aside and the panning-domain axis furniture hides
 	let sweeping = $state(false);
-	/** @type {{ id: number, name: string, x: number, y: number, r: number, alpha: number }[]} */
+	/** @type {{ id: number, name: string, x: number, y: number, r: number, alpha: number, labelOffset: number }[]} */
 	let tracked = $state([]);
 	// static per-state chart furniture (ticks/callouts/legend) from the layout result
 	/** @type {{ axes?: { x?: {pos:number,label:string}[], y?: {pos:number,label:string}[], xBase?: number, yBase?: number }, notes?: import("./states.js").Note[], legend?: import("./layout-shared.js").LegendItem[], legendY?: number } | null} */
@@ -393,14 +400,42 @@
 			ctx.fillStyle = style;
 			ctx.fill(path);
 		}
-		tracked = TRACKED_IDS.map((id) => ({
+		const nextTracked = TRACKED_IDS.map((id) => ({
 			id,
 			name: nodes[id].name,
 			x: attrs[id * STRIDE],
 			y: attrs[id * STRIDE + 1],
 			r: attrs[id * STRIDE + 2],
-			alpha: attrs[id * STRIDE + 6]
+			alpha: attrs[id * STRIDE + 6],
+			labelOffset: 0
 		}));
+		// only beside-dot labels ("left"/"right") stack vertically — below-dot
+		// labels are already x-separated by their own dot, so they're excluded
+		const besideDot = nextTracked.filter(
+			(t) => labelIds.has(t.id) && labelDirs[t.id] != null
+		);
+		if (besideDot.length > 1) {
+			const shownOffset = decollideLabels(besideDot, LABEL_LINE_GAP_PX);
+			ctx.lineWidth = 1;
+			for (const t of besideDot) {
+				const offset = shownOffset.get(t.id) ?? 0;
+				t.labelOffset = offset;
+				// a thin leader connects dot to label only once it's been visibly
+				// nudged off the dot's own y, mirroring the reference's stub line
+				if (Math.abs(offset) > 0.5) {
+					const i = t.id * STRIDE;
+					const dir = labelDirs[t.id];
+					const gap = 4;
+					const lx = dir === "right" ? t.x + t.r + gap : t.x - t.r - gap;
+					ctx.strokeStyle = `rgba(${attrs[i + 3]}, ${attrs[i + 4]}, ${attrs[i + 5]}, ${t.alpha * 0.4})`;
+					ctx.beginPath();
+					ctx.moveTo(t.x + (dir === "right" ? t.r : -t.r), t.y);
+					ctx.lineTo(lx, t.y + offset);
+					ctx.stroke();
+				}
+			}
+		}
+		tracked = nextTracked;
 	}
 
 	$effect(() => {
@@ -602,9 +637,9 @@
 			{@const dir = labelDirs[t.id]}
 			{@const transform =
 				dir === "right"
-					? `translate(${t.x + t.r + 4}px, calc(${t.y}px - 50%))`
+					? `translate(${t.x + t.r + 4}px, calc(${t.y + t.labelOffset}px - 50%))`
 					: dir === "left"
-						? `translate(calc(${t.x - t.r - 4}px - 100%), calc(${t.y}px - 50%))`
+						? `translate(calc(${t.x - t.r - 4}px - 100%), calc(${t.y + t.labelOffset}px - 50%))`
 						: `translate(${
 								t.x > width - 96
 									? `calc(${t.x}px - 100%)`

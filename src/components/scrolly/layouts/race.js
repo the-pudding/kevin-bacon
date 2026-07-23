@@ -311,13 +311,20 @@ const RACE_TRADES_YCAP = 2.25;
 
 export const states = {
 	raceRecent: {
-		// no era-handover note here: SLJ is already named beside its dot (labels
-		// below), so a "Samuel L. Jackson · 2006" callout would just repeat it
+		// no era-handover note here: the four contenders are already named beside
+		// their dots (labels below), so a callout would just repeat a name
 		layout: raceLayout(RACE_ENTRY_WINDOW, 3, RACE_RECENT_YCAP, false),
 		yCap: RACE_RECENT_YCAP,
-		labels: [SLJ],
-		// names sit in the reserved right gutter, beside the right-edge dots
-		labelDirs: { [SLJ]: "right" },
+		labels: [SLJ, HACKMAN, DENIRO, WELKER],
+		// names sit in the reserved right gutter, beside the right-edge dots;
+		// ScrollyVisual's label de-collider keeps the four apart when their dots
+		// land close together
+		labelDirs: {
+			[SLJ]: "right",
+			[HACKMAN]: "right",
+			[DENIRO]: "right",
+			[WELKER]: "right"
+		},
 		overlay: OVERLAY,
 		params,
 		// entry choreography: draw the lines on when arriving from the rank chapter
@@ -327,13 +334,13 @@ export const states = {
 		layout: raceLayout([1998.5, 2007], 0.4, RACE_TRADES_YCAP),
 		yCap: RACE_TRADES_YCAP,
 		labels: [SLJ, HACKMAN, DENIRO, WELKER],
-		// Hackman + Welker end coincident at the right edge; keep Hackman beside its
-		// dot and let Welker fall to the default below-dot spot so the two names
-		// don't stack on top of each other
+		// Hackman + Welker end coincident at the right edge; the label
+		// de-collider keeps their names from stacking
 		labelDirs: {
 			[SLJ]: "right",
 			[HACKMAN]: "right",
-			[DENIRO]: "right"
+			[DENIRO]: "right",
+			[WELKER]: "right"
 		},
 		overlay: OVERLAY,
 		params

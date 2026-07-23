@@ -103,8 +103,7 @@ The following step then reveals from that shared frame as a pure fade-in — no
 teleport and, crucially, the same animation however fast the reader steps
 (`hopSeed` → `hopBands`, paired with `hopBands`'s `revealFrom: ["hopSeed"]`).
 Prefer this over a truly visual-free step whenever the empty beat sits directly
-before the layout it seeds. Distinct from `ready={false}` (a build-gated
-"visuals tbd" placeholder over an _unfinished_ visual).
+before the layout it seeds.
 
 Current states, in story order: `lone` · `networkIntro` · `hopSeed` (the "not
 the centre" beat — an empty canvas seeding the bands) · `hopBands`

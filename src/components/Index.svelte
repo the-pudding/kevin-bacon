@@ -48,17 +48,15 @@
 	 * Filled by each <Step> as it mounts, in document order — the single source
 	 * of truth mapping step index → visual state (+ per-step params, plus an
 	 * optional `panel` snippet rendered over the canvas while the step is
-	 * active). `ready === false` marks a step whose visual isn't finished: in a
-	 * production build its ScrollyVisual is swapped for a "visuals tbd"
-	 * placeholder (dev always shows the real visual).
-	 * @type {{ state: import("$components/scrolly/states.js").VisualState, params?: Object, ready?: boolean, panel?: import("svelte").Snippet }[]}
+	 * active).
+	 * @type {{ state: import("$components/scrolly/states.js").VisualState, params?: Object, panel?: import("svelte").Snippet }[]}
 	 */
 	const stepConfigs = $state([]);
 
-	/** @type {{ register: (state: import("$components/scrolly/states.js").VisualState, params?: Object, ready?: boolean, panel?: import("svelte").Snippet) => number, current: number|undefined, advance: () => void }} */
+	/** @type {{ register: (state: import("$components/scrolly/states.js").VisualState, params?: Object, panel?: import("svelte").Snippet) => number, current: number|undefined, advance: () => void }} */
 	const scrollySteps = {
-		register: (state, params, ready, panel) =>
-			stepConfigs.push({ state, params, ready, panel }) - 1,
+		register: (state, params, panel) =>
+			stepConfigs.push({ state, params, panel }) - 1,
 		get current() {
 			return value;
 		},
@@ -68,11 +66,6 @@
 	};
 	setContext("scrolly-steps", scrollySteps);
 
-	// unfinished visuals show a placeholder in the deployed build only; local
-	// dev keeps rendering the real ScrollyVisual so they stay editable
-	const showTbd = $derived(
-		!import.meta.env.DEV && stepConfigs[value ?? 0]?.ready === false
-	);
 	const currentState = $derived(stepConfigs[value ?? 0]?.state);
 
 	onMount(() => {
@@ -123,11 +116,6 @@
 				<!-- the active step's over-canvas panel, if it declared one — the
 				     markup lives next to the <Step> that owns it -->
 				{@render stepConfigs[value ?? 0]?.panel?.()}
-				{#if showTbd}
-					<div class="visual-tbd">
-						<p>visuals tbd</p>
-					</div>
-				{/if}
 			</div>
 			<div class="scrolly-steps" bind:clientHeight={stepsHeight}>
 				<!-- shared over-canvas panels live here, NOT inside <Wizard> — a
@@ -335,7 +323,7 @@
 						</p>
 						<PredictToggles />
 					</Step>
-					<Step state="scatterGenZ" ready={false}>
+					<Step state="scatterGenZ">
 						<p>
 							Now, Samuel L. Jackson can't be the center forever. At some point,
 							someone must overtake him. Which Gen Z actor do we think is going
@@ -345,7 +333,7 @@
 							Bacon.
 						</p>
 					</Step>
-					<Step state="scatterGenZ" ready={false}>
+					<Step state="scatterGenZ">
 						<p>
 							Using all the data we have, we can model an actor's career by
 							looking at what has happened to actors with similar stats in the
@@ -371,7 +359,7 @@
 							top.
 						</p>
 					</Step>
-					<Step state="winBars" ready={false}>
+					<Step state="winBars">
 						<p>
 							Indeed, Chloë Grace Moretz wins in a quarter of simulations. She
 							doesn't exactly have a clear majority, despite already being
@@ -379,7 +367,7 @@
 						</p>
 						<BarPicker />
 					</Step>
-					<Step state="sljFan" ready={false}>
+					<Step state="sljFan">
 						<p>
 							On average, the winning score is 2.33, nowhere near SLJ's current
 							average distance. We're counting on SLJ's average distance getting
@@ -387,7 +375,7 @@
 							universe being spawned again.
 						</p>
 					</Step>
-					<Step state="sljFan" ready={false}>
+					<Step state="sljFan">
 						<p>
 							What I can tell you is that our first female center of hollywood
 							is very likely to happen next, with 77% of the wins going to
@@ -467,26 +455,6 @@
 		.rank-focus-text {
 			animation: none;
 		}
-	}
-
-	/* covers the in-progress ScrollyVisual for steps flagged not-ready in a
-	   production build (see showTbd) */
-	.visual-tbd {
-		position: absolute;
-		inset: 0;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		background: var(--color-bg);
-	}
-
-	.visual-tbd p {
-		margin: 0;
-		font-family: var(--font-mono);
-		font-size: 0.85rem;
-		text-transform: uppercase;
-		letter-spacing: 0.15em;
-		color: var(--color-gray-500, #888);
 	}
 
 	.scrolly-steps {
