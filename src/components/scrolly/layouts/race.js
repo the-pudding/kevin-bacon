@@ -141,7 +141,12 @@ export function writeRaceSweepFrame(
 	}
 }
 
-function raceLayout(windowYears, minEraYears, yCap = Infinity) {
+function raceLayout(
+	windowYears,
+	minEraYears,
+	yCap = Infinity,
+	showEraNotes = true
+) {
 	/** @type {import("../layout-shared.js").LayoutFn} */
 	return function layoutRace(nodes, w, h, _edges, params) {
 		const attrs = new Float64Array(ATTR_SIZE);
@@ -220,27 +225,29 @@ function raceLayout(windowYears, minEraYears, yCap = Infinity) {
 		// screens get only the longest reigns)
 		const notes = [];
 		const minEra = minEraYears * (w < 480 ? 2.5 : 1);
-		for (const era of story.eras) {
-			const start = yearOf(era.start);
-			const end = era.end ? yearOf(era.end) : year1;
-			if (end - start < minEra || start < year0 || start > year1) continue;
-			const node = rawNodes.nodes[era.id];
-			const series = clipped.get(era.id);
-			if (!series) continue;
-			const vAt = valueAt(series, Math.max(start, year0));
-			const nx = xS(Math.max(start, year0));
-			const text = `${node[1]} · ${Math.round(start)}`;
-			// centre-anchored notes clip when their anchor sits within half a label
-			// width of a plot edge (e.g. the SLJ·2006 handover near the left edge), so
-			// clamp the centre inward to keep the whole label inside the plot.
-			const hw = text.length * 3.4;
-			const cx = Math.min(Math.max(nx, xS(dom0) + hw), xS(dom1) - hw);
-			notes.push({
-				x: cx,
-				y: yS(vAt) - (notes.length % 2 === 0 ? 24 : 42),
-				align: /** @type {const} */ ("center"),
-				text
-			});
+		if (showEraNotes) {
+			for (const era of story.eras) {
+				const start = yearOf(era.start);
+				const end = era.end ? yearOf(era.end) : year1;
+				if (end - start < minEra || start < year0 || start > year1) continue;
+				const node = rawNodes.nodes[era.id];
+				const series = clipped.get(era.id);
+				if (!series) continue;
+				const vAt = valueAt(series, Math.max(start, year0));
+				const nx = xS(Math.max(start, year0));
+				const text = `${node[1]} · ${Math.round(start)}`;
+				// centre-anchored notes clip when their anchor sits within half a label
+				// width of a plot edge (e.g. the SLJ·2006 handover near the left edge), so
+				// clamp the centre inward to keep the whole label inside the plot.
+				const hw = text.length * 3.4;
+				const cx = Math.min(Math.max(nx, xS(dom0) + hw), xS(dom1) - hw);
+				notes.push({
+					x: cx,
+					y: yS(vAt) - (notes.length % 2 === 0 ? 24 : 42),
+					align: /** @type {const} */ ("center"),
+					text
+				});
+			}
 		}
 		// horizontal 4-digit year labels at the densest legible step that fits the
 		// plot width (~40px per label incl. gap): every year where it fits, coarser
@@ -304,7 +311,9 @@ const RACE_TRADES_YCAP = 2.25;
 
 export const states = {
 	raceRecent: {
-		layout: raceLayout(RACE_ENTRY_WINDOW, 3, RACE_RECENT_YCAP),
+		// no era-handover note here: SLJ is already named beside its dot (labels
+		// below), so a "Samuel L. Jackson · 2006" callout would just repeat it
+		layout: raceLayout(RACE_ENTRY_WINDOW, 3, RACE_RECENT_YCAP, false),
 		yCap: RACE_RECENT_YCAP,
 		labels: [SLJ],
 		// names sit in the reserved right gutter, beside the right-edge dots

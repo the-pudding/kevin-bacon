@@ -233,8 +233,12 @@
 	// scrub bookkeeping: `scrubActive` is true while the glide loop owns the rAF;
 	// `renderYear` is the *eased* playhead that chases story.scrubYear (the input
 	// target), so year changes glide instead of snapping. Persists across grabs so
-	// re-grabbing winds from where it was left.
-	let scrubActive = false;
+	// re-grabbing winds from where it was left. Reactive ($state) because the
+	// template also reads it to hide axis ticks/notes ONLY while the domain is
+	// actually panning live (scrub) — the entry sweep keeps a fixed domain, so its
+	// ticks/notes stay pixel-accurate throughout and don't need to hide (see the
+	// `!scrubActive` guard below).
+	let scrubActive = $state(false);
 	let renderYear = RACE_SCRUB_BOUNDS[1];
 
 	const overlay = $derived(OVERLAYS[stateName]);
@@ -635,11 +639,13 @@
 			{/if}
 		{/key}
 		{#key stateName}
-			<!-- ticks/notes are pixel-pinned to a fixed window; the sweep and scrub
-			     glide pan the domain per frame (both set `sweeping`), so hide them
-			     during motion and let them snap back on landing/hold (per-frame
-			     animated furniture is Stage 6) -->
-			{#if !sweeping}
+			<!-- ticks/notes are pixel-pinned to a fixed window; only the scrub glide
+			     actually pans the domain per frame, so hide them during a live scrub
+			     and let them snap back on release (per-frame animated furniture is
+			     Stage 6). The entry sweep keeps a fixed domain throughout (only the
+			     clip window grows), so its ticks/notes stay accurate and can stay
+			     visible the whole time. -->
+			{#if !scrubActive}
 				{#each decor?.axes?.x ?? [] as tick}
 					<p
 						class="tick tick-x fade-in"
