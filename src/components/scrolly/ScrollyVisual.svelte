@@ -117,19 +117,20 @@
 	});
 	// the one state whose arrival plays the draw-on entry (scoped by revealFrom)
 	const RACE_ENTRY_STATE = "raceRecent";
-	// scrub (Stage 5): the playhead pins to plot-centre — the clip window is the
-	// SCRUB_HALF years of history up to the playhead, and the domain is symmetric
-	// about it, so xS(playhead) lands mid-plot and dots move only vertically.
+	// scrub (Stage 5): the playhead pins to the plot's right edge, same as every
+	// other race state — the clip window and domain both span the SCRUB_HALF
+	// years of history up to the playhead, so xS(playhead) == right and the line
+	// always fills the full plot width instead of leaving a blank "future" half.
 	const SCRUB_HALF = 20;
 	const scrubFrame = (yr) => ({
 		year0: yr - SCRUB_HALF,
 		year1: yr,
 		dom0: yr - SCRUB_HALF,
-		dom1: yr + SCRUB_HALF
+		dom1: yr
 	});
 	const scrubView = (yr) => ({
 		window: [yr - SCRUB_HALF, yr],
-		domain: [yr - SCRUB_HALF, yr + SCRUB_HALF]
+		domain: [yr - SCRUB_HALF, yr]
 	});
 	// per-frame smoothing factor for the scrub glide: renderYear moves this
 	// fraction of the remaining distance to the target each frame (exponential
