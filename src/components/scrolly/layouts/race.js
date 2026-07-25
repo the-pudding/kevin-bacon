@@ -329,9 +329,28 @@ export const RACE_ENTRY_WINDOW = [2004, 2026.2];
 const RACE_RECENT_YCAP = 2.3;
 const RACE_TRADES_YCAP = 2.25;
 
-// the raceTrades window, exported so the rewind animator (ScrollyVisual) lands
-// its second sweep phase on a frame byte-identical to this static layout
-export const RACE_TRADES_WINDOW = [1998.5, 2007];
+// fixed width the whole two-leg rewind slides at (derived from raceRecent's
+// own entry window, so the slide starts with zero discontinuity from the
+// draw-on's frame): both edges of the window move together by the same
+// amount as the "current year" recedes, so dots actually travel through time
+// (their screen position is pinned to the window's right edge — see
+// writeRaceSweepFrame's dotYr) instead of sitting frozen while only the
+// trailing line extends, which is what happens if the two edges don't move
+// by the same amount (a zoom, not a slide).
+export const RACE_WINDOW_SPAN = RACE_ENTRY_WINDOW[1] - RACE_ENTRY_WINDOW[0];
+
+// waypoint year where raceRecent's own chained rewind (leg 1, played
+// automatically as part of its arrival) stops; raceTrades' own arrival then
+// plays leg 2, continuing the same slide on from here to its own resting
+// year — so the "camera moving back in time" motion is split visibly across
+// both steps instead of raceTrades being a no-op.
+export const RACE_REWIND_WAYPOINT_YEAR = 2007;
+
+// the raceTrades window: dots rest at 1994 (looking further into the past),
+// not looking back across 1994-2007 at once — exported so the rewind
+// animator (ScrollyVisual) lands its leg-2 sweep on a frame byte-identical to
+// this static layout
+export const RACE_TRADES_WINDOW = [1994 - RACE_WINDOW_SPAN, 1994];
 
 // shared y-fit for the raceRecent <-> raceTrades handoff: computed once over
 // the union of both states' windows and contenders, so the entry sweep,
@@ -394,17 +413,21 @@ export const states = {
 			RACE_HANDOFF_YFIT
 		),
 		yCap: RACE_TRADES_YCAP,
-		labels: [SLJ, HACKMAN, DENIRO, WELKER],
-		// Hackman + Welker end coincident at the right edge; the label
-		// de-collider keeps their names from stacking
+		// SLJ and Welker aren't within RACE_TRADES_YCAP at 1994 (they're not yet
+		// contenders this far back) and won't render here — only Hackman and De
+		// Niro need labeling
+		labels: [HACKMAN, DENIRO],
 		labelDirs: {
-			[SLJ]: "right",
 			[HACKMAN]: "right",
-			[DENIRO]: "right",
-			[WELKER]: "right"
+			[DENIRO]: "right"
 		},
 		overlay: OVERLAY,
-		params
+		params,
+		// rewind choreography: continue the fixed-width slide further back (from
+		// RACE_REWIND_WAYPOINT_YEAR, where raceRecent's own leg-1 slide stopped)
+		// when arriving from it — leg 2 of one continuous back-through-time
+		// motion split across both steps
+		revealFrom: ["raceRecent"]
 	},
 	raceFull: {
 		layout: raceLayout([1970, 2026.2], 4),

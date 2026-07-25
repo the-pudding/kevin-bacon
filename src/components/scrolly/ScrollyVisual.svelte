@@ -7,6 +7,8 @@
 	import {
 		writeRaceSweepFrame,
 		RACE_ENTRY_WINDOW,
+		RACE_WINDOW_SPAN,
+		RACE_REWIND_WAYPOINT_YEAR,
 		RACE_TRADES_WINDOW,
 		RACE_SCRUB_BOUNDS,
 		RACE_HANDOFF_YFIT
@@ -106,17 +108,29 @@
 		dom0: win[0],
 		dom1: win[1]
 	});
-	// rewind (phase 2, chained after the draw-on): pans+zooms window AND domain
-	// together from the entry window to raceTrades' own window, so e=1 lands
-	// byte-identical to raceTrades' static layout (window == domain there too).
-	const rewindFrame = (fromWin, toWin) => (e) => ({
-		year0: fromWin[0] + (toWin[0] - fromWin[0]) * e,
-		year1: fromWin[1] + (toWin[1] - fromWin[1]) * e,
-		dom0: fromWin[0] + (toWin[0] - fromWin[0]) * e,
-		dom1: fromWin[1] + (toWin[1] - fromWin[1]) * e
-	});
+	// rewind (chained after the draw-on, in two legs — see playRaceEntry/
+	// playRaceRewind): a fixed-width slide, both edges of the window moving
+	// together by the same amount as the right edge (the "current year") recedes
+	// from fromEdge to toEdge. A pure translation, not a zoom — each dot's screen
+	// position is pinned to the window's right edge (see writeRaceSweepFrame's
+	// dotYr), so this is what makes dots actually travel through time instead of
+	// sitting frozen while only the trailing line extends.
+	const rewindFrame = (fromEdge, toEdge, span) => (e) => {
+		const edge = fromEdge + (toEdge - fromEdge) * e;
+		return { year0: edge - span, year1: edge, dom0: edge - span, dom1: edge };
+	};
 	// the one state whose arrival plays the draw-on entry (scoped by revealFrom)
 	const RACE_ENTRY_STATE = "raceRecent";
+	// the one state whose arrival plays the rewind's second leg (scoped by
+	// revealFrom) — see playRaceEntry/playRaceRewind for the two-leg split
+	const RACE_REWIND_STATE = "raceTrades";
+	// true once raceRecent's own rewind leg (entry window's right edge ->
+	// RACE_REWIND_WAYPOINT_YEAR) has settled; gates the second leg so a reader
+	// who advances past raceRecent before that first leg finishes falls back to
+	// a plain crossfade instead of a second-leg slide that starts from a
+	// discontinuous frame (rewindFrame's start edge is fixed at the waypoint,
+	// not wherever an aborted first leg actually left off)
+	let raceRecentRewound = false;
 	// scrub (Stage 5): the playhead pins to the plot's right edge, same as every
 	// other race state — the clip window and domain both span the SCRUB_HALF
 	// years of history up to the playhead, so xS(playhead) == right and the line
@@ -320,7 +334,11 @@
 	// static race frame (window == domain == win). The render effect first tweens
 	// the buffers onto the empty e=0 frame (dots pinned at the present edge, lines
 	// undrawn), so this owns the rAF straight from there — no pre-roll. Skippable
-	// (a state change abandons the sweep) and reduced-motion safe.
+	// (a state change abandons the sweep) and reduced-motion safe. Once the
+	// draw-on settles, immediately (no pause) starts the rewind's first leg,
+	// sliding from the entry window's right edge down to RACE_REWIND_WAYPOINT_YEAR
+	// — so draw-on + first-leg rewind play as one continuous flourish while the
+	// reader is still on raceRecent's step.
 	function playRaceEntry(win) {
 		if (!width || !height) return;
 		const finalView = { window: win, domain: win };
@@ -343,37 +361,51 @@
 			() => {
 				sweeping = false;
 				story.raceView = finalView;
-				if (!reducedMotion) playRaceRewind();
+				if (!reducedMotion) {
+					playRaceRewind(
+						RACE_ENTRY_WINDOW[1],
+						RACE_REWIND_WAYPOINT_YEAR,
+						() => {
+							raceRecentRewound = true;
+						}
+					);
+				}
 			},
 			RACE_HANDOFF_YFIT
 		);
 	}
 
-	// Race-chapter phase 2: chained straight off the present-day draw-on
-	// (playRaceEntry's onDone, no pause between them), rewind the domain back
-	// to raceTrades' own window so the eventual Next → raceTrades state change
-	// lands on identical attrs (a no-op tween motion-wise — only decor/notes
-	// crossfade). Only ever triggered from there, so it inherits the same
-	// one-shot/revealFrom-gated, reduced-motion-safe semantics.
-	function playRaceRewind() {
+	// Race-chapter rewind, played in two legs so the "camera moving back in
+	// time" motion is visible across both raceRecent and raceTrades instead of
+	// happening all at once during raceRecent: leg 1 (chained off playRaceEntry's
+	// onDone) slides from the entry window's right edge down to
+	// RACE_REWIND_WAYPOINT_YEAR and stops; leg 2 (played on arrival at
+	// raceTrades, gated by raceRecentRewound so an interrupted leg 1 falls back
+	// to a plain crossfade instead — see raceRecentRewound's comment) continues
+	// the same slide on from there down to raceTrades' own resting year
+	// (RACE_TRADES_WINDOW[1]). Both legs use the same fixed RACE_WINDOW_SPAN, so
+	// the width never changes — a pure translation, not a zoom.
+	function playRaceRewind(fromEdge, toEdge, onSettled) {
 		if (!width || !height) return;
 		const finalView = {
-			window: RACE_TRADES_WINDOW,
-			domain: RACE_TRADES_WINDOW
+			window: [toEdge - RACE_WINDOW_SPAN, toEdge],
+			domain: [toEdge - RACE_WINDOW_SPAN, toEdge]
 		};
 		if (reducedMotion) {
 			story.raceView = finalView;
+			onSettled?.();
 			return;
 		}
 		sweeping = true;
 		domainPanning = true;
 		runSweepPhase(
-			rewindFrame(RACE_ENTRY_WINDOW, RACE_TRADES_WINDOW),
+			rewindFrame(fromEdge, toEdge, RACE_WINDOW_SPAN),
 			STATE_YCAP[RACE_ENTRY_STATE],
 			() => {
 				sweeping = false;
 				domainPanning = false;
 				story.raceView = finalView;
+				onSettled?.();
 			},
 			RACE_HANDOFF_YFIT
 		);
@@ -607,12 +639,25 @@
 		// animation — reduced motion/resize are handled by the branch below.
 		const raceEntry =
 			stateChange && playReveal && stateName === RACE_ENTRY_STATE;
+		// race-chapter arrival at raceTrades (forward, from raceRecent): play the
+		// rewind's second leg instead of a plain state tween — but only if
+		// raceRecent's own first leg actually finished (raceRecentRewound);
+		// otherwise fall through to the plain stateChange tween below (see
+		// raceRecentRewound's comment).
+		const raceRewindArrival =
+			stateChange &&
+			playReveal &&
+			stateName === RACE_REWIND_STATE &&
+			raceRecentRewound;
 		prevState = stateName;
 		prevParamsKey = paramsKey;
 		if (resized || reducedMotion) {
 			tweener.to(attrs, 0);
 			trailTweener.to(trailTarget, 0);
 		} else if (raceEntry) {
+			// a fresh entry sweep is starting, so any earlier "done" flag no longer
+			// applies until this one completes
+			raceRecentRewound = false;
 			// arrive onto the empty draw-on frame (15 dots pinned at the present
 			// edge, lines not yet drawn, crowd faded), then draw the lines on. The
 			// arrival tween's onDone fires playRaceEntry only if uninterrupted — a
@@ -636,6 +681,11 @@
 				playRaceEntry(RACE_ENTRY_WINDOW)
 			);
 			trailTweener.to(startTrails, TWEEN_MS, 0);
+		} else if (raceRewindArrival) {
+			// no seed frame needed — the rewind sweep recomputes attrs from scratch
+			// every frame via writeRaceSweepFrame, continuing smoothly from wherever
+			// raceRecent's first-leg rewind settled
+			playRaceRewind(RACE_REWIND_WAYPOINT_YEAR, RACE_TRADES_WINDOW[1]);
 		} else if (stateChange && STATE_SEED[stateName]) {
 			// seed frame: fade the prior visual out where it lies (alpha → 0, no
 			// movement), then once faded snap invisibly into the seed positions —
