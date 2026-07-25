@@ -56,6 +56,7 @@ export const RACE_SCRUB_BOUNDS = [
 
 // padded y-extent over [year0, year1] read off the curves (6% headroom so dots
 // riding near the extremes don't touch the plot edge — matches the reference)
+/** @returns {[number, number, number, number]} */
 function raceYFit(segsList, year0, year1) {
 	const [lo, hi] = curveYRange(segsList, year0, year1) ?? [0, 1];
 	const pad = (hi - lo) * 0.06 || 0.05;
@@ -122,6 +123,9 @@ function raceAxes(xS, yS, dom0, dom1, vLo, vHi, bottom) {
  * comes into view, snapping the y-scale mid-animation). The last frame's
  * [year0,year1] == [dom0,dom1], so this still lands on the exact same vMin/vMax
  * as raceLayout.
+ * @param {[number,number,number,number]} [fixedYFit] overrides the per-frame
+ * y-fit with a shared [vMin,vMax,vLo,vHi] so a sweep between two states whose
+ * static layouts share the same fixedYFit never snaps the axis mid-animation
  * @returns {{axes: {x: {pos:number,label:string}[], xBase:number, y: {pos:number,label:string}[]}}}
  * this frame's axis furniture, so the caller can keep the rendered ticks live
  * and accurate for the whole animation instead of frozen at the target state.
@@ -132,7 +136,8 @@ export function writeRaceSweepFrame(
 	w,
 	h,
 	frame,
-	yCap = Infinity
+	yCap = Infinity,
+	fixedYFit = null
 ) {
 	const { year0, year1, dom0, dom1 } = frame;
 	const segsList = [];
@@ -142,7 +147,7 @@ export function writeRaceSweepFrame(
 		if (Math.min(...c.map(([, v]) => v)) > yCap) continue;
 		segsList.push(RACE_SEGS.get(id));
 	}
-	const [vMin, vMax, vLo, vHi] = raceYFit(segsList, year0, year1);
+	const [vMin, vMax, vLo, vHi] = fixedYFit ?? raceYFit(segsList, year0, year1);
 	const { bottom, xS, yS } = raceScales(w, h, dom0, dom1, vMin, vMax);
 	for (const id of RACE_IDS) {
 		const rgb = raceRGB(id);
@@ -175,7 +180,8 @@ function raceLayout(
 	windowYears,
 	minEraYears,
 	yCap = Infinity,
-	showEraNotes = true
+	showEraNotes = true,
+	fixedYFit = null
 ) {
 	/** @type {import("../layout-shared.js").LayoutFn} */
 	return function layoutRace(nodes, w, h, _edges, params) {
@@ -197,9 +203,12 @@ function raceLayout(
 			clipped.set(id, c);
 		}
 		// y-fit off the (full-series) curves of the visible actors: vMin/vMax are
-		// padded (scale domain), vLo/vHi the raw data extent (for tick labels)
+		// padded (scale domain), vLo/vHi the raw data extent (for tick labels).
+		// A fixedYFit overrides this with a shared fit so a handoff between two
+		// states (e.g. raceRecent <-> raceTrades) never snaps the axis.
 		const segsList = [...clipped.keys()].map((id) => RACE_SEGS.get(id));
-		const [vMin, vMax, vLo, vHi] = raceYFit(segsList, year0, year1);
+		const [vMin, vMax, vLo, vHi] =
+			fixedYFit ?? raceYFit(segsList, year0, year1);
 		const { bottom, xS, yS } = raceScales(w, h, dom0, dom1, vMin, vMax);
 		const raceSet = new Set(clipped.keys());
 		for (const n of nodes) {
@@ -324,11 +333,42 @@ const RACE_TRADES_YCAP = 2.25;
 // its second sweep phase on a frame byte-identical to this static layout
 export const RACE_TRADES_WINDOW = [1998.5, 2007];
 
+// shared y-fit for the raceRecent <-> raceTrades handoff: computed once over
+// the union of both states' windows and contenders, so the entry sweep,
+// rewind sweep, and both static states all land on the exact same axis and
+// stepping between them (either direction) never snaps the y-scale.
+function raceHandoffContenders() {
+	const ids = new Set();
+	for (const [window, cap] of [
+		[RACE_ENTRY_WINDOW, RACE_RECENT_YCAP],
+		[RACE_TRADES_WINDOW, RACE_TRADES_YCAP]
+	]) {
+		for (const id of RACE_IDS) {
+			const c = clipSeries(story.raceSeries[id], window[0], window[1]);
+			if (!c) continue;
+			if (Math.min(...c.map(([, v]) => v)) > cap) continue;
+			ids.add(id);
+		}
+	}
+	return [...ids].map((id) => RACE_SEGS.get(id));
+}
+export const RACE_HANDOFF_YFIT = raceYFit(
+	raceHandoffContenders(),
+	Math.min(RACE_ENTRY_WINDOW[0], RACE_TRADES_WINDOW[0]),
+	Math.max(RACE_ENTRY_WINDOW[1], RACE_TRADES_WINDOW[1])
+);
+
 export const states = {
 	raceRecent: {
 		// no era-handover note here: the four contenders are already named beside
 		// their dots (labels below), so a callout would just repeat a name
-		layout: raceLayout(RACE_ENTRY_WINDOW, 3, RACE_RECENT_YCAP, false),
+		layout: raceLayout(
+			RACE_ENTRY_WINDOW,
+			3,
+			RACE_RECENT_YCAP,
+			false,
+			RACE_HANDOFF_YFIT
+		),
 		yCap: RACE_RECENT_YCAP,
 		labels: [SLJ, HACKMAN, DENIRO, WELKER],
 		// names sit in the reserved right gutter, beside the right-edge dots;
@@ -346,7 +386,13 @@ export const states = {
 		revealFrom: ["rankReveal"]
 	},
 	raceTrades: {
-		layout: raceLayout(RACE_TRADES_WINDOW, 0.4, RACE_TRADES_YCAP),
+		layout: raceLayout(
+			RACE_TRADES_WINDOW,
+			0.4,
+			RACE_TRADES_YCAP,
+			true,
+			RACE_HANDOFF_YFIT
+		),
 		yCap: RACE_TRADES_YCAP,
 		labels: [SLJ, HACKMAN, DENIRO, WELKER],
 		// Hackman + Welker end coincident at the right edge; the label

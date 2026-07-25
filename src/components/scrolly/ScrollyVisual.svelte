@@ -8,7 +8,8 @@
 		writeRaceSweepFrame,
 		RACE_ENTRY_WINDOW,
 		RACE_TRADES_WINDOW,
-		RACE_SCRUB_BOUNDS
+		RACE_SCRUB_BOUNDS,
+		RACE_HANDOFF_YFIT
 	} from "./layouts/race.js";
 	import {
 		ATTR_SIZE,
@@ -141,7 +142,7 @@
 		domainPanning = false;
 	}
 	// run one eased phase; map(e) → the frame window/domain; onDone chains the next
-	function runSweepPhase(map, yCap, onDone) {
+	function runSweepPhase(map, yCap, onDone, fixedYFit = null) {
 		const t0 = performance.now();
 		const step = (now) => {
 			const p = Math.min(1, (now - t0) / SWEEP_MS);
@@ -151,7 +152,8 @@
 				width,
 				height,
 				map(sweepEase(p)),
-				yCap
+				yCap,
+				fixedYFit
 			);
 			decor = { ...decor, axes };
 			drawScene();
@@ -334,11 +336,16 @@
 		tweener.stop();
 		trailTweener.stop();
 		sweeping = true;
-		runSweepPhase(entryFrame(win), STATE_YCAP[RACE_ENTRY_STATE], () => {
-			sweeping = false;
-			story.raceView = finalView;
-			if (!reducedMotion) playRaceRewind();
-		});
+		runSweepPhase(
+			entryFrame(win),
+			STATE_YCAP[RACE_ENTRY_STATE],
+			() => {
+				sweeping = false;
+				story.raceView = finalView;
+				if (!reducedMotion) playRaceRewind();
+			},
+			RACE_HANDOFF_YFIT
+		);
 	}
 
 	// Race-chapter phase 2: chained straight off the present-day draw-on
@@ -366,7 +373,8 @@
 				sweeping = false;
 				domainPanning = false;
 				story.raceView = finalView;
-			}
+			},
+			RACE_HANDOFF_YFIT
 		);
 	}
 
@@ -620,7 +628,8 @@
 				width,
 				height,
 				entryFrame(RACE_ENTRY_WINDOW)(0),
-				STATE_YCAP[RACE_ENTRY_STATE]
+				STATE_YCAP[RACE_ENTRY_STATE],
+				RACE_HANDOFF_YFIT
 			);
 			tweener.to(startAttrs, TWEEN_MS, TWEEN_JITTER, stateDelays, () =>
 				playRaceEntry(RACE_ENTRY_WINDOW)
