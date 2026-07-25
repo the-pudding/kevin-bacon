@@ -145,7 +145,7 @@
 		const t0 = performance.now();
 		const step = (now) => {
 			const p = Math.min(1, (now - t0) / SWEEP_MS);
-			writeRaceSweepFrame(
+			const { axes } = writeRaceSweepFrame(
 				tweener.current,
 				trailTweener.current,
 				width,
@@ -153,6 +153,7 @@
 				map(sweepEase(p)),
 				yCap
 			);
+			decor = { ...decor, axes };
 			drawScene();
 			if (p < 1) sweepRaf = requestAnimationFrame(step);
 			else onDone?.();
@@ -170,7 +171,7 @@
 		const diff = target - renderYear;
 		const caughtUp = Math.abs(diff) < 0.02;
 		renderYear = caughtUp ? target : renderYear + diff * k;
-		writeRaceSweepFrame(
+		const { axes } = writeRaceSweepFrame(
 			tweener.current,
 			trailTweener.current,
 			width,
@@ -178,6 +179,7 @@
 			scrubFrame(renderYear),
 			STATE_YCAP[stateName]
 		);
+		decor = { ...decor, axes };
 		drawScene();
 		if (story.scrubbing || !caughtUp) {
 			sweepRaf = requestAnimationFrame(scrubLoop);
@@ -608,6 +610,10 @@
 			// superseding tween (Next mid-flight) drops it (see tween.js `to`).
 			const startAttrs = attrs.slice();
 			const startTrails = trailTarget.slice();
+			// axes for this seed frame aren't written into decor here — the very
+			// first rAF tick of playRaceEntry's sweep does that (outside this
+			// effect), moments later; doing it here too would make this effect
+			// read (via decor's spread) the same decor it's reactively driven by.
 			writeRaceSweepFrame(
 				startAttrs,
 				startTrails,
@@ -715,28 +721,27 @@
 			{/if}
 		{/key}
 		{#key stateName}
-			<!-- ticks/notes are pixel-pinned to a fixed window; only the scrub glide
-			     actually pans the domain per frame, so hide them during a live scrub
-			     and let them snap back on release (per-frame animated furniture is
-			     Stage 6). The entry sweep keeps a fixed domain throughout (only the
-			     clip window grows), so its ticks/notes stay accurate and can stay
-			     visible the whole time. -->
+			<!-- axes are recomputed every frame during the race sweep/scrub
+			     animations (see writeRaceSweepFrame), so they stay pixel-accurate
+			     throughout and don't need to hide. Notes (era-handover callouts) have
+			     no per-frame equivalent, so they still hide during a live scrub/pan
+			     and snap back in once it settles. -->
+			{#each decor?.axes?.x ?? [] as tick}
+				<p
+					class="tick tick-x fade-in"
+					style="left: {tick.pos}px; {decor.axes.xBase != null
+						? `top: ${decor.axes.xBase}px`
+						: ''}"
+				>
+					{tick.label}
+				</p>
+			{/each}
+			{#each decor?.axes?.y ?? [] as tick}
+				<p class="tick tick-y fade-in" style="top: {tick.pos}px">
+					{tick.label}
+				</p>
+			{/each}
 			{#if !domainPanning}
-				{#each decor?.axes?.x ?? [] as tick}
-					<p
-						class="tick tick-x fade-in"
-						style="left: {tick.pos}px; {decor.axes.xBase != null
-							? `top: ${decor.axes.xBase}px`
-							: ''}"
-					>
-						{tick.label}
-					</p>
-				{/each}
-				{#each decor?.axes?.y ?? [] as tick}
-					<p class="tick tick-y fade-in" style="top: {tick.pos}px">
-						{tick.label}
-					</p>
-				{/each}
 				{#each decor?.notes ?? [] as note}
 					<p
 						class="note fade-in {note.align ?? 'left'}"

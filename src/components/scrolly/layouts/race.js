@@ -80,6 +80,32 @@ function raceScales(w, h, dom0, dom1, vMin, vMax) {
 	};
 }
 
+// x (year) + y (avg distance) tick furniture for one frame's scales — shared
+// by the static layout and the per-frame sweep/scrub writers so animated axes
+// read off the exact same rule as the static end-states.
+function raceAxes(xS, yS, dom0, dom1, vLo, vHi, bottom) {
+	// horizontal 4-digit year labels at the densest legible step that fits the
+	// plot width (~40px per label incl. gap): every year where it fits, coarser
+	// on wide spans. (Showing *every* year on the full span needs a wider-than-
+	// screen scrollable axis — deferred; the scrubber explores the full range.)
+	const plotW = xS(dom1) - xS(dom0);
+	const maxLabels = Math.max(2, Math.floor(plotW / 32));
+	const span = dom1 - dom0;
+	const step =
+		[1, 2, 5, 10, 25, 50].find((s) => span / s + 1 <= maxLabels) ?? 100;
+	const x = [];
+	for (let yr = Math.ceil(dom0 / step) * step; yr <= dom1; yr += step) {
+		x.push({ pos: xS(yr), label: String(yr) });
+	}
+	// ticks label the raw data extent (not the padded scale domain) so the
+	// numbers read as real values and sit just inside the plot
+	const y = Array.from({ length: 5 }, (_, i) => {
+		const v = vLo + ((vHi - vLo) * i) / 4;
+		return { pos: yS(v), label: v.toFixed(2) };
+	});
+	return { x, xBase: bottom + 10, y };
+}
+
 /**
  * Writes ONLY the ~15 race dot slots + 15 race trail slots for one sweep frame,
  * directly into the live Float32 tweener buffers (no allocation, crowd/other
@@ -96,6 +122,9 @@ function raceScales(w, h, dom0, dom1, vMin, vMax) {
  * comes into view, snapping the y-scale mid-animation). The last frame's
  * [year0,year1] == [dom0,dom1], so this still lands on the exact same vMin/vMax
  * as raceLayout.
+ * @returns {{axes: {x: {pos:number,label:string}[], xBase:number, y: {pos:number,label:string}[]}}}
+ * this frame's axis furniture, so the caller can keep the rendered ticks live
+ * and accurate for the whole animation instead of frozen at the target state.
  */
 export function writeRaceSweepFrame(
 	attrsBuf,
@@ -113,8 +142,8 @@ export function writeRaceSweepFrame(
 		if (Math.min(...c.map(([, v]) => v)) > yCap) continue;
 		segsList.push(RACE_SEGS.get(id));
 	}
-	const [vMin, vMax] = raceYFit(segsList, year0, year1);
-	const { xS, yS } = raceScales(w, h, dom0, dom1, vMin, vMax);
+	const [vMin, vMax, vLo, vHi] = raceYFit(segsList, year0, year1);
+	const { bottom, xS, yS } = raceScales(w, h, dom0, dom1, vMin, vMax);
 	for (const id of RACE_IDS) {
 		const rgb = raceRGB(id);
 		const major = rgb !== CROWD;
@@ -139,6 +168,7 @@ export function writeRaceSweepFrame(
 			collapseTrail(trailBuf, slot, dx, dy, major ? 0.8 : 0.35);
 		}
 	}
+	return { axes: raceAxes(xS, yS, dom0, dom1, vLo, vHi, bottom) };
 }
 
 function raceLayout(
@@ -249,31 +279,12 @@ function raceLayout(
 				});
 			}
 		}
-		// horizontal 4-digit year labels at the densest legible step that fits the
-		// plot width (~40px per label incl. gap): every year where it fits, coarser
-		// on wide spans. (Showing *every* year on the full span needs a wider-than-
-		// screen scrollable axis — deferred; the scrubber explores the full range.)
-		const plotW = xS(dom1) - xS(dom0);
-		const maxLabels = Math.max(2, Math.floor(plotW / 32));
-		const span = dom1 - dom0;
-		const step =
-			[1, 2, 5, 10, 25, 50].find((s) => span / s + 1 <= maxLabels) ?? 100;
-		const ticks = [];
-		for (let yr = Math.ceil(dom0 / step) * step; yr <= dom1; yr += step) {
-			ticks.push({ pos: xS(yr), label: String(yr) });
-		}
-		// ticks label the raw data extent (not the padded scale domain) so the
-		// numbers read as real values and sit just inside the plot
-		const yTicks = Array.from({ length: 5 }, (_, i) => {
-			const v = vLo + ((vHi - vLo) * i) / 4;
-			return { pos: yS(v), label: v.toFixed(2) };
-		});
 		return {
 			attrs,
 			trails,
 			trailDelays,
 			notes,
-			axes: { x: ticks, xBase: bottom + 10, y: yTicks }
+			axes: raceAxes(xS, yS, dom0, dom1, vLo, vHi, bottom)
 		};
 	};
 }
