@@ -111,6 +111,37 @@ export const STATE_YCAP = pick("yCap");
 export const STATE_REVEAL_FROM = pick("revealFrom");
 
 /**
+ * Per-state entry choreography: an animation the state plays on arrival instead
+ * of a plain tween. `phases` lists each leg's duration in ms; `frames` builds a
+ * writer for the current canvas (mirroring LayoutFn's signature) that stamps the
+ * slots it animates straight into the live buffers for one eased leg.
+ *
+ * Two contracts keep the joins invisible. The last leg at e=1 must be
+ * byte-identical to the static layout, so the settle has nothing to move. And
+ * leg 0 at e=0 doubles as the seed frame the arrival tween lands on, so
+ * everything the choreography is about to draw must be fully transparent there
+ * — the tween morphs whatever the buffers already hold into the seed, and a
+ * slot left visible makes the reader watch stale geometry (this state's own
+ * lines, left behind by an earlier visit) animate away before it has ever been
+ * drawn.
+ *
+ * Scoped by STATE_REVEAL_FROM like any other reveal. See ScrollyVisual's
+ * playEntry.
+ * `labelsAfter` optionally holds the names back: entry i lists the ids whose
+ * labels appear once leg i finishes, so a name lands with the mark that earns
+ * it instead of captioning a dot mid-flight. Declaring it hides every one of
+ * the state's labels until its leg lands, including through the arrival tween.
+ *
+ * @typedef {Object} EntryAnim
+ * @property {number[]} phases
+ * @property {number[][]} [labelsAfter]
+ * @property {(nodes: import("./nodes.js").ActorNode[], w: number, h: number, params?: Object) =>
+ *   (attrs: Float64Array, trails: Float64Array, phase: number, e: number) => void} frames
+ * @type {Partial<Record<LayoutState, EntryAnim>>}
+ */
+export const STATE_ENTRY = pick("entry");
+
+/**
  * Empty seed frames: states that pre-position every node (invisible) where the
  * next visual wants it. ScrollyVisual fades the prior visual out *in place*
  * first, then snaps into this frame while invisible — so no dot is seen changing

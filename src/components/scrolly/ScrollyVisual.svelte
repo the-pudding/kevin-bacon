@@ -27,6 +27,7 @@
 		STATE_YCAP,
 		STATE_PARAMS,
 		STATE_REVEAL_FROM,
+		STATE_ENTRY,
 		STATE_SEED,
 		STATE_TRACKED,
 		TRAIL_SIZE,
@@ -178,30 +179,41 @@
 		sweepRaf = 0;
 		domainPanning = false;
 	}
-	// run one eased phase; map(e) → the frame window/domain; onDone chains the
-	// next; cast ({from, to} contender Sets) fades membership changes over the
-	// phase (see castAlpha)
-	function runSweepPhase(map, yCap, onDone, fixedYFit = null, cast = null) {
+	// the rAF spine every entry choreography rides: run `frame(eased)` for `ms`,
+	// repaint each tick, then chain `onDone`. Owns sweepRaf, so stopSweep()
+	// abandons whatever phase is in flight.
+	function runPhase(ms, frame, onDone) {
 		const t0 = performance.now();
 		const step = (now) => {
-			const p = Math.min(1, (now - t0) / SWEEP_MS);
-			const e = sweepEase(p);
-			const { axes } = writeRaceSweepFrame(
-				tweener.current,
-				trailTweener.current,
-				width,
-				height,
-				map(e),
-				yCap,
-				fixedYFit,
-				castAlpha(cast, e)
-			);
-			decor = { ...decor, axes };
+			const p = Math.min(1, (now - t0) / ms);
+			frame(sweepEase(p));
 			drawScene();
 			if (p < 1) sweepRaf = requestAnimationFrame(step);
 			else onDone?.();
 		};
 		sweepRaf = requestAnimationFrame(step);
+	}
+	// run one eased race phase; map(e) → the frame window/domain; onDone chains
+	// the next; cast ({from, to} contender Sets) fades membership changes over the
+	// phase (see castAlpha)
+	function runSweepPhase(map, yCap, onDone, fixedYFit = null, cast = null) {
+		runPhase(
+			SWEEP_MS,
+			(e) => {
+				const { axes } = writeRaceSweepFrame(
+					tweener.current,
+					trailTweener.current,
+					width,
+					height,
+					map(e),
+					yCap,
+					fixedYFit,
+					castAlpha(cast, e)
+				);
+				decor = { ...decor, axes };
+			},
+			onDone
+		);
 	}
 	// scrub glide (Stage 5): one rAF loop that eases `renderYear` toward the input
 	// target (story.scrubYear) and writes the pinned-centre frame each tick, so a
@@ -280,7 +292,7 @@
 	// true while the race path animator owns the rAF (see playRaceEntry); the
 	// render effect steps aside and the panning-domain axis furniture hides
 	let sweeping = $state(false);
-	/** @type {{ id: number, name: string, x: number, y: number, r: number, alpha: number, labelOffset: number }[]} */
+	/** @type {{ id: number, name: string, x: number, y: number, r: number, alpha: number, labelAlpha: number, labelOffset: number }[]} */
 	let tracked = $state([]);
 	// static per-state chart furniture (ticks/callouts/legend) from the layout result
 	/** @type {{ axes?: { x?: {pos:number,label:string}[], y?: {pos:number,label:string}[], xBase?: number, yBase?: number }, notes?: import("./states.js").Note[], legend?: import("./layout-shared.js").LegendItem[], legendY?: number } | null} */
@@ -303,6 +315,14 @@
 	// it was left.
 	let domainPanning = $state(false);
 	let renderYear = RACE_SCRUB_BOUNDS[1];
+	// While an entry choreography is playing, the set of ids whose names have
+	// been introduced so far (see EntryAnim.labelsAfter); null = no gate, every
+	// labelled id shows. Deliberately NOT $state: drawScene folds it into
+	// `tracked` (which is reassigned every frame and is what the template reads),
+	// so the labels stay reactive without the render effect depending on state it
+	// also writes. The CSS opacity transition on .node-label does the fade.
+	/** @type {Set<number> | null} */
+	let entryLabels = null;
 
 	const overlay = $derived(OVERLAYS[stateName]);
 	// what the active layout actually varies on: the state's selector plucks
@@ -455,6 +475,41 @@
 		);
 	}
 
+	// Generic entry choreography (STATE_ENTRY): play the state's legs back to
+	// back, each writing its animated slots straight into the live buffers, then
+	// settle onto the static layout. Same shape as the race animators above —
+	// single-writer discipline (stop the tweeners first, `sweeping` makes the
+	// render effect step aside), skippable (a state change calls stopSweep), and
+	// bypassed entirely under reduced motion by the effect's snap branch. The
+	// final leg is authored to land on the static frame, so the settle is a
+	// zero-duration retarget with nothing to move.
+	function playEntry(anim, write, finalAttrs, finalTrails) {
+		if (!width || !height) return;
+		tweener.stop();
+		trailTweener.stop();
+		sweeping = true;
+		const runLeg = (i) => {
+			if (i >= anim.phases.length) {
+				sweeping = false;
+				entryLabels = null;
+				tweener.to(finalAttrs, 0);
+				trailTweener.to(finalTrails, 0);
+				return;
+			}
+			runPhase(
+				anim.phases[i],
+				(e) => write(tweener.current, trailTweener.current, i, e),
+				() => {
+					// the actors this leg was about are now on the chart, so their
+					// names land with it (see EntryAnim.labelsAfter)
+					for (const id of anim.labelsAfter?.[i] ?? []) entryLabels.add(id);
+					runLeg(i + 1);
+				}
+			);
+		};
+		runLeg(0);
+	}
+
 	function drawScene() {
 		if (!ctx) return;
 		const attrs = tweener.current;
@@ -535,12 +590,18 @@
 			y: attrs[id * STRIDE + 1],
 			r: attrs[id * STRIDE + 2],
 			alpha: attrs[id * STRIDE + 6],
+			// a name rides its dot's alpha, except while an entry choreography is
+			// holding it back until the leg that introduces the actor has finished
+			labelAlpha:
+				labelIds.has(id) && (!entryLabels || entryLabels.has(id))
+					? attrs[id * STRIDE + 6]
+					: 0,
 			labelOffset: 0
 		}));
 		// only beside-dot labels ("left"/"right") stack vertically — below-dot
 		// labels are already x-separated by their own dot, so they're excluded
 		const besideDot = nextTracked.filter(
-			(t) => labelIds.has(t.id) && labelDirs[t.id] != null
+			(t) => t.labelAlpha > 0 && labelDirs[t.id] != null
 		);
 		if (besideDot.length > 1) {
 			const shownOffset = decollideLabels(besideDot, LABEL_LINE_GAP_PX);
@@ -555,7 +616,7 @@
 					const dir = labelDirs[t.id];
 					const gap = 4;
 					const lx = dir === "right" ? t.x + t.r + gap : t.x - t.r - gap;
-					ctx.strokeStyle = `rgba(${attrs[i + 3]}, ${attrs[i + 4]}, ${attrs[i + 5]}, ${t.alpha * 0.4})`;
+					ctx.strokeStyle = `rgba(${attrs[i + 3]}, ${attrs[i + 4]}, ${attrs[i + 5]}, ${t.labelAlpha * 0.4})`;
 					ctx.beginPath();
 					ctx.moveTo(t.x + (dir === "right" ? t.r : -t.r), t.y);
 					ctx.lineTo(lx, t.y + offset);
@@ -693,6 +754,15 @@
 			playReveal &&
 			stateName === RACE_REWIND_STATE &&
 			raceRecentRewound;
+		// any other state that declares an entry choreography (STATE_ENTRY),
+		// played on a forward arrival from a revealFrom origin
+		const entryAnim =
+			stateChange && playReveal ? STATE_ENTRY[stateName] : undefined;
+		// drop any gate a previous choreography left behind — an arrival tween
+		// superseded before its onDone fired never reaches playEntry's settle, and
+		// a stale gate would hide the new state's names for good. Re-armed below
+		// only if this arrival actually plays an entry.
+		entryLabels = null;
 		prevState = stateName;
 		prevParamsKey = paramsKey;
 		if (resized || reducedMotion) {
@@ -736,6 +806,21 @@
 				RACE_TRADES_WINDOW[1],
 				STATE_YCAP[RACE_REWIND_STATE]
 			);
+		} else if (entryAnim) {
+			// arrive onto the choreography's own frame 0 (its animated slots stamped
+			// over the static layout), then hand the rAF to playEntry. Like the race
+			// entry, the arrival tween's onDone only fires if uninterrupted, so a
+			// reader who hits Next mid-flight skips the choreography.
+			// no name is on the chart yet; each leg introduces its own as it lands
+			if (entryAnim.labelsAfter) entryLabels = new Set();
+			const write = entryAnim.frames(nodes, width, height, layoutParams);
+			const startAttrs = attrs.slice();
+			const startTrails = trailTarget.slice();
+			write(startAttrs, startTrails, 0, 0);
+			tweener.to(startAttrs, TWEEN_MS, TWEEN_JITTER, stateDelays, () =>
+				playEntry(entryAnim, write, attrs, trailTarget)
+			);
+			trailTweener.to(startTrails, TWEEN_MS, 0);
 		} else if (stateChange && STATE_SEED[stateName]) {
 			// seed frame: fade the prior visual out where it lies (alpha → 0, no
 			// movement), then once faded snap invisibly into the seed positions —
@@ -806,9 +891,7 @@
 							}, ${t.y + t.r + 4}px)`}
 			<p
 				class="node-label"
-				style="transform: {transform}; opacity: {labelIds.has(t.id)
-					? t.alpha
-					: 0}"
+				style="transform: {transform}; opacity: {t.labelAlpha}"
 			>
 				{t.name}
 			</p>
