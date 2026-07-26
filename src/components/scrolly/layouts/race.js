@@ -47,6 +47,22 @@ const RACE_RANGE = new Map(
 	})
 );
 
+// the race actors who count as contenders over [year0, year1]: their clipped
+// series must exist and dip to (or below) yCap. This is the one membership
+// rule — the static layouts, the handoff y-fit, and the sweep casts all read
+// it, so an animation's final frame always shows exactly the same actors as
+// the static state it settles onto.
+export function raceContenders(year0, year1, yCap) {
+	const ids = new Set();
+	for (const id of RACE_IDS) {
+		const c = clipSeries(story.raceSeries[id], year0, year1);
+		if (!c) continue;
+		if (Math.min(...c.map(([, v]) => v)) > yCap) continue;
+		ids.add(id);
+	}
+	return ids;
+}
+
 // [earliest, latest] year across all race actors — the scrub slider's min/max
 // playhead bounds (Stage 5)
 export const RACE_SCRUB_BOUNDS = [
@@ -110,8 +126,8 @@ function raceAxes(xS, yS, dom0, dom1, vLo, vHi, bottom) {
 /**
  * Writes ONLY the ~15 race dot slots + 15 race trail slots for one sweep frame,
  * directly into the live Float32 tweener buffers (no allocation, crowd/other
- * trails left untouched). All actors stay visible and ride their curves; a dot
- * whose window edge runs past its data clamps to the curve endpoint.
+ * trails left untouched). Actors ride their curves; a dot whose window edge
+ * runs past its data clamps to the curve endpoint.
  * @param {Float32Array|Float64Array} attrsBuf live dot buffer (or a scratch clone)
  * @param {Float32Array|Float64Array} trailBuf live trail buffer (or a scratch clone)
  * @param {{year0:number,year1:number,dom0:number,dom1:number}} frame
@@ -126,6 +142,11 @@ function raceAxes(xS, yS, dom0, dom1, vLo, vHi, bottom) {
  * @param {[number,number,number,number]} [fixedYFit] overrides the per-frame
  * y-fit with a shared [vMin,vMax,vLo,vHi] so a sweep between two states whose
  * static layouts share the same fixedYFit never snaps the axis mid-animation
+ * @param {(id: number) => number} [alphaOf] per-actor alpha multiplier (0–1)
+ * for this frame — the sweep animators use it to fade actors who leave (or
+ * join) the contender cast over the phase, so the final frame's visibility
+ * matches the static state it settles onto instead of everyone popping at the
+ * settle. Omitted → every actor at full strength.
  * @returns {{axes: {x: {pos:number,label:string}[], xBase:number, y: {pos:number,label:string}[]}}}
  * this frame's axis furniture, so the caller can keep the rendered ticks live
  * and accurate for the whole animation instead of frozen at the target state.
@@ -137,7 +158,8 @@ export function writeRaceSweepFrame(
 	h,
 	frame,
 	yCap = Infinity,
-	fixedYFit = null
+	fixedYFit = null,
+	alphaOf = null
 ) {
 	const { year0, year1, dom0, dom1 } = frame;
 	const segsList = [];
@@ -152,6 +174,7 @@ export function writeRaceSweepFrame(
 	for (const id of RACE_IDS) {
 		const rgb = raceRGB(id);
 		const major = rgb !== CROWD;
+		const m = alphaOf ? alphaOf(id) : 1;
 		const segs = RACE_SEGS.get(id);
 		const slot = RACE_SLOT.get(id);
 		const [ds, de] = RACE_RANGE.get(id);
@@ -165,12 +188,21 @@ export function writeRaceSweepFrame(
 		const dotYr = Math.min(Math.max(year1, ds), de);
 		const dx = xS(dotYr);
 		const dy = yS(curveYAt(segs, dotYr));
-		set(attrsBuf, id, dx, dy, major ? 5 : 3, rgb, major ? 1 : 0.55);
+		set(attrsBuf, id, dx, dy, major ? 5 : 3, rgb, (major ? 1 : 0.55) * m);
 		if (sx1 > sx0) {
-			sampleTrail(trailBuf, slot, segs, sx0, sx1, xS, yS, major ? 0.8 : 0.35);
+			sampleTrail(
+				trailBuf,
+				slot,
+				segs,
+				sx0,
+				sx1,
+				xS,
+				yS,
+				(major ? 0.8 : 0.35) * m
+			);
 		} else {
 			// window sits entirely outside this actor's data → no line, park on dot
-			collapseTrail(trailBuf, slot, dx, dy, major ? 0.8 : 0.35);
+			collapseTrail(trailBuf, slot, dx, dy, (major ? 0.8 : 0.35) * m);
 		}
 	}
 	return { axes: raceAxes(xS, yS, dom0, dom1, vLo, vHi, bottom) };
@@ -362,12 +394,7 @@ function raceHandoffContenders() {
 		[RACE_ENTRY_WINDOW, RACE_RECENT_YCAP],
 		[RACE_TRADES_WINDOW, RACE_TRADES_YCAP]
 	]) {
-		for (const id of RACE_IDS) {
-			const c = clipSeries(story.raceSeries[id], window[0], window[1]);
-			if (!c) continue;
-			if (Math.min(...c.map(([, v]) => v)) > cap) continue;
-			ids.add(id);
-		}
+		for (const id of raceContenders(window[0], window[1], cap)) ids.add(id);
 	}
 	return [...ids].map((id) => RACE_SEGS.get(id));
 }

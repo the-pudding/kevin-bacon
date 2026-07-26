@@ -6,6 +6,7 @@
 	import { createLabelDecollider } from "./label-decollide.js";
 	import {
 		writeRaceSweepFrame,
+		raceContenders,
 		RACE_ENTRY_WINDOW,
 		RACE_WINDOW_SPAN,
 		RACE_REWIND_WAYPOINT_YEAR,
@@ -121,6 +122,27 @@
 	};
 	// the one state whose arrival plays the draw-on entry (scoped by revealFrom)
 	const RACE_ENTRY_STATE = "raceRecent";
+	// contender cast at the entry window — what the draw-on shows from its first
+	// frame, so nobody who fails raceRecent's yCap ever appears just to vanish
+	const RACE_ENTRY_CONTENDERS = raceContenders(
+		RACE_ENTRY_WINDOW[0],
+		RACE_ENTRY_WINDOW[1],
+		STATE_YCAP[RACE_ENTRY_STATE]
+	);
+	// per-frame cast alpha for one sweep phase: actors joining the landing set
+	// fade in over the phase, actors leaving fade out, everyone else rides at
+	// full strength — so contender-membership changes glide across the phase
+	// instead of popping when the settle layout's yCap filter kicks in
+	const castAlpha = (cast, e) =>
+		cast &&
+		((id) =>
+			cast.to.has(id)
+				? cast.from.has(id)
+					? 1
+					: e
+				: cast.from.has(id)
+					? 1 - e
+					: 0);
 	// the one state whose arrival plays the rewind's second leg (scoped by
 	// revealFrom) — see playRaceEntry/playRaceRewind for the two-leg split
 	const RACE_REWIND_STATE = "raceTrades";
@@ -156,19 +178,23 @@
 		sweepRaf = 0;
 		domainPanning = false;
 	}
-	// run one eased phase; map(e) → the frame window/domain; onDone chains the next
-	function runSweepPhase(map, yCap, onDone, fixedYFit = null) {
+	// run one eased phase; map(e) → the frame window/domain; onDone chains the
+	// next; cast ({from, to} contender Sets) fades membership changes over the
+	// phase (see castAlpha)
+	function runSweepPhase(map, yCap, onDone, fixedYFit = null, cast = null) {
 		const t0 = performance.now();
 		const step = (now) => {
 			const p = Math.min(1, (now - t0) / SWEEP_MS);
+			const e = sweepEase(p);
 			const { axes } = writeRaceSweepFrame(
 				tweener.current,
 				trailTweener.current,
 				width,
 				height,
-				map(sweepEase(p)),
+				map(e),
 				yCap,
-				fixedYFit
+				fixedYFit,
+				castAlpha(cast, e)
 			);
 			decor = { ...decor, axes };
 			drawScene();
@@ -350,8 +376,9 @@
 		}
 		// single-writer discipline: stop the generic writers before the sweep owns
 		// the rAF; on completion pin the chart via raceView, which triggers one
-		// param-tween settle — the target state's yCap now filters non-contenders,
-		// so they fade out over that tween (the sweep itself shows all 15).
+		// param-tween settle. The sweep casts only the entry-window contenders
+		// (RACE_ENTRY_CONTENDERS), so its frames always agree with the yCap-
+		// filtered static layouts and nobody pops out at the settle.
 		tweener.stop();
 		trailTweener.stop();
 		sweeping = true;
@@ -365,13 +392,15 @@
 					playRaceRewind(
 						RACE_ENTRY_WINDOW[1],
 						RACE_REWIND_WAYPOINT_YEAR,
+						STATE_YCAP[RACE_ENTRY_STATE],
 						() => {
 							raceRecentRewound = true;
 						}
 					);
 				}
 			},
-			RACE_HANDOFF_YFIT
+			RACE_HANDOFF_YFIT,
+			{ from: RACE_ENTRY_CONTENDERS, to: RACE_ENTRY_CONTENDERS }
 		);
 	}
 
@@ -384,8 +413,12 @@
 	// to a plain crossfade instead — see raceRecentRewound's comment) continues
 	// the same slide on from there down to raceTrades' own resting year
 	// (RACE_TRADES_WINDOW[1]). Both legs use the same fixed RACE_WINDOW_SPAN, so
-	// the width never changes — a pure translation, not a zoom.
-	function playRaceRewind(fromEdge, toEdge, onSettled) {
+	// the width never changes — a pure translation, not a zoom. `toCap` is the
+	// landing state's yCap (raceRecent's for leg 1, raceTrades' for leg 2): the
+	// leg fades out actors who stop being contenders at the destination window
+	// (and fades in any who start), so the last frame matches the yCap-filtered
+	// static settle exactly instead of dropping them in one pop.
+	function playRaceRewind(fromEdge, toEdge, toCap, onSettled) {
 		if (!width || !height) return;
 		const finalView = {
 			window: [toEdge - RACE_WINDOW_SPAN, toEdge],
@@ -396,6 +429,16 @@
 			onSettled?.();
 			return;
 		}
+		// both legs start from a frame resting under raceRecent's cap (leg 1 from
+		// the entry draw-on, leg 2 from raceRecent settled at the waypoint)
+		const cast = {
+			from: raceContenders(
+				fromEdge - RACE_WINDOW_SPAN,
+				fromEdge,
+				STATE_YCAP[RACE_ENTRY_STATE]
+			),
+			to: raceContenders(toEdge - RACE_WINDOW_SPAN, toEdge, toCap)
+		};
 		sweeping = true;
 		domainPanning = true;
 		runSweepPhase(
@@ -407,7 +450,8 @@
 				story.raceView = finalView;
 				onSettled?.();
 			},
-			RACE_HANDOFF_YFIT
+			RACE_HANDOFF_YFIT,
+			cast
 		);
 	}
 
@@ -658,8 +702,9 @@
 			// a fresh entry sweep is starting, so any earlier "done" flag no longer
 			// applies until this one completes
 			raceRecentRewound = false;
-			// arrive onto the empty draw-on frame (15 dots pinned at the present
-			// edge, lines not yet drawn, crowd faded), then draw the lines on. The
+			// arrive onto the empty draw-on frame (the entry-window contenders
+			// pinned at the present edge, lines not yet drawn), then draw the
+			// lines on. The
 			// arrival tween's onDone fires playRaceEntry only if uninterrupted — a
 			// superseding tween (Next mid-flight) drops it (see tween.js `to`).
 			const startAttrs = attrs.slice();
@@ -675,7 +720,8 @@
 				height,
 				entryFrame(RACE_ENTRY_WINDOW)(0),
 				STATE_YCAP[RACE_ENTRY_STATE],
-				RACE_HANDOFF_YFIT
+				RACE_HANDOFF_YFIT,
+				castAlpha({ from: RACE_ENTRY_CONTENDERS, to: RACE_ENTRY_CONTENDERS }, 0)
 			);
 			tweener.to(startAttrs, TWEEN_MS, TWEEN_JITTER, stateDelays, () =>
 				playRaceEntry(RACE_ENTRY_WINDOW)
@@ -685,7 +731,11 @@
 			// no seed frame needed — the rewind sweep recomputes attrs from scratch
 			// every frame via writeRaceSweepFrame, continuing smoothly from wherever
 			// raceRecent's first-leg rewind settled
-			playRaceRewind(RACE_REWIND_WAYPOINT_YEAR, RACE_TRADES_WINDOW[1]);
+			playRaceRewind(
+				RACE_REWIND_WAYPOINT_YEAR,
+				RACE_TRADES_WINDOW[1],
+				STATE_YCAP[RACE_REWIND_STATE]
+			);
 		} else if (stateChange && STATE_SEED[stateName]) {
 			// seed frame: fade the prior visual out where it lies (alpha → 0, no
 			// movement), then once faded snap invisibly into the seed positions —
