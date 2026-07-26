@@ -106,6 +106,13 @@ function careerLayout(showCohort) {
 		const trails = new Float64Array(TRAIL_SIZE);
 		const trailDelays = new Float64Array(TRAIL_META.length);
 		const { filmsMax, ageMax, bottom, xS, yS } = careerFrame(nodes, w, h);
+		// every career trail parks on the end of Sweeney's line, so a line the
+		// state doesn't draw is a collapsed point sitting on her dot: lines grow
+		// out of her and retract back into her, in both directions and whether or
+		// not the draw-on choreography plays. Parking them anywhere else (the plot
+		// origin, y=0) makes the tween a translation across the chart instead.
+		const forkX = xS(PRIMARY_AGE);
+		const forkY = yS(story.careers.sweeney.at(-1)[1]);
 		const namedIds = new Set(NAMED.map(([, id]) => id));
 		for (const n of nodes) {
 			if (namedIds.has(n.id)) {
@@ -138,17 +145,17 @@ function careerLayout(showCohort) {
 							? COHORT_ALPHA
 							: COMPARISON_ALPHA;
 				if (series) setTrail(trails, t, series, xS, yS, alpha);
-				else collapseTrail(trails, t, xS(PRIMARY_AGE), yS(0), 0);
+				else collapseTrail(trails, t, forkX, forkY, 0);
 				trailDelays[t] = 150;
 			} else if (showCohort && COHORT_BY_SLOT.has(t)) {
 				const { series } = COHORT_BY_SLOT.get(t);
 				if (series) setTrail(trails, t, series, xS, yS, COHORT_ALPHA);
-				else collapseTrail(trails, t, xS(PRIMARY_AGE), yS(0), 0);
+				else collapseTrail(trails, t, forkX, forkY, 0);
 				// the draw-on choreography owns the forward reveal's stagger; this
 				// only paces the plain arrival (stepping back in from winBars)
 				trailDelays[t] = 150;
 			} else {
-				collapseTrail(trails, t, MARGIN + 14, bottom, 0);
+				collapseTrail(trails, t, forkX, forkY, 0);
 			}
 		});
 		// nice even film-count steps (prototype tick strategy), no 0 tick

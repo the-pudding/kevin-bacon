@@ -118,7 +118,7 @@ family) · `concurrenceScatter` · `degScatter` · `predictionScatter`
 of 10k runs) · `sljFan` (SLJ trajectory vs projected winners).
 
 **Trails.** `states.js` exports `TRAIL_META` (fixed slots: 15 race anchors,
-the career trio, 40 cohort career lines, 1 prediction diagonal) and a second
+the career trio, 145 cohort career lines, 1 prediction diagonal) and a second
 tweener in ScrollyVisual morphs `TRAIL_POINTS`-vertex polylines between
 states with the same interruption-safe semantics as dots. A layout returns
 `trails` (vertices + per-trail alpha) or omits it — omission fades the last
