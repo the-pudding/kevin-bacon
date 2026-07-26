@@ -1,6 +1,5 @@
 import story from "$data/scrolly-story.json";
 import {
-	STRIDE,
 	ATTR_SIZE,
 	MARGIN,
 	plotBottom,
@@ -91,9 +90,6 @@ const avgScatter = (nodes, w, h, highlights) =>
 		highlights
 	});
 
-const attrX = (attrs, id) => attrs[id * STRIDE];
-const attrY = (attrs, id) => attrs[id * STRIDE + 1];
-
 // single-subject highlight discipline (prototype): exactly one ringed subject
 // per state, no supporting-cast dots, no on-canvas callouts — the facts live
 // in the step prose. SLJ takes the default red highlight; Walters the blue
@@ -161,19 +157,14 @@ const layoutDegScatter = (nodes, w, h) =>
 
 /** @type {import("../layout-shared.js").LayoutFn} */
 function layoutScatterGenZ(nodes, w, h) {
+	// CGM is candidates[0], so she wears the same green candidate mark
 	const highlights = new Map(
 		story.genz.candidates.map((c) => [c.id, { rgb: GREEN, r: 3.5, alpha: 0.9 }])
 	);
-	highlights.set(CGM, { rgb: RED, r: 6 });
 	highlights.set(SLJ, { rgb: PURPLE, r: 4.5, alpha: 0.9 });
 	const result = avgScatter(nodes, w, h, highlights);
-	result.notes = [
-		{
-			x: attrX(result.attrs, CGM) + 10,
-			y: attrY(result.attrs, CGM) - 4,
-			text: "lowest average distance of any Gen Z actor"
-		}
-	];
+	result.legend = [{ color: GREEN, label: "Gen Z actors" }];
+	result.legendY = plotBottom(h) + 14;
 	return result;
 }
 
