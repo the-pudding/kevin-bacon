@@ -9,7 +9,6 @@
 	import RaceScrubber from "$components/scrolly/RaceScrubber.svelte";
 	import PairQuiz from "$components/scrolly/PairQuiz.svelte";
 	import PredictToggles from "$components/scrolly/PredictToggles.svelte";
-	import BarPicker from "$components/scrolly/BarPicker.svelte";
 	import useWindowDimensions from "$runes/useWindowDimensions.svelte.js";
 	import urlParams from "$utils/urlParams.js";
 	import { story } from "$components/scrolly/story.svelte.js";
@@ -364,8 +363,8 @@
 							Indeed, Chloë Grace Moretz wins in a quarter of simulations. She
 							doesn't exactly have a clear majority, despite already being
 							well-clear of these people from an average distance perspective.
+							Tap a bar to see how that contender's stats compare.
 						</p>
-						<BarPicker />
 					</Step>
 					<Step state="sljFan">
 						<p>

@@ -45,7 +45,7 @@ tweening between states (object constancy).
 
 These ship in this repo but have no counterpart story in `pudding-post/design`:
 
-- `layouts/win-bars.js` → `winBars` + `scrolly/BarPicker.svelte` — Gen Z win-simulation waffle bars (10k sims ≈ 1 dot / 25).
+- `layouts/win-bars.js` → `winBars` — Gen Z win-simulation horizontal waffle bars (10k sims ≈ 1 dot / 25), selected on-chart via the layout's `hits`.
 - `layouts/slj-fan.js` → `sljFan` — Samuel L. Jackson trajectory + projected outcome fan (`sweeney-trajectory.json` / `story.slj`).
 - `layouts/scatters.js` → `scatterGenZ` — Gen Z highlight state on the shared scatter (extends `DistanceFilmsScatter`).
 

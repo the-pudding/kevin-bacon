@@ -141,7 +141,7 @@ upstream before treating it as a layout bug.
 
 ## Not-ready, but no prototype exists
 
-`winBars` (`win-bars.js` + `BarPicker.svelte`, Gen Z win-simulation waffle) and
+`winBars` (`win-bars.js`, Gen Z win-simulation waffle) and
 `sljFan` (`slj-fan.js`, SLJ trajectory + outcome fan) are `ready={false}` but
 have **no pudding-post counterpart**, so there's nothing to spot-the-difference
 against. They are net-new visuals authored only in this repo. Options: (a) build

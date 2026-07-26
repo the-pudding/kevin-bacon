@@ -24,7 +24,7 @@ import { states as raceStates } from "./layouts/race.js";
 import { states as scattersStates, QUIZ_IDS } from "./layouts/scatters.js";
 import { states as predictionStates } from "./layouts/prediction.js";
 import { states as careerStates } from "./layouts/career.js";
-import { states as winBarsStates, BAR_CANDIDATES } from "./layouts/win-bars.js";
+import { states as winBarsStates } from "./layouts/win-bars.js";
 import { states as sljFanStates } from "./layouts/slj-fan.js";
 
 // re-exported so ScrollyVisual.svelte can keep importing everything from
@@ -94,6 +94,15 @@ export const STATE_LABELS = pick("labels");
  * @type {Partial<Record<LayoutState, (story: Object, stepParams?: Object) => Object>>}
  */
 export const STATE_PARAMS = pick("params");
+
+/**
+ * Per-state handler for a tap on one of the layout's `hits` regions: writes the
+ * picked value into the shared `story` state, which the state's own STATE_PARAMS
+ * selector then feeds back into the layout. Only states whose layout returns
+ * `hits` appear here.
+ * @type {Partial<Record<LayoutState, (story: Object, value: unknown) => void>>}
+ */
+export const STATE_PICK = pick("pick");
 
 /** per-state "center actor" node id — gets the ripple pulse */
 export const STATE_PULSE = pick("pulse");
@@ -173,8 +182,7 @@ export const STATE_TRACKED = [
 
 /** ids the interactive step-card components need (see story.svelte.js) */
 export const INTERACTIVE_IDS = {
-	quiz: story.quiz,
-	barCandidates: BAR_CANDIDATES.map((c) => c.id)
+	quiz: story.quiz
 };
 
 /** name/rank lookups for the interactive step-card components */

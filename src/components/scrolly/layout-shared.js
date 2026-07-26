@@ -28,10 +28,23 @@ export const edgeIndex = (e) => EDGE_BASE + e * STRIDE;
  * @property {"left"|"center"|"right"} [align] default "left"
  * @property {boolean} [strong] render emphasised
  * @property {boolean} [wrap] allow multi-line (default nowrap)
+ * @property {number} [wrapWidth] px line width, overriding the default cap (wrap
+ *   only). Set as a real `width`, not a max: an absolutely-positioned box is
+ *   shrink-to-fit within `containing block - left`, so a centred note at x = w/2
+ *   would otherwise never wrap wider than half the canvas.
  *
  * @typedef {Object} LegendItem
  * @property {number[]} color rgb triple
  * @property {string} label
+ *
+ * @typedef {Object} Hit
+ * @property {number} x px, left edge
+ * @property {number} y px, top edge
+ * @property {number} w px
+ * @property {number} h px
+ * @property {string} label accessible name for the region
+ * @property {unknown} value handed to the state's `pick` (see STATE_PICK)
+ * @property {boolean} [selected] currently the picked region
  *
  * @typedef {Object} LayoutResult
  * @property {Float64Array} attrs ATTR_SIZE values, STRIDE per node + STRIDE per edge
@@ -43,6 +56,7 @@ export const edgeIndex = (e) => EDGE_BASE + e * STRIDE;
  * @property {{ x?: Tick[], y?: Tick[], xBase?: number, yBase?: number }} [axes]
  * @property {Note[]} [notes]
  * @property {LegendItem[]} [legend]
+ * @property {Hit[]} [hits] tappable regions over the chart (see STATE_PICK)
  * @property {number} [legendY] px, top of the legend row; omitted = pinned to bottom
  *
  * @callback LayoutFn

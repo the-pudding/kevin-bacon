@@ -23,6 +23,7 @@
 		OVERLAYS,
 		STATE_LABELS,
 		STATE_LABEL_DIRS,
+		STATE_PICK,
 		STATE_PULSE,
 		STATE_YCAP,
 		STATE_PARAMS,
@@ -295,8 +296,12 @@
 	/** @type {{ id: number, name: string, x: number, y: number, r: number, alpha: number, labelAlpha: number, labelOffset: number }[]} */
 	let tracked = $state([]);
 	// static per-state chart furniture (ticks/callouts/legend) from the layout result
-	/** @type {{ axes?: { x?: {pos:number,label:string}[], y?: {pos:number,label:string}[], xBase?: number, yBase?: number }, notes?: import("./states.js").Note[], legend?: import("./layout-shared.js").LegendItem[], legendY?: number } | null} */
+	/** @type {{ axes?: { x?: {pos:number,label:string}[], y?: {pos:number,label:string}[], xBase?: number, yBase?: number }, notes?: import("./states.js").Note[], legend?: import("./layout-shared.js").LegendItem[], legendY?: number, hits?: import("./layout-shared.js").Hit[] } | null} */
 	let decor = $state(null);
+	// tappable chart regions (layout `hits` + the state's `pick`): rendered as
+	// transparent buttons over the canvas, so a pick is keyboard- and
+	// screen-reader-reachable without any canvas hit-testing
+	const pick = $derived(STATE_PICK[stateName]);
 
 	let ctx = null;
 	let prevState = null;
@@ -687,7 +692,8 @@
 			axes: layout.axes,
 			notes: layout.notes,
 			legend: layout.legend,
-			legendY: layout.legendY
+			legendY: layout.legendY,
+			hits: layout.hits
 		};
 		// states without trails fade the previous ones out where they lie
 		let trailTarget = layout.trails;
@@ -940,7 +946,9 @@
 						class="note fade-in {note.align ?? 'left'}"
 						class:strong={note.strong}
 						class:wrap={note.wrap}
-						style="left: {note.x}px; top: {note.y}px"
+						style="left: {note.x}px; top: {note.y}px{note.wrapWidth
+							? `; width: ${note.wrapWidth}px; max-width: none`
+							: ''}"
 					>
 						{note.text}
 					</p>
@@ -966,6 +974,20 @@
 			{/if}
 		{/key}
 	</div>
+	{#if pick}
+		<div class="hits">
+			{#each decor?.hits ?? [] as hit (hit.label)}
+				<button
+					class="hit"
+					aria-pressed={hit.selected ?? false}
+					style="left: {hit.x}px; top: {hit.y}px; width: {hit.w}px; height: {hit.h}px"
+					onclick={() => pick(story, hit.value)}
+				>
+					<span class="sr-only">{hit.label}</span>
+				</button>
+			{/each}
+		</div>
+	{/if}
 </div>
 
 <style>
@@ -1041,6 +1063,28 @@
 		position: absolute;
 		inset: 0;
 		pointer-events: none;
+	}
+
+	.hits {
+		position: absolute;
+		inset: 0;
+		pointer-events: none;
+	}
+
+	.hit {
+		position: absolute;
+		pointer-events: auto;
+		padding: 0;
+		border: 0;
+		border-radius: 4px;
+		background: transparent;
+		cursor: pointer;
+	}
+
+	.hit:hover,
+	.hit[aria-pressed="true"] {
+		/* translucent: the tint sits over the canvas dots, so it can't be opaque */
+		background: rgba(34, 34, 34, 0.05);
 	}
 
 	.fade-in {

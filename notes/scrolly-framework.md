@@ -129,11 +129,15 @@ dot so lines unspool out of dots and retract back into them.
 `xBase`), `notes` (positioned callouts, `nowrap` by default), and `legend`
 (color swatch + label pairs, pinned to the bottom of the chart) — all
 rendered as HTML in the overlay and crossfaded per state. `OVERLAYS[state].caption`
-renders top-centre in small caps.
+renders top-centre in small caps. A layout can also return `hits` — rectangles
+over the chart, rendered as transparent `<button>`s (so a pick is keyboard- and
+screen-reader-reachable, no canvas hit-testing) whose value is handed to the
+state's `pick` handler (`STATE_PICK`) to write into `story`; that write feeds
+back through the state's `params` selector. `winBars` selects its bars this way.
 
 **Interactivity.** `story.svelte.js` holds shared `$state` (rankGuess,
 quizPicks, prediction toggles, winFocus) written by the step-card components
-(`GuessRank`, `PairQuiz`, `PredictToggles`, `BarPicker`). `STATE_PARAMS`
+(`GuessRank`, `PairQuiz`, `PredictToggles`) and by on-chart picks. `STATE_PARAMS`
 selectors pluck the fields a state consumes and merge them with the step's
 static params; a change re-runs the _current_ layout with a short
 choreography-free tween (`PARAM_TWEEN_MS`). Every interaction is skippable —
