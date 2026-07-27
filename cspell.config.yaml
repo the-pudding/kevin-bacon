@@ -44,6 +44,8 @@ words:
   - playhead
   - gridlines
   - conc
+  - decollider
+  - repro
 ignorePaths:
   - node_modules
   - build
