@@ -7,14 +7,15 @@ let dimensions = new useWindowDimensions();
 
 import debounce from "lodash.debounce";
 
+// window.innerWidth/innerHeight (the layout viewport), NOT visualViewport —
+// visualViewport shrinks whenever the on-screen keyboard opens, which would
+// otherwise resize the whole scrolly section around the reader mid-type.
 function getWidth() {
-	return window?.visualViewport?.width || document.documentElement.clientWidth;
+	return window?.innerWidth || document.documentElement.clientWidth;
 }
 
 function getHeight() {
-	return (
-		window?.visualViewport?.height || document.documentElement.clientHeight
-	);
+	return window?.innerHeight || document.documentElement.clientHeight;
 }
 
 export default class useWindowDimensions {
@@ -33,13 +34,10 @@ export default class useWindowDimensions {
 			this.#onResize();
 			this.#debouncedResize = debounce(this.#onResize.bind(this), ms);
 
-			window?.visualViewport.addEventListener("resize", this.#debouncedResize);
+			window?.addEventListener("resize", this.#debouncedResize);
 
 			return () => {
-				window?.visualViewport.removeEventListener(
-					"resize",
-					this.#debouncedResize
-				);
+				window?.removeEventListener("resize", this.#debouncedResize);
 			};
 		});
 	}
