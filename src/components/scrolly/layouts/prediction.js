@@ -9,6 +9,7 @@ import {
 	CROWD,
 	RED,
 	BLUE,
+	YELLOW,
 	SLJ,
 	WALTERS,
 	TRAIL_META,
@@ -63,7 +64,7 @@ function layoutPredScatter(nodes, w, h, _edges, params) {
 	const side = Math.min(w - left - MARGIN, plotBottom(h) - top);
 	const xS = (v) => lin(v, d0, d1, left + side, left); // low distance → right
 	const yS = (v) => lin(v, d0, d1, top, top + side); // low distance → top
-	const marks = new Set([...QUIZ_IDS, WALTERS]);
+	const marks = new Set(QUIZ_IDS);
 	for (const n of nodes) {
 		if (n.predFilm == null) {
 			const [x, y] = scatterPosition(n, w, h);
@@ -73,6 +74,7 @@ function layoutPredScatter(nodes, w, h, _edges, params) {
 		const x = xS(n[field]);
 		const y = yS(n.avgDistance);
 		if (n.id === SLJ) set(attrs, n.id, x, y, 6, RED, 1);
+		else if (n.id === WALTERS) set(attrs, n.id, x, y, 4.5, YELLOW, 1);
 		else if (marks.has(n.id)) set(attrs, n.id, x, y, 4.5, BLUE, 1);
 		else set(attrs, n.id, x, y, 2.2, CROWD, 0.35);
 	}

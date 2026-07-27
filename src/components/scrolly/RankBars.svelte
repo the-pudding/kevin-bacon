@@ -31,7 +31,7 @@
 	});
 
 	const legend = [
-		{ color: HOP_RGB[1], label: "1 movie" },
+		{ color: HOP_RGB[1], label: "1 movie away" },
 		{ color: HOP_RGB[2], label: "2 movies" },
 		{ color: HOP_RGB[3], label: "3 movies" },
 		{ color: HOP_RGB[4], label: "4 movies" }
@@ -129,9 +129,7 @@
 						>#{row.rank}
 						{namesRevealed || row.id === focusId ? row.name : "???"}</span
 					>
-					{#if row.id === focusId}
-						<span class="avg">{row.avgDistance.toFixed(2)}</span>
-					{/if}
+					<span class="avg">{row.avgDistance.toFixed(2)}</span>
 				</span>
 				<span class="bar">
 					{#each row.segments as segment}

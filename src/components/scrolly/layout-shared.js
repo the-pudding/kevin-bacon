@@ -132,6 +132,7 @@ export const HACKMAN = idOf(193);
 export const WELKER = idOf(15831);
 export const CAGE = idOf(2963);
 export const WALTERS = idOf(477);
+export const WALSH = idOf(588);
 export const OLDMAN = idOf(64);
 export const KIDMAN = idOf(2227);
 export const CGM = story.genz.candidates[0].id;
@@ -185,6 +186,7 @@ export const TRAIL_POINTS = 48;
 export const TRAIL_STRIDE = TRAIL_POINTS * 2 + 1; // vertices + alpha
 export const RACE_IDS = Object.keys(story.raceSeries)
 	.map(Number)
+	.filter((id) => id !== WALSH)
 	.sort((a, b) => a - b);
 export const raceRGB = (id) =>
 	id === SLJ

@@ -12,6 +12,7 @@ import {
 	BLUE,
 	GREEN,
 	PURPLE,
+	YELLOW,
 	SLJ,
 	WALTERS,
 	CGM
@@ -92,8 +93,8 @@ const avgScatter = (nodes, w, h, highlights) =>
 
 // single-subject highlight discipline (prototype): exactly one ringed subject
 // per state, no supporting-cast dots, no on-canvas callouts — the facts live
-// in the step prose. SLJ takes the default red highlight; Walters the blue
-// variant (graph.css `.scatter--blue-highlight`).
+// in the step prose. SLJ takes the default red highlight; Walters a yellow
+// variant, kept consistent everywhere she carries over through step 19.
 
 /** @type {import("../layout-shared.js").LayoutFn} */
 const layoutScatterCenters = (nodes, w, h) =>
@@ -101,7 +102,7 @@ const layoutScatterCenters = (nodes, w, h) =>
 
 /** @type {import("../layout-shared.js").LayoutFn} */
 const layoutScatterWalters = (nodes, w, h) =>
-	avgScatter(nodes, w, h, new Map([[WALTERS, { rgb: BLUE, r: 6 }]]));
+	avgScatter(nodes, w, h, new Map([[WALTERS, { rgb: YELLOW, r: 6 }]]));
 
 export const QUIZ_IDS = story.quiz.flatMap((p) => [p.a, p.b]);
 
@@ -115,9 +116,16 @@ const ALL_PICKED = Object.fromEntries(story.quiz.map((_, i) => [i, true]));
 export const QUIZ_LABEL_DIRS = {
 	[QUIZ_IDS[0]]: "right", // Charlize Theron
 	[QUIZ_IDS[1]]: "right", // Seth Rogen
+	[QUIZ_IDS[2]]: "right", // Natalie Portman
+	[QUIZ_IDS[3]]: "right", // Anna Kendrick
 	[QUIZ_IDS[4]]: "left", // Margot Robbie
 	[QUIZ_IDS[5]]: "left" // Dave Franco
 };
+
+// step-18 metric scatters also carry Walters (her mid-cloud film count puts her
+// label left); a direction is what enrols a label in ScrollyVisual's vertical
+// de-collision pass, so every name shown here needs one
+const PAIR_LABEL_DIRS = { ...QUIZ_LABEL_DIRS, [WALTERS]: "left" };
 
 /** @type {import("../layout-shared.js").LayoutFn} */
 function layoutScatterQuiz(nodes, w, h, _edges, params) {
@@ -130,14 +138,21 @@ function layoutScatterQuiz(nodes, w, h, _edges, params) {
 		highlights.set(pair.a, { rgb: BLUE, r: 5.5 });
 		highlights.set(pair.b, { rgb: BLUE, r: 5.5 });
 	});
+	// Walters carries over from her earlier solo step, in a distinct yellow so
+	// she's never mistaken for a quiz pair
+	highlights.set(WALTERS, { rgb: YELLOW, r: 6 });
 	return avgScatter(nodes, w, h, highlights);
 }
 
 // all six quiz actors as uniform blue marks (the prototype's single mark
-// family — no per-pair colour coding)
-const PAIR_HIGHLIGHTS = new Map(
-	QUIZ_IDS.map((id) => [id, { rgb: BLUE, r: 5.5 }])
-);
+// family — no per-pair colour coding); Walters keeps her own yellow so she
+// stays visually consistent from her solo step through step 19
+const PAIR_HIGHLIGHTS = new Map([
+	...QUIZ_IDS.map((id) => [id, { rgb: BLUE, r: 5.5 }]),
+	[WALTERS, { rgb: YELLOW, r: 6 }]
+]);
+
+const PAIR_LABELS = [...QUIZ_IDS, WALTERS];
 
 /** @type {import("../layout-shared.js").LayoutFn} */
 const layoutConcScatter = (nodes, w, h) =>
@@ -191,9 +206,12 @@ export const states = {
 		layout: layoutScatterQuiz,
 		labels: (params) => {
 			const picks = params?.picks ?? {};
-			return story.quiz.flatMap((pair, i) =>
-				picks[i] === undefined ? [] : [pair.a, pair.b]
-			);
+			return [
+				...story.quiz.flatMap((pair, i) =>
+					picks[i] === undefined ? [] : [pair.a, pair.b]
+				),
+				WALTERS
+			];
 		},
 		// the step *after* the interactive quiz card (params.revealed) recaps it,
 		// same as every downstream chapter: reveal all pairs unconditionally,
@@ -202,13 +220,13 @@ export const states = {
 		params: (s, p) => ({
 			picks: p?.revealed ? ALL_PICKED : { ...s.quizPicks }
 		}),
-		labelDirs: QUIZ_LABEL_DIRS,
+		labelDirs: PAIR_LABEL_DIRS,
 		overlay: AVG_OVERLAY
 	},
 	concurrenceScatter: {
 		layout: layoutConcScatter,
-		labels: QUIZ_IDS,
-		labelDirs: QUIZ_LABEL_DIRS,
+		labels: PAIR_LABELS,
+		labelDirs: PAIR_LABEL_DIRS,
 		overlay: {
 			xLabel: "Films (log scale)",
 			yLabel: "Fewer recurring co-stars →"
@@ -216,8 +234,8 @@ export const states = {
 	},
 	degScatter: {
 		layout: layoutDegScatter,
-		labels: QUIZ_IDS,
-		labelDirs: QUIZ_LABEL_DIRS,
+		labels: PAIR_LABELS,
+		labelDirs: PAIR_LABEL_DIRS,
 		overlay: {
 			xLabel: "Films (log scale)",
 			yLabel: "Stronger co-stars →"
