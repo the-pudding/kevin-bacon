@@ -6,12 +6,15 @@
 	import { createLabelDecollider } from "./label-decollide.js";
 	import {
 		writeRaceSweepFrame,
+		raceVisibleSpan,
+		racePanBounds,
 		raceContenders,
-		RACE_ENTRY_WINDOW,
-		RACE_WINDOW_SPAN,
+		PX_PER_YEAR,
+		RACE_RECENT_EXTENT,
+		RACE_RECENT_STEP,
 		RACE_REWIND_WAYPOINT_YEAR,
-		RACE_TRADES_WINDOW,
-		RACE_SCRUB_BOUNDS,
+		RACE_TRADES_EXTENT,
+		RACE_TRADES_STEP,
 		RACE_HANDOFF_YFIT
 	} from "./layouts/race.js";
 	import {
@@ -26,6 +29,8 @@
 		STATE_PICK,
 		STATE_PULSE,
 		STATE_YCAP,
+		STATE_RACE,
+		STATE_YFIT,
 		STATE_PARAMS,
 		STATE_REVEAL_FROM,
 		STATE_ENTRY,
@@ -102,33 +107,39 @@
 			: p > 1 - SWEEP_R
 				? 1 - (SWEEP_V * (1 - p) * (1 - p)) / (2 * SWEEP_R)
 				: SWEEP_V * (p - SWEEP_R / 2);
-	// draw-on entry: the clip window grows leftward from the newest year to the
-	// full window; the domain stays fixed at the static domain, so the newest
-	// point stays pinned at the right edge and e=1 == the static race frame.
-	const entryFrame = (win) => (e) => ({
-		year0: win[1] - (win[1] - win[0]) * e,
-		year1: win[1],
-		dom0: win[0],
-		dom1: win[1]
+	// The three race frame builders. All of them hold the state's content extent
+	// fixed — only the camera (playhead) or the reveal moves — so the cast, the
+	// y-fit and the x scale are constant for a whole phase.
+	//
+	// draw-on entry: the camera stands still at the resting playhead while the
+	// lines unspool leftward across the visible span, so e=1 is byte-identical to
+	// the static layout (both sample exactly [camLeft, playhead]).
+	// (`step` is the state's race descriptor from STATE_RACE — its extent AND its
+	// highlight, so an animated frame dims exactly what its settle dims.)
+	const entryFrame = (step) => (e) => ({
+		...step,
+		playhead: step.extent[1],
+		reveal: e
 	});
 	// rewind (chained after the draw-on, in two legs — see playRaceEntry/
-	// playRaceRewind): a fixed-width slide, both edges of the window moving
-	// together by the same amount as the right edge (the "current year") recedes
-	// from fromEdge to toEdge. A pure translation, not a zoom — each dot's screen
-	// position is pinned to the window's right edge (see writeRaceSweepFrame's
-	// dotYr), so this is what makes dots actually travel through time instead of
-	// sitting frozen while only the trailing line extends.
-	const rewindFrame = (fromEdge, toEdge, span) => (e) => {
-		const edge = fromEdge + (toEdge - fromEdge) * e;
-		return { year0: edge - span, year1: edge, dom0: edge - span, dom1: edge };
-	};
+	// playRaceRewind): a camera pan back through time from fromP to toP. At a
+	// fixed px-per-year this is a pure translation by construction — dots stay
+	// pinned to the plot's right edge (see writeRaceSweepFrame's dotYr) while the
+	// ticks and curves slide beneath them.
+	const rewindFrame = (step, legExtent, fromP, toP) => (e) => ({
+		...step,
+		extent: legExtent,
+		playhead: fromP + (toP - fromP) * e
+	});
+	// reader-driven pan / settled hold: the camera at one playhead year
+	const panFrame = (step) => (playhead) => ({ ...step, playhead });
 	// the one state whose arrival plays the draw-on entry (scoped by revealFrom)
 	const RACE_ENTRY_STATE = "raceRecent";
-	// contender cast at the entry window — what the draw-on shows from its first
-	// frame, so nobody who fails raceRecent's yCap ever appears just to vanish
+	// contender cast at raceRecent's extent — what the draw-on shows from its
+	// first frame, so nobody who fails its yCap ever appears just to vanish
 	const RACE_ENTRY_CONTENDERS = raceContenders(
-		RACE_ENTRY_WINDOW[0],
-		RACE_ENTRY_WINDOW[1],
+		RACE_RECENT_EXTENT[0],
+		RACE_RECENT_EXTENT[1],
 		STATE_YCAP[RACE_ENTRY_STATE]
 	);
 	// per-frame cast alpha for one sweep phase: actors joining the landing set
@@ -148,29 +159,12 @@
 	// the one state whose arrival plays the rewind's second leg (scoped by
 	// revealFrom) — see playRaceEntry/playRaceRewind for the two-leg split
 	const RACE_REWIND_STATE = "raceTrades";
-	// true once raceRecent's own rewind leg (entry window's right edge ->
-	// RACE_REWIND_WAYPOINT_YEAR) has settled; gates the second leg so a reader
-	// who advances past raceRecent before that first leg finishes falls back to
-	// a plain crossfade instead of a second-leg slide that starts from a
-	// discontinuous frame (rewindFrame's start edge is fixed at the waypoint,
-	// not wherever an aborted first leg actually left off)
+	// true once raceRecent's own rewind leg has settled; gates the second leg so a
+	// reader who advances past raceRecent before that first leg finishes falls
+	// back to a plain crossfade instead of a second-leg pan that starts from a
+	// discontinuous frame
 	let raceRecentRewound = false;
-	// scrub (Stage 5): the playhead pins to the plot's right edge, same as every
-	// other race state — the clip window and domain both span the SCRUB_HALF
-	// years of history up to the playhead, so xS(playhead) == right and the line
-	// always fills the full plot width instead of leaving a blank "future" half.
-	const SCRUB_HALF = 20;
-	const scrubFrame = (yr) => ({
-		year0: yr - SCRUB_HALF,
-		year1: yr,
-		dom0: yr - SCRUB_HALF,
-		dom1: yr
-	});
-	const scrubView = (yr) => ({
-		window: [yr - SCRUB_HALF, yr],
-		domain: [yr - SCRUB_HALF, yr]
-	});
-	// per-frame smoothing factor for the scrub glide: renderYear moves this
+	// per-frame smoothing factor for the pan glide: renderPlayhead moves this
 	// fraction of the remaining distance to the target each frame (exponential
 	// ease-out — feels like a weighted reel). Reduced motion uses 1 (snap).
 	const SCRUB_EASE = 0.22;
@@ -178,7 +172,7 @@
 	function stopSweep() {
 		cancelAnimationFrame(sweepRaf);
 		sweepRaf = 0;
-		domainPanning = false;
+		camPanning = false;
 	}
 	// the rAF spine every entry choreography rides: run `frame(eased)` for `ms`,
 	// repaint each tick, then chain `onDone`. Owns sweepRaf, so stopSweep()
@@ -194,14 +188,15 @@
 		};
 		sweepRaf = requestAnimationFrame(step);
 	}
-	// run one eased race phase; map(e) → the frame window/domain; onDone chains
-	// the next; cast ({from, to} contender Sets) fades membership changes over the
-	// phase (see castAlpha)
+	// run one eased race phase; map(e) → the frame; onDone chains the next; cast
+	// ({from, to} contender Sets) fades membership changes over the phase (see
+	// castAlpha). Every frame publishes its camera into renderPlayhead, so a later
+	// leg (or a reader's grab) continues from wherever this one actually got to.
 	function runSweepPhase(map, yCap, onDone, fixedYFit = null, cast = null) {
 		runPhase(
 			SWEEP_MS,
 			(e) => {
-				const { axes } = writeRaceSweepFrame(
+				const { axes, cam } = writeRaceSweepFrame(
 					tweener.current,
 					trailTweener.current,
 					width,
@@ -211,39 +206,62 @@
 					fixedYFit,
 					castAlpha(cast, e)
 				);
+				renderPlayhead = cam.playhead;
 				decor = { ...decor, axes };
 			},
 			onDone
 		);
 	}
-	// scrub glide (Stage 5): one rAF loop that eases `renderYear` toward the input
-	// target (story.scrubYear) and writes the pinned-centre frame each tick, so a
-	// year change glides instead of snapping. Runs while the reader is scrubbing OR
-	// until the reel catches up after release; once released AND settled it holds
-	// via raceView (one param-tween settle restarts the generic writers).
+	// pan glide: one rAF loop that eases `renderPlayhead` toward the input target
+	// (story.scrubYear) and writes the panned frame each tick, so a year change
+	// glides instead of snapping. Runs while the reader is panning OR until the
+	// reel catches up after release; once released AND settled it holds via
+	// raceView (one param-tween settle restarts the generic writers).
 	function scrubLoop() {
-		const target = story.scrubYear ?? renderYear;
+		const extent = raceStep?.extent;
+		if (!extent) {
+			camPanning = false;
+			sweeping = false;
+			sweepRaf = 0;
+			return;
+		}
+		// clamp the input target to the pan bounds, or an out-of-range target the
+		// eased playhead can never reach would keep this loop alive for good
+		const { panMin, panMax } = racePanBounds(
+			width,
+			height,
+			extent,
+			renderPlayhead
+		);
+		const target = Math.min(
+			panMax,
+			Math.max(panMin, story.scrubYear ?? renderPlayhead)
+		);
 		const k = reducedMotion ? 1 : SCRUB_EASE;
-		const diff = target - renderYear;
+		const diff = target - renderPlayhead;
 		const caughtUp = Math.abs(diff) < 0.02;
-		renderYear = caughtUp ? target : renderYear + diff * k;
+		renderPlayhead = caughtUp ? target : renderPlayhead + diff * k;
 		const { axes } = writeRaceSweepFrame(
 			tweener.current,
 			trailTweener.current,
 			width,
 			height,
-			scrubFrame(renderYear),
-			STATE_YCAP[stateName]
+			panFrame(raceStep)(renderPlayhead),
+			STATE_YCAP[stateName],
+			// the state's own shared y-fit, or the axis jumps between the panned
+			// frames and the static settle
+			STATE_YFIT[stateName] ?? null
 		);
 		decor = { ...decor, axes };
 		drawScene();
 		if (story.scrubbing || !caughtUp) {
 			sweepRaf = requestAnimationFrame(scrubLoop);
 		} else {
-			domainPanning = false;
+			camPanning = false;
 			sweeping = false;
 			sweepRaf = 0;
-			story.raceView = scrubView(renderYear);
+			story.raceView = { playhead: renderPlayhead };
+			publishRaceCam();
 		}
 	}
 	function startScrub() {
@@ -252,7 +270,7 @@
 		stopSweep();
 		tweener.stop();
 		trailTweener.stop();
-		domainPanning = true;
+		camPanning = true;
 		sweeping = true;
 		sweepRaf = requestAnimationFrame(scrubLoop);
 	}
@@ -275,6 +293,12 @@
 	// (STATE_PARAMS selector), so an interaction re-runs the current layout.
 	const layoutCache = new Map();
 	function layoutFor(name, w, h, layoutParams) {
+		// a race camera hold is a fresh continuous value every time the reader
+		// releases a pan, and each entry is ~0.8MB of Float64Array — never a cache
+		// hit, so don't keep it
+		if (layoutParams?.playhead != null) {
+			return STATES[name](nodes, w, h, edges, layoutParams);
+		}
 		const key = `${name}:${w}:${h}:${JSON.stringify(layoutParams) ?? ""}`;
 		let result = layoutCache.get(key);
 		if (!result) {
@@ -309,17 +333,18 @@
 	let prevW = 0;
 	let prevH = 0;
 	let entered = false;
-	// `domainPanning` is true whenever a sweep is actively panning dom0/dom1 live
-	// (scrub, and the rewind phase) — reactive ($state) because the template also
-	// reads it to hide axis ticks/notes while they're stale mid-pan. The entry
-	// sweep keeps a fixed domain (only the clip window grows), so its ticks/notes
-	// stay pixel-accurate throughout and don't need to hide (see the
-	// `!domainPanning` guard below). `renderYear` is the scrub glide's *eased*
-	// playhead, chasing story.scrubYear (the input target) so year changes glide
-	// instead of snapping; persists across grabs so re-grabbing winds from where
-	// it was left.
-	let domainPanning = $state(false);
-	let renderYear = RACE_SCRUB_BOUNDS[1];
+	// `camPanning` is true whenever the camera is actively moving (a reader pan, or
+	// the rewind phase) — reactive ($state) because the template also reads it to
+	// hide the era callouts while they're stale mid-pan. The entry draw-on keeps
+	// the camera still, so its notes stay pixel-accurate throughout and don't need
+	// to hide (see the `!camPanning` guard below).
+	let camPanning = $state(false);
+	// The live camera playhead — the single source of truth for where the race
+	// chapter's camera is. Every camera writer (draw-on, both rewind legs, the pan
+	// glide) publishes into it each frame, so a later leg or a reader's grab
+	// continues from wherever the previous motion actually got to instead of a
+	// hard-coded year. Reset with `raceView` on a state change.
+	let renderPlayhead = RACE_RECENT_EXTENT[1];
 	// While an entry choreography is playing, the set of ids whose names have
 	// been introduced so far (see EntryAnim.labelsAfter); null = no gate, every
 	// labelled id shows. Deliberately NOT $state: drawScene folds it into
@@ -330,6 +355,9 @@
 	let entryLabels = null;
 
 	const overlay = $derived(OVERLAYS[stateName]);
+	// the active state's race camera descriptor ({ extent }), or undefined off the
+	// race chapter — its presence is what makes a step pannable
+	const raceStep = $derived(STATE_RACE[stateName]);
 	// what the active layout actually varies on: the state's selector plucks
 	// the interaction fields it consumes (reading the `story` $state proxy
 	// here makes the layout effect re-run when those fields change)
@@ -381,18 +409,18 @@
 		return { x: rect.left + t.x, y: rect.top + t.y };
 	}
 
-	// Race-chapter entry: draw the actors' lines on across `win`, landing on the
-	// static race frame (window == domain == win). The render effect first tweens
-	// the buffers onto the empty e=0 frame (dots pinned at the present edge, lines
-	// undrawn), so this owns the rAF straight from there — no pre-roll. Skippable
-	// (a state change abandons the sweep) and reduced-motion safe. Once the
-	// draw-on settles, immediately (no pause) starts the rewind's first leg,
-	// sliding from the entry window's right edge down to RACE_REWIND_WAYPOINT_YEAR
-	// — so draw-on + first-leg rewind play as one continuous flourish while the
-	// reader is still on raceRecent's step.
-	function playRaceEntry(win) {
+	// Race-chapter entry: draw the actors' lines on across the visible span,
+	// landing on the static race frame. The render effect first tweens the buffers
+	// onto the empty e=0 frame (dots pinned at the present edge, lines undrawn),
+	// so this owns the rAF straight from there — no pre-roll. Skippable (a state
+	// change abandons the sweep) and reduced-motion safe. Once the draw-on
+	// settles, immediately (no pause) starts the rewind's first leg, panning the
+	// camera back from the present to RACE_REWIND_WAYPOINT_YEAR — so draw-on +
+	// first-leg rewind play as one continuous flourish while the reader is still
+	// on raceRecent's step.
+	function playRaceEntry(step) {
 		if (!width || !height) return;
-		const finalView = { window: win, domain: win };
+		const finalView = { playhead: step.extent[1] };
 		if (reducedMotion) {
 			// defensive: the effect's reduced-motion branch normally jumps before
 			// this runs, so the draw-on is skipped and we land on the static frame
@@ -401,22 +429,24 @@
 		}
 		// single-writer discipline: stop the generic writers before the sweep owns
 		// the rAF; on completion pin the chart via raceView, which triggers one
-		// param-tween settle. The sweep casts only the entry-window contenders
+		// param-tween settle. The sweep casts only raceRecent's contenders
 		// (RACE_ENTRY_CONTENDERS), so its frames always agree with the yCap-
 		// filtered static layouts and nobody pops out at the settle.
 		tweener.stop();
 		trailTweener.stop();
 		sweeping = true;
 		runSweepPhase(
-			entryFrame(win),
+			entryFrame(step),
 			STATE_YCAP[RACE_ENTRY_STATE],
 			() => {
 				sweeping = false;
 				story.raceView = finalView;
+				publishRaceCam();
 				if (!reducedMotion) {
 					playRaceRewind(
-						RACE_ENTRY_WINDOW[1],
+						step.extent[1],
 						RACE_REWIND_WAYPOINT_YEAR,
+						step,
 						STATE_YCAP[RACE_ENTRY_STATE],
 						() => {
 							raceRecentRewound = true;
@@ -429,50 +459,54 @@
 		);
 	}
 
-	// Race-chapter rewind, played in two legs so the "camera moving back in
-	// time" motion is visible across both raceRecent and raceTrades instead of
-	// happening all at once during raceRecent: leg 1 (chained off playRaceEntry's
-	// onDone) slides from the entry window's right edge down to
-	// RACE_REWIND_WAYPOINT_YEAR and stops; leg 2 (played on arrival at
-	// raceTrades, gated by raceRecentRewound so an interrupted leg 1 falls back
-	// to a plain crossfade instead — see raceRecentRewound's comment) continues
-	// the same slide on from there down to raceTrades' own resting year
-	// (RACE_TRADES_WINDOW[1]). Both legs use the same fixed RACE_WINDOW_SPAN, so
-	// the width never changes — a pure translation, not a zoom. `toCap` is the
-	// landing state's yCap (raceRecent's for leg 1, raceTrades' for leg 2): the
-	// leg fades out actors who stop being contenders at the destination window
-	// (and fades in any who start), so the last frame matches the yCap-filtered
-	// static settle exactly instead of dropping them in one pop.
-	function playRaceRewind(fromEdge, toEdge, toCap, onSettled) {
+	// Race-chapter rewind, played in two legs so the "camera moving back in time"
+	// motion is visible across both raceRecent and raceTrades instead of happening
+	// all at once during raceRecent: leg 1 (chained off playRaceEntry's onDone)
+	// pans from the present back to RACE_REWIND_WAYPOINT_YEAR and stops; leg 2
+	// (played on arrival at raceTrades, gated by raceRecentRewound so an
+	// interrupted leg 1 falls back to a plain crossfade) continues the same pan on
+	// from there down to raceTrades' own resting year. At a fixed px-per-year both
+	// legs are pure translation — nothing can zoom.
+	//
+	// `toExtent`/`toCap` describe the LANDING state: the leg fades out actors who
+	// stop being contenders there (and fades in any who start), so its last frame
+	// matches the yCap-filtered static settle exactly instead of dropping them in
+	// one pop. The frame's own extent is the leg's camera travel instead, so the
+	// visible line always runs right up to the dot mid-pan; the y-fit and the cast
+	// are both passed in, so that wider extent never leaks into either.
+	function playRaceRewind(fromP, toP, toStep, toCap, onSettled) {
 		if (!width || !height) return;
-		const finalView = {
-			window: [toEdge - RACE_WINDOW_SPAN, toEdge],
-			domain: [toEdge - RACE_WINDOW_SPAN, toEdge]
-		};
+		const finalView = { playhead: toP };
 		if (reducedMotion) {
 			story.raceView = finalView;
 			onSettled?.();
 			return;
 		}
-		// both legs start from a frame resting under raceRecent's cap (leg 1 from
+		const span = raceVisibleSpan(width, height);
+		const legExtent = /** @type {[number, number]} */ ([
+			Math.min(fromP, toP) - span,
+			Math.max(fromP, toP)
+		]);
+		// both legs start from a frame resting under raceRecent's cast (leg 1 from
 		// the entry draw-on, leg 2 from raceRecent settled at the waypoint)
 		const cast = {
 			from: raceContenders(
-				fromEdge - RACE_WINDOW_SPAN,
-				fromEdge,
+				RACE_RECENT_EXTENT[0],
+				RACE_RECENT_EXTENT[1],
 				STATE_YCAP[RACE_ENTRY_STATE]
 			),
-			to: raceContenders(toEdge - RACE_WINDOW_SPAN, toEdge, toCap)
+			to: raceContenders(toStep.extent[0], toStep.extent[1], toCap)
 		};
 		sweeping = true;
-		domainPanning = true;
+		camPanning = true;
 		runSweepPhase(
-			rewindFrame(fromEdge, toEdge, RACE_WINDOW_SPAN),
+			rewindFrame(toStep, legExtent, fromP, toP),
 			STATE_YCAP[RACE_ENTRY_STATE],
 			() => {
 				sweeping = false;
-				domainPanning = false;
+				camPanning = false;
 				story.raceView = finalView;
+				publishRaceCam();
 				onSettled?.();
 			},
 			RACE_HANDOFF_YFIT,
@@ -640,16 +674,59 @@
 		return () => query.removeEventListener("change", update);
 	});
 
-	// The race sweep/scrub owns story.raceView; drop it whenever the active state
-	// changes so a freshly-entered state uses its baked window, not a stale
-	// override. Depends on stateName ONLY (untrack the read) — a sweep setting
-	// raceView while the state is unchanged must not re-fire this. Declared before
-	// the render effect so it wins the flush when a step change dirties both.
+	// The race sweep/pan owns story.raceView; drop it whenever the active state
+	// changes so a freshly-entered state rests at the end of its own extent, not a
+	// stale override. The playhead and the pan target go with it — otherwise a pan
+	// on one race step leaks into the next one's first grab. Depends on stateName
+	// ONLY (untrack the reads) — a sweep setting raceView while the state is
+	// unchanged must not re-fire this. Declared before the render effect so it
+	// wins the flush when a step change dirties both.
 	$effect(() => {
 		stateName;
+		const extent = STATE_RACE[stateName]?.extent;
 		untrack(() => {
 			if (story.raceView !== null) story.raceView = null;
+			if (story.scrubYear !== null) story.scrubYear = null;
+			if (extent) renderPlayhead = extent[1];
 		});
+	});
+
+	// Publishes the live camera for the pan control (RaceScrubber). ScrollyVisual is
+	// the only component that knows the canvas width, so the bounds have to come
+	// from here. One-way by construction: no layout's `params` selector reads
+	// raceCam, so this can never feed back into the render effect. Called at rest
+	// points (state change, resize, every choreography settle) rather than per
+	// frame — the pan control only needs the camera it can be grabbed from.
+	function publishRaceCam() {
+		const extent = raceStep?.extent;
+		if (!extent || !width || !height) {
+			if (story.raceCam !== null) story.raceCam = null;
+			return;
+		}
+		const bounds = racePanBounds(width, height, extent, renderPlayhead);
+		renderPlayhead = Math.min(
+			bounds.panMax,
+			Math.max(bounds.panMin, renderPlayhead)
+		);
+		// a hold written before a resize can now be out of range — retarget it
+		// rather than leaving the camera somewhere the reader can't get back to
+		if (
+			story.raceView &&
+			Math.abs(story.raceView.playhead - renderPlayhead) > 0.01
+		) {
+			story.raceView = { playhead: renderPlayhead };
+		}
+		story.raceCam = {
+			pxPerYear: PX_PER_YEAR,
+			playhead: renderPlayhead,
+			...bounds
+		};
+	}
+	$effect(() => {
+		raceStep;
+		width;
+		height;
+		untrack(publishRaceCam);
 	});
 
 	// Scrub (Stage 5): when the reader starts dragging/keying the year control,
@@ -659,7 +736,7 @@
 	// and leak a layoutFor cache entry per frame. Declared before the render effect
 	// so it wins the flush; the loop-start is untracked.
 	$effect(() => {
-		if (story.scrubbing) untrack(() => domainPanning || startScrub());
+		if (story.scrubbing) untrack(() => camPanning || startScrub());
 	});
 
 	$effect(() => {
@@ -794,22 +871,24 @@
 				startTrails,
 				width,
 				height,
-				entryFrame(RACE_ENTRY_WINDOW)(0),
+				entryFrame(RACE_RECENT_STEP)(0),
 				STATE_YCAP[RACE_ENTRY_STATE],
 				RACE_HANDOFF_YFIT,
 				castAlpha({ from: RACE_ENTRY_CONTENDERS, to: RACE_ENTRY_CONTENDERS }, 0)
 			);
 			tweener.to(startAttrs, TWEEN_MS, TWEEN_JITTER, stateDelays, () =>
-				playRaceEntry(RACE_ENTRY_WINDOW)
+				playRaceEntry(RACE_RECENT_STEP)
 			);
 			trailTweener.to(startTrails, TWEEN_MS, 0);
 		} else if (raceRewindArrival) {
 			// no seed frame needed — the rewind sweep recomputes attrs from scratch
-			// every frame via writeRaceSweepFrame, continuing smoothly from wherever
-			// raceRecent's first-leg rewind settled
+			// every frame via writeRaceSweepFrame, continuing smoothly from where
+			// raceRecent's first-leg rewind settled (the raceRecentRewound gate is
+			// what guarantees the camera is actually parked at the waypoint)
 			playRaceRewind(
 				RACE_REWIND_WAYPOINT_YEAR,
-				RACE_TRADES_WINDOW[1],
+				RACE_TRADES_EXTENT[1],
+				RACE_TRADES_STEP,
 				STATE_YCAP[RACE_REWIND_STATE]
 			);
 		} else if (entryAnim) {
@@ -940,7 +1019,7 @@
 					{tick.label}
 				</p>
 			{/each}
-			{#if !domainPanning}
+			{#if !camPanning}
 				{#each decor?.notes ?? [] as note}
 					<p
 						class="note fade-in {note.align ?? 'left'}"

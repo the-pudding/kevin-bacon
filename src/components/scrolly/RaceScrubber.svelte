@@ -1,49 +1,48 @@
 <script>
 	// @ts-check
 	/**
-	 * raceFull year scrubber (delivery-plan Stage 5). Two controls over one
-	 * playhead year: a full-plot pointer drag surface and a bits-ui year Slider
-	 * (keyboard-accessible). Both write `story.scrubYear`/`story.scrubbing` only —
-	 * ScrollyVisual owns the buffer writes and the on-release `raceView` hold.
-	 * While `scrubbing` is true it direct-writes the pinned-centre frame per change
-	 * (no easing), so this needs no motion logic of its own.
+	 * Race-chapter pan control. Two controls over one playhead year: a pointer
+	 * drag surface over the plot and a bits-ui year Slider (keyboard-accessible).
+	 * Both write `story.scrubYear`/`story.scrubbing` only — ScrollyVisual owns the
+	 * buffer writes and the on-release `raceView` hold.
+	 *
+	 * The x axis is fixed-scale (PX_PER_YEAR px per year, see layouts/race.js), so
+	 * the drag is a RELATIVE pan: a year travels exactly as far as the finger, the
+	 * way a map does. Bounds and the live playhead come from `story.raceCam`, which
+	 * ScrollyVisual publishes because only it knows the canvas width.
 	 */
 	import Slider from "$components/ui/Slider.svelte";
-	import { RACE_SCRUB_BOUNDS } from "./layouts/race.js";
 	import { story } from "./story.svelte.js";
 
-	const [MIN, MAX] = RACE_SCRUB_BOUNDS;
-	// playhead year; canonical UI value, mirrored into story.scrubYear on change
-	let value = $state(MAX);
+	const cam = $derived(story.raceCam);
+	// playhead the reader is aiming at; falls back to the published camera whenever
+	// they aren't driving it (a step change, a choreography, a resize re-clamp)
+	const value = $derived(story.scrubYear ?? cam?.playhead ?? 0);
+
 	/** @type {HTMLElement | undefined} */
 	let surface = $state();
-	let dragging = false;
+	// pointer origin of the live drag: where it started, and the playhead it
+	// started from — a relative pan needs both
+	let from = null;
 
-	const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+	const clamp = (v) => Math.min(cam.panMax, Math.max(cam.panMin, v));
 
-	function yearFromX(clientX) {
-		if (!surface) return value;
-		const rect = surface.getBoundingClientRect();
-		const t = clamp((clientX - rect.left) / rect.width, 0, 1);
-		return Math.round(MIN + t * (MAX - MIN));
-	}
-	function scrubTo(clientX) {
-		const y = yearFromX(clientX);
-		value = y;
-		story.scrubYear = y;
-	}
 	function onPointerDown(e) {
-		dragging = true;
+		if (!cam?.pannable) return;
+		from = { x: e.clientX, playhead: cam.playhead };
 		surface?.setPointerCapture(e.pointerId);
 		story.scrubbing = true;
-		scrubTo(e.clientX);
 	}
 	function onPointerMove(e) {
-		if (dragging) scrubTo(e.clientX);
+		if (!from) return;
+		// drag right → the content follows the finger → earlier years
+		story.scrubYear = clamp(
+			from.playhead - (e.clientX - from.x) / cam.pxPerYear
+		);
 	}
 	function endDrag(e) {
-		if (!dragging) return;
-		dragging = false;
+		if (!from) return;
+		from = null;
 		if (surface?.hasPointerCapture?.(e.pointerId))
 			surface.releasePointerCapture(e.pointerId);
 		story.scrubbing = false;
@@ -51,41 +50,42 @@
 
 	// slider (keyboard/click): same playhead, same scrubbing/hold protocol
 	function onSlide(v) {
-		value = v;
 		story.scrubbing = true;
-		story.scrubYear = v;
+		story.scrubYear = clamp(v);
 	}
 	function onCommit() {
 		story.scrubbing = false;
 	}
 </script>
 
-<div class="race-scrubber">
-	<!-- pointer-only enhancement over the accessible Slider below; hidden from AT
-	     (the Slider is the operable, keyboard-driven control) -->
-	<!-- svelte-ignore a11y_no_static_element_interactions -->
-	<div
-		class="drag-surface"
-		aria-hidden="true"
-		bind:this={surface}
-		onpointerdown={onPointerDown}
-		onpointermove={onPointerMove}
-		onpointerup={endDrag}
-		onpointercancel={endDrag}
-	></div>
-	<div class="control">
-		<output class="year">{value}</output>
-		<Slider
-			{value}
-			class="race-slider"
-			min={MIN}
-			max={MAX}
-			step={1}
-			onValueChange={onSlide}
-			onValueCommit={onCommit}
-		/>
+{#if cam?.pannable}
+	<div class="race-scrubber">
+		<!-- pointer-only enhancement over the accessible Slider below; hidden from AT
+		     (the Slider is the operable, keyboard-driven control) -->
+		<!-- svelte-ignore a11y_no_static_element_interactions -->
+		<div
+			class="drag-surface"
+			aria-hidden="true"
+			bind:this={surface}
+			onpointerdown={onPointerDown}
+			onpointermove={onPointerMove}
+			onpointerup={endDrag}
+			onpointercancel={endDrag}
+		></div>
+		<div class="control">
+			<output class="year">{Math.round(value)}</output>
+			<Slider
+				{value}
+				class="race-slider"
+				min={cam.panMin}
+				max={cam.panMax}
+				step={1}
+				onValueChange={onSlide}
+				onValueCommit={onCommit}
+			/>
+		</div>
 	</div>
-</div>
+{/if}
 
 <style>
 	.race-scrubber {
@@ -94,7 +94,7 @@
 		display: flex;
 		flex-direction: column;
 	}
-	/* covers the plot so the reader can wind the timeline from anywhere; pan-y
+	/* covers the plot so the reader can pan the timeline from anywhere; pan-y
 	   lets a vertical swipe still scroll the page */
 	.drag-surface {
 		flex: 1 1 auto;

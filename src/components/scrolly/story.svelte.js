@@ -19,15 +19,20 @@ export const story = $state({
 	 * focus row, measured live by RankBars itself — null until it has mounted
 	 * and reported a position (see layouts/rank.js) */
 	rankFocusY: null,
-	/** race chart: optional { window:[y0,y1], domain:[d0,d1] } override for the
-	 * windowed/scrubbed frame; null = use the active race state's baked window.
-	 * On raceFull it is the *hold* target written once when the reader releases a
-	 * scrub (ScrollyVisual owns the write; see scrubbing/scrubYear). */
+	/** race chart: optional `{ playhead }` camera override; null = the active race
+	 * state rests at the right-hand end of its content extent. It is the *hold*
+	 * target written once when the reader releases a pan (ScrollyVisual owns the
+	 * write; see scrubbing/scrubYear). */
 	raceView: null,
-	/** race chart (raceFull): playhead year while scrubbing (null = not set) */
+	/** race chart: target playhead year while the reader pans (null = not set) */
 	scrubYear: null,
-	/** race chart (raceFull): true while the reader is actively dragging the plot
-	 * or keying the year slider — ScrollyVisual direct-writes the pinned-centre
-	 * frame per change instead of tweening (see delivery-plan Stage 5) */
-	scrubbing: false
+	/** race chart: true while the reader is actively dragging the plot or keying
+	 * the year slider — ScrollyVisual direct-writes the panned frame per change
+	 * instead of tweening */
+	scrubbing: false,
+	/** race chart: the live camera, `{ pxPerYear, panMin, panMax, playhead,
+	 * pannable }` or null off the race chapter. One-way — ScrollyVisual is the
+	 * only component that knows the canvas width, so it writes this and
+	 * RaceScrubber only reads it. No layout consumes it, so there is no cycle. */
+	raceCam: null
 });

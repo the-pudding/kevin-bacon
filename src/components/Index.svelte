@@ -132,7 +132,10 @@
 				{#snippet quizPanel()}
 					<PairQuiz {visual} />
 				{/snippet}
-				<!-- raceFull year scrubber: drag surface + year slider over the plot -->
+				<!-- raceFull pan control: drag surface + year slider over the plot. Only
+				     raceFull gets it — the first two race steps are carried by their own
+				     camera choreography, so they need no control of their own. Renders
+				     nothing on a viewport wide enough to show the whole range. -->
 				{#snippet racePanel()}
 					<div class="race-scrubber-panel" style="bottom: {stepsHeight + 12}px">
 						<RaceScrubber />

@@ -111,6 +111,22 @@ export const STATE_PULSE = pick("pulse");
 export const STATE_YCAP = pick("yCap");
 
 /**
+ * Per-state race camera descriptor `{ extent: [y0, y1] }` — the content extent
+ * the fixed-scale x axis pans over (see layouts/race.js). Its presence is what
+ * marks a state as a pannable race step.
+ * @type {Partial<Record<LayoutState, { extent: [number, number] }>>}
+ */
+export const STATE_RACE = pick("race");
+
+/**
+ * Per-state shared y-fit `[vMin, vMax, vLo, vHi]` for the race chart. The pan
+ * and sweep animators must pass the same fit their static layout uses, or the y
+ * axis snaps between an animated frame and its settle.
+ * @type {Partial<Record<LayoutState, [number, number, number, number] | null>>}
+ */
+export const STATE_YFIT = pick("yFit");
+
+/**
  * Per-state list of prior states the layout's `delays` choreography is
  * authored for. Arriving from any other state (e.g. stepping backwards)
  * skips the delays — one plain tween instead of replaying the reveal.

@@ -110,7 +110,7 @@ the centre" beat — an empty canvas seeding the bands) · `hopBands`
 (degree rows, with a bottom legend keying each hop's color) ·
 `rankFocus` (Bacon's hop bar dissolves; the HTML `RankBars` panel + guess
 take over) · `rankReveal` (SLJ) · `raceRecent`/
-`raceTrades`/`raceFull` (avg-distance-by-year race, three zooms) ·
+`raceTrades`/`raceFull` (avg-distance-by-year race, three fixed-scale cameras) ·
 `scatterCenters`/`scatterWalters`/`scatterQuiz` (films-vs-distance scatter
 family) · `concurrenceScatter` · `degScatter` · `predictionScatter`
 (toggleable predictors) · `scatterGenZ` · `careerTrio`/`careerMany`
@@ -124,6 +124,38 @@ states with the same interruption-safe semantics as dots. A layout returns
 `trails` (vertices + per-trail alpha) or omits it — omission fades the last
 trails out in place; `collapseTrail` parks a trail's vertices on its owner
 dot so lines unspool out of dots and retract back into them.
+
+**Race camera (fixed x scale).** The race chapter's x axis is `PX_PER_YEAR`
+(32) pixels per year on every race step and every viewport — it never fits a
+domain to the plot width, so nothing zooms and every visible year carries its
+own label. Each step therefore holds more years than fit on screen and is a
+_camera_ over its data. Three concepts stay separate (`layouts/race.js`):
+
+- **content extent** `[e0, e1]`, baked per state in `race: { extent }`
+  (`STATE_RACE`) and width-independent: it drives the yCap contender cast, the
+  y-fit (`STATE_YFIT`) and the reader's pan bounds, so panning never moves the y
+  axis or changes who is on the chart.
+- **camera**, one `playhead` year at the plot's RIGHT edge (`xS(playhead) ===
+right`, which is what keeps "dots ride the right end of their line" true).
+  `raceCamera` is a pure function of `(playhead, width)` with no clamping — that
+  is what makes an animated frame and the static layout it settles onto
+  pixel-identical even when a choreography pans a step past its own extent (the
+  rewind takes raceRecent back to 2007). Reader input is clamped at its source
+  via `racePanBounds`.
+- **reveal** `0..1`, the entry draw-on only.
+
+`writeRaceSweepFrame` is the single placer of race dots and trails — the static
+layout delegates to it, so settles are byte-identical by construction rather
+than by review. Trails sample the camera's interval, not the extent, so all 48
+vertices land on screen (sampling 55 years would leave ~5 in a phone's ~6-year
+viewport and turn the curve into a polyline); actors whose data has scrolled off
+camera fade to alpha 0 over their last visible year, which is also what keeps
+every vertex inside the plot with no canvas clip region. Panning is
+`RaceScrubber`, mounted on `raceFull` only (the other two race steps are carried
+by their own camera choreography): a relative pointer drag plus a bits-ui year
+Slider, both writing only `story.scrubYear`/`scrubbing`, with bounds read from
+`story.raceCam` (published by ScrollyVisual, the only component that knows the
+canvas width). It renders nothing when the whole extent already fits on screen.
 
 **Chart furniture.** A layout can also return `axes` (`x`/`y` tick arrays +
 `xBase`), `notes` (positioned callouts, `nowrap` by default), and `legend`

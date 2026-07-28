@@ -1,7 +1,6 @@
 import rawNodes from "$data/scrolly-nodes.json";
 import story from "$data/scrolly-story.json";
 import {
-	STRIDE,
 	ATTR_SIZE,
 	TRAIL_SIZE,
 	MARGIN,
@@ -27,10 +26,36 @@ import {
 } from "../layout-shared.js";
 
 // ---------------------------------------------------------------------------
-// Race chart (Past chapter): avg distance by year, one line per era anchor,
-// windowed per step. Dots ride the right-hand end of their line; the era
-// timeline annotates handovers.
+// Race chart (Past chapter): avg distance by year, one line per era anchor.
+//
+// The x axis is FIXED-SCALE: PX_PER_YEAR pixels per year on every race step and
+// every viewport, so a year is always the same distance from its neighbour and
+// every visible year gets its own label. The chart therefore holds more years
+// than fit on screen, and each step is a *camera* over its content extent (see
+// raceCamera) that the reader pans and the entry choreographies drive.
+//
+// Three concepts, deliberately separate:
+//   content extent  [e0,e1]  baked per state, width-independent — drives the
+//                            yCap contender cast, the y-fit, era candidacy and
+//                            the pan bounds, so panning NEVER moves the y axis
+//                            or changes who is on the chart.
+//   camera          playhead the year at the plot's right edge; with
+//                            PX_PER_YEAR this fixes the whole x scale.
+//   reveal          0..1     the entry draw-on only: how much of the visible
+//                            span has unspooled (right to left).
 // ---------------------------------------------------------------------------
+
+// px between consecutive years. The one dial for axis density: a horizontal
+// 4-digit `.tick` label (0.65rem) is ~24px, so this leaves ~14px of clear space
+// between neighbouring years. Paired with the name-gutter fraction in racePlot —
+// those two decide how many years a phone can show at once, so buying more
+// padding here costs visible years.
+export const PX_PER_YEAR = 38;
+
+// minimum gap between two era callouts. In year units, which is now the same
+// thing as a pixel budget (PX_PER_YEAR is fixed), so this reads the same on
+// every screen — no width branch.
+const NOTE_MIN_GAP_YEARS = 2;
 
 // full-series monotone-cubic segments per race actor, built once (the data is
 // static). Shared by the static layout and the per-frame sweep so both read the
@@ -38,7 +63,7 @@ import {
 const RACE_SEGS = new Map(
 	RACE_IDS.map((id) => [id, monotoneSegments(story.raceSeries[id])])
 );
-// [firstYear, lastYear] per actor, so the sweep can clamp a trail to the actor's
+// [firstYear, lastYear] per actor, so a frame can clamp a trail to the actor's
 // real data extent rather than drawing flat stubs where it has no points
 const RACE_RANGE = new Map(
 	RACE_IDS.map((id) => {
@@ -50,8 +75,8 @@ const RACE_RANGE = new Map(
 // the race actors who count as contenders over [year0, year1]: their clipped
 // series must exist and dip to (or below) yCap. This is the one membership
 // rule — the static layouts, the handoff y-fit, and the sweep casts all read
-// it, so an animation's final frame always shows exactly the same actors as
-// the static state it settles onto.
+// it, and every caller passes a state's *content extent*, so the cast is fixed
+// for a whole step (panning can hide an actor off-camera, never un-cast it).
 export function raceContenders(year0, year1, yCap) {
 	const ids = new Set();
 	for (const id of RACE_IDS) {
@@ -63,13 +88,6 @@ export function raceContenders(year0, year1, yCap) {
 	return ids;
 }
 
-// [earliest, latest] year across all race actors — the scrub slider's min/max
-// playhead bounds (Stage 5)
-export const RACE_SCRUB_BOUNDS = [
-	Math.min(...[...RACE_RANGE.values()].map(([s]) => s)),
-	Math.max(...[...RACE_RANGE.values()].map(([, e]) => e))
-];
-
 // padded y-extent over [year0, year1] read off the curves (6% headroom so dots
 // riding near the extremes don't touch the plot edge — matches the reference)
 /** @returns {[number, number, number, number]} */
@@ -79,40 +97,93 @@ function raceYFit(segsList, year0, year1) {
 	return [lo - pad, hi + pad, lo, hi];
 }
 
-// the x/y pixel scales for one frame. `domain` drives x; `[vMin,vMax]` (padded)
-// drives y. Lower average distance = better = higher up the chart.
-// The plot spans only the left 2/3 of the inner width — the right third is a
-// gutter reserved for the actor name labels (which sit beside the right-edge
-// dots), so names never clip off the canvas.
-function raceScales(w, h, dom0, dom1, vMin, vMax) {
-	const top = MARGIN + 10;
-	const bottom = plotBottom(h);
+// The plot rectangle. The plot spans only the left 2/3 of the inner width — the
+// right third is a gutter reserved for the actor name labels (which sit beside
+// the right-edge dots), so names never clip off the canvas.
+function racePlot(w, h) {
 	const left = MARGIN + 14;
-	const right = left + ((w - MARGIN - 6 - left) * 2) / 3;
 	return {
-		top,
-		bottom,
-		xS: (yr) => lin(yr, dom0, dom1, left, right),
-		yS: (v) => lin(v, vMin, vMax, top, bottom)
+		top: MARGIN + 10,
+		bottom: plotBottom(h),
+		left,
+		right: left + ((w - MARGIN - 6 - left) * 2) / 3
 	};
 }
 
-// x (year) + y (avg distance) tick furniture for one frame's scales — shared
-// by the static layout and the per-frame sweep/scrub writers so animated axes
-// read off the exact same rule as the static end-states.
-function raceAxes(xS, yS, dom0, dom1, vLo, vHi, bottom) {
-	// horizontal 4-digit year labels at the densest legible step that fits the
-	// plot width (~40px per label incl. gap): every year where it fits, coarser
-	// on wide spans. (Showing *every* year on the full span needs a wider-than-
-	// screen scrollable axis — deferred; the scrubber explores the full range.)
-	const plotW = xS(dom1) - xS(dom0);
-	const maxLabels = Math.max(2, Math.floor(plotW / 32));
-	const span = dom1 - dom0;
-	const step =
-		[1, 2, 5, 10, 25, 50].find((s) => span / s + 1 <= maxLabels) ?? 100;
+/** years that fit across the plot at the fixed scale — a function of width only */
+export function raceVisibleSpan(w, h) {
+	const plot = racePlot(w, h);
+	return (plot.right - plot.left) / PX_PER_YEAR;
+}
+
+/**
+ * The camera for one race frame.
+ *
+ * `playhead` is the year at the plot's RIGHT edge, so xS(playhead) === right —
+ * that's what keeps the long-standing "dots ride the right end of their line"
+ * convention true under a fixed scale. The x scale is PX_PER_YEAR and is never
+ * fitted to a domain, so nothing zooms: moving the playhead only slides camLeft.
+ *
+ * Deliberately a pure function of (playhead, width, height) with NO extent and
+ * NO clamping. That is what makes an animated frame and the static layout it
+ * settles onto pixel-identical even when a choreography drives the camera across
+ * a step's own extent (the rewind pans raceRecent back to 2007, well left of
+ * where a reader is allowed to pan it). Reader input is clamped at its source
+ * instead — see racePanBounds.
+ *
+ * @param {number} w
+ * @param {number} h
+ * @param {number} playhead year at the plot's right edge
+ */
+function raceCamera(w, h, playhead) {
+	const plot = racePlot(w, h);
+	const visibleSpan = (plot.right - plot.left) / PX_PER_YEAR;
+	const camLeft = playhead - visibleSpan;
+	return {
+		...plot,
+		visibleSpan,
+		camLeft,
+		camRight: playhead,
+		playhead,
+		xS: (yr) => plot.left + (yr - camLeft) * PX_PER_YEAR
+	};
+}
+
+/**
+ * How far a *reader* may pan a race step: never right of its content extent, and
+ * never so far left that the camera runs off the front of it. `playhead` (the
+ * camera's current year) widens the floor, so a grab that starts after a
+ * choreography has parked the camera further back doesn't jerk forward.
+ * `pannable` is false when the whole extent already fits on screen.
+ *
+ * @param {number} w @param {number} h
+ * @param {[number, number]} extent @param {number} playhead
+ */
+export function racePanBounds(w, h, extent, playhead) {
+	const [e0, e1] = extent;
+	const panMax = e1;
+	const panMin = Math.min(
+		panMax,
+		Math.min(e0 + raceVisibleSpan(w, h), playhead)
+	);
+	return { panMin, panMax, pannable: panMax - panMin > 0.01 };
+}
+
+// x (year) + y (avg distance) tick furniture for one frame — shared by the
+// static layout and the per-frame sweep/pan writers so animated axes read off
+// the exact same rule as the static end-states.
+function raceAxes(cam, yS, vLo, vHi, e1) {
+	// every visible year gets its own horizontal 4-digit label — no thinning, no
+	// width branch: PX_PER_YEAR guarantees the gap. Ticks travel with their years
+	// during a pan, which is the whole point of a fixed scale.
 	const x = [];
-	for (let yr = Math.ceil(dom0 / step) * step; yr <= dom1; yr += step) {
-		x.push({ pos: xS(yr), label: String(yr) });
+	const last = Math.floor(Math.min(cam.camRight, e1) + 1e-9);
+	for (let yr = Math.ceil(cam.camLeft - 1e-9); yr <= last; yr++) {
+		const pos = cam.xS(yr);
+		// cull a label whose centre has left the plot (can happen for one frame
+		// after a resize changes visibleSpan) so it never lands on the y ticks
+		if (pos < cam.left - 0.5 || pos > cam.right + 0.5) continue;
+		x.push({ pos, label: String(yr) });
 	}
 	// ticks label the raw data extent (not the padded scale domain) so the
 	// numbers read as real values and sit just inside the plot
@@ -120,36 +191,53 @@ function raceAxes(xS, yS, dom0, dom1, vLo, vHi, bottom) {
 		const v = vLo + ((vHi - vLo) * i) / 4;
 		return { pos: yS(v), label: v.toFixed(2) };
 	});
-	return { x, xBase: bottom + 10, y };
+	return { x, xBase: cam.bottom + 10, y };
 }
 
 /**
- * Writes ONLY the ~15 race dot slots + 15 race trail slots for one sweep frame,
+ * @typedef {Object} RaceFrame
+ * @property {[number, number]} extent content extent — fixed for a whole step
+ * (and a whole animation phase), so the cast and the y-fit never shift under a
+ * moving camera
+ * @property {number} [playhead] year at the plot's right edge (default: extent
+ * end); clamped to the camera's pan bounds
+ * @property {number} [reveal] entry draw-on progress 0..1 across the VISIBLE
+ * span (1 = fully drawn). Only the draw-on passes it.
+ * @property {number[]} [highlight] the contenders this step is *about*. Any other
+ * coloured contender drops to the background treatment (crowd radius and alpha,
+ * its own colour kept), so the step reads as being about two lines instead of
+ * four. Omitted → every coloured contender is foreground.
+ */
+
+/**
+ * Writes ONLY the ~15 race dot slots + 15 race trail slots for one frame,
  * directly into the live Float32 tweener buffers (no allocation, crowd/other
- * trails left untouched). Actors ride their curves; a dot whose window edge
- * runs past its data clamps to the curve endpoint.
+ * trails left untouched). Actors ride their curves; a dot whose playhead runs
+ * past its data clamps to the curve endpoint.
+ *
+ * Trails are sampled over the CAMERA's interval, not the content extent:
+ * sampleTrail lays its vertices uniformly in data-x, so sampling all 55 years
+ * of raceFull would leave ~5 vertices on a phone's 6-year viewport and turn the
+ * monotone curve into a visible polyline. Sampling [camLeft, playhead] puts
+ * every vertex on screen — and, with the off-camera alpha gate below, keeps
+ * every vertex inside the plot so no canvas clip region is needed.
+ *
  * @param {Float32Array|Float64Array} attrsBuf live dot buffer (or a scratch clone)
  * @param {Float32Array|Float64Array} trailBuf live trail buffer (or a scratch clone)
- * @param {{year0:number,year1:number,dom0:number,dom1:number}} frame
- * @param {number} [yCap] matches the target static state's yCap: the y-fit only
- * considers actors that would still qualify as a "contender" over [dom0,dom1] —
- * the fixed target window, NOT the momentarily-revealed [year0,year1] clip —
- * so membership stays constant for the whole sweep (a clip window that grows
- * frame-to-frame would otherwise flip actors in/out of the fit as their history
- * comes into view, snapping the y-scale mid-animation). The last frame's
- * [year0,year1] == [dom0,dom1], so this still lands on the exact same vMin/vMax
- * as raceLayout.
- * @param {[number,number,number,number]} [fixedYFit] overrides the per-frame
- * y-fit with a shared [vMin,vMax,vLo,vHi] so a sweep between two states whose
- * static layouts share the same fixedYFit never snaps the axis mid-animation
- * @param {(id: number) => number} [alphaOf] per-actor alpha multiplier (0–1)
- * for this frame — the sweep animators use it to fade actors who leave (or
- * join) the contender cast over the phase, so the final frame's visibility
- * matches the static state it settles onto instead of everyone popping at the
- * settle. Omitted → every actor at full strength.
- * @returns {{axes: {x: {pos:number,label:string}[], xBase:number, y: {pos:number,label:string}[]}}}
- * this frame's axis furniture, so the caller can keep the rendered ticks live
- * and accurate for the whole animation instead of frozen at the target state.
+ * @param {number} w
+ * @param {number} h
+ * @param {RaceFrame} frame
+ * @param {number} [yCap] the state's contender cap — applied over the frame's
+ * content extent, so cast membership is constant for a whole phase
+ * @param {[number,number,number,number]} [fixedYFit] overrides the extent y-fit
+ * with a shared [vMin,vMax,vLo,vHi] so a sweep between two states that share it
+ * never snaps the axis mid-animation
+ * @param {(id: number) => number} [alphaOf] per-actor alpha multiplier (0–1) for
+ * this frame — the sweep animators use it to fade actors who join or leave the
+ * cast across a phase, so the final frame's visibility matches the static state
+ * it settles onto instead of everyone popping at the settle. Omitted → the
+ * frame's own cast at full strength, everyone else hidden.
+ * @returns {{axes: {x: {pos:number,label:string}[], xBase:number, y: {pos:number,label:string}[]}, cam: ReturnType<typeof raceCamera>, yS: (v:number)=>number, cast: Set<number>}}
  */
 export function writeRaceSweepFrame(
 	attrsBuf,
@@ -161,32 +249,49 @@ export function writeRaceSweepFrame(
 	fixedYFit = null,
 	alphaOf = null
 ) {
-	const { year0, year1, dom0, dom1 } = frame;
-	const segsList = [];
-	for (const id of RACE_IDS) {
-		const c = clipSeries(story.raceSeries[id], dom0, dom1);
-		if (!c) continue;
-		if (Math.min(...c.map(([, v]) => v)) > yCap) continue;
-		segsList.push(RACE_SEGS.get(id));
-	}
-	const [vMin, vMax, vLo, vHi] = fixedYFit ?? raceYFit(segsList, year0, year1);
-	const { bottom, xS, yS } = raceScales(w, h, dom0, dom1, vMin, vMax);
+	const [e0, e1] = frame.extent;
+	const cast = raceContenders(e0, e1, yCap);
+	const segsList = [...cast].map((id) => RACE_SEGS.get(id));
+	const [vMin, vMax, vLo, vHi] = fixedYFit ?? raceYFit(segsList, e0, e1);
+	const cam = raceCamera(w, h, frame.playhead ?? e1);
+	const yS = (v) => lin(v, vMin, vMax, cam.top, cam.bottom);
+	// draw-on: the lines unspool leftward from the right-hand end of the data
+	const revealRight = Math.min(cam.camRight, e1);
+	const revealFrom =
+		revealRight - (revealRight - cam.camLeft) * (frame.reveal ?? 1);
+	const highlight = frame.highlight ? new Set(frame.highlight) : null;
 	for (const id of RACE_IDS) {
 		const rgb = raceRGB(id);
-		const major = rgb !== CROWD;
-		const m = alphaOf ? alphaOf(id) : 1;
+		// "foreground" = a coloured contender this step is about. Everyone else
+		// (the grey crowd, and the contenders a highlighted step isn't about) rides
+		// the smaller, fainter background treatment.
+		const major = rgb !== CROWD && (!highlight || highlight.has(id));
 		const segs = RACE_SEGS.get(id);
 		const slot = RACE_SLOT.get(id);
 		const [ds, de] = RACE_RANGE.get(id);
-		const sx0 = Math.max(year0, ds);
-		const sx1 = Math.min(year1, de);
+		// an actor whose data has scrolled off the camera fades out over its last
+		// visible year rather than popping — and once out, its dot must not be
+		// placed (it would sit over the y ticks or in the name gutter, dragging a
+		// collapsed 48-vertex trail with it).
+		const onCamera = de >= cam.camLeft && ds <= cam.playhead;
+		const edgeFade = Math.min(1, Math.max(0, de - cam.camLeft));
+		const m =
+			(alphaOf ? alphaOf(id) : cast.has(id) ? 1 : 0) *
+			(onCamera ? edgeFade : 0);
+		// the camera's left edge, not the extent's, is the draw floor: when the
+		// viewport is wider than the step's extent (or a choreography has panned
+		// behind it) the cast's lines simply extend further back rather than
+		// leaving the axis empty. The extent still caps the right edge, so a step
+		// never shows years past the one it is about.
+		const sx0 = Math.max(cam.camLeft, revealFrom, ds);
+		const sx1 = Math.min(cam.playhead, de, e1);
 		// the dot rides the RIGHT END OF THE VISIBLE LINE, not the raw playhead:
 		// when the playhead is within the actor's data the two coincide (dot pinned
-		// centre), but once the playhead runs past the data the dot stays glued to
-		// the curve's endpoint (clamp to curve ends) instead of floating ahead of a
-		// shorter line. Matches the static layout's dot = xS(clipped.at(-1)).
-		const dotYr = Math.min(Math.max(year1, ds), de);
-		const dx = xS(dotYr);
+		// to the plot's right edge), but once the playhead runs past the data the
+		// dot stays glued to the curve's endpoint instead of floating ahead of a
+		// shorter line.
+		const dotYr = Math.min(Math.max(cam.playhead, ds), de);
+		const dx = cam.xS(dotYr);
 		const dy = yS(curveYAt(segs, dotYr));
 		set(attrsBuf, id, dx, dy, major ? 5 : 3, rgb, (major ? 1 : 0.55) * m);
 		if (sx1 > sx0) {
@@ -196,136 +301,124 @@ export function writeRaceSweepFrame(
 				segs,
 				sx0,
 				sx1,
-				xS,
+				cam.xS,
 				yS,
 				(major ? 0.8 : 0.35) * m
 			);
 		} else {
-			// window sits entirely outside this actor's data → no line, park on dot
+			// nothing of this actor is drawn yet (or at all) → park on the dot
 			collapseTrail(trailBuf, slot, dx, dy, (major ? 0.8 : 0.35) * m);
 		}
 	}
-	return { axes: raceAxes(xS, yS, dom0, dom1, vLo, vHi, bottom) };
+	return { axes: raceAxes(cam, yS, vLo, vHi, e1), cam, yS, cast };
 }
 
+// Era handovers long enough to read, and far enough apart not to collide, whose
+// reign OVERLAPS the camera. Overlap rather than "starts inside the camera": at a
+// fixed scale the camera can be narrower than a reign, and the reader needs to
+// know whose stretch they are looking at — so a reign already in progress gets
+// its callout anchored at the camera's left edge (still labelled with its real
+// start year). The NOTE_MIN_GAP_YEARS check then keeps at most one of those, the
+// longest-running one, instead of stacking every ongoing reign on the edge.
+//
+// The callout height alternates on the era's own index (not the pushed-note
+// count) — with a camera-dependent filter, a count parity would make a note hop
+// vertically as earlier notes pan out of view.
+function raceNotes(cam, yS, extent, cast, minEraYears) {
+	const [e0, e1] = extent;
+	const notes = [];
+	let lastAnchor = -Infinity;
+	story.eras.forEach((era, i) => {
+		const start = yearOf(era.start);
+		const end = era.end ? yearOf(era.end) : e1;
+		if (end - start < minEraYears) return;
+		if (start < e0 || start > e1) return;
+		if (end < cam.camLeft || start > cam.playhead) return;
+		if (!cast.has(era.id)) return;
+		const anchor = Math.max(start, cam.camLeft);
+		if (anchor - lastAnchor < NOTE_MIN_GAP_YEARS) return;
+		const series = clipSeries(story.raceSeries[era.id], e0, e1);
+		if (!series) return;
+		const vAt = valueAt(series, Math.max(anchor, e0));
+		const text = `${rawNodes.nodes[era.id][1]} · ${Math.round(start)}`;
+		// centre-anchored notes clip when their anchor sits within half a label
+		// width of a plot edge, so clamp the centre inward to keep the whole label
+		// inside the plot
+		const hw = text.length * 3.4;
+		const cx = Math.min(
+			Math.max(cam.xS(anchor), cam.left + hw),
+			cam.right - hw
+		);
+		notes.push({
+			x: cx,
+			y: yS(vAt) - (i % 2 === 0 ? 24 : 42),
+			align: /** @type {const} */ ("center"),
+			text
+		});
+		lastAnchor = anchor;
+	});
+	return notes;
+}
+
+/**
+ * @param {{extent: [number, number], highlight?: number[]}} step the state's race
+ * descriptor — its content extent (also the resting playhead: every race step
+ * opens with the camera at the right-hand end of its data) and, optionally, the
+ * contenders it is about (see RaceFrame.highlight)
+ */
 function raceLayout(
-	windowYears,
+	step,
 	minEraYears,
 	yCap = Infinity,
 	showEraNotes = true,
 	fixedYFit = null
 ) {
+	const { extent } = step;
 	/** @type {import("../layout-shared.js").LayoutFn} */
 	return function layoutRace(nodes, w, h, _edges, params) {
 		const attrs = new Float64Array(ATTR_SIZE);
 		const trails = new Float64Array(TRAIL_SIZE);
 		const trailDelays = new Float64Array(TRAIL_META.length);
-		// window clips the data; domain defines the x-scale. They coincide for
-		// the static states, but the Stage 3 path animator pans them separately
-		// (drawLine grows the clip window; rewind pans the domain).
-		const [year0, year1] = params?.window ?? windowYears;
-		const [dom0, dom1] = params?.domain ?? params?.window ?? windowYears;
-		const clipped = new Map();
-		for (const id of RACE_IDS) {
-			const c = clipSeries(story.raceSeries[id], year0, year1);
-			if (!c) continue;
-			// zoomed steps only follow the contenders — actors who never get
-			// near the lead in this window stay hidden
-			if (Math.min(...c.map(([, v]) => v)) > yCap) continue;
-			clipped.set(id, c);
-		}
-		// y-fit off the (full-series) curves of the visible actors: vMin/vMax are
-		// padded (scale domain), vLo/vHi the raw data extent (for tick labels).
-		// A fixedYFit overrides this with a shared fit so a handoff between two
-		// states (e.g. raceRecent <-> raceTrades) never snaps the axis.
-		const segsList = [...clipped.keys()].map((id) => RACE_SEGS.get(id));
-		const [vMin, vMax, vLo, vHi] =
-			fixedYFit ?? raceYFit(segsList, year0, year1);
-		const { bottom, xS, yS } = raceScales(w, h, dom0, dom1, vMin, vMax);
-		const raceSet = new Set(clipped.keys());
+		// park every node hidden at its scatter spot first; the frame writer then
+		// places the race cast on their curves. Sharing that writer with the sweep
+		// animators is what makes a settle byte-identical to its animation's last
+		// frame — there is only one placer of race dots and trails.
 		for (const n of nodes) {
-			if (!raceSet.has(n.id)) {
-				const [x, y] = scatterPosition(n, w, h);
-				set(attrs, n.id, x, y, 2, CROWD, 0);
-				continue;
-			}
-			const series = clipped.get(n.id);
-			const [xe, ve] = series.at(-1);
-			const major = raceRGB(n.id) !== CROWD;
-			set(
-				attrs,
-				n.id,
-				xS(xe),
-				yS(ve),
-				major ? 5 : 3,
-				raceRGB(n.id),
-				major ? 1 : 0.55
-			);
+			const [x, y] = scatterPosition(n, w, h);
+			set(attrs, n.id, x, y, 2, CROWD, 0);
 		}
+		const { axes, cam, yS, cast } = writeRaceSweepFrame(
+			attrs,
+			trails,
+			w,
+			h,
+			{ ...step, playhead: params?.playhead ?? extent[1], reveal: 1 },
+			yCap,
+			fixedYFit
+		);
+		// race actors the cap excludes go back to their scatter spot (still alpha
+		// 0), so the next chapter's arrival doesn't fly hidden dots in off the plot
+		for (const id of RACE_IDS) {
+			if (cast.has(id)) continue;
+			const [x, y] = scatterPosition(nodes[id], w, h);
+			set(attrs, id, x, y, 2, CROWD, 0);
+		}
+		const raceSlots = new Set(RACE_SLOT.values());
 		TRAIL_META.forEach((meta, t) => {
-			if (
-				meta.id !== null &&
-				clipped.has(meta.id) &&
-				RACE_SLOT.get(meta.id) === t
-			) {
-				// sample the FULL-series curve over the clipped extent (correct
-				// tangents at the window edges; pixel-identical to a sweep frame)
-				const c = clipped.get(meta.id);
-				sampleTrail(
-					trails,
-					t,
-					RACE_SEGS.get(meta.id),
-					c[0][0],
-					c.at(-1)[0],
-					xS,
-					yS,
-					meta.rgb === CROWD ? 0.35 : 0.8
-				);
-				trailDelays[t] = 250; // dots land first, lines unspool after
-			} else {
-				const id = meta.id;
-				const [x, y] =
-					id !== null && clipped.has(id)
-						? [attrs[id * STRIDE], attrs[id * STRIDE + 1]]
-						: [w / 2, bottom];
-				collapseTrail(trails, t, x, y, 0);
+			// the writer owns every race slot; the rest (career trio, cohort lines,
+			// prediction diagonal) retract into the middle of the plot
+			if (raceSlots.has(t)) {
+				if (meta.id !== null && cast.has(meta.id)) trailDelays[t] = 250;
+				return;
 			}
+			collapseTrail(trails, t, w / 2, cam.bottom, 0);
 		});
-		// era handovers long enough to read at this zoom level; alternate the
-		// callout height so neighbouring handovers don't collide (narrow
-		// screens get only the longest reigns)
-		const notes = [];
-		const minEra = minEraYears * (w < 480 ? 2.5 : 1);
-		if (showEraNotes) {
-			for (const era of story.eras) {
-				const start = yearOf(era.start);
-				const end = era.end ? yearOf(era.end) : year1;
-				if (end - start < minEra || start < year0 || start > year1) continue;
-				const node = rawNodes.nodes[era.id];
-				const series = clipped.get(era.id);
-				if (!series) continue;
-				const vAt = valueAt(series, Math.max(start, year0));
-				const nx = xS(Math.max(start, year0));
-				const text = `${node[1]} · ${Math.round(start)}`;
-				// centre-anchored notes clip when their anchor sits within half a label
-				// width of a plot edge (e.g. the SLJ·2006 handover near the left edge), so
-				// clamp the centre inward to keep the whole label inside the plot.
-				const hw = text.length * 3.4;
-				const cx = Math.min(Math.max(nx, xS(dom0) + hw), xS(dom1) - hw);
-				notes.push({
-					x: cx,
-					y: yS(vAt) - (notes.length % 2 === 0 ? 24 : 42),
-					align: /** @type {const} */ ("center"),
-					text
-				});
-			}
-		}
 		return {
 			attrs,
 			trails,
 			trailDelays,
-			notes,
-			axes: raceAxes(xS, yS, dom0, dom1, vLo, vHi, bottom)
+			notes: showEraNotes ? raceNotes(cam, yS, extent, cast, minEraYears) : [],
+			axes
 		};
 	};
 }
@@ -347,84 +440,88 @@ const OVERLAY = {
 	yLabel: "Avg distance"
 };
 
-// optional runtime override of the windowed frame; null while idle, so normal
-// stepping keeps its baked window and stays on the stateChange (reveal) path
+// optional runtime override of the camera ({ playhead }); null while idle, so
+// normal stepping keeps its resting playhead and stays on the reveal path
 const params = (s) => s.raceView;
 
-// the raceRecent window, exported so the entry animator (ScrollyVisual) lands
-// its draw-on sweep on a frame byte-identical to this static layout
-export const RACE_ENTRY_WINDOW = [2004, 2026.2];
+// Content extents. Width-independent by construction, so every constant derived
+// from them (notably RACE_HANDOFF_YFIT) can be computed at module load. The
+// data ends in 2025, and each step's resting playhead is its extent's end, so
+// the dots land on the plot's right edge with no dead strip.
+export const RACE_RECENT_EXTENT = /** @type {[number, number]} */ ([
+	2004, 2025
+]);
+export const RACE_TRADES_EXTENT = /** @type {[number, number]} */ ([
+	1971.8, 1994
+]);
+export const RACE_FULL_EXTENT = /** @type {[number, number]} */ ([1970, 2025]);
+
+// The race descriptors each state exposes as `race` (STATE_RACE) — the frame
+// animators in ScrollyVisual build their frames from these, so an animated frame
+// and the static layout it settles onto agree on the extent AND the highlight.
+// raceRecent is about SLJ taking over from Hackman, so only those two ride the
+// foreground treatment there; De Niro and Welker stay on the chart in their own
+// colours, dimmed.
+export const RACE_RECENT_STEP = { extent: RACE_RECENT_EXTENT, highlight: [SLJ, HACKMAN] }; // prettier-ignore
+export const RACE_TRADES_STEP = { extent: RACE_TRADES_EXTENT };
+export const RACE_FULL_STEP = { extent: RACE_FULL_EXTENT };
 
 // per-state yCap, re-exported alongside each layout (as STATE_YCAP in states.js)
-// so the ScrollyVisual sweep/scrub animators can fit their y-scale the same way
+// so the ScrollyVisual sweep/pan animators can fit their y-scale the same way
 // the static layout does — see writeRaceSweepFrame's yCap param.
 const RACE_RECENT_YCAP = 2.3;
 const RACE_TRADES_YCAP = 2.25;
 
-// fixed width the whole two-leg rewind slides at (derived from raceRecent's
-// own entry window, so the slide starts with zero discontinuity from the
-// draw-on's frame): both edges of the window move together by the same
-// amount as the "current year" recedes, so dots actually travel through time
-// (their screen position is pinned to the window's right edge — see
-// writeRaceSweepFrame's dotYr) instead of sitting frozen while only the
-// trailing line extends, which is what happens if the two edges don't move
-// by the same amount (a zoom, not a slide).
-export const RACE_WINDOW_SPAN = RACE_ENTRY_WINDOW[1] - RACE_ENTRY_WINDOW[0];
-
 // waypoint year where raceRecent's own chained rewind (leg 1, played
 // automatically as part of its arrival) stops; raceTrades' own arrival then
-// plays leg 2, continuing the same slide on from here to its own resting
+// plays leg 2, continuing the same camera pan on from here to its own resting
 // year — so the "camera moving back in time" motion is split visibly across
 // both steps instead of raceTrades being a no-op.
 export const RACE_REWIND_WAYPOINT_YEAR = 2007;
 
-// the raceTrades window: dots rest at 1994 (looking further into the past),
-// not looking back across 1994-2007 at once — exported so the rewind
-// animator (ScrollyVisual) lands its leg-2 sweep on a frame byte-identical to
-// this static layout
-export const RACE_TRADES_WINDOW = [1994 - RACE_WINDOW_SPAN, 1994];
-
 // shared y-fit for the raceRecent <-> raceTrades handoff: computed once over
-// the union of both states' windows and contenders, so the entry sweep,
+// the union of both states' content extents and contenders, so the entry sweep,
 // rewind sweep, and both static states all land on the exact same axis and
 // stepping between them (either direction) never snaps the y-scale.
 function raceHandoffContenders() {
 	const ids = new Set();
-	for (const [window, cap] of [
-		[RACE_ENTRY_WINDOW, RACE_RECENT_YCAP],
-		[RACE_TRADES_WINDOW, RACE_TRADES_YCAP]
+	for (const [extent, cap] of [
+		[RACE_RECENT_EXTENT, RACE_RECENT_YCAP],
+		[RACE_TRADES_EXTENT, RACE_TRADES_YCAP]
 	]) {
-		for (const id of raceContenders(window[0], window[1], cap)) ids.add(id);
+		for (const id of raceContenders(extent[0], extent[1], cap)) ids.add(id);
 	}
 	return [...ids].map((id) => RACE_SEGS.get(id));
 }
 export const RACE_HANDOFF_YFIT = raceYFit(
 	raceHandoffContenders(),
-	Math.min(RACE_ENTRY_WINDOW[0], RACE_TRADES_WINDOW[0]),
-	Math.max(RACE_ENTRY_WINDOW[1], RACE_TRADES_WINDOW[1])
+	Math.min(RACE_RECENT_EXTENT[0], RACE_TRADES_EXTENT[0]),
+	Math.max(RACE_RECENT_EXTENT[1], RACE_TRADES_EXTENT[1])
 );
 
 export const states = {
 	raceRecent: {
-		// no era-handover note here: the four contenders are already named beside
+		// no era-handover note here: the step's two actors are already named beside
 		// their dots (labels below), so a callout would just repeat a name
 		layout: raceLayout(
-			RACE_ENTRY_WINDOW,
+			RACE_RECENT_STEP,
 			3,
 			RACE_RECENT_YCAP,
 			false,
 			RACE_HANDOFF_YFIT
 		),
+		race: RACE_RECENT_STEP,
 		yCap: RACE_RECENT_YCAP,
-		labels: [SLJ, HACKMAN, DENIRO, WELKER],
+		yFit: RACE_HANDOFF_YFIT,
+		// only the highlighted pair is named: the dimmed contenders read as
+		// background, and a name on them would argue otherwise
+		labels: [SLJ, HACKMAN],
 		// names sit in the reserved right gutter, beside the right-edge dots;
-		// ScrollyVisual's label de-collider keeps the four apart when their dots
-		// land close together
+		// ScrollyVisual's label de-collider keeps them apart when their dots land
+		// close together
 		labelDirs: {
 			[SLJ]: "right",
-			[HACKMAN]: "right",
-			[DENIRO]: "right",
-			[WELKER]: "right"
+			[HACKMAN]: "right"
 		},
 		overlay: OVERLAY,
 		params,
@@ -433,13 +530,15 @@ export const states = {
 	},
 	raceTrades: {
 		layout: raceLayout(
-			RACE_TRADES_WINDOW,
+			RACE_TRADES_STEP,
 			0.4,
 			RACE_TRADES_YCAP,
 			true,
 			RACE_HANDOFF_YFIT
 		),
+		race: RACE_TRADES_STEP,
 		yCap: RACE_TRADES_YCAP,
+		yFit: RACE_HANDOFF_YFIT,
 		// SLJ and Welker aren't within RACE_TRADES_YCAP at 1994 (they're not yet
 		// contenders this far back) and won't render here — only Hackman and De
 		// Niro need labeling
@@ -450,14 +549,16 @@ export const states = {
 		},
 		overlay: OVERLAY,
 		params,
-		// rewind choreography: continue the fixed-width slide further back (from
-		// RACE_REWIND_WAYPOINT_YEAR, where raceRecent's own leg-1 slide stopped)
+		// rewind choreography: continue the camera pan further back (from
+		// RACE_REWIND_WAYPOINT_YEAR, where raceRecent's own leg-1 pan stopped)
 		// when arriving from it — leg 2 of one continuous back-through-time
 		// motion split across both steps
 		revealFrom: ["raceRecent"]
 	},
 	raceFull: {
-		layout: raceLayout([1970, 2026.2], 4),
+		layout: raceLayout(RACE_FULL_STEP, 4),
+		race: RACE_FULL_STEP,
+		yFit: null,
 		labels: [HACKMAN],
 		labelDirs: { [HACKMAN]: "right" },
 		overlay: OVERLAY,

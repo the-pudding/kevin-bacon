@@ -46,6 +46,7 @@ words:
   - conc
   - decollider
   - repro
+  - yfit
 ignorePaths:
   - node_modules
   - build
