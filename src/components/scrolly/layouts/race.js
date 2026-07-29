@@ -156,21 +156,32 @@ function curveEntry(segs, to, from, vMin, vMax) {
  * @param {[number,number,number,number]} b fit at progress 1
  * @param {number} fromP playhead at progress 0
  * @param {number} toP playhead at progress 1
- * @param {number[]} ids the actors whose dots must stay on screen
+ * @param {number[]} ids every actor the phase draws — those arriving and leaving
+ * included, since a dot only has to be on screen while it is visible
+ * @param {(e: number, id: number) => number} [alphaAt] the phase's fade schedule.
+ * Load-bearing at both ends: without it a departing actor drags the axis for the
+ * whole phase (its own fit no longer holds it, so the settle would not match its
+ * landing state), and with a fixed cast instead its dot rides outside the plot while
+ * it fades. Omitted → every id counts throughout.
  * @returns {(e: number) => [number,number,number,number]}
  */
-export function raceRewindYFit(a, b, fromP, toP, ids) {
-	const segsList = ids.map((id) => RACE_SEGS.get(id));
+export function raceRewindYFit(a, b, fromP, toP, ids, alphaAt = () => 1) {
+	const segsList = ids.map((id) => [id, RACE_SEGS.get(id)]);
 	return (e) => {
 		const playhead = fromP + (toP - fromP) * e;
 		let lo = Infinity;
 		let hi = -Infinity;
-		for (const segs of segsList) {
+		for (const [id, segs] of segsList) {
+			// 0.02: below this a dot is invisible, so holding the axis open for it
+			// would only cost range
+			if (alphaAt(e, id) <= 0.02) continue;
 			const v = curveYAt(segs, playhead);
 			lo = Math.min(lo, v);
 			hi = Math.max(hi, v);
 		}
 		const [vMin, vMax, vLo, vHi] = a.map((v, i) => v + (b[i] - v) * e);
+		// nothing visible yet (mid-fade at a phase boundary): the eased fit alone
+		if (lo > hi) return [vMin, vMax, vLo, vHi];
 		// same 6% breathing room raceYFit gives a static fit, so a dot the envelope
 		// pulls the axis onto still doesn't touch the plot edge
 		const pad = (vMax - vMin) * 0.06;
