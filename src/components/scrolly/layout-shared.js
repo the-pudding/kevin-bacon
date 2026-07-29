@@ -83,6 +83,7 @@ export const BLUE = [68, 119, 170]; // --category-blue
 export const GREEN = [34, 136, 51]; // --category-green
 export const YELLOW = [204, 187, 68]; // --category-yellow
 export const PURPLE = [170, 51, 119]; // --category-purple
+export const CYAN = [102, 204, 238]; // --category-cyan
 
 export const MARGIN = 32;
 // charts live in the top ~3/5 of the canvas — the step card owns the bottom,
@@ -133,6 +134,7 @@ export const WELKER = idOf(15831);
 export const CAGE = idOf(2963);
 export const WALTERS = idOf(477);
 export const WALSH = idOf(588);
+export const STARR = idOf(5170);
 export const OLDMAN = idOf(64);
 export const KIDMAN = idOf(2227);
 export const CGM = story.genz.candidates[0].id;
@@ -186,8 +188,10 @@ export const TRAIL_POINTS = 48;
 export const TRAIL_STRIDE = TRAIL_POINTS * 2 + 1; // vertices + alpha
 export const RACE_IDS = Object.keys(story.raceSeries)
 	.map(Number)
-	.filter((id) => id !== WALSH)
 	.sort((a, b) => a - b);
+// Every actor who has held the centre gets their own colour; the rest of the race
+// field is the grey crowd. Walsh and Starr are named because they each hold the
+// crown inside raceTrades' window — an unnamed grey line can't carry a handover.
 export const raceRGB = (id) =>
 	id === SLJ
 		? PURPLE
@@ -197,7 +201,11 @@ export const raceRGB = (id) =>
 				? GREEN
 				: id === WELKER
 					? YELLOW
-					: CROWD;
+					: id === WALSH
+						? CYAN
+						: id === STARR
+							? RED
+							: CROWD;
 /** @type {{ id: number|null, rgb: number[], width: number }[]} */
 export const TRAIL_META = [
 	...RACE_IDS.map((id) => ({

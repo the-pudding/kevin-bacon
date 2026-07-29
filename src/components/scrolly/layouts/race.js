@@ -9,8 +9,6 @@ import {
 	CROWD,
 	SLJ,
 	HACKMAN,
-	DENIRO,
-	WELKER,
 	set,
 	scatterPosition,
 	raceRGB,
@@ -36,9 +34,13 @@ import {
 //
 // Three concepts, deliberately separate:
 //   content extent  [e0,e1]  baked per state, width-independent — drives the
-//                            yCap contender cast, the y-fit, era candidacy and
-//                            the pan bounds, so panning NEVER moves the y axis
-//                            or changes who is on the chart.
+//                            cast, the y-fit, era candidacy and the pan bounds,
+//                            so panning NEVER moves the y axis or changes who is
+//                            on the chart. The y-fit is fixed for a whole state
+//                            and a whole animation phase; the one exception is
+//                            the raceRecent -> raceTrades rewind leg, whose axis
+//                            pans with its camera (raceRewindYFit) because each
+//                            of those steps is fitted to its own decade.
 //   camera          playhead the year at the plot's right edge; with
 //                            PX_PER_YEAR this fixes the whole x scale.
 //   reveal          0..1     the entry draw-on only: how much of the visible
@@ -73,10 +75,10 @@ const RACE_RANGE = new Map(
 );
 
 // the race actors who count as contenders over [year0, year1]: their clipped
-// series must exist and dip to (or below) yCap. This is the one membership
-// rule — the static layouts, the handoff y-fit, and the sweep casts all read
-// it, and every caller passes a state's *content extent*, so the cast is fixed
-// for a whole step (panning can hide an actor off-camera, never un-cast it).
+// series must exist and dip to (or below) yCap. Reached through raceStepCast, never
+// called directly by a state, and every caller passes a state's *content extent*,
+// so the cast is fixed for a whole step (panning can hide an actor off-camera,
+// never un-cast it).
 export function raceContenders(year0, year1, yCap) {
 	const ids = new Set();
 	for (const id of RACE_IDS) {
@@ -95,6 +97,90 @@ function raceYFit(segsList, year0, year1) {
 	const [lo, hi] = curveYRange(segsList, year0, year1) ?? [0, 1];
 	const pad = (hi - lo) * 0.06 || 0.05;
 	return [lo - pad, hi + pad, lo, hi];
+}
+
+/**
+ * Walking left from `to`, the year where a curve last leaves [vMin, vMax] — i.e.
+ * where its line should enter the plot. Returns `from` when the curve stays in
+ * range all the way, so a line that never goes off-scale is drawn in full.
+ *
+ * Bisects on a coarse scan rather than solving the cubics: the vertex spacing is
+ * ~8px, so landing within a fraction of a year of the true crossing puts the
+ * line's end on the plot edge to the pixel.
+ *
+ * @param {ReturnType<typeof monotoneSegments>} segs
+ * @param {number} to right end of the drawn range (in range by construction)
+ * @param {number} from furthest left the line could be drawn
+ */
+function curveEntry(segs, to, from, vMin, vMax) {
+	if (to <= from) return from;
+	const inRange = (x) => {
+		const v = curveYAt(segs, x);
+		return v >= vMin && v <= vMax;
+	};
+	const STEPS = 48;
+	let lastIn = to;
+	for (let i = 1; i <= STEPS; i++) {
+		const x = to - ((to - from) * i) / STEPS;
+		if (!inRange(x)) {
+			// crossing is between x (out) and lastIn — bisect to the pixel
+			let out = x;
+			for (let j = 0; j < 12; j++) {
+				const mid = (out + lastIn) / 2;
+				if (inRange(mid)) lastIn = mid;
+				else out = mid;
+			}
+			return lastIn;
+		}
+		lastIn = x;
+	}
+	return from;
+}
+
+/**
+ * The y-fit for the rewind's second leg: an axis that PANS with the camera instead
+ * of holding still, easing from `a` (raceRecent's) to `b` (raceTrades' resting fit)
+ * while always containing the dots at the frame's playhead.
+ *
+ * Both parts are needed. The ease is what keeps the handoff from snapping between
+ * two steps fitted to different decades. The dot envelope is what lets each step's
+ * fit be tight: a straight interpolation between them passes above the actors' late
+ * 1990s values — the dots would ride out over the axis furniture ~40px above the
+ * plot — because the pan's corridor dips below both endpoints. Widening either
+ * endpoint to cover the corridor instead is what left raceTrades' resting axis with
+ * a third of its height empty.
+ *
+ * Hand the result to runSweepPhase in place of a constant fit.
+ *
+ * @param {[number,number,number,number]} a fit at progress 0
+ * @param {[number,number,number,number]} b fit at progress 1
+ * @param {number} fromP playhead at progress 0
+ * @param {number} toP playhead at progress 1
+ * @param {number[]} ids the actors whose dots must stay on screen
+ * @returns {(e: number) => [number,number,number,number]}
+ */
+export function raceRewindYFit(a, b, fromP, toP, ids) {
+	const segsList = ids.map((id) => RACE_SEGS.get(id));
+	return (e) => {
+		const playhead = fromP + (toP - fromP) * e;
+		let lo = Infinity;
+		let hi = -Infinity;
+		for (const segs of segsList) {
+			const v = curveYAt(segs, playhead);
+			lo = Math.min(lo, v);
+			hi = Math.max(hi, v);
+		}
+		const [vMin, vMax, vLo, vHi] = a.map((v, i) => v + (b[i] - v) * e);
+		// same 6% breathing room raceYFit gives a static fit, so a dot the envelope
+		// pulls the axis onto still doesn't touch the plot edge
+		const pad = (vMax - vMin) * 0.06;
+		return [
+			Math.min(vMin, lo - pad),
+			Math.max(vMax, hi + pad),
+			Math.min(vLo, lo),
+			Math.max(vHi, hi)
+		];
+	};
 }
 
 // The plot rectangle. The plot spans only the left 2/3 of the inner width — the
@@ -127,8 +213,8 @@ export function raceVisibleSpan(w, h) {
  * Deliberately a pure function of (playhead, width, height) with NO extent and
  * NO clamping. That is what makes an animated frame and the static layout it
  * settles onto pixel-identical even when a choreography drives the camera across
- * a step's own extent (the rewind pans raceRecent back to 2007, well left of
- * where a reader is allowed to pan it). Reader input is clamped at its source
+ * a step's own extent (the rewind pans raceRecent back to the waypoint). Reader
+ * input is clamped at its source
  * instead — see racePanBounds.
  *
  * @param {number} w
@@ -207,6 +293,9 @@ function raceAxes(cam, yS, vLo, vHi, e1) {
  * coloured contender drops to the background treatment (crowd radius and alpha,
  * its own colour kept), so the step reads as being about two lines instead of
  * four. Omitted → every coloured contender is foreground.
+ * @property {number[]} [only] the exact cast, naming it instead of deriving it from
+ * yCap (raceTrades lists the centres of its window). Baked into the step
+ * descriptor, so the animated frames and the static settle draw the same ids.
  */
 
 /**
@@ -230,8 +319,11 @@ function raceAxes(cam, yS, vLo, vHi, e1) {
  * @param {number} [yCap] the state's contender cap — applied over the frame's
  * content extent, so cast membership is constant for a whole phase
  * @param {[number,number,number,number]} [fixedYFit] overrides the extent y-fit
- * with a shared [vMin,vMax,vLo,vHi] so a sweep between two states that share it
- * never snaps the axis mid-animation
+ * with an explicit [vMin,vMax,vLo,vHi] so a sweep lands on the axis its state
+ * settles onto instead of one derived from the phase's camera travel. Animators
+ * pass their state's own fit (STATE_YFIT), or — across the raceRecent ->
+ * raceTrades rewind, the one phase whose axis is meant to move — the fit
+ * raceRewindYFit has resolved for this frame
  * @param {(id: number) => number} [alphaOf] per-actor alpha multiplier (0–1) for
  * this frame — the sweep animators use it to fade actors who join or leave the
  * cast across a phase, so the final frame's visibility matches the static state
@@ -250,7 +342,7 @@ export function writeRaceSweepFrame(
 	alphaOf = null
 ) {
 	const [e0, e1] = frame.extent;
-	const cast = raceContenders(e0, e1, yCap);
+	const cast = raceStepCast(frame, yCap);
 	const segsList = [...cast].map((id) => RACE_SEGS.get(id));
 	const [vMin, vMax, vLo, vHi] = fixedYFit ?? raceYFit(segsList, e0, e1);
 	const cam = raceCamera(w, h, frame.playhead ?? e1);
@@ -283,8 +375,17 @@ export function writeRaceSweepFrame(
 		// behind it) the cast's lines simply extend further back rather than
 		// leaving the axis empty. The extent still caps the right edge, so a step
 		// never shows years past the one it is about.
-		const sx0 = Math.max(cam.camLeft, revealFrom, ds);
 		const sx1 = Math.min(cam.playhead, de, e1);
+		const sx0 = Math.max(
+			cam.camLeft,
+			revealFrom,
+			ds,
+			// ...and a line stops where it leaves the y scale, entering the plot
+			// through an edge like any line chart. That is what lets a step fit its
+			// axis to the years it is ABOUT: the further history its camera happens
+			// to cover goes off-scale instead of stretching the axis to hold it.
+			curveEntry(segs, sx1, Math.max(cam.camLeft, ds), vMin, vMax)
+		);
 		// the dot rides the RIGHT END OF THE VISIBLE LINE, not the raw playhead:
 		// when the playhead is within the actor's data the two coincide (dot pinned
 		// to the plot's right edge), but once the playhead runs past the data the
@@ -392,7 +493,11 @@ function raceLayout(
 			trails,
 			w,
 			h,
-			{ ...step, playhead: params?.playhead ?? extent[1], reveal: 1 },
+			{
+				...step,
+				playhead: params?.playhead ?? extent[1],
+				reveal: 1
+			},
 			yCap,
 			fixedYFit
 		);
@@ -445,58 +550,122 @@ const OVERLAY = {
 const params = (s) => s.raceView;
 
 // Content extents. Width-independent by construction, so every constant derived
-// from them (notably RACE_HANDOFF_YFIT) can be computed at module load. The
+// from them (notably the per-state y-fits) can be computed at module load. The
 // data ends in 2025, and each step's resting playhead is its extent's end, so
 // the dots land on the plot's right edge with no dead strip.
 export const RACE_RECENT_EXTENT = /** @type {[number, number]} */ ([
 	2004, 2025
 ]);
+// The decade whose centres raceTrades is about: everyone who held the crown across
+// these years is its cast (RACE_TRADES_HOLDERS) and its axis is fitted to them
+// here, so the swaps the camera pans through read against each other.
+const RACE_TRADES_DECADE = /** @type {[number, number]} */ ([1994, 2004]);
+// The step itself RESTS on 1994 — the rewind runs until the dots are sitting on
+// the handover year, which is the moment it exists for. The camera is
+// right-anchored, so the decade above ends up off-camera to the right and the
+// run-up to 1994 is what's on screen; the cast climbs out of the axis back there,
+// and those lines stop at the plot edge (curveEntry) instead of widening it.
 export const RACE_TRADES_EXTENT = /** @type {[number, number]} */ ([
-	1971.8, 1994
+	1990, 1994
 ]);
 export const RACE_FULL_EXTENT = /** @type {[number, number]} */ ([1970, 2025]);
 
-// The race descriptors each state exposes as `race` (STATE_RACE) — the frame
-// animators in ScrollyVisual build their frames from these, so an animated frame
-// and the static layout it settles onto agree on the extent AND the highlight.
-// raceRecent is about SLJ taking over from Hackman, so only those two ride the
-// foreground treatment there; De Niro and Welker stay on the chart in their own
-// colours, dimmed.
-export const RACE_RECENT_STEP = { extent: RACE_RECENT_EXTENT, highlight: [SLJ, HACKMAN] }; // prettier-ignore
-export const RACE_TRADES_STEP = { extent: RACE_TRADES_EXTENT };
-export const RACE_FULL_STEP = { extent: RACE_FULL_EXTENT };
-
-// per-state yCap, re-exported alongside each layout (as STATE_YCAP in states.js)
-// so the ScrollyVisual sweep/pan animators can fit their y-scale the same way
-// the static layout does — see writeRaceSweepFrame's yCap param.
+// yCap for the states that pick their cast by "who gets near the top",
+// re-exported alongside each layout (as STATE_YCAP in states.js) so the
+// ScrollyVisual sweep/pan animators fit their y-scale the same way the static
+// layout does — see writeRaceSweepFrame's yCap param. raceTrades doesn't have one:
+// it names its cast outright (RACE_TRADES_HOLDERS).
 const RACE_RECENT_YCAP = 2.3;
-const RACE_TRADES_YCAP = 2.25;
 
 // waypoint year where raceRecent's own chained rewind (leg 1, played
 // automatically as part of its arrival) stops; raceTrades' own arrival then
 // plays leg 2, continuing the same camera pan on from here to its own resting
 // year — so the "camera moving back in time" motion is split visibly across
-// both steps instead of raceTrades being a no-op.
+// both steps instead of raceTrades being a no-op. The year itself is chosen for
+// what leg 1 ENDS on: the camera parks a year after SLJ's 2006 takeover, so the
+// crossing the step's copy is about is the last thing it leaves on the right edge.
 export const RACE_REWIND_WAYPOINT_YEAR = 2007;
 
-// shared y-fit for the raceRecent <-> raceTrades handoff: computed once over
-// the union of both states' content extents and contenders, so the entry sweep,
-// rewind sweep, and both static states all land on the exact same axis and
-// stepping between them (either direction) never snaps the y-scale.
-function raceHandoffContenders() {
-	const ids = new Set();
-	for (const [extent, cap] of [
-		[RACE_RECENT_EXTENT, RACE_RECENT_YCAP],
-		[RACE_TRADES_EXTENT, RACE_TRADES_YCAP]
-	]) {
-		for (const id of raceContenders(extent[0], extent[1], cap)) ids.add(id);
-	}
-	return [...ids].map((id) => RACE_SEGS.get(id));
+// The earliest year raceRecent's camera can ever DRAW. Its own extent starts at
+// 2004, but the camera's left edge is the draw floor (see writeRaceSweepFrame),
+// and its chained rewind parks the camera at RACE_REWIND_WAYPOINT_YEAR — so the
+// fit has to cover one visible span behind that waypoint or the pre-2004 tails
+// would run off the plot. raceVisibleSpan tops out near 10.8 years at the story
+// column's 700px cap, so this floor holds on every viewport and the fit stays
+// width-independent (i.e. still computable at module load). It costs nothing: the
+// series are flat back to here, so this is the same axis as fitting from 2004.
+const RACE_RECENT_REACH_FLOOR = 1996;
+
+// The years raceTrades' RESTING axis is fitted to: the run-up its camera shows once
+// the rewind has parked on 1994, and nothing else. Not the corridor the arrival pan
+// travels through — the actors dip to ~2.14 out there in the 2000s, and reserving
+// that on the resting axis left a third of the plot empty; raceRewindYFit pans the
+// axis across the corridor instead. Not the mid-eighties either, where the field
+// spreads over 0.8 — curveEntry ends those lines at the plot edge.
+const RACE_TRADES_FIT = /** @type {[number, number]} */ ([1990, 1994]);
+
+// The race descriptors each state exposes as `race` (STATE_RACE) — the frame
+// animators in ScrollyVisual build their frames from these, so an animated frame
+// and the static layout it settles onto agree on the extent, the highlight AND
+// the cast.
+// raceRecent is about SLJ taking over from Hackman, so only those two ride the
+// foreground treatment there; De Niro and Welker stay on the chart in their own
+// colours, dimmed.
+export const RACE_RECENT_STEP = { extent: RACE_RECENT_EXTENT, highlight: [SLJ, HACKMAN] }; // prettier-ignore
+export const RACE_FULL_STEP = { extent: RACE_FULL_EXTENT };
+
+/**
+ * The ids one state puts on the chart. A step either names its cast outright
+ * (`only` — raceTrades lists the centres of its window) or takes everyone whose
+ * line dips to its yCap. Every reader of a cast goes through here, so an animated
+ * frame, its settle and the sweep animators' fade sets can't disagree.
+ */
+export function raceStepCast(step, yCap) {
+	if (step.only) return new Set(step.only);
+	return raceContenders(step.extent[0], step.extent[1], yCap);
 }
-export const RACE_HANDOFF_YFIT = raceYFit(
-	raceHandoffContenders(),
-	Math.min(RACE_RECENT_EXTENT[0], RACE_TRADES_EXTENT[0]),
-	Math.max(RACE_RECENT_EXTENT[1], RACE_TRADES_EXTENT[1])
+
+/** everyone who held the centre during [year0, year1], in first-reign order */
+function raceHolders(year0, year1) {
+	const ids = new Set();
+	for (const era of story.eras) {
+		const start = yearOf(era.start);
+		const end = era.end ? yearOf(era.end) : Infinity;
+		if (end > year0 && start < year1) ids.add(era.id);
+	}
+	return [...ids];
+}
+
+// Everyone who was the centre of Hollywood between 1994 and 2004 — Walsh handing
+// on in late 1994, then Starr, then Hackman, Welker and De Niro trading it. This
+// is raceTrades' whole point, so its cast is this list rather than a yCap
+// threshold that would both miss holders and admit non-holders.
+const RACE_TRADES_HOLDERS = raceHolders(...RACE_TRADES_DECADE);
+export const RACE_TRADES_STEP = {
+	extent: RACE_TRADES_EXTENT,
+	only: RACE_TRADES_HOLDERS
+};
+
+const raceCastSegs = (step, cap) =>
+	[...raceStepCast(step, cap)].map((id) => RACE_SEGS.get(id));
+
+// raceRecent's own y-fit: its cast over the years it can reach. The modern range
+// is ~0.3 wide against the 1970s' ~1.6, so sharing raceTrades' axis (as this step
+// used to) squashed SLJ and Hackman into the top fifth of the plot and hid the
+// handover the step is about.
+export const RACE_RECENT_YFIT = raceYFit(
+	raceCastSegs(RACE_RECENT_STEP, RACE_RECENT_YCAP),
+	RACE_RECENT_REACH_FLOOR,
+	RACE_RECENT_EXTENT[1]
+);
+
+// raceTrades' resting y-fit: its centres across RACE_TRADES_FIT, i.e. what its
+// camera actually holds once parked on 1994. raceFull fits itself from [1970, 2025]
+// (yFit: null) and lands much wider, but that arrival is a plain tween — the dots
+// and trails glide into the new scale rather than snapping to it.
+export const RACE_TRADES_YFIT = raceYFit(
+	raceCastSegs(RACE_TRADES_STEP),
+	...RACE_TRADES_FIT
 );
 
 export const states = {
@@ -508,11 +677,11 @@ export const states = {
 			3,
 			RACE_RECENT_YCAP,
 			false,
-			RACE_HANDOFF_YFIT
+			RACE_RECENT_YFIT
 		),
 		race: RACE_RECENT_STEP,
 		yCap: RACE_RECENT_YCAP,
-		yFit: RACE_HANDOFF_YFIT,
+		yFit: RACE_RECENT_YFIT,
 		// only the highlighted pair is named: the dimmed contenders read as
 		// background, and a name on them would argue otherwise
 		labels: [SLJ, HACKMAN],
@@ -529,24 +698,23 @@ export const states = {
 		revealFrom: ["rankReveal"]
 	},
 	raceTrades: {
+		// no yCap: the cast is named outright (RACE_TRADES_STEP.only)
 		layout: raceLayout(
 			RACE_TRADES_STEP,
 			0.4,
-			RACE_TRADES_YCAP,
+			undefined,
 			true,
-			RACE_HANDOFF_YFIT
+			RACE_TRADES_YFIT
 		),
 		race: RACE_TRADES_STEP,
-		yCap: RACE_TRADES_YCAP,
-		yFit: RACE_HANDOFF_YFIT,
-		// SLJ and Welker aren't within RACE_TRADES_YCAP at 1994 (they're not yet
-		// contenders this far back) and won't render here — only Hackman and De
-		// Niro need labeling
-		labels: [HACKMAN, DENIRO],
-		labelDirs: {
-			[HACKMAN]: "right",
-			[DENIRO]: "right"
-		},
+		yFit: RACE_TRADES_YFIT,
+		// every centre of the window is named — that's what the step is showing, and
+		// two of them (Walsh, Starr) hold it only briefly, so a name is the only way
+		// to read their handover
+		labels: RACE_TRADES_HOLDERS,
+		labelDirs: Object.fromEntries(
+			RACE_TRADES_HOLDERS.map((id) => [id, "right"])
+		),
 		overlay: OVERLAY,
 		params,
 		// rewind choreography: continue the camera pan further back (from

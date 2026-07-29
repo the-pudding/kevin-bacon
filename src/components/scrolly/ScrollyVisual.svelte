@@ -8,14 +8,15 @@
 		writeRaceSweepFrame,
 		raceVisibleSpan,
 		racePanBounds,
-		raceContenders,
+		raceStepCast,
 		PX_PER_YEAR,
 		RACE_RECENT_EXTENT,
 		RACE_RECENT_STEP,
 		RACE_REWIND_WAYPOINT_YEAR,
-		RACE_TRADES_EXTENT,
 		RACE_TRADES_STEP,
-		RACE_HANDOFF_YFIT
+		RACE_RECENT_YFIT,
+		RACE_TRADES_YFIT,
+		raceRewindYFit
 	} from "./layouts/race.js";
 	import {
 		ATTR_SIZE,
@@ -137,15 +138,22 @@
 	const RACE_ENTRY_STATE = "raceRecent";
 	// contender cast at raceRecent's extent — what the draw-on shows from its
 	// first frame, so nobody who fails its yCap ever appears just to vanish
-	const RACE_ENTRY_CONTENDERS = raceContenders(
-		RACE_RECENT_EXTENT[0],
-		RACE_RECENT_EXTENT[1],
+	const RACE_ENTRY_CONTENDERS = raceStepCast(
+		RACE_RECENT_STEP,
 		STATE_YCAP[RACE_ENTRY_STATE]
 	);
+	// how far into a phase a departing actor is fully gone. Departures finish EARLY
+	// rather than riding the whole phase because the rewind's leg 2 moves the y axis
+	// under them as it pans (raceRewindYFit), and the actors it drops are not in that
+	// landing fit — a line still fading at the end of the leg could be drawn outside
+	// the plot, over the axis furniture. They leave while the axis still holds them,
+	// which also reads better: the modern crowd drops away first, leaving the actors
+	// the step is about.
+	const CAST_DEPART_END = 0.35;
 	// per-frame cast alpha for one sweep phase: actors joining the landing set
-	// fade in over the phase, actors leaving fade out, everyone else rides at
-	// full strength — so contender-membership changes glide across the phase
-	// instead of popping when the settle layout's yCap filter kicks in
+	// fade in over the phase, actors leaving fade out over CAST_DEPART_END,
+	// everyone else rides at full strength — so contender-membership changes glide
+	// across the phase instead of popping when the settle layout's filter kicks in
 	const castAlpha = (cast, e) =>
 		cast &&
 		((id) =>
@@ -154,7 +162,7 @@
 					? 1
 					: e
 				: cast.from.has(id)
-					? 1 - e
+					? Math.max(0, 1 - e / CAST_DEPART_END)
 					: 0);
 	// the one state whose arrival plays the rewind's second leg (scoped by
 	// revealFrom) — see playRaceEntry/playRaceRewind for the two-leg split
@@ -192,7 +200,11 @@
 	// ({from, to} contender Sets) fades membership changes over the phase (see
 	// castAlpha). Every frame publishes its camera into renderPlayhead, so a later
 	// leg (or a reader's grab) continues from wherever this one actually got to.
+	// `fixedYFit` is either one [vMin,vMax,vLo,vHi] held for the whole phase or a
+	// function of the eased progress (raceRewindYFit) for the one phase whose axis moves.
 	function runSweepPhase(map, yCap, onDone, fixedYFit = null, cast = null) {
+		const yFitAt =
+			typeof fixedYFit === "function" ? fixedYFit : () => fixedYFit;
 		runPhase(
 			SWEEP_MS,
 			(e) => {
@@ -203,7 +215,7 @@
 					height,
 					map(e),
 					yCap,
-					fixedYFit,
+					yFitAt(e),
 					castAlpha(cast, e)
 				);
 				renderPlayhead = cam.playhead;
@@ -443,18 +455,21 @@
 				story.raceView = finalView;
 				publishRaceCam();
 				if (!reducedMotion) {
+					// leg 1 stays on raceRecent's own axis: it settles back onto
+					// raceRecent, so nothing about the y-scale may change
 					playRaceRewind(
 						step.extent[1],
 						RACE_REWIND_WAYPOINT_YEAR,
 						step,
 						STATE_YCAP[RACE_ENTRY_STATE],
+						RACE_RECENT_YFIT,
 						() => {
 							raceRecentRewound = true;
 						}
 					);
 				}
 			},
-			RACE_HANDOFF_YFIT,
+			RACE_RECENT_YFIT,
 			{ from: RACE_ENTRY_CONTENDERS, to: RACE_ENTRY_CONTENDERS }
 		);
 	}
@@ -466,7 +481,7 @@
 	// (played on arrival at raceTrades, gated by raceRecentRewound so an
 	// interrupted leg 1 falls back to a plain crossfade) continues the same pan on
 	// from there down to raceTrades' own resting year. At a fixed px-per-year both
-	// legs are pure translation — nothing can zoom.
+	// legs are pure x-translation — the camera can never zoom.
 	//
 	// `toExtent`/`toCap` describe the LANDING state: the leg fades out actors who
 	// stop being contenders there (and fades in any who start), so its last frame
@@ -474,7 +489,11 @@
 	// one pop. The frame's own extent is the leg's camera travel instead, so the
 	// visible line always runs right up to the dot mid-pan; the y-fit and the cast
 	// are both passed in, so that wider extent never leaks into either.
-	function playRaceRewind(fromP, toP, toStep, toCap, onSettled) {
+	//
+	// `yFit` is the leg's axis: leg 1 holds raceRecent's fit (it settles back onto
+	// raceRecent), leg 2 passes a raceRewindYFit, so the y-scale pans with the camera
+	// and lands exactly on the static settle's axis.
+	function playRaceRewind(fromP, toP, toStep, toCap, yFit, onSettled) {
 		if (!width || !height) return;
 		const finalView = { playhead: toP };
 		if (reducedMotion) {
@@ -490,12 +509,11 @@
 		// both legs start from a frame resting under raceRecent's cast (leg 1 from
 		// the entry draw-on, leg 2 from raceRecent settled at the waypoint)
 		const cast = {
-			from: raceContenders(
-				RACE_RECENT_EXTENT[0],
-				RACE_RECENT_EXTENT[1],
-				STATE_YCAP[RACE_ENTRY_STATE]
-			),
-			to: raceContenders(toStep.extent[0], toStep.extent[1], toCap)
+			from: RACE_ENTRY_CONTENDERS,
+			// raceStepCast, not raceContenders: the landing step may name its cast
+			// outright (RACE_TRADES_STEP.only), and anyone it drops has to fade out
+			// across the leg like any other departure instead of popping at the settle
+			to: raceStepCast(toStep, toCap)
 		};
 		sweeping = true;
 		camPanning = true;
@@ -509,7 +527,7 @@
 				publishRaceCam();
 				onSettled?.();
 			},
-			RACE_HANDOFF_YFIT,
+			yFit,
 			cast
 		);
 	}
@@ -675,7 +693,7 @@
 	});
 
 	// The race sweep/pan owns story.raceView; drop it whenever the active state
-	// changes so a freshly-entered state rests at the end of its own extent, not a
+	// changes so a freshly-entered state rests at its own resting year, not a
 	// stale override. The playhead and the pan target go with it — otherwise a pan
 	// on one race step leaks into the next one's first grab. Depends on stateName
 	// ONLY (untrack the reads) — a sweep setting raceView while the state is
@@ -873,7 +891,7 @@
 				height,
 				entryFrame(RACE_RECENT_STEP)(0),
 				STATE_YCAP[RACE_ENTRY_STATE],
-				RACE_HANDOFF_YFIT,
+				RACE_RECENT_YFIT,
 				castAlpha({ from: RACE_ENTRY_CONTENDERS, to: RACE_ENTRY_CONTENDERS }, 0)
 			);
 			tweener.to(startAttrs, TWEEN_MS, TWEEN_JITTER, stateDelays, () =>
@@ -884,12 +902,21 @@
 			// no seed frame needed — the rewind sweep recomputes attrs from scratch
 			// every frame via writeRaceSweepFrame, continuing smoothly from where
 			// raceRecent's first-leg rewind settled (the raceRecentRewound gate is
-			// what guarantees the camera is actually parked at the waypoint)
+			// what guarantees the camera is actually parked at the waypoint). This is
+			// the one phase whose axis moves: it pans down onto raceTrades' resting
+			// fit, following the dots, as the camera travels back.
 			playRaceRewind(
 				RACE_REWIND_WAYPOINT_YEAR,
-				RACE_TRADES_EXTENT[1],
+				RACE_TRADES_STEP.extent[1],
 				RACE_TRADES_STEP,
-				STATE_YCAP[RACE_REWIND_STATE]
+				STATE_YCAP[RACE_REWIND_STATE],
+				raceRewindYFit(
+					RACE_RECENT_YFIT,
+					RACE_TRADES_YFIT,
+					RACE_REWIND_WAYPOINT_YEAR,
+					RACE_TRADES_STEP.extent[1],
+					RACE_TRADES_STEP.only
+				)
 			);
 		} else if (entryAnim) {
 			// arrive onto the choreography's own frame 0 (its animated slots stamped
