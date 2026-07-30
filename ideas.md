@@ -1,0 +1,3 @@
+- race chart is punctuated with nodes when they were in a film
+- hover over nodes in initial graph to show films
+- throughout, click on an actor for a bit of an overview about them
