@@ -647,6 +647,33 @@ function raceHolders(year0, year1) {
 	return [...ids];
 }
 
+/**
+ * The y-extent the centre-of-Hollywood value actually occupies over
+ * [year0, year1] — each era's holder, but only across the years THEY held it,
+ * not their whole career. Almost everyone tracked has held the crown at some
+ * point (see raceHolders), so fitting to their full curves (as raceYFit does
+ * for a fixed cast) reintroduces the crowd's wide range through the back door
+ * — an old holder's pre-fame or post-reign years can sit well above 3.0. This
+ * is what lets raceFull's axis track the actual leader trend (tightening from
+ * ~3.0 in the 1970s to ~2.1 today) instead of every past leader's whole life.
+ */
+function raceEraEnvelope(year0, year1) {
+	let lo = Infinity;
+	let hi = -Infinity;
+	for (const era of story.eras) {
+		const start = Math.max(yearOf(era.start), year0);
+		const end = Math.min(era.end ? yearOf(era.end) : year1, year1);
+		if (end <= start) continue;
+		const segs = RACE_SEGS.get(era.id);
+		if (!segs) continue;
+		const range = curveYRange([segs], start, end);
+		if (!range) continue;
+		lo = Math.min(lo, range[0]);
+		hi = Math.max(hi, range[1]);
+	}
+	return [lo, hi];
+}
+
 // Everyone who was the centre of Hollywood between 1994 and 2004 — Walsh handing
 // on in late 1994, then Starr, then Hackman, Welker and De Niro trading it. This
 // is raceTrades' whole point, so its cast is this list rather than a yCap
@@ -671,13 +698,45 @@ export const RACE_RECENT_YFIT = raceYFit(
 );
 
 // raceTrades' resting y-fit: its centres across RACE_TRADES_FIT, i.e. what its
-// camera actually holds once parked on 1994. raceFull fits itself from [1970, 2025]
-// (yFit: null) and lands much wider, but that arrival is a plain tween — the dots
-// and trails glide into the new scale rather than snapping to it.
+// camera actually holds once parked on 1994.
 export const RACE_TRADES_YFIT = raceYFit(
 	raceCastSegs(RACE_TRADES_STEP),
 	...RACE_TRADES_FIT
 );
+
+// raceFull's resting y-fit: the era-leader envelope over the whole [1970, 2025]
+// extent (raceEraEnvelope), padded the same 6% as every other fit. Fitting to
+// the leader trend rather than the full cast's whole curves crops this from
+// ~2.3 wide (every holder's widest pre-fame/post-reign swing) down to ~0.8 —
+// still wider than raceRecent's or raceTrades' ~0.2-0.3, because the leader's
+// actual value genuinely drifts that much across 55 years, but now in the same
+// register as the other two steps instead of dwarfing them with empty space.
+// Precomputed (rather than left as a per-frame self-fit) so the rewind's third
+// leg — the pan from raceTrades' resting year back to 1970 — can hand
+// runSweepPhase one fixed fit for the whole phase, the same way the earlier
+// legs do for theirs.
+const [RACE_FULL_ENV_LO, RACE_FULL_ENV_HI] = raceEraEnvelope(
+	...RACE_FULL_EXTENT
+);
+const RACE_FULL_ENV_PAD = (RACE_FULL_ENV_HI - RACE_FULL_ENV_LO) * 0.06 || 0.05;
+export const RACE_FULL_YFIT = /** @type {[number,number,number,number]} */ ([
+	RACE_FULL_ENV_LO - RACE_FULL_ENV_PAD,
+	RACE_FULL_ENV_HI + RACE_FULL_ENV_PAD,
+	RACE_FULL_ENV_LO,
+	RACE_FULL_ENV_HI
+]);
+
+// raceFull's resting camera: 1970 at the plot's left edge, or as far back as
+// the viewport can show if it's narrower than the full [1970, 2025] span.
+// This is the state's true resting playhead regardless of arrival path — the
+// rewind's third leg (see ScrollyVisual's playRaceFullEntry) just animates
+// getting there instead of snapping.
+export function raceFullRestPlayhead(w, h) {
+	return Math.min(
+		RACE_FULL_EXTENT[1],
+		RACE_FULL_EXTENT[0] + raceVisibleSpan(w, h)
+	);
+}
 
 export const states = {
 	raceRecent: {
@@ -735,12 +794,16 @@ export const states = {
 		revealFrom: ["raceRecent"]
 	},
 	raceFull: {
-		layout: raceLayout(RACE_FULL_STEP, 4),
+		layout: raceLayout(RACE_FULL_STEP, 4, Infinity, true, RACE_FULL_YFIT),
 		race: RACE_FULL_STEP,
-		yFit: null,
+		yFit: RACE_FULL_YFIT,
 		labels: [HACKMAN],
 		labelDirs: { [HACKMAN]: "right" },
 		overlay: OVERLAY,
-		params
+		params,
+		// rewind choreography: continue the camera pan further back (leg 3, from
+		// wherever raceTrades' own leg-2 pan parked) when arriving from it, all
+		// the way to 1970 — see playRaceFullEntry
+		revealFrom: ["raceTrades"]
 	}
 };

@@ -14,9 +14,12 @@
 		RACE_RECENT_STEP,
 		RACE_REWIND_WAYPOINT_YEAR,
 		RACE_TRADES_STEP,
+		RACE_FULL_STEP,
 		RACE_RECENT_YFIT,
 		RACE_TRADES_YFIT,
-		raceRewindYFit
+		RACE_FULL_YFIT,
+		raceRewindYFit,
+		raceFullRestPlayhead
 	} from "./layouts/race.js";
 	import {
 		ATTR_SIZE,
@@ -134,6 +137,19 @@
 	});
 	// reader-driven pan / settled hold: the camera at one playhead year
 	const panFrame = (step) => (playhead) => ({ ...step, playhead });
+	// plain axis ease: straight-line interpolation between two fits, no envelope
+	// widening. Used for the raceFull leg (see playRaceFullEntry) rather than
+	// raceRewindYFit — that helper's envelope is tuned for a leg whose cast is a
+	// handful of named holders; raceFull's landing cast is effectively everyone,
+	// so the same envelope logic would pick up the crowd's wide swings and widen
+	// the axis well past its own resting fit while mid-pan. A pure lerp instead
+	// guarantees the two endpoints exactly — e=0 reads back the exact fit the
+	// reader just left, e=1 lands on exactly the target fit — with nothing in
+	// between to overshoot.
+	const lerpYFit = (a, b) => (e) =>
+		/** @type {[number,number,number,number]} */ (
+			a.map((v, i) => v + (b[i] - v) * e)
+		);
 	// the one state whose arrival plays the draw-on entry (scoped by revealFrom)
 	const RACE_ENTRY_STATE = "raceRecent";
 	// contender cast at raceRecent's extent — what the draw-on shows from its
@@ -172,6 +188,9 @@
 	// the one state whose arrival plays the rewind's second leg (scoped by
 	// revealFrom) — see playRaceEntry/playRaceRewind for the two-leg split
 	const RACE_REWIND_STATE = "raceTrades";
+	// the one state whose arrival plays the rewind's third and final leg (scoped
+	// by revealFrom) — see playRaceFullEntry
+	const RACE_FULL_STATE = "raceFull";
 	// per-frame smoothing factor for the pan glide: renderPlayhead moves this
 	// fraction of the remaining distance to the target each frame (exponential
 	// ease-out — feels like a weighted reel). Reduced motion uses 1 (snap).
@@ -597,6 +616,72 @@
 		);
 	}
 
+	// Race-chapter rewind, leg 3 and final: played on arrival at raceFull from
+	// raceTrades, continuing the same back-through-time pan on from wherever
+	// leg 2 parked the camera, all the way to raceFull's own resting playhead
+	// (1970 at the plot's left edge, or as far back as the viewport shows —
+	// see raceFullRestPlayhead). raceFull's own resting axis (RACE_FULL_YFIT) is
+	// wider than raceTrades' — a straight cut to it the instant the state
+	// changes would jump the axis before the camera has even started panning,
+	// which reads as a jolt independent of the pan itself. So, like leg 2, this
+	// leg's axis eases too, from whatever raceTrades actually rested on to
+	// RACE_FULL_YFIT, in step with the camera travel (see lerpYFit — a plain
+	// interpolation, not raceRewindYFit's envelope, so the first frame is
+	// pixel-identical to raceTrades' resting axis and the last is exactly
+	// RACE_FULL_YFIT, with nothing in between to overshoot).
+	//
+	// Explicitly nulls story.raceCam before the sweep starts: RaceScrubber
+	// renders nothing while it's null, which is what keeps the pan control
+	// hidden until the camera has actually finished arriving at 1970 instead of
+	// being usable (with stale raceTrades bounds) mid-flight. Safe by effect
+	// ordering — this only ever runs from the render effect, which runs after
+	// the raceStep-driven auto-publish effect within the same flush.
+	function playRaceFullEntry() {
+		if (!width || !height) return;
+		const fromP = raceExit?.playhead ?? RACE_TRADES_STEP.extent[1];
+		const fromYFit = raceExit?.yFit ?? RACE_TRADES_YFIT;
+		const toP = raceFullRestPlayhead(width, height);
+		const finalView = { playhead: toP };
+		if (reducedMotion) {
+			story.raceView = finalView;
+			publishRaceCam();
+			return;
+		}
+		if (toP >= fromP) {
+			// the resting view sits at or ahead of where the camera already is
+			// (a viewport wide enough that 1970 is no further back than
+			// raceTrades left off, or wider still than the whole extent) —
+			// nothing to pan to
+			story.raceView = finalView;
+			publishRaceCam();
+			return;
+		}
+		story.raceCam = null;
+		const span = raceVisibleSpan(width, height);
+		const legExtent = /** @type {[number, number]} */ ([
+			Math.min(fromP, toP) - span,
+			Math.max(fromP, toP)
+		]);
+		const cast = {
+			from: raceStepCast(RACE_TRADES_STEP),
+			to: raceStepCast(RACE_FULL_STEP, STATE_YCAP[RACE_FULL_STATE])
+		};
+		sweeping = true;
+		camPanning = true;
+		runSweepPhase(
+			rewindFrame(RACE_FULL_STEP, legExtent, fromP, toP),
+			STATE_YCAP[RACE_FULL_STATE],
+			() => {
+				sweeping = false;
+				camPanning = false;
+				story.raceView = finalView;
+				publishRaceCam();
+			},
+			lerpYFit(fromYFit, RACE_FULL_YFIT),
+			cast
+		);
+	}
+
 	// Generic entry choreography (STATE_ENTRY): play the state's legs back to
 	// back, each writing its animated slots straight into the live buffers, then
 	// settle onto the static layout. Same shape as the race animators above —
@@ -774,6 +859,13 @@
 			if (story.raceView !== null) story.raceView = null;
 			if (story.scrubYear !== null) story.scrubYear = null;
 			if (extent) renderPlayhead = extent[1];
+			// raceFull's true resting camera is 1970 at the left edge (or as far
+			// back as the viewport shows), not the extent's own end — every
+			// arrival path settles here, and playRaceFullEntry just animates
+			// getting there on the one path that deserves the flourish
+			if (stateName === RACE_FULL_STATE && width && height) {
+				renderPlayhead = raceFullRestPlayhead(width, height);
+			}
 		});
 	});
 
@@ -928,6 +1020,11 @@
 			stateChange &&
 			stateName === RACE_ENTRY_STATE &&
 			prevState === RACE_REWIND_STATE;
+		// race-chapter arrival at raceFull (forward, from raceTrades): play the
+		// rewind's third and final leg instead of a plain state tween — see
+		// playRaceFullEntry
+		const raceFullEntryArrival =
+			stateChange && playReveal && stateName === RACE_FULL_STATE;
 		// any other state that declares an entry choreography (STATE_ENTRY),
 		// played on a forward arrival from a revealFrom origin
 		const entryAnim =
@@ -1000,6 +1097,13 @@
 			tweener.stop();
 			trailTweener.stop();
 			playRaceReverse();
+		} else if (raceFullEntryArrival) {
+			// no seed frame needed, same reasoning as raceRewindArrival above — the
+			// sweep recomputes attrs from scratch every frame from raceTrades' live
+			// camera (raceExit)
+			tweener.stop();
+			trailTweener.stop();
+			playRaceFullEntry();
 		} else if (entryAnim) {
 			// arrive onto the choreography's own frame 0 (its animated slots stamped
 			// over the static layout), then hand the rAF to playEntry. Like the race

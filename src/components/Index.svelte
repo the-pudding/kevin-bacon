@@ -206,15 +206,15 @@
 					</Step>
 					<Step state="raceTrades">
 						<p>
-							Before then, the crown changed hands frequently. Gene Hackman and
-							Robert De Niro fighting over top spot for half a decade.
+							Before then, the crown changed hands frequently, with Frank
+							Welker, Robert De Niro and Gene Hackman fighting over top spot for
+							the previous decade.
 						</p>
 					</Step>
 					<Step state="raceFull" panel={racePanel}>
 						<p>
-							Repeating this process, we can go all the way back to 1970 to
-							create a timeline of centers from when we started recording this
-							data.
+							Repeating this all the way back gives us a timeline of every
+							center since we started tracking this in 1970. data.
 						</p>
 					</Step>
 
