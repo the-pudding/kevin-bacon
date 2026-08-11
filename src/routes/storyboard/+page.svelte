@@ -121,142 +121,11 @@
 			anyone else. But what makes an anchor the center? You can see from the
 			results that Samuel L. Jackson has been in by far the most films, 20 more
 			than Nicholas Cage who's next closest. Indeed, film count correlates
-			heavily with average distance. Is film count the only signal though? What
-			else could we use to accurately predict an actor's average distance?
-		</p>
-	</section>
-
-	<section class="step">
-		<p class="visual">
-			The same scatter plot, framing the question of what else besides film
-			count matters.
-		</p>
-		<p>
-			Just because you're in loads of films doesn't necessarily mean you've got
-			a lot of connections in the graph. And just because you've got a lot of
-			connections in the graph, doesn't mean you've got the <i>right</i> connections
-			to make you the center of Hollywood.
-		</p>
-	</section>
-
-	<section class="step">
-		<p class="visual">
-			The same scatter plot, Julie Walters highlighted as an under-performer.
-		</p>
-		<p>
-			Dame Julie Walters under-performs drastically on average distance. In this
-			respect, she's got two things going against her:
-			<br />
-			1. She's <i>franchise-heavy</i>: Harry Potter, Paddington, Mamma Mia to
-			name a few. This means she works with the same actors repeatedly. In fact,
-			almost half of the films she's in are part of a franchise.
-			<br />
-			2. She works in <i>largely British ensembles</i>, containing
-			less-connected actors from a pure Hollywood perspective. She needs to rely
-			on well-connected costars like Gary Oldman (#18th), Nicole Kidman (#21st)
-			and Meryl Streep (#27th) to bring that average distance down for her.
-		</p>
-	</section>
-
-	<section class="step">
-		<p class="visual">
-			The scatter plot pairs up actors; the reader guesses which of each pair
-			has the lower average distance.
-		</p>
-		<p>
-			Let's generalise this idea into two hypotheses:
-			<br />
-			1. Starring with the <i>same</i> people.
-			<br />
-			2. Starring with the <i>right</i> people.
-			<br />
-			Consider these actors. Intuitively, who in each pair do you think has the lower
-			average distance?
-		</p>
-	</section>
-
-	<section class="step">
-		<p class="visual">The quiz answer is revealed on the scatter plot.</p>
-		<p>
-			Seth Rogen and Charlize Theron are in similar numbers of films - they even
-			costarred in "Long Shot". However, Charlize Theron tends to work with
-			actors she's not worked with before. Conversely, Seth Rogen repeatedly
-			works with the same actors. For example, Jonah Hill is in 8 of his films.
-		</p>
-	</section>
-
-	<section class="step">
-		<p class="visual">A scatter plot of film count vs. concurrency.</p>
-		<p>
-			<i>Concurrency</i> is a measure of how frequently you work with the same actors.
-			Seth Rogen having a concurrency of 0.28 means that for each of his films, he
-			would have worked with 28% of the cast before.
-		</p>
-	</section>
-
-	<section class="step">
-		<p class="visual">
-			The same concurrency scatter plot, explaining what low concurrency means
-			for average distance.
-		</p>
-		<p>
-			If your concurrency is low, you work for the first time with actors more
-			often. This means you create more connections in the graph and it will
-			take you fewer films to get your average distance down.
-		</p>
-	</section>
-
-	<section class="step">
-		<p class="visual">
-			The same concurrency scatter plot, illustrating a hypothetical single-film
-			case with Samuel L. Jackson.
-		</p>
-		<p>
-			If you starred in one film with Samuel L Jackson and him alone, you would
-			immediately have an average distance of 3.08, putting you in the top 75%
-			of hollywood.
-		</p>
-	</section>
-
-	<section class="step">
-		<p class="visual">
-			The same concurrency scatter plot, pivoting toward costar degree as the
-			next signal.
-		</p>
-		<p>
-			Due to its circular nature, we can't use "low costar average distance" as
-			a signal for explaining someone's average distance. We can however use how
-			many connections their costars have in the graph i.e their costars' <i
-				>degree</i
-			>.
-		</p>
-	</section>
-
-	<section class="step">
-		<p class="visual">
-			A scatter plot of film count vs. costars' average degree.
-		</p>
-		<p>
-			Here's the same graph, but measuring the average degree of their top 50
-			costars.
+			heavily with average distance.
 		</p>
 	</section>
 
 	<h2>Future</h2>
-
-	<section class="step">
-		<p class="visual">
-			A scatter plot of predicted vs. actual average distance, with toggleable
-			features that pull dots toward the diagonal.
-		</p>
-		<p>
-			So both of our hypotheses hold up against our example pairs. These two new
-			pieces of information can be used to explain why two actors with similar
-			numbers of films can have such different average distances. Combining all
-			three pieces of information allows us to predict an actor's mean average
-			distance much more accurately.
-		</p>
-	</section>
 
 	<section class="step">
 		<p class="visual">
@@ -266,8 +135,7 @@
 			Now, Samuel L. Jackson can't be the center forever. At some point, someone
 			must overtake him. Which Gen Z actor do we think is going to do that? The
 			Gen Z actor with the current lowest average distance is Chloë Grace
-			Moretz. However, we know that's not all we need to have confidence in
-			simply saying she's Gen Z's Kevin Bacon.
+			Moretz.
 		</p>
 	</section>
 
