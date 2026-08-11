@@ -47,6 +47,8 @@ words:
   - decollider
   - repro
   - yfit
+  - jacque
+  - sarandon
 ignorePaths:
   - node_modules
   - build
