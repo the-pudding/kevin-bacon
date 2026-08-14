@@ -1,3 +1,7 @@
+<script>
+	import Page from "$routes/+page.svelte";
+</script>
+
 <svelte:head>
 	<title>Storyboard — Gen Z's Kevin Bacon</title>
 </svelte:head>
@@ -12,7 +16,10 @@
 	<h2>Present</h2>
 
 	<section class="step">
-		<p class="visual">A node labelled "Kevin Bacon" appears alone.</p>
+		<p class="visual">
+			A node labelled "Kevin Bacon" appears alone. A network graph grows around
+			him.
+		</p>
 		<p>
 			The "Six Degrees of Kevin Bacon" is a game where players try to connect an
 			actor to Kevin Bacon via movies they've starred in with other Hollywood
@@ -22,18 +29,22 @@
 
 	<section class="step">
 		<p class="visual">
-			A network graph grows around Kevin Bacon as each example is mentioned.
+			Edges are highlighted as we cycle through the actors. Edge labels appear
+			stating what film they have in common.
 		</p>
 		<p>
-			The intuition is that Kevin Bacon is so prolific, genre-spanning, and
-			timeless that the game is a lot easier than if it were called the "Six
-			Degrees of John Doe". This idea implies that Kevin Bacon is this
-			all-encompassing center of Hollywood.
+			The intuition is that Kevin Bacon is so prolific and well-known that the
+			game is a lot easier than if it were called the "Six Degrees of John Doe".
+			This idea implies that Kevin Bacon is this all-encompassing center of
+			Hollywood.
 		</p>
 	</section>
 
 	<section class="step">
-		<p class="visual">The network graph holds, setting up the reveal.</p>
+		<p class="visual">
+			Zoom out. Edges and labels fade as more nodes appear. KB becomes styled
+			like the rest of them
+		</p>
 		<p>
 			However, Kevin Bacon is <b>not</b> the center of hollywood. Not only that,
 			he <b>never has been</b>, and almost certainly
@@ -73,7 +84,9 @@
 		<p>
 			Yes, Samuel L. Jackson is the <i>center of Hollywood</i>. You can get to
 			him in an average distance of just 2.09. Willem Dafoe is second, Robert De
-			Niro third.
+			Niro third. Female actors are under-represented here, occupying only 16 of
+			the top 100 most connected actors. Nicole Kidman is the first female in at
+			#21.
 		</p>
 	</section>
 
@@ -95,7 +108,7 @@
 			the prior decade.
 		</p>
 		<p>
-			Before then, the crown changed hands frequently, with Frank Welker, Robert
+			Before then, the crown changed heads frequently, with Frank Welker, Robert
 			De Niro and Gene Hackman fighting over top spot for the previous decade.
 		</p>
 	</section>
@@ -106,7 +119,19 @@
 		</p>
 		<p>
 			Repeating this all the way back gives us a timeline of every center since
-			we started tracking this in 1970. data.
+			1980. Note that no female actor has ever been the center; the we've ever
+			come was Susan Sarandon in at #9 in 2012.
+		</p>
+	</section>
+
+	<h2>Future</h2>
+
+	<section class="step">
+		<p class="visual">Dunno - dotted random race chart into future?</p>
+		<p>
+			Now imagine us taking this into the future. How might we predict who will
+			take the crown from Samuel L. Jackson? To do that, we need to find what
+			moves an actor towards the center.
 		</p>
 	</section>
 
@@ -116,37 +141,77 @@
 			highlighted.
 		</p>
 		<p>
-			As you just learned, Samuel L. Jackson has been dominating Hollywood by
-			his sheer prolificacy since 2006. His reign has lasted 5 times longer than
-			anyone else. But what makes an anchor the center? You can see from the
-			results that Samuel L. Jackson has been in by far the most films, 20 more
-			than Nicholas Cage who's next closest. Indeed, film count correlates
-			heavily with average distance.
+			The obvious one is film count. More films means closer to the center.
+			Indeed, Samuel L. Jackson has been in far more films than anyone else, 20
+			more than Nicholas Cage who's next closest.
 		</p>
 	</section>
 
-	<h2>Future</h2>
+	<section class="step">
+		<p class="visual">NP and AK highlighted on the graph</p>
+		<p>
+			The relationship between film count and average distance is strong, but it
+			doesn't explain it fully. Two actors can have the same film counts but
+			very different average distances. For example, Natalie Portman and Anna
+			Kendrick are shown here at the two extremes of the data.
+		</p>
+	</section>
+
+	<section class="step">
+		<p class="visual">XXX</p>
+		<p>
+			So what's different about them? Put simply: better costars. Natalie
+			Portman stars with more "big dogs" than Anna Kendrick. They say in
+			hollywood "It's not what you know, it's who you know", and it seems that
+			is also true of explaining an actor's average distance.
+		</p>
+	</section>
+
+	<section class="step">
+		<p class="visual">
+			Show the top 250 actors again, denoted by AK/NP having worked with then
+			before.
+		</p>
+		<p>
+			Using our most central actors from earlier, we can see that Natalie
+			Portman has worked with almost three times more of them than Anna
+			Kendrick.
+		</p>
+	</section>
+
+	<section class="step">
+		<p class="visual">top50 scatter</p>
+		<p>
+			It would be too circular to use costars with low average distance as our
+			measure. That's like saying "We think the most expensive houses will be
+			the ones with the highest price". Instead we use the costar film count as
+			a sort of proxy. Concretely, this is an actor's 50 most prolific costars
+			by number of films, taken as an average. If you work with more "big dog"
+			actors compared to someone with the same film count, you almost definitely
+			be closer to the center of hollywood than them.
+		</p>
+	</section>
+
+	<section class="step">
+		<p class="visual">Quiz</p>
+		<p>
+			Now we've got our two signals, we can test our knowledge with a few more
+			examples. For these actors with very similar film counts, who do you think
+			works with more "big dogs" and is therefore closer to the center?
+		</p>
+	</section>
 
 	<section class="step">
 		<p class="visual">
 			The scatter plot highlights Gen Z actors, led by Chloë Grace Moretz.
 		</p>
 		<p>
-			Now, Samuel L. Jackson can't be the center forever. At some point, someone
-			must overtake him. Which Gen Z actor do we think is going to do that? The
-			Gen Z actor with the current lowest average distance is Chloë Grace
-			Moretz.
-		</p>
-	</section>
-
-	<section class="step">
-		<p class="visual">
-			The same scatter plot, introducing the idea of drawing on similar past
-			actors' careers.
-		</p>
-		<p>
-			Using all the data we have, we can model an actor's career by looking at
-			what has happened to actors with similar stats in the past.
+			We now have everything we need to predict an actor's current average
+			distance using film count and costar data. To predict future average
+			distance we need to model their trajectory by stating what we think their
+			film count and costar data will look like at a certain point in time. To
+			do this, we look at what has happened to actors with similar stats in the
+			past.
 		</p>
 	</section>
 
@@ -156,11 +221,11 @@
 			Chevy Chase's trajectories against Sydney Sweeney's.
 		</p>
 		<p>
-			Take Sydney Sweeney. She's been in 16 films since her debut 15 years ago.
-			At the same point in their career, Robert De Niro had also racked up 16
-			films — and went on to a brilliant career totalling 87. Conversely, Chevy
-			Chase reached the same milestone in the same time — and only ever appeared
-			in 27.
+			Films first. Take Sydney Sweeney: she's been in 16 films since her debut
+			15 years ago. At the same point in their career, Robert De Niro had also
+			racked up 16 films — and went on to have a brilliant career totalling 87.
+			Conversely, Chevy Chase reached the same milestone at the same point — and
+			only ever appeared in 27.
 		</p>
 	</section>
 
@@ -169,34 +234,49 @@
 			The same graph gains many simulated career trajectory lines.
 		</p>
 		<p>
-			This means that whatever actor we use to model a Gen Z's career trajectory
+			This means that whatever actor we use to model a Gen Z's film trajectory
 			can massively impact the results. For each actor, we consider similar
 			actors based on proximity to them, and randomly select one weighted by how
-			close they are. To minimize the noise, we'll run this simulation 10,000
-			times and see who comes out on top.
-		</p>
-	</section>
-
-	<section class="step">
-		<p class="visual">A bar chart of simulation win counts by actor.</p>
-		<p>
-			Indeed, Chloë Grace Moretz wins in a quarter of simulations. She doesn't
-			exactly have a clear majority, despite already being well-clear of these
-			people from an average distance perspective. Tap a bar to see how that
-			contender's stats compare.
+			close they are.
 		</p>
 	</section>
 
 	<section class="step">
 		<p class="visual">
-			A fan chart of Samuel L. Jackson's projected average distance against the
-			simulated winners.
+			Line graph where x axis is career age, and y axis is top50
 		</p>
 		<p>
-			On average, the winning score is 2.33, nowhere near SLJ's current average
-			distance. We're counting on SLJ's average distance getting worse as he
-			stops appearing in movies, or a Marvel-sized cinematic universe being
-			spawned again.
+			Costar data is a lot simpler, since it stabilises for actors once they
+			reach career age ~10. For this, we add an adjustment so that
+			well-connected Gen Z actors continue being relatively well-connected when
+			modelled into the future.
+		</p>
+	</section>
+
+	<section class="step">
+		<p class="visual">
+			A horizontal bar chart of simulation win counts by actor. User can press
+			play to start the simulation.
+		</p>
+		<p>
+			To achieve a stable result, we'll run the simulation 10,000 times and see
+			who comes out on top.
+		</p>
+	</section>
+
+	<section class="step">
+		<p class="visual">
+			Line chart, but the Gen Z actors move towards their projected position.
+			Unsure if I should add a toggle for costar. Add a toggle for "current
+			average distance" / "predicted average distance"
+			<!-- finding #25 -->
+		</p>
+		<p>
+			Here's what we think will happen to each Gen Z actor's average distance.
+			You'll notice that none of them overtake Samuel L. Jackson. From our
+			historical analysis you'll recall lines dropping off as actors stop
+			appearing in so many films. We're counting on this happening to Samuel L.
+			Jackson, or a Marvel-sized cinematic universe being spawned again.
 		</p>
 	</section>
 
@@ -204,7 +284,7 @@
 		<p class="visual">The same fan chart, framing the conclusion.</p>
 		<p>
 			What I can tell you is that our first female center of hollywood is very
-			likely to happen next, with 77% of the wins going to women, perhaps not
+			likely to happen next, with 65% of the wins going to women, perhaps not
 			for a few years yet though.
 		</p>
 	</section>
