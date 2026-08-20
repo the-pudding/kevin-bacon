@@ -49,6 +49,10 @@ words:
   - yfit
   - jacque
   - sarandon
+  - pred
+  - tmdb
+  - joinable
+  - reframing
 ignorePaths:
   - node_modules
   - build
