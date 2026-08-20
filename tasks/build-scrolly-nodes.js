@@ -4,16 +4,47 @@
 //     career lines, quiz pairs, Gen-Z simulation results)
 // Deterministic — no RNG; byte-identical re-runs.
 //
-// Inputs live in the references/pudding-post submodule; actor-metrics.sqlite
-// is gitignored there, so this script only runs on machines with the
-// submodule's data present. The generated JSON is committed.
+// Inputs come from the separate data-analysis repo, located via the
+// ANALYSIS_REPO environment variable — this repo holds no data analysis. That
+// repo's actor-metrics.sqlite is not distributed, so this script only runs on a
+// machine with the full analysis checkout. The generated JSON is committed, so
+// the app builds and deploys without any of it.
+//
+//   ANALYSIS_REPO=~/src/Personal/pudding-post npm run scrolly-data
 import fs from "node:fs";
 import path from "node:path";
+import os from "node:os";
 import { fileURLToPath } from "node:url";
 import { DatabaseSync } from "node:sqlite";
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
-const sub = path.join(root, "references/pudding-post");
+
+/**
+ * The analysis repo's location. Required and never guessed: a wrong or stale
+ * path would silently rebuild the committed data from the wrong inputs.
+ */
+function analysisRepo() {
+	const raw = process.env.ANALYSIS_REPO;
+	if (!raw) {
+		throw new Error(
+			"build-scrolly-nodes: ANALYSIS_REPO is not set. Point it at the " +
+				"data-analysis checkout, e.g.\n" +
+				"  ANALYSIS_REPO=~/src/Personal/pudding-post npm run scrolly-data"
+		);
+	}
+	const dir = path.resolve(
+		raw.startsWith("~") ? path.join(os.homedir(), raw.slice(1)) : raw
+	);
+	if (!fs.existsSync(path.join(dir, "design/data"))) {
+		throw new Error(
+			`build-scrolly-nodes: ANALYSIS_REPO=${dir} has no design/data — ` +
+				"not an analysis checkout?"
+		);
+	}
+	return dir;
+}
+
+const sub = analysisRepo();
 const readJson = (p) => JSON.parse(fs.readFileSync(p, "utf8"));
 const design = (f) => readJson(path.join(sub, "design/data", f));
 const raw = (f) => readJson(path.join(sub, "data", f));

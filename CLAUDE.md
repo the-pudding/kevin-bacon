@@ -11,6 +11,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Lint (Prettier check, no separate linter): `npm run lint`
 - Format: `npm run format`
 - Sync Google Docs/Sheets micro-CMS content into `src/data` (per `google.config.js`): `npm run gdoc`
+- Rebuild the story data from the analysis repo: `ANALYSIS_REPO=<path> npm run scrolly-data`. The env var is required — the script never guesses where the analysis checkout is, since a stale path would silently rebuild the committed data from the wrong inputs. Rarely needed: the output is committed.
 - Regenerate CSS/JS design tokens from `properties/` via Style Dictionary: `npm run style`
 - Deploy to GitHub Pages (builds, then `rm -rf docs && cp -r build docs`, commits, pushes): `npm run staging`
 - Deploy to production/AWS (pudding.cool): `npm run prodution` (typo preserved as-is in `package.json`)

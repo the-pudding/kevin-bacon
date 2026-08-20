@@ -272,10 +272,22 @@ actor-trajectory-anchors) and `data/` (actor-metrics.sqlite, plus
 hop-tree-kevin-bacon-10000, time-machine, actor-year-rows,
 genz-mc-knn-bootstrap).
 
-The sqlite is not distributed with the analysis repo, so `npm run scrolly-data`
-only re-runs on a machine that has the full analysis checkout. That is why the
+The analysis repo's location comes from the required `ANALYSIS_REPO`
+environment variable (`ANALYSIS_REPO=<path> npm run scrolly-data`); the script
+never guesses it, because a stale path would silently rebuild the committed data
+from the wrong inputs. The sqlite is not distributed with that repo either, so
+this only re-runs on a machine with the full analysis checkout. That is why the
 two generated JSON files are committed — the app builds and deploys without any
 of the above.
+
+**One input is currently missing**, so a full rebuild does not complete:
+`data/top-250-hop-bands-with-hop-counts.csv`, which feeds `rankHopBands` (the
+rank chapter's per-actor hop breakdown for the top 250). It exists in neither
+repo, is not gitignored, and nothing regenerates it — `hop-tree-shared.json`
+carries only two centres (Bacon and SLJ), so the per-actor counts cannot be
+derived from the shipped artefacts. Restoring it needs a BFS over the top 250
+centres against the analysis repo's full graph database. Every other input
+resolves, and every assertion before that point passes.
 
 Ranks are corpus-global (up to ~162k), so ranked layouts must plot by _sampled
 rank order_ (see `layoutRank`), never by raw rank vs `nodes.length`. Hop-band
