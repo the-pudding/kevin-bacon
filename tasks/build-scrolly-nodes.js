@@ -492,9 +492,20 @@ const genz = genzAll.map((c) => ({
 	projP10: round4(c.projected_mad_p10),
 	projP90: round4(c.projected_mad_p90)
 }));
+// CGM is the Future chapter's protagonist — pulsed and labelled on
+// scatterGenZ, and the top bar on winBars — so her leading the field is
+// load-bearing. Her *share* is not: it falls as the candidate pool grows
+// (24.65% over 32 candidates, 11.59% over 99), and no step cites a figure for
+// it, so asserting a magnitude would only pin this build to one pool size.
 assert(
-	nodes[genz[0].id][1] === "Chloë Grace Moretz" && genz[0].winPct > 0.2,
-	"CGM should top the simulation with ~25%"
+	nodes[genz[0].id][1] === "Chloë Grace Moretz" &&
+		genz[0].winPct > genz[1].winPct,
+	`CGM should top the simulation, not ${nodes[genz[0].id][1]}`
+);
+// winBars' copy promises 10,000 runs
+assert(
+	genzSrc.n_sims === 10000,
+	`simulation ran ${genzSrc.n_sims} times, but the copy says 10,000`
 );
 const lowestMad = [...genz].sort((a, b) => a.mad - b.mad)[0];
 assert(
