@@ -1,8 +1,13 @@
 # Prototype → implementation map
 
-Maps the Storybook prototypes in `../pudding-post/design` (Lit / vanilla web
-components, the design sandbox) to their shipping implementation in this repo
+Maps the Storybook prototypes (Lit / vanilla web components, the design
+sandbox) to their shipping implementation in this repo
 (`src/components/scrolly/`, SvelteKit + a single canvas tween engine).
+
+> **Note:** the prototype sandbox lives in a separate design/analysis repo and
+> is not part of this checkout — this repo contains no prototypes and no data
+> analysis. The table is kept as a record of which layout descends from which
+> prototype; the left-hand column names stories, not files you can open here.
 
 The relationship is **one story, two substrates**: each prototype is a
 standalone Storybook story with its own data JSON; here the same visual is a
@@ -13,7 +18,7 @@ tweening between states (object constancy).
 
 ## Tokens & primitives
 
-| pudding-post/design                                                                                                               | this repo                                                                                    | notes                                                            |
+| prototype story                                                                                                                   | this repo                                                                                    | notes                                                            |
 | --------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
 | `stories/primitives/actor-dot.js` (`HOP_RGB`, `DOT_RADII`, `DOT_ALPHA`, `colorForHop`, `fillStyle`, `drawDot`, `LABEL_TARGET_PX`) | `scrolly/layout-shared.js` (`HOP_RGB`, dot radii/alpha, colour helpers) + `scrolly/nodes.js` | Single source of truth for a dot's appearance on both sides.     |
 | `stories/primitives/era-marker.js` (`<era-marker>`, `drawEraMarker`, `ERA_MARKER`)                                                | era-timeline overlay drawn in `scrolly/layouts/race.js` + rendered by `ScrollyVisual.svelte` | Bookmark markers annotating handover years on the race chart.    |
@@ -21,7 +26,7 @@ tweening between states (object constancy).
 
 ## Rendering engine & transitions
 
-| pudding-post/design                                                                                                      | this repo                                                                                                          | notes                                                                                                                                             |
+| prototype story                                                                                                          | this repo                                                                                                          | notes                                                                                                                                             |
 | ------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `stories/transitions/ng-hg-transition.js` (NG→HG canvas transition, arc/reshape/raindrop stages)                         | `scrolly/ScrollyVisual.svelte` + `scrolly/tween.js`                                                                | The prototype demos one hand-authored transition; here the tween engine generalises it to _every_ state→state move (seed frames, delays, trails). |
 | `stories/experimental/graph-canvas.js`, `graph-canvas-y.js` (d3-force beeswarm skeleton precompute over `data/layout/*`) | offline layout prep feeding `src/data/scrolly-nodes.json`; consumed by `layouts/intro.js` & `layouts/hop-bands.js` | Force-sim seeding is a build-time step upstream of this repo, not runtime code here.                                                              |
@@ -29,7 +34,7 @@ tweening between states (object constancy).
 
 ## Chapter visuals
 
-| pudding-post/design story (data)                                                                                                         | this repo layout → state(s)                                               | interactive step-card                                 |
+| prototype story (data)                                                                                                                   | this repo layout → state(s)                                               | interactive step-card                                 |
 | ---------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- | ----------------------------------------------------- |
 | `NetworkGraph` — `NetworkGraph.stories.js` / `network-graph.js` (`intro-bacon-network.json`)                                             | `layouts/intro.js` → `lone`, `networkIntro`                               | —                                                     |
 | `HopGraph` — `hop-graph.js` (`hop-tree-shared.json`)                                                                                     | `layouts/hop-bands.js` → `hopSeed`, `hopBands`                            | —                                                     |
@@ -43,7 +48,7 @@ tweening between states (object constancy).
 
 ## Implemented here, no prototype yet
 
-These ship in this repo but have no counterpart story in `pudding-post/design`:
+These ship in this repo but have no counterpart story in the design sandbox:
 
 - `layouts/win-bars.js` → `winBars` — Gen Z win-simulation horizontal waffle bars (10k sims ≈ 1 dot / 25), selected on-chart via the layout's `hits`.
 - `layouts/slj-fan.js` → `sljFan` — Samuel L. Jackson trajectory + projected outcome fan (`sweeney-trajectory.json` / `story.slj`).

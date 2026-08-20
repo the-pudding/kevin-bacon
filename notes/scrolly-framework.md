@@ -263,12 +263,19 @@ hidden in hop-coloured states.
 (time-machine anchors), `careers` (trio + 40-line cohort), `genz` (10k-run
 k-NN bootstrap winners) and `slj` (his avg-distance trajectory by career age).
 
-Submodule sources: `design/data/` (intro network, hop tree, top-200,
-prediction/concurrence/top50 scatters, quiz, actor-trajectories,
-actor-trajectory-anchors) and `data/` (actor-metrics.sqlite — **gitignored in
-the submodule**, so the generated JSON is committed and the script only
-re-runs on machines with the data — plus hop-tree-kevin-bacon-10000,
-time-machine, actor-year-rows, genz-mc-knn-bootstrap).
+**This repo contains no data analysis.** Every metric is computed in a separate
+data-analysis repo and arrives here as pre-exported files, which
+`build-scrolly-nodes.js` reads from a base path configured at the top of that
+script. Two source directories are expected: `design/data/` (intro network, hop
+tree, top-200, prediction/concurrence/top50 scatters, quiz, actor-trajectories,
+actor-trajectory-anchors) and `data/` (actor-metrics.sqlite, plus
+hop-tree-kevin-bacon-10000, time-machine, actor-year-rows,
+genz-mc-knn-bootstrap).
+
+The sqlite is not distributed with the analysis repo, so `npm run scrolly-data`
+only re-runs on a machine that has the full analysis checkout. That is why the
+two generated JSON files are committed — the app builds and deploys without any
+of the above.
 
 Ranks are corpus-global (up to ~162k), so ranked layouts must plot by _sampled
 rank order_ (see `layoutRank`), never by raw rank vs `nodes.length`. Hop-band
@@ -346,11 +353,10 @@ impossible to retrofit meaningfully after launch.
   instantly (no crossfade). Fine for PoC; use Svelte transitions later.
 - Tap support for annotations: nearest-node hit-test on canvas click (~40
   lines) — the tracked-coords mechanism it needs is built (see "Annotations").
-- Reference implementations the patterns were adapted from:
-  `references/pudding-post/design/stories/components/hop-graph.js`
-  (`transitionTo`) and `.../primitives/actor-dot.js` (color/alpha tokens). The
-  canvas hop colors in states.js are hardcoded rgb of the tokens in
-  `src/styles/variables.css`.
+- The dot-transition and color/alpha patterns were adapted from Storybook
+  prototypes that lived in the (now removed) reference checkout; they are no
+  longer available in this repo. The canvas hop colors in states.js are
+  hardcoded rgb of the tokens in `src/styles/variables.css`.
 
 ## Verify
 

@@ -2,7 +2,7 @@
 
 ## Starting Prompt
 
-The race chart (`src/components/scrolly/layouts/race.js` + `ScrollyVisual.svelte`) just got a label de-collision/easing system ported from the pudding-post reference (`src/components/scrolly/label-decollide.js`), and `raceRecent`/`raceTrades` now name all four contenders (Samuel L. Jackson, Gene Hackman, Robert De Niro, Frank Welker) instead of one or three. Landed in commit `a766b00` (bundled with an unrelated repo-hook refactor — ignore that part).
+The race chart (`src/components/scrolly/layouts/race.js` + `ScrollyVisual.svelte`) just got a label de-collision/easing system ported from the design sandbox (`src/components/scrolly/label-decollide.js`), and `raceRecent`/`raceTrades` now name all four contenders (Samuel L. Jackson, Gene Hackman, Robert De Niro, Frank Welker) instead of one or three. Landed in commit `a766b00` (bundled with an unrelated repo-hook refactor — ignore that part).
 
 I want to keep building on `raceRecent`'s animation now that labels can handle four names at once without colliding. Before proposing specific next steps, read `notes/scrolly-framework.md` in full (especially "Known gaps / next steps" and "Annotations (labels + pulse)"), and re-read `layouts/race.js` plus `drawScene()`/`playRaceEntry()`/`scrubLoop()` in `ScrollyVisual.svelte` to understand the entry-sweep choreography (`revealFrom: ["rankReveal"]` on `raceRecent`, driven by `runSweepPhase`/`writeRaceSweepFrame`).
 

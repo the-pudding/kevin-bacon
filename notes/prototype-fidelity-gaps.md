@@ -1,7 +1,7 @@
 # Prototype fidelity gaps — spot-the-difference
 
 Audit of every **not-ready** scrolly state (`ready={false}` in `Index.svelte`)
-against its pudding-post prototype. **pudding-post/design is the source of
+against its design-sandbox prototype. **The design sandbox is the source of
 truth** — its design decisions were hard-fought and win every disagreement; the
 tables below catalog where this repo's implementation diverges so it can be
 brought into line.
@@ -143,10 +143,10 @@ upstream before treating it as a layout bug.
 
 `winBars` (`win-bars.js`, Gen Z win-simulation waffle) and
 `sljFan` (`slj-fan.js`, SLJ trajectory + outcome fan) are `ready={false}` but
-have **no pudding-post counterpart**, so there's nothing to spot-the-difference
+have **no prototype counterpart**, so there's nothing to spot-the-difference
 against. They are net-new visuals authored only in this repo. Options: (a) build
 the prototypes first so they get the same hard-fought treatment before this repo
 finalizes them, or (b) audit them against the design _principles_ in
-`pudding-post/design/CLAUDE.md` (minimal, mobile-first 320px, width-aware
+the design sandbox's own CLAUDE.md (minimal, mobile-first 320px, width-aware
 labels, no gridlines/chart-junk) instead. Recommend (a) given the theme above —
 this repo has a habit of adding UI the design layer would have removed.
