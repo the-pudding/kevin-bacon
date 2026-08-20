@@ -53,6 +53,7 @@ words:
   - tmdb
   - joinable
   - reframing
+  - igraph
 ignorePaths:
   - node_modules
   - build

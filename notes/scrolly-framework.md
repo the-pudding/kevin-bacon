@@ -285,9 +285,30 @@ of the above.
 rank chapter's per-actor hop breakdown for the top 250). It exists in neither
 repo, is not gitignored, and nothing regenerates it — `hop-tree-shared.json`
 carries only two centres (Bacon and SLJ), so the per-actor counts cannot be
-derived from the shipped artefacts. Restoring it needs a BFS over the top 250
-centres against the analysis repo's full graph database. Every other input
-resolves, and every assertion before that point passes.
+derived from the shipped artefacts. Every other input resolves, and every assertion
+before that point passes.
+
+Restoring it is a small change to an existing analysis script rather than new
+work. `analysis/compute-actor-distance-distribution.py` already builds the full
+corpus igraph and takes a per-actor distance vector
+(`_G.distances(source=[v])[0]`, ~line 108) to derive avg distance, eccentricity
+and reachability for all 162,409 actors. Binning that same vector into hop
+counts for the top 250 by avg distance is all the CSV needs.
+
+`rankHopBands` is **full-corpus**: the counts sum to 162,229 (matching the
+sqlite's `reachable`) and their hop-weighted mean reproduces each actor's
+`avg_distance` exactly — Bacon's 1,581/113,396/47,119/133 gives 2.2823. Note
+`data/actor-bfs-summaries.json` looks like a match but is **not** usable: its
+per-actor `distribution` is over a 20,000-actor sample, so its avg distances
+differ in the second decimal and would fail the build's own check.
+
+Columns the build reads (`rawCsv`, one row per actor):
+
+    rank, pid, name, hop1_count, hop2_count, hop3_count, hop4_count, avgDistance_diff
+
+`avgDistance_diff` is the residual between the hop-weighted mean and the
+sqlite's `avg_distance`; the build asserts it is under 1e-3, and separately that
+`rank` matches its own derived rank.
 
 Ranks are corpus-global (up to ~162k), so ranked layouts must plot by _sampled
 rank order_ (see `layoutRank`), never by raw rank vs `nodes.length`. Hop-band
