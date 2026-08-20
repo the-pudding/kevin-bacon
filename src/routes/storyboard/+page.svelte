@@ -119,8 +119,8 @@
 		</p>
 		<p>
 			Repeating this all the way back gives us a timeline of every center since
-			1980. Note that no female actor has ever been the center; the we've ever
-			come was Susan Sarandon in at #9 in 2012.
+			1970. Note that no female actor has ever been the center; the closest
+			we've ever come was Susan Sarandon in at #9 in 2012.
 		</p>
 	</section>
 
@@ -143,7 +143,7 @@
 		<p>
 			The obvious one is film count. More films means closer to the center.
 			Indeed, Samuel L. Jackson has been in far more films than anyone else, 20
-			more than Nicholas Cage who's next closest.
+			more than Nicolas Cage who's next closest.
 		</p>
 	</section>
 
@@ -187,8 +187,8 @@
 			the ones with the highest price". Instead we use the costar film count as
 			a sort of proxy. Concretely, this is an actor's 50 most prolific costars
 			by number of films, taken as an average. If you work with more "big dog"
-			actors compared to someone with the same film count, you almost definitely
-			be closer to the center of hollywood than them.
+			actors compared to someone with the same film count, you'll almost
+			definitely be closer to the center of hollywood than them.
 		</p>
 	</section>
 
