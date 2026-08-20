@@ -7,6 +7,7 @@
 	import GuessRank from "$components/scrolly/GuessRank.svelte";
 	import RankBars from "$components/scrolly/RankBars.svelte";
 	import RaceScrubber from "$components/scrolly/RaceScrubber.svelte";
+	import PairQuiz from "$components/scrolly/PairQuiz.svelte";
 	import useWindowDimensions from "$runes/useWindowDimensions.svelte.js";
 	import urlParams from "$utils/urlParams.js";
 	import { story } from "$components/scrolly/story.svelte.js";
@@ -34,6 +35,9 @@
 	const restoredStep = readStep();
 	let coldStart = $state(restoredStep !== null && restoredStep > 0);
 	let dimensions = new useWindowDimensions();
+	// ScrollyVisual instance, for the pair-quiz panel's locate() flight targets
+	/** @type {ScrollyVisual | undefined} */
+	let visual = $state();
 	// measured height of the step card + nav overlaying the canvas bottom, so
 	// panels sized against it (rank-bars) neither overlap it nor leave a gap
 	let stepsHeight = $state(0);
@@ -101,6 +105,7 @@
 		>
 			<div class="scrolly-visual">
 				<ScrollyVisual
+					bind:this={visual}
 					state={stepConfigs[value ?? 0]?.state}
 					params={stepConfigs[value ?? 0]?.params}
 					{coldStart}
@@ -125,6 +130,11 @@
 				     raceFull gets it — the first two race steps are carried by their own
 				     camera choreography, so they need no control of their own. Renders
 				     nothing on a viewport wide enough to show the whole range. -->
+				<!-- the pair quiz renders as a blurred overlay over the scatter; the
+				     step below it just sets up the question -->
+				{#snippet quizPanel()}
+					<PairQuiz {visual} />
+				{/snippet}
 				{#snippet racePanel()}
 					<div class="race-scrubber-panel" style="bottom: {stepsHeight + 12}px">
 						<RaceScrubber />
@@ -182,7 +192,9 @@
 						<p>
 							Yes, Samuel L. Jackson is the <i>center of Hollywood</i>. You can
 							get to him in an average distance of just 2.09. Willem Dafoe is
-							second, Robert De Niro third.
+							second, Robert De Niro third. Female actors are under-represented
+							here, occupying only 16 of the top 100 most connected actors.
+							Nicole Kidman is the first female in at #21.
 						</p>
 					</Step>
 
@@ -195,7 +207,7 @@
 					</Step>
 					<Step state="raceTrades">
 						<p>
-							Before then, the crown changed hands frequently, with Frank
+							Before then, the crown changed heads frequently, with Frank
 							Welker, Robert De Niro and Gene Hackman fighting over top spot for
 							the previous decade.
 						</p>
@@ -203,21 +215,70 @@
 					<Step state="raceFull" panel={racePanel}>
 						<p>
 							Repeating this all the way back gives us a timeline of every
-							center since we started tracking this in 1970.
+							center since 1970. Note that no female actor has ever been the
+							center; the closest we've ever come was Susan Sarandon in at #9 in
+							2012.
 						</p>
 					</Step>
 
 					<!-- FUTURE -->
-					<Step state="scatterCenters">
+					<Step state="raceFull" panel={racePanel}>
 						<p>
 							Now imagine us taking this into the future. How might we predict
 							who will take the crown from Samuel L. Jackson? To do that, we
 							need to find what moves an actor towards the center.
 						</p>
+					</Step>
+					<Step state="scatterCenters">
 						<p>
 							The obvious one is film count. More films means closer to the
 							center. Indeed, Samuel L. Jackson has been in far more films than
 							anyone else, 20 more than Nicolas Cage who's next closest.
+						</p>
+					</Step>
+					<Step state="scatterCenters">
+						<p>
+							The relationship between film count and average distance is
+							strong, but it doesn't explain it fully. Two actors can have the
+							same film counts but very different average distances. For
+							example, Natalie Portman and Anna Kendrick are shown here at the
+							two extremes of the data.
+						</p>
+					</Step>
+					<Step state="scatterCenters">
+						<p>
+							So what's different about them? Put simply: better costars.
+							Natalie Portman stars with more "big dogs" than Anna Kendrick.
+							They say in hollywood "It's not what you know, it's who you know",
+							and it seems that is also true of explaining an actor's average
+							distance.
+						</p>
+					</Step>
+					<Step state="scatterCenters">
+						<p>
+							Using our most central actors from earlier, we can see that
+							Natalie Portman has worked with almost three times more of them
+							than Anna Kendrick.
+						</p>
+					</Step>
+					<Step state="degScatter">
+						<p>
+							It would be too circular to use costars with low average distance
+							as our measure. That's like saying "We think the most expensive
+							houses will be the ones with the highest price". Instead we use
+							the costar film count as a sort of proxy. Concretely, this is an
+							actor's 50 most prolific costars by number of films, taken as an
+							average. If you work with more "big dog" actors compared to
+							someone with the same film count, you'll almost definitely be
+							closer to the center of hollywood than them.
+						</p>
+					</Step>
+					<Step state="scatterQuiz" panel={quizPanel}>
+						<p>
+							Now we've got our two signals, we can test our knowledge with a
+							few more examples. For these actors with very similar film counts,
+							who do you think works with more "big dogs" and is therefore
+							closer to the center?
 						</p>
 					</Step>
 					<Step state="scatterGenZ">
@@ -247,26 +308,34 @@
 							select one weighted by how close they are.
 						</p>
 					</Step>
+					<Step state="careerMany">
+						<p>
+							Costar data is a lot simpler, since it stabilises for actors once
+							they reach career age ~10. For this, we add an adjustment so that
+							well-connected Gen Z actors continue being relatively
+							well-connected when modelled into the future.
+						</p>
+					</Step>
 					<Step state="winBars">
 						<p>
-							Indeed, Chloë Grace Moretz wins in a quarter of simulations. She
-							doesn't exactly have a clear majority, despite already being
-							well-clear of these people from an average distance perspective.
-							Tap a bar to see how that contender's stats compare.
+							To achieve a stable result, we'll run the simulation 10,000 times
+							and see who comes out on top.
 						</p>
 					</Step>
 					<Step state="sljFan">
 						<p>
-							On average, the winning score is 2.33, nowhere near SLJ's current
-							average distance. We're counting on SLJ's average distance getting
-							worse as he stops appearing in movies, or a Marvel-sized cinematic
+							Here's what we think will happen to each Gen Z actor's average
+							distance. You'll notice that none of them overtake Samuel L.
+							Jackson. From our historical analysis you'll recall lines dropping
+							off as actors stop appearing in so many films. We're counting on
+							this happening to Samuel L. Jackson, or a Marvel-sized cinematic
 							universe being spawned again.
 						</p>
 					</Step>
 					<Step state="sljFan">
 						<p>
 							What I can tell you is that our first female center of hollywood
-							is very likely to happen next, with 77% of the wins going to
+							is very likely to happen next, with 65% of the wins going to
 							women, perhaps not for a few years yet though.
 						</p>
 					</Step>
