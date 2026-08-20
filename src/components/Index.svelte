@@ -7,8 +7,6 @@
 	import GuessRank from "$components/scrolly/GuessRank.svelte";
 	import RankBars from "$components/scrolly/RankBars.svelte";
 	import RaceScrubber from "$components/scrolly/RaceScrubber.svelte";
-	import PairQuiz from "$components/scrolly/PairQuiz.svelte";
-	import PredictToggles from "$components/scrolly/PredictToggles.svelte";
 	import useWindowDimensions from "$runes/useWindowDimensions.svelte.js";
 	import urlParams from "$utils/urlParams.js";
 	import { story } from "$components/scrolly/story.svelte.js";
@@ -36,9 +34,6 @@
 	const restoredStep = readStep();
 	let coldStart = $state(restoredStep !== null && restoredStep > 0);
 	let dimensions = new useWindowDimensions();
-	// ScrollyVisual instance, for the pair-quiz panel's locate() flight targets
-	/** @type {ScrollyVisual | undefined} */
-	let visual = $state();
 	// measured height of the step card + nav overlaying the canvas bottom, so
 	// panels sized against it (rank-bars) neither overlap it nor leave a gap
 	let stepsHeight = $state(0);
@@ -106,7 +101,6 @@
 		>
 			<div class="scrolly-visual">
 				<ScrollyVisual
-					bind:this={visual}
 					state={stepConfigs[value ?? 0]?.state}
 					params={stepConfigs[value ?? 0]?.params}
 					{coldStart}
@@ -126,11 +120,6 @@
 					<div class="rank-bars-panel" style="bottom: {stepsHeight + 12}px">
 						<RankBars reveal={currentState === "rankReveal"} />
 					</div>
-				{/snippet}
-				<!-- the pair quiz renders as a blurred overlay over the scatter; the
-				     step below it just sets up the hypotheses -->
-				{#snippet quizPanel()}
-					<PairQuiz {visual} />
 				{/snippet}
 				<!-- raceFull pan control: drag surface + year slider over the plot. Only
 				     raceFull gets it — the first two race steps are carried by their own
@@ -152,10 +141,10 @@
 					</Step>
 					<Step state="networkIntro">
 						<p>
-							The intuition is that Kevin Bacon is so prolific, genre-spanning,
-							and timeless that the game is a lot easier than if it were called
-							the "Six Degrees of John Doe". This idea implies that Kevin Bacon
-							is this all-encompassing center of Hollywood.
+							The intuition is that Kevin Bacon is so prolific and well-known
+							that the game is a lot easier than if it were called the "Six
+							Degrees of John Doe". This idea implies that Kevin Bacon is this
+							all-encompassing center of Hollywood.
 						</p>
 					</Step>
 					<Step state="hopSeed">
@@ -214,151 +203,48 @@
 					<Step state="raceFull" panel={racePanel}>
 						<p>
 							Repeating this all the way back gives us a timeline of every
-							center since we started tracking this in 1970. data.
-						</p>
-					</Step>
-
-					<Step state="scatterCenters">
-						<p>
-							As you just learned, Samuel L. Jackson has been dominating
-							Hollywood by his sheer prolificacy since 2006. His reign has
-							lasted 5 times longer than anyone else. But what makes an anchor
-							the center? You can see from the results that Samuel L. Jackson
-							has been in by far the most films, 20 more than Nicholas Cage
-							who's next closest. Indeed, film count correlates heavily with
-							average distance. Is film count the only signal though? What else
-							could we use to accurately predict an actor's average distance?
-						</p>
-					</Step>
-					<Step state="scatterCenters">
-						<p>
-							Just because you're in loads of films doesn't necessarily mean
-							you've got a lot of connections in the graph. And just because
-							you've got a lot of connections in the graph, doesn't mean you've
-							got the <i>right</i> connections to make you the center of Hollywood.
-						</p>
-					</Step>
-					<Step state="scatterWalters">
-						<p>
-							Dame Julie Walters under-performs drastically on average distance.
-							In this respect, she's got two things going against her:
-							<br />
-							1. She's <i>franchise-heavy</i>: Harry Potter, Paddington, Mamma
-							Mia to name a few. This means she works with the same actors
-							repeatedly. In fact, almost half of the films she's in are part of
-							a franchise.
-							<br />
-							2. She works in <i>largely British ensembles</i>, containing
-							less-connected actors from a pure Hollywood perspective. She needs
-							to rely on well-connected costars like Gary Oldman (#18th), Nicole
-							Kidman (#21st) and Meryl Streep (#27th) to bring that average
-							distance down for her.
-						</p>
-					</Step>
-					<Step state="scatterQuiz" panel={quizPanel}>
-						<p>
-							Let's generalise this idea into two hypotheses:
-							<br />
-							1. Starring with the <i>same</i> people.
-							<br />
-							2. Starring with the <i>right</i> people.
-							<br />
-							Consider these actors. Intuitively, who in each pair do you think has
-							the lower average distance?
-						</p>
-					</Step>
-					<Step state="scatterQuiz" params={{ revealed: true }}>
-						<p>
-							Seth Rogen and Charlize Theron are in similar numbers of films -
-							they even costarred in "Long Shot". However, Charlize Theron tends
-							to work with actors she's not worked with before. Conversely, Seth
-							Rogen repeatedly works with the same actors. For example, Jonah
-							Hill is in 8 of his films.
-						</p>
-					</Step>
-					<Step state="concurrenceScatter">
-						<p>
-							<i>Concurrency</i> is a measure of how frequently you work with the
-							same actors. Seth Rogen having a concurrency of 0.28 means that for
-							each of his films, he would have worked with 28% of the cast before.
-						</p>
-					</Step>
-					<Step state="concurrenceScatter">
-						<p>
-							If your concurrency is low, you work for the first time with
-							actors more often. This means you create more connections in the
-							graph and it will take you fewer films to get your average
-							distance down.
-						</p>
-					</Step>
-					<Step state="concurrenceScatter">
-						<p>
-							If you starred in one film with Samuel L Jackson and him alone,
-							you would immediately have an average distance of 3.08, putting
-							you in the top 75% of hollywood.
-						</p>
-					</Step>
-					<Step state="concurrenceScatter">
-						<p>
-							Due to its circular nature, we can't use "low costar average
-							distance" as a signal for explaining someone's average distance.
-							We can however use how many connections their costars have in the
-							graph i.e their costars' <i>degree</i>.
-						</p>
-					</Step>
-					<Step state="degScatter">
-						<p>
-							Here's the same graph, but measuring the average degree of their
-							top 50 costars.
+							center since we started tracking this in 1970.
 						</p>
 					</Step>
 
 					<!-- FUTURE -->
-					<Step state="predictionScatter">
+					<Step state="scatterCenters">
 						<p>
-							So both of our hypotheses hold up against our example pairs. These
-							two new pieces of information can be used to explain why two
-							actors with similar numbers of films can have such different
-							average distances. Combining all three pieces of information
-							allows us to predict an actor's mean average distance much more
-							accurately.
+							Now imagine us taking this into the future. How might we predict
+							who will take the crown from Samuel L. Jackson? To do that, we
+							need to find what moves an actor towards the center.
 						</p>
-						<PredictToggles />
-					</Step>
-					<Step state="scatterGenZ">
 						<p>
-							Now, Samuel L. Jackson can't be the center forever. At some point,
-							someone must overtake him. Which Gen Z actor do we think is going
-							to do that? The Gen Z actor with the current lowest average
-							distance is Chloë Grace Moretz. However, we know that's not all we
-							need to have confidence in simply saying she's Gen Z's Kevin
-							Bacon.
+							The obvious one is film count. More films means closer to the
+							center. Indeed, Samuel L. Jackson has been in far more films than
+							anyone else, 20 more than Nicolas Cage who's next closest.
 						</p>
 					</Step>
 					<Step state="scatterGenZ">
 						<p>
-							Using all the data we have, we can model an actor's career by
-							looking at what has happened to actors with similar stats in the
-							past.
+							We now have everything we need to predict an actor's current
+							average distance using film count and costar data. To predict
+							future average distance we need to model their trajectory by
+							stating what we think their film count and costar data will look
+							like at a certain point in time. To do this, we look at what has
+							happened to actors with similar stats in the past.
 						</p>
 					</Step>
 					<Step state="careerTrio">
 						<p>
-							Take Sydney Sweeney. She's been in 16 films since her debut 15
-							years ago. At the same point in their career, Robert De Niro had
-							also racked up 16 films — and went on to a brilliant career
-							totalling 87. Conversely, Chevy Chase reached the same milestone
-							in the same time — and only ever appeared in 27.
+							Films first. Take Sydney Sweeney: she's been in 16 films since her
+							debut 15 years ago. At the same point in their career, Robert De
+							Niro had also racked up 16 films — and went on to have a brilliant
+							career totalling 87. Conversely, Chevy Chase reached the same
+							milestone at the same point — and only ever appeared in 27.
 						</p>
 					</Step>
 					<Step state="careerMany">
 						<p>
-							This means that whatever actor we use to model a Gen Z's career
+							This means that whatever actor we use to model a Gen Z's film
 							trajectory can massively impact the results. For each actor, we
 							consider similar actors based on proximity to them, and randomly
-							select one weighted by how close they are. To minimize the noise,
-							we'll run this simulation 10,000 times and see who comes out on
-							top.
+							select one weighted by how close they are.
 						</p>
 					</Step>
 					<Step state="winBars">
