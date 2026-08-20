@@ -183,6 +183,65 @@ const careerAgeByPid = new Map(
 	])
 );
 
+// ---------------------------------------------------------------------------
+// Gender figures. Nothing on the canvas is coloured by gender — these guard the
+// four claims the step prose makes, so a copy edit or an upstream data change
+// cannot silently leave the numbers wrong. TMDB enum: 1 female, 2 male,
+// 3 non-binary, 0 unset.
+// ---------------------------------------------------------------------------
+
+const FEMALE = 1;
+const MALE = 2;
+const genderByPid = new Map();
+for (const f of [
+	"female-anchor-gender.json",
+	"top250-gender.json",
+	"genz-mc-candidate-gender.json"
+]) {
+	for (const [pid, g] of Object.entries(raw(f).genders)) {
+		genderByPid.set(Number(pid), g);
+	}
+}
+
+// rankReveal: "only 16 of the top 100 most connected actors" are female, and
+// "Nicole Kidman is the first female in at #21"
+const top100 = top200.slice(0, 100);
+assert(
+	top100.every((e) => genderByPid.has(e.person_id)),
+	"gender missing for some of the top 100"
+);
+const femalesInTop100 = top100.filter(
+	(e) => genderByPid.get(e.person_id) === FEMALE
+).length;
+assert(femalesInTop100 === 16, `${femalesInTop100} females in top 100, not 16`);
+const firstFemale = top200.find((e) => genderByPid.get(e.person_id) === FEMALE);
+assert(
+	firstFemale.name === "Nicole Kidman" && firstFemale.rank === 21,
+	`first female is ${firstFemale.name} at #${firstFemale.rank}, not Nicole Kidman at #21`
+);
+
+// raceFull: "no female actor has ever been the center"
+const anchorPids = [
+	...new Set(timeMachine.anchor_timeline.eras.map((e) => e.person_id))
+];
+assert(
+	anchorPids.every((pid) => genderByPid.get(pid) === MALE),
+	"an era anchor is not male — the 'no female center' claim no longer holds"
+);
+
+// sljFan close: "65% of the wins going to women". The simulation output carries
+// its own gender label per candidate, which is what the win share is weighted
+// by, so this reads that rather than joining the files above.
+{
+	const cands = Object.values(genzSrc.candidates);
+	const total = cands.reduce((sum, c) => sum + c.sim_win_pct, 0);
+	const female = cands
+		.filter((c) => c.gender === "female")
+		.reduce((sum, c) => sum + c.sim_win_pct, 0);
+	const pct = Math.round((100 * female) / total);
+	assert(pct === 65, `female win share is ${pct}%, not the 65% the copy cites`);
+}
+
 const nameByPid = new Map(distanceFilms.map((p) => [p.person_id, p.name]));
 const TRIO_PIDS = { sweeney: 115440, deniro: 380, chase: 54812 };
 assert(
@@ -223,12 +282,33 @@ const concByPid = new Map(
 		p.concurrence
 	])
 );
-const degByPid = new Map(
-	design("top50-degree-films-scatter.json").points.map((p) => [
-		p.person_id,
-		p.top50_log_degree
+// Costar strength: mean log(films + 1) over an actor's 50 most prolific
+// costars. Replaces the legacy top-50 *degree* metric, which ranked costars by
+// connection count instead of films and which the analysis repo retired
+// everywhere else. Full corpus, no film floor — the design scatter export it
+// supersedes covered only ~4.7k actors above a 10-film threshold.
+const top50ByPid = new Map(
+	raw("costar-top50-log-films-full.json").map((r) => [
+		r.pid,
+		r.costar_top50_log_films
 	])
 );
+// guards the units: log(films + 1) lands ~2-5, the retired log-degree ~7-8, so
+// a silent swap back (or a raw film count) trips this rather than reaching the
+// chart as an unreadable axis
+{
+	let n = 0;
+	let max = -Infinity;
+	for (const v of top50ByPid.values()) {
+		if (v == null) continue;
+		n += 1;
+		if (v > max) max = v;
+	}
+	assert(
+		n > 100000 && max < 6,
+		`top50 is not a log-films metric (n=${n}, max=${max})`
+	);
+}
 const predByPid = new Map(predictionPoints.map((p) => [p.person_id, p]));
 
 const idByPid = new Map(sample.map((n, id) => [n.pid, id]));
@@ -243,7 +323,7 @@ const nodes = sample.map((n) => {
 		avgDistance,
 		rank,
 		round4(concByPid.get(n.pid) ?? null),
-		round4(degByPid.get(n.pid) ?? null),
+		round4(top50ByPid.get(n.pid) ?? null),
 		round4(pred?.pred_film ?? null),
 		round4(pred?.pred_film_conc ?? null),
 		round4(pred?.pred_film_deg ?? null),
@@ -406,7 +486,7 @@ const genz = genzAll.map((c) => ({
 	films: c.current_films,
 	careerAge: c.current_career_age,
 	conc: round4(c.current_concurrence),
-	top50: round4(c.current_top50_log_deg),
+	top50: round4(c.current_top50_log_films),
 	mad: round4(c.current_mad),
 	projMedian: round4(c.projected_mad_median),
 	projP10: round4(c.projected_mad_p10),

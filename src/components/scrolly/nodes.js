@@ -19,7 +19,7 @@ export const INTRO_LAYOUT = data.introLayout;
  * @property {number} avgDistance
  * @property {number} rank position in the full corpus sorted by avgDistance
  * @property {number|null} conc concurrence (share of costars already worked with)
- * @property {number|null} top50 log mean degree of top-50 costars
+ * @property {number|null} top50 mean log(films + 1) of the 50 most prolific costars
  * @property {number|null} predFilm predicted avgDistance from film count alone
  * @property {number|null} predFilmConc … + concurrence
  * @property {number|null} predFilmDeg … + top-50 costar degree

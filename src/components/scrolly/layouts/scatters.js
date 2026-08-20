@@ -167,6 +167,10 @@ const layoutConcScatter = (nodes, w, h) =>
 const layoutDegScatter = (nodes, w, h) =>
 	filmsScatter(nodes, w, h, {
 		yOf: (n) => n.top50,
+		// top50 is mean log(films + 1) of the 50 most prolific costars, so the
+		// plotted range is ~2-5. The 0.5 default was tuned for the retired
+		// log-degree metric's ~7-8 band and leaves too few ticks here.
+		tickStep: 0.25,
 		highlights: PAIR_HIGHLIGHTS
 	});
 
