@@ -510,6 +510,66 @@ SB16 may reuse the quiz.
 
 ---
 
+## Superseded: all storyboard copy now landed
+
+The "omit until a visual exists" decision above was **reversed** — Owen asked for
+every step's text in now, with the data to follow. `Index.svelte` therefore
+carries all 23 storyboard steps, mapping 1:1 onto SB1–SB23, and the per-step
+dispositions in the table above should be read as _what still needs doing_
+rather than _what was adopted_.
+
+Steps sharing a state because their visual is not designed yet: SB12–SB14 all
+sit on `scatterCenters` (10–13), and SB20 sits on `careerMany` (19). The reader
+clicks through those with no visual change.
+
+### Outstanding: SB16 needs a reveal row in the storyboard
+
+`notes/scrolly-framework.md` requires that the step _after_ an interaction
+reveals its answer unconditionally, so a reader who skips still learns it:
+
+> Every interaction is skippable. The step _after_ an interaction reveals the
+> answer unconditionally… No interaction may gate the Next button.
+
+`PairQuiz` only reveals a pair the reader actually picks, so as it stands the
+quiz breaks that rule — click past SB16 and no answer is ever shown. A reveal
+step was tried and removed: the storyboard has no row for it, and inventing the
+copy produced a sentence that answered the wrong question (the quiz asks who
+works with more "big dogs"; `story.quiz`'s answer key resolves average
+distance).
+
+**Fix: add a reveal row to `src/routes/storyboard/+page.svelte` after SB16**,
+with copy that answers the big-dogs question, then add the matching
+`params={{ revealed: true }}` step here. Do it alongside the quiz's data work —
+the answer key has to be re-derived for the new question anyway.
+
+### Copy parity with the storyboard
+
+The post now matches `src/routes/storyboard/+page.svelte` **word for word** across
+all 23 steps. Verified by diffing the two files, not by eye — worth re-running
+after any copy change, since silent drift between them is what created this whole
+exercise.
+
+Four slips were fixed **in the storyboard** and mirrored here, keeping the
+storyboard as the single source of truth rather than letting the post diverge:
+
+- "every center since 1980" → **1970** (SB9). The first era starts 1971-12-14 and
+  `raceSeries` spans 1970–2025.
+- "the we've ever come" → **"the closest we've ever come"** (SB9).
+- "Nicholas Cage" → **"Nicolas Cage"** (SB11).
+- "you almost definitely be closer" → **"you'll almost definitely be closer"**
+  (SB15).
+
+"the crown changed **heads**" (SB8) is deliberate — Owen's wording, kept.
+
+### Two interaction gaps this leaves
+
+- **`winBars`' tap is unsignposted.** The bars are tappable (`hits` + `pick` in
+  `win-bars.js`) but no copy says so; SB21 instead promises a play control that
+  does not exist. Resolve in the storyboard.
+- **The quiz has no unconditional reveal** — see the SB16 note above.
+
+---
+
 ## Verification
 
 - `npm run dev`, then walk every step with Next / ArrowRight and back with
