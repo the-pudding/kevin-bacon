@@ -85,12 +85,14 @@ export function routeActors(id) {
 	return ids;
 }
 
-/** the headline over a focused actor's routes — the films name themselves on the lines */
+/**
+ * The headline over a focused actor's routes. Says only the distance: every route
+ * is drawn and every film on it named, so the chart already shows how many there
+ * are — counting them in words as well is just noise over the top of it.
+ */
 export function routeHeadline(id, routes) {
 	const name = NAMES[id];
 	if (!routes.length) return `${name} — the center of this game`;
 	const hops = routes[0].length;
-	const away = `${COUNT_WORDS[hops]} movie${hops === 1 ? "" : "s"} away`;
-	if (routes.length === 1) return `${name} is ${away}`;
-	return `${name} is ${away}, by ${COUNT_WORDS[routes.length]} different routes`;
+	return `${name} is ${COUNT_WORDS[hops]} movie${hops === 1 ? "" : "s"} away`;
 }
