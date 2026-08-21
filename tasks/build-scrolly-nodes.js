@@ -355,13 +355,30 @@ for (const rank of [2, 3]) {
 	);
 }
 
-const edges = intro.edges.map(({ source, target }) => [
+// [sampleId, sampleId, film, year] — the film is the corpus title linking the
+// pair, so step 1 can name a route to Bacon without the analysis graph DB
+const edges = intro.edges.map(({ source, target, film, year }) => [
 	idByPid.get(source),
-	idByPid.get(target)
+	idByPid.get(target),
+	film,
+	year
 ]);
 assert(
 	edges.every(([s, t]) => s !== undefined && t !== undefined),
 	"intro edge endpoint missing from sample"
+);
+assert(
+	edges.every(([, , film]) => typeof film === "string" && film.length > 0),
+	"intro edge missing its connecting film"
+);
+// the route step quotes this pair verbatim: Austin Butler → Emma Stone → Bacon
+assert(
+	edges.some(
+		([s, t, film]) =>
+			[s, t].every((id) => [idOf(86654), idOf(54693)].includes(id)) &&
+			film === "Eddington"
+	),
+	"Austin Butler ↔ Emma Stone should be linked by Eddington"
 );
 
 const introXY = intro.nodes.map((n) => [n.x, n.y]);

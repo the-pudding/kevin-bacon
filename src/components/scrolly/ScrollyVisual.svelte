@@ -45,7 +45,12 @@
 		TRAIL_POINTS,
 		TRAIL_META
 	} from "./states.js";
-	import { MARGIN, plotBottom } from "./layout-shared.js";
+	import {
+		MARGIN,
+		plotBottom,
+		EDGE_GREY,
+		EDGE_HIGHLIGHT
+	} from "./layout-shared.js";
 	import { story } from "./story.svelte.js";
 
 	// undefined until the <Step> registry has populated (first client render)
@@ -756,12 +761,19 @@
 			const ya = attrs[from * STRIDE + 1];
 			const xb = dying ? attrs[to * STRIDE] : target[to * STRIDE];
 			const yb = dying ? attrs[to * STRIDE + 1] : target[to * STRIDE + 1];
-			ctx.strokeStyle = `rgba(120, 120, 120, ${alpha})`;
+			// slot 2 blends the stroke toward the highlight colour and thickens it,
+			// so a highlighted route animates in with everything else
+			const hi = attrs[i + 2];
+			ctx.strokeStyle = hi
+				? `rgba(${EDGE_GREY.map((c, k) => Math.round(c + (EDGE_HIGHLIGHT[k] - c) * hi)).join(", ")}, ${alpha})`
+				: `rgba(${EDGE_GREY.join(", ")}, ${alpha})`;
+			ctx.lineWidth = 1 + hi * 1.25;
 			ctx.beginPath();
 			ctx.moveTo(xa, ya);
 			ctx.lineTo(xa + (xb - xa) * progress, ya + (yb - ya) * progress);
 			ctx.stroke();
 		}
+		ctx.lineWidth = 1;
 		dotBuckets.clear();
 		for (let i = 0; i < EDGE_BASE; i += STRIDE) {
 			const alpha = attrs[i + 6];
@@ -937,6 +949,24 @@
 		if (story.scrubbing) untrack(() => camPanning || startScrub());
 	});
 
+	// Records the state whose arrival has just landed. A layout reads this to hold
+	// an interaction back until its own authored reveal has finished (see
+	// layouts/intro.js: `armed` is `story.settled === "networkIntro"`).
+	//
+	// Set-only, never cleared: it names a state, so stepping away un-arms every
+	// gate by itself. That matters — clearing it here would write state this
+	// effect derives its params from, re-running the effect with an unchanged
+	// params key, which lands in the catch-all below and snaps the reveal it was
+	// meant to wait for. Setting it always flips a gate, so that re-run is a
+	// param change (the interaction fading in), never the snap.
+	//
+	// Guarded on the live state so a callback that outlives its step can't arm the
+	// wrong one; a superseded tween drops its callback (see tween.js), so a reader
+	// who steps on mid-reveal never arms at all.
+	function settle(name) {
+		if (name === stateName) story.settled = name;
+	}
+
 	$effect(() => {
 		if (!canvas || !width || !height || !stateName) return;
 		// while the path animator/scrub loop owns the rAF, step aside: a genuine
@@ -992,6 +1022,7 @@
 			trailTweener.to(trailTarget, 0);
 			prevState = stateName;
 			prevParamsKey = paramsKey;
+			settle(stateName);
 			return;
 		}
 		if (firstPaint && !reducedMotion) {
@@ -1008,7 +1039,9 @@
 			tweener.to(entry, 0);
 			prevState = stateName;
 			prevParamsKey = paramsKey;
-			tweener.to(attrs, ENTER_MS, TWEEN_JITTER, delays);
+			tweener.to(attrs, ENTER_MS, TWEEN_JITTER, delays, () =>
+				settle(stateName)
+			);
 			trailTweener.to(trailTarget, ENTER_MS, 0, layout.trailDelays);
 			return;
 		}
@@ -1059,6 +1092,7 @@
 		if (resized || reducedMotion) {
 			tweener.to(attrs, 0);
 			trailTweener.to(trailTarget, 0);
+			settle(stateName);
 		} else if (raceEntry) {
 			// arrive onto the empty draw-on frame (the entry-window contenders
 			// pinned at the present edge, lines not yet drawn), then draw the
@@ -1147,10 +1181,18 @@
 			const fade = Float64Array.from(tweener.current);
 			for (let i = 0; i < EDGE_BASE; i += STRIDE) fade[i + 6] = 0;
 			for (let i = EDGE_BASE; i < ATTR_SIZE; i += STRIDE) fade[i + 1] = 0;
-			tweener.to(fade, TWEEN_MS, 0, null, () => tweener.to(attrs, 0));
+			tweener.to(fade, TWEEN_MS, 0, null, () => {
+				tweener.to(attrs, 0);
+				settle(stateName);
+			});
 			trailTweener.to(trailTarget, TWEEN_MS, 0, layout.trailDelays);
 		} else if (stateChange) {
-			tweener.to(attrs, TWEEN_MS, TWEEN_JITTER, stateDelays);
+			// the tweener only fires onDone once every delayed group has landed, so
+			// this is the end of the state's authored reveal — and a superseded tween
+			// drops its callback, so a reader who hits Next mid-reveal never settles
+			tweener.to(attrs, TWEEN_MS, TWEEN_JITTER, stateDelays, () =>
+				settle(stateName)
+			);
 			trailTweener.to(trailTarget, TWEEN_MS, 0, layout.trailDelays);
 		} else if (paramChange) {
 			// interaction: retarget quickly, no choreography (delays would make
@@ -1291,6 +1333,7 @@
 			{#each decor?.hits ?? [] as hit (hit.label)}
 				<button
 					class="hit"
+					class:round={hit.round}
 					aria-pressed={hit.selected ?? false}
 					style="left: {hit.x}px; top: {hit.y}px; width: {hit.w}px; height: {hit.h}px"
 					onclick={() => pick(story, hit.value)}
@@ -1397,6 +1440,11 @@
 	.hit[aria-pressed="true"] {
 		/* translucent: the tint sits over the canvas dots, so it can't be opaque */
 		background: rgba(34, 34, 34, 0.05);
+	}
+
+	/* a region centred on a single dot reads as a halo, not a box */
+	.hit.round {
+		border-radius: 50%;
 	}
 
 	.fade-in {

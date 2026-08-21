@@ -159,13 +159,18 @@
 						<p>
 							The intuition is that Kevin Bacon is so prolific and well-known
 							that the game is a lot easier than if it were called the "Six
-							Degrees of John Doe". This idea implies that Kevin Bacon is this
-							all-encompassing center of Hollywood.
+							Degrees of John Doe", implying he's some sort of all-encompassing
+							center of Hollywood.
 						</p>
+						<!-- only once the walk has landed, which is when the actors
+						     actually become tappable (see layouts/intro.js) -->
+						{#if story.settled === "networkIntro"}
+							<p class="hint">Tap any actor to trace their route to Bacon.</p>
+						{/if}
 					</Step>
 					<Step state="hopSeed">
 						<p>
-							However, Kevin Bacon is <b>not</b> the center of hollywood. Not
+							However, Kevin Bacon is <b>not</b> the center of Hollywood. Not
 							only that, he <b>never has been</b>, and almost certainly
 							<b>never will</b>.
 						</p>
@@ -207,7 +212,7 @@
 					<!-- PAST -->
 					<Step state="raceRecent">
 						<p>
-							Samuel L. Jackson has been the center of hollywood since 2006,
+							Samuel L. Jackson has been the center of Hollywood since 2006,
 							taking over from Gene Hackman.
 						</p>
 					</Step>
@@ -231,8 +236,12 @@
 					<Step state="raceFull" panel={racePanel}>
 						<p>
 							Now imagine us taking this into the future. How might we predict
-							who will take the crown from Samuel L. Jackson? To do that, we
-							need to find what moves an actor towards the center.
+							who will take the crown from Samuel L. Jackson?
+						</p>
+
+						<p>
+							To do that, we need to find what moves an actor towards the
+							center.
 						</p>
 					</Step>
 					<Step state="scatterCenters">
@@ -255,8 +264,8 @@
 						<p>
 							So what's different about them? Put simply: better costars.
 							Natalie Portman stars with more "big dogs" than Anna Kendrick.
-							They say in hollywood "It's not what you know, it's who you know",
-							and it seems that is also true of explaining an actor's average
+							They say in Hollywood "It's not what you know, it's who you know",
+							and it seems this is also true when explaining an actor's average
 							distance.
 						</p>
 					</Step>
@@ -276,7 +285,7 @@
 							actor's 50 most prolific costars by number of films, taken as an
 							average. If you work with more "big dog" actors compared to
 							someone with the same film count, you'll almost definitely be
-							closer to the center of hollywood than them.
+							closer to the center of Hollywood than them.
 						</p>
 					</Step>
 					<Step state="scatterQuiz" panel={quizPanel}>
@@ -302,8 +311,8 @@
 							Films first. Take Sydney Sweeney: she's been in 16 films since her
 							debut 15 years ago. At the same point in their career, Robert De
 							Niro had also racked up 16 films — and went on to have a brilliant
-							career totalling 87. Conversely, Chevy Chase reached the same
-							milestone at the same point — and only ever appeared in 27.
+							career totalling 87. By contrast, Chevy Chase reached the same
+							milestone at the same point — but only ever appeared in 27.
 						</p>
 					</Step>
 					<Step state="careerMany">
@@ -340,7 +349,7 @@
 					</Step>
 					<Step state="sljFan">
 						<p>
-							What I can tell you is that our first female center of hollywood
+							What I can tell you is that our first female center of Hollywood
 							is very likely to happen next, with 65% of the wins going to
 							women, perhaps not for a few years yet though.
 						</p>
@@ -416,6 +425,21 @@
 	@media (prefers-reduced-motion: reduce) {
 		.rank-bars-panel,
 		.rank-focus-text {
+			animation: none;
+		}
+	}
+
+	/* step-1 tap affordance: appears with the interaction it describes, so it
+	   never invites a tap the reveal hasn't armed yet */
+	.hint {
+		font-family: var(--font-form);
+		font-size: var(--14px, 14px);
+		color: var(--color-fg-light);
+		animation: panel-in 0.4s ease both;
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.hint {
 			animation: none;
 		}
 	}

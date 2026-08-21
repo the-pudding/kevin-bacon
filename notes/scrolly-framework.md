@@ -48,7 +48,9 @@ build config. If the framework graduates to production, converting the folder to
 `STRIDE = 7` values per node — `x, y, radius, red, green, blue, alpha` — indexed by
 `node.id * STRIDE`, then one STRIDE-sized group per edge starting at `EDGE_BASE`
 (`edgeIndex(e)` slot 0 = draw progress 0–1 from the lower-hop endpoint, slot 1 =
-alpha; remaining slots unused). Giving each edge a full tween group means the
+alpha, slot 2 = highlight 0–1, which blends the stroke from grey toward
+`EDGE_HIGHLIGHT` and thickens it — `networkIntro` uses it to pick a route out of the
+constellation; remaining slots unused). Giving each edge a full tween group means the
 tweener staggers/draws edges individually for free — `networkIntro` uses this for
 the prototype's dash-draw-outward effect. Alpha carries visibility: hidden nodes
 get `alpha 0` but still get _positions_, so later fade-ins don't teleport.
@@ -105,7 +107,10 @@ teleport and, crucially, the same animation however fast the reader steps
 Prefer this over a truly visual-free step whenever the empty beat sits directly
 before the layout it seeds.
 
-Current states, in story order: `lone` · `networkIntro` · `hopSeed` (the "not
+Current states, in story order: `lone` · `networkIntro` (the intro
+constellation; once its path walk has landed, every actor is selectable and their
+shortest route(s) to Bacon light up, each link labelled with the film that made
+it) · `hopSeed` (the "not
 the centre" beat — an empty canvas seeding the bands) · `hopBands`
 (degree rows, with a bottom legend keying each hop's color) ·
 `rankFocus` (Bacon's hop bar dissolves; the HTML `RankBars` panel + guess
@@ -211,18 +216,33 @@ renders top-centre in small caps. A layout can also return `hits` — rectangles
 over the chart, rendered as transparent `<button>`s (so a pick is keyboard- and
 screen-reader-reachable, no canvas hit-testing) whose value is handed to the
 state's `pick` handler (`STATE_PICK`) to write into `story`; that write feeds
-back through the state's `params` selector. `winBars` selects its bars this way.
+back through the state's `params` selector. `winBars` selects its bars this way,
+and `networkIntro` puts one over every actor in the intro constellation.
+
+**Waiting for a reveal.** `story.settled` names the state whose arrival tween has
+just landed (`ScrollyVisual`'s `settle()`, attached to the arrival's `onDone`,
+which the tweener only fires once every delayed group has finished — so it is the
+true end of an authored reveal, and a superseded tween drops it, meaning a reader
+who steps on mid-reveal never settles). A layout gates an interaction on it:
+`networkIntro` returns no `hits` until `story.settled === "networkIntro"`, so its
+8-second path walk plays with nothing tappable. It is **set-only, never cleared** —
+it names a state, so stepping away un-arms every gate by itself. Clearing it would
+write state the render effect derives its params from, re-running that effect with
+an unchanged params key, which lands in its catch-all and snaps the very reveal
+the gate was waiting for.
 
 **Interactivity.** `story.svelte.js` holds shared `$state` (rankGuess,
-quizPicks, prediction toggles, winFocus) written by the step-card components
+quizPicks, prediction toggles, winFocus, introFocus) written by the step-card components
 (`GuessRank`, `PairQuiz`, `PredictToggles`) and by on-chart picks. `STATE_PARAMS`
 selectors pluck the fields a state consumes and merge them with the step's
 static params; a change re-runs the _current_ layout with a short
 choreography-free tween (`PARAM_TWEEN_MS`). Every interaction is skippable —
 the following step reveals its answer unconditionally. `STATE_LABELS` values
 may be functions of the current params (dynamic labels, e.g. answered quiz
-pairs); their possible ids are declared in `STATE_TRACKED` for per-frame
-tracking.
+pairs, or `networkIntro` naming only the actors on the focused route); every id
+such a function can return **must** be listed in `STATE_TRACKED` — `TRACKED_IDS`
+is built from the static label arrays plus that list, so an id missing from it
+has no `<p>` to render into and its name silently never appears.
 
 ## How to add a state
 
@@ -384,8 +404,6 @@ impossible to retrofit meaningfully after launch.
   of the bottom quarter where they sit.
 - Overlay label swap uses `{#key}`: new label fades in, old one is removed
   instantly (no crossfade). Fine for PoC; use Svelte transitions later.
-- Tap support for annotations: nearest-node hit-test on canvas click (~40
-  lines) — the tracked-coords mechanism it needs is built (see "Annotations").
 - The dot-transition and color/alpha patterns were adapted from Storybook
   prototypes that lived in the (now removed) reference checkout; they are no
   longer available in this repo. The canvas hop colors in states.js are

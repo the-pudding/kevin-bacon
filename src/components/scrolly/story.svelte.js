@@ -15,6 +15,15 @@ export const story = $state({
 	predictInsights: false,
 	/** win-bar breakdown: pid of the bar the reader tapped (null = none) */
 	winFocus: null,
+	/** name of the state whose arrival tween has finished, else null. Set by
+	 * ScrollyVisual — a layout reads it to hold an interaction back until its
+	 * own authored reveal has landed (see layouts/intro.js). Cleared on every
+	 * step change, so an interrupted reveal never arms. */
+	settled: null,
+	/** intro network: node id whose route(s) to Bacon are highlighted; null = the
+	 * plain constellation, which is where the step rests. Tapping the highlighted
+	 * actor again (or Bacon) clears it (see layouts/intro.js) */
+	introFocus: null,
 	/** rank ladder: on-screen y (canvas coordinate space) of RankBars' centered
 	 * focus row, measured live by RankBars itself — null until it has mounted
 	 * and reported a position (see layouts/rank.js) */

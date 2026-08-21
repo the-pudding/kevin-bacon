@@ -5,7 +5,8 @@ import story from "$data/scrolly-story.json";
 // x, y, radius, red, green, blue, alpha — one group per node, then one
 // (mostly empty) group per edge so the tweener staggers edges individually:
 // edge slot 0 = draw progress (0–1, drawn from the anchor outward toward the
-// higher-hop endpoint), edge slot 1 = alpha
+// higher-hop endpoint), edge slot 1 = alpha, edge slot 2 = highlight (0–1,
+// blends the stroke grey → EDGE_HIGHLIGHT and thickens it; see setEdge)
 export const STRIDE = 7;
 export const EDGE_BASE = NODE_COUNT * STRIDE;
 export const ATTR_SIZE = (NODE_COUNT + EDGE_COUNT) * STRIDE;
@@ -45,6 +46,8 @@ export const edgeIndex = (e) => EDGE_BASE + e * STRIDE;
  * @property {string} label accessible name for the region
  * @property {unknown} value handed to the state's `pick` (see STATE_PICK)
  * @property {boolean} [selected] currently the picked region
+ * @property {boolean} [round] hover/selected tint is a circle, not a rectangle —
+ *   for a region centred on a dot rather than covering a bar
  *
  * @typedef {Object} LayoutResult
  * @property {Float64Array} attrs ATTR_SIZE values, STRIDE per node + STRIDE per edge
@@ -84,6 +87,8 @@ export const GREEN = [34, 136, 51]; // --category-green
 export const YELLOW = [204, 187, 68]; // --category-yellow
 export const PURPLE = [170, 51, 119]; // --category-purple
 export const CYAN = [102, 204, 238]; // --category-cyan
+export const EDGE_GREY = [120, 120, 120]; // network links at rest
+export const EDGE_HIGHLIGHT = RED; // a highlighted link (see setEdge's `highlight`)
 
 export const MARGIN = 32;
 // charts live in the top ~3/5 of the canvas — the step card owns the bottom,
@@ -108,10 +113,17 @@ export function set(attrs, id, x, y, r, [red, green, blue], alpha) {
 	attrs[i + 6] = alpha;
 }
 
-export function setEdge(attrs, e, progress, alpha) {
+/**
+ * Writes one edge's render state. `highlight` (0–1) blends the stroke from the
+ * plain grey toward EDGE_HIGHLIGHT and thickens it (see ScrollyVisual's drawScene);
+ * a scalar rather than an rgb triple so the untouched slots of every layout that
+ * doesn't draw edges still mean "plain grey" rather than black.
+ */
+export function setEdge(attrs, e, progress, alpha, highlight = 0) {
 	const i = edgeIndex(e);
 	attrs[i] = progress;
 	attrs[i + 1] = alpha;
+	attrs[i + 2] = highlight;
 }
 
 // ---------------------------------------------------------------------------

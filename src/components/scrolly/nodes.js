@@ -30,6 +30,8 @@ export const INTRO_LAYOUT = data.introLayout;
  * @typedef {Object} Edge
  * @property {number} source node id
  * @property {number} target node id
+ * @property {string} film the corpus film linking the pair (the latest one)
+ * @property {number|null} year its release year
  */
 
 /**
@@ -82,6 +84,11 @@ export function makeNodes() {
 			careerAge
 		})
 	);
-	const edges = data.edges.map(([source, target]) => ({ source, target }));
+	const edges = data.edges.map(([source, target, film, year]) => ({
+		source,
+		target,
+		film,
+		year
+	}));
 	return { nodes, edges };
 }
