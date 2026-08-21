@@ -109,8 +109,8 @@ before the layout it seeds.
 
 Current states, in story order: `lone` · `networkIntro` (the intro
 constellation; once its path walk has landed, every actor is selectable and their
-shortest route(s) to Bacon light up, each link labelled with the film that made
-it) · `hopSeed` (the "not
+shortest route(s) to Bacon light up, captioned with the distance) · `hopSeed`
+(the "not
 the centre" beat — an empty canvas seeding the bands) · `hopBands`
 (degree rows, with a bottom legend keying each hop's color) ·
 `rankFocus` (Bacon's hop bar dissolves; the HTML `RankBars` panel + guess
@@ -209,9 +209,7 @@ Slider, both writing only `story.scrubYear`/`scrubbing`, with bounds read from
 canvas width). It renders nothing when the whole extent already fits on screen.
 
 **Chart furniture.** A layout can also return `axes` (`x`/`y` tick arrays +
-`xBase`), `notes` (positioned callouts, `nowrap` by default; `label: true` renders one as
-the same type as the actor names glued to dots, for naming a mark rather than
-annotating the chart — `networkIntro` labels its links that way), and `legend`
+`xBase`), `notes` (positioned callouts, `nowrap` by default), and `legend`
 (color swatch + label pairs, pinned to the bottom of the chart) — all
 rendered as HTML in the overlay and crossfaded per state. `OVERLAYS[state].caption`
 renders top-centre in small caps. A layout can also return `hits` — rectangles

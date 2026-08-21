@@ -62,68 +62,17 @@ const DIM_EDGE_ALPHA = 0.07;
 const HIT_MIN = 26;
 const HIT_MAX = 44;
 const HIT_SHARE = 0.85;
-// Film titles and actor names are one layer on the chart: the same type, over
-// the same opaque background (ScrollyVisual's .node-label and .note.as-label).
-// Layouts run before anything is in the DOM, so a label's footprint has to be
-// predicted; these are measured off the rendered face — Atlas Typewriter is
-// fixed-pitch and the root font size is a constant 16px, so a character count is
-// an exact width.
-const LABEL_CHAR_PX = 7.04;
+// An actor's name, as ScrollyVisual draws it under the dot (.node-label), and the
+// summary line, as it draws a note. Layouts run before anything is in the DOM, so
+// a label's footprint has to be predicted; these are measured off the rendered
+// face — Atlas Typewriter is fixed-pitch and the root font size is a constant
+// 16px, so a character count is an exact width.
 const LABEL_LINE_PX = 13.2;
-const LABEL_PAD_X = 3;
-// the summary line is a note, not a label: mono 0.7rem at line-height 1.5
 const NOTE_CHAR_PX = 7.68;
 const NOTE_LINE_PX = 16.8;
-// a title wider than this share of the canvas wraps instead — a 20-character
-// film name is half a phone's width on one line, and can't sit near its own link
-const FILM_WRAP_SHARE = 0.3;
-// how far off its line a label may sit, along the normal, and how far it may
-// then step up or down (in FILM_GAP_PX units) to dodge something
-const FILM_OFFSETS_PX = [11, 24, 38];
-const FILM_GAP_PX = 15;
-const FILM_STEPS = [0, -1, 1, -2, 2, -3, 3];
-// how far along its line a label may slide off the midpoint — Bacon's dot is
-// large enough that a long title can't always sit halfway along a short link
-const FILM_TS = [0.5, 0.62, 0.38, 0.74, 0.26];
-const FILM_SLIDE_COST_PX = 60; // cost of sliding the full half-length
-const FILM_INWARD_COST_PX = 8; // tie-break: prefer the spot away from Bacon
-// Every spot a film label may take, nearest to its line first, so a label that
-// has to dodge still lands as close to the line it names as it can. Built once —
-// the offsets are in px, independent of the fit.
-const FILM_SPOTS = FILM_TS.flatMap((t) =>
-	FILM_OFFSETS_PX.flatMap((dist) =>
-		FILM_STEPS.flatMap((step) =>
-			[1, -1].map((side) => ({
-				t,
-				side,
-				dist,
-				step,
-				cost:
-					dist +
-					Math.abs(step) * FILM_GAP_PX +
-					Math.abs(t - 0.5) * FILM_SLIDE_COST_PX +
-					(side < 0 ? FILM_INWARD_COST_PX : 0)
-			}))
-		)
-	)
-).sort((a, b) => a.cost - b.cost);
 const NAME_TOP_GAP = 4; // gap from a dot's edge to its name (see .node-label)
-const DOT_CLEARANCE_PX = 3; // breathing room around a dot (Bacon's pulse ring)
 const SUMMARY_GAP_PX = 18; // from the lowest name label to the summary line
-const HEADLINE_WRAP_PX = 300;
-// the intro fit reaches this far down the canvas — nothing may sit below it, or
-// it lands under the step card
-const INTRO_FRAME_BOTTOM = 0.72;
-
-/** @typedef {{ x0: number, x1: number, y0: number, y1: number }} Box */
-
-/** @returns {Box} box of a centre-aligned label of a known size */
-const labelBox = (cx, top, w, h) => ({
-	x0: cx - w / 2,
-	x1: cx + w / 2,
-	y0: top,
-	y1: top + h
-});
+const SUMMARY_WRAP_PX = 300;
 
 /**
  * Footprint of a piece of text, wrapping it if a single line's box would be wider
@@ -150,87 +99,6 @@ function measureLabel(text, charPx, linePx, maxPx, padX = 0) {
 	}
 	const w = Math.max(...lines.map((l) => l.length)) * charPx + pad;
 	return { w, h: lines.length * linePx, wrapWidth: w + 1 };
-}
-
-const overlaps = (/** @type {Box} */ a, /** @type {Box} */ b) =>
-	a.x0 < b.x1 && a.x1 > b.x0 && a.y0 < b.y1 && a.y1 > b.y0;
-
-const ccw = (ax, ay, bx, by, cx, cy) =>
-	(cy - ay) * (bx - ax) > (by - ay) * (cx - ax);
-
-/** do segments a→b and c→d properly cross? */
-const segmentsCross = (ax, ay, bx, by, cx, cy, dx, dy) =>
-	ccw(ax, ay, cx, cy, dx, dy) !== ccw(bx, by, cx, cy, dx, dy) &&
-	ccw(ax, ay, bx, by, cx, cy) !== ccw(ax, ay, bx, by, dx, dy);
-
-/**
- * Does `box` sit on the segment `seg`? The labels are opaque, so one laid over a
- * highlighted link visibly severs it — worse than a label sitting further from
- * the link it names. A box-vs-box test won't do here: a diagonal link's bounding
- * box covers ground the link itself never touches.
- * @param {Box} box
- * @param {{ ax: number, ay: number, bx: number, by: number }} seg
- */
-function onSegment(box, seg) {
-	const { ax, ay, bx, by } = seg;
-	if (Math.max(ax, bx) < box.x0 || Math.min(ax, bx) > box.x1) return false;
-	if (Math.max(ay, by) < box.y0 || Math.min(ay, by) > box.y1) return false;
-	// an endpoint inside the box, or the segment cutting one of its four sides
-	if (ax >= box.x0 && ax <= box.x1 && ay >= box.y0 && ay <= box.y1) return true;
-	const corners = [
-		[box.x0, box.y0, box.x1, box.y0],
-		[box.x1, box.y0, box.x1, box.y1],
-		[box.x1, box.y1, box.x0, box.y1],
-		[box.x0, box.y1, box.x0, box.y0]
-	];
-	return corners.some(([cx, cy, dx, dy]) =>
-		segmentsCross(ax, ay, bx, by, cx, cy, dx, dy)
-	);
-}
-
-/**
- * Places one film label per highlighted line, taking the nearest spot to that
- * line that hits nothing (see FILM_SPOTS: offset along the line's normal, stepped
- * up/down, and slid along the line itself). Obstacles are the dots and names
- * already on the chart plus the labels already placed — a layout runs before
- * anything is in the DOM, so it has to predict its own labels' footprints, which
- * it can: it is the thing that decided where the lines and dots go.
- * @param {{ edge: number, note: import("../layout-shared.js").Note, x0: number, y0: number, x1: number, y1: number, nx: number, ny: number }[]} candidates
- * @param {Box[]} obstacles
- * @param {{ edge: number, ax: number, ay: number, bx: number, by: number }[]} segments
- *   the highlighted links; a label never lies across one it isn't naming
- */
-function placeFilmLabels(candidates, obstacles, segments, h) {
-	const bottom = h * INTRO_FRAME_BOTTOM - LABEL_LINE_PX;
-	const spot = (c, t, side, dist, step) => {
-		const x = c.x0 + (c.x1 - c.x0) * t + c.nx * side * dist;
-		const y = Math.min(
-			bottom - c.size.h + LABEL_LINE_PX,
-			c.y0 +
-				(c.y1 - c.y0) * t +
-				c.ny * side * dist -
-				c.size.h / 2 +
-				step * FILM_GAP_PX
-		);
-		return { x, y, box: labelBox(x, y, c.size.w, c.size.h) };
-	};
-	for (const c of candidates) {
-		// its own link is fair game — that is the one it is naming
-		const others = segments.filter((seg) => seg.edge !== c.edge);
-		let placed = null;
-		for (const { t, side, dist, step } of FILM_SPOTS) {
-			const at = spot(c, t, side, dist, step);
-			if (obstacles.some((o) => overlaps(at.box, o))) continue;
-			if (others.some((seg) => onSegment(at.box, seg))) continue;
-			placed = at;
-			break;
-		}
-		// every spot collides — take the nearest one and let the halo carry it
-		placed ??= spot(c, 0.5, 1, FILM_OFFSETS_PX[0], 0);
-		c.note.x = placed.x;
-		c.note.y = placed.y;
-		obstacles.push(placed.box);
-	}
 }
 
 /** @type {import("../layout-shared.js").LayoutFn} */
@@ -385,109 +253,31 @@ function layoutNetworkIntro(nodes, w, h, edges, params) {
 	});
 	if (focus == null) return { attrs, delays, hits };
 
-	// One film title per highlighted line, at its midpoint and nudged clear of it
-	// along the line's normal — outward from Bacon first, so labels sit outside
-	// the graph rather than inside the constellation.
-	const [cx, cy] = graphCenter(w, h);
-	const candidates = [...routeEdges].map((e) => {
-		const { source, target } = edges[e];
-		const [x0, y0] = pos.get(source);
-		const [x1, y1] = pos.get(target);
-		const mx = (x0 + x1) / 2;
-		const my = (y0 + y1) / 2;
-		const len = Math.hypot(x1 - x0, y1 - y0) || 1;
-		let nx = -(y1 - y0) / len;
-		let ny = (x1 - x0) / len;
-		if (nx * (mx - cx) + ny * (my - cy) < 0) {
-			nx = -nx;
-			ny = -ny;
-		}
-		// t runs from the endpoint further from Bacon toward him, so sliding a label
-		// off the midpoint moves it outward first, the direction the eye travels
-		const outward =
-			Math.hypot(x0 - cx, y0 - cy) >= Math.hypot(x1 - cx, y1 - cy);
-		const size = measureLabel(
-			edges[e].film,
-			LABEL_CHAR_PX,
-			LABEL_LINE_PX,
-			w * FILM_WRAP_SHARE,
-			LABEL_PAD_X
-		);
-		return {
-			edge: e,
-			size,
-			note: /** @type {import("../layout-shared.js").Note} */ ({
-				x: mx,
-				y: my,
-				text: edges[e].film,
-				align: "center",
-				label: true,
-				wrap: size.wrapWidth != null,
-				wrapWidth: size.wrapWidth ?? undefined
-			}),
-			x0: outward ? x0 : x1,
-			y0: outward ? y0 : y1,
-			x1: outward ? x1 : x0,
-			y1: outward ? y1 : y0,
-			nx,
-			ny
-		};
-	});
-	// The route's own dots and names get right of way. The crowd's don't: their
-	// dots are ghosts at DIM_ALPHA and their names are hidden entirely while a
-	// route is focused (see the state's `labels`), and treating them as obstacles
-	// pushes long titles right off their own line on a narrow viewport.
-	const obstacles = [...routeNodes].flatMap((id) => {
-		const [x, y] = pos.get(id);
-		const r = attrs[id * STRIDE + 2];
-		const clear = r + DOT_CLEARANCE_PX;
-		return [
-			{ x0: x - clear, x1: x + clear, y0: y - clear, y1: y + clear },
-			labelBox(
-				x,
-				y + r + NAME_TOP_GAP,
-				nodes[id].name.length * LABEL_CHAR_PX + LABEL_PAD_X * 2,
-				LABEL_LINE_PX
-			)
-		];
-	});
 	// The summary reads as a caption under the constellation, clear of its lowest
-	// name label — placed before the film titles so they can dodge it.
+	// name label.
 	const graphBottom = Math.max(
 		...INTRO_IDS.map(
 			(id) =>
 				pos.get(id)[1] + attrs[id * STRIDE + 2] + NAME_TOP_GAP + LABEL_LINE_PX
 		)
 	);
-	const summaryText = routeHeadline(focus, routes);
+	const text = routeHeadline(focus, routes);
 	const summary = measureLabel(
-		summaryText,
+		text,
 		NOTE_CHAR_PX,
 		NOTE_LINE_PX,
-		Math.min(HEADLINE_WRAP_PX, w - MARGIN * 2)
+		Math.min(SUMMARY_WRAP_PX, w - MARGIN * 2)
 	);
-	const summaryY = graphBottom + SUMMARY_GAP_PX;
-	obstacles.push({
-		x0: MARGIN,
-		x1: MARGIN + summary.w,
-		y0: summaryY,
-		y1: summaryY + summary.h
-	});
-	const segments = [...routeEdges].map((e) => {
-		const [ax, ay] = pos.get(edges[e].source);
-		const [bx, by] = pos.get(edges[e].target);
-		return { edge: e, ax, ay, bx, by };
-	});
-	placeFilmLabels(candidates, obstacles, segments, h);
-	const notes = candidates.map((c) => c.note);
-	notes.push({
-		x: MARGIN,
-		y: summaryY,
-		text: summaryText,
-		strong: true,
-		wrap: true,
-		wrapWidth: summary.wrapWidth ?? undefined
-	});
+	const notes = [
+		{
+			x: MARGIN,
+			y: graphBottom + SUMMARY_GAP_PX,
+			text,
+			strong: true,
+			wrap: summary.wrapWidth != null,
+			wrapWidth: summary.wrapWidth ?? undefined
+		}
+	];
 	return { attrs, delays, hits, notes };
 }
 

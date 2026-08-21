@@ -1300,7 +1300,6 @@
 						class="note fade-in {note.align ?? 'left'}"
 						class:strong={note.strong}
 						class:wrap={note.wrap}
-						class:as-label={note.label}
 						style="left: {note.x}px; top: {note.y}px{note.wrapWidth
 							? `; width: ${note.wrapWidth}px; max-width: none`
 							: ''}"
@@ -1520,18 +1519,6 @@
 
 	.tick-x[style*="top:"] {
 		bottom: auto;
-	}
-
-	/* a note that names a mark on the chart (a film on a link) rather than
-	   annotating the chart — same type and treatment as the actor names above,
-	   so the two read as one layer */
-	.note.as-label {
-		padding: 0 3px;
-		font-size: 11px;
-		line-height: 1.2;
-		color: var(--color-gray-900, #222);
-		background: var(--color-bg, #fff);
-		text-shadow: none;
 	}
 
 	.note.strong {

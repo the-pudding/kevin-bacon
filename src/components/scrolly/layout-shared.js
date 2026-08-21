@@ -28,8 +28,6 @@ export const edgeIndex = (e) => EDGE_BASE + e * STRIDE;
  * @property {string} text
  * @property {"left"|"center"|"right"} [align] default "left"
  * @property {boolean} [strong] render emphasised
- * @property {boolean} [label] name a mark on the chart rather than annotate the
- *   chart: same type as the actor names glued to dots, over an opaque background
  * @property {boolean} [wrap] allow multi-line (default nowrap)
  * @property {number} [wrapWidth] px line width, overriding the default cap (wrap
  *   only). Set as a real `width`, not a max: an absolutely-positioned box is
