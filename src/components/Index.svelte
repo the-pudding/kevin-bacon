@@ -24,15 +24,24 @@
 		return Number.isInteger(n) ? n : null;
 	}
 
-	let value = $state(0);
-	// true only when a saved step from a prior visit exists, so this render
-	// isn't the reader's first-ever view — read synchronously (not in onMount)
-	// so it's already correct by the time ScrollyVisual's first paint effect
-	// runs; onMount fires too late, after that effect has already committed to
-	// the `lone`-authored pop-in. ScrollyVisual uses this to skip that pop-in,
-	// which would otherwise replay (and be misread as an empty chart) on every
-	// refresh regardless of which step it lands on
+	// read synchronously (not in onMount) so it's already correct by the time
+	// ScrollyVisual's first paint effect runs; onMount fires too late, after
+	// that effect has already committed to the state `value` had at mount.
+	// Every <Step> registers into stepConfigs during the initial render (its
+	// registration is plain top-level script, not gated on being the active
+	// step — see Step.svelte), so stepConfigs is already fully populated by
+	// then too, and `value` starting at the restored index (rather than 0,
+	// corrected later in onMount) is what lets ScrollyVisual's first paint
+	// land directly on the right state instead of flashing `lone` and then
+	// tweening from it once onMount catches up.
 	const restoredStep = readStep();
+	let value = $state(
+		restoredStep !== null && restoredStep > 0 ? restoredStep : 0
+	);
+	// true only when a saved step from a prior visit exists, so this render
+	// isn't the reader's first-ever view. ScrollyVisual uses this to skip the
+	// `lone`-authored pop-in, which would otherwise replay (and be misread as
+	// an empty chart) on every refresh regardless of which step it lands on
 	let coldStart = $state(restoredStep !== null && restoredStep > 0);
 	let dimensions = new useWindowDimensions();
 	// ScrollyVisual instance, for the pair-quiz panel's locate() flight targets
@@ -66,14 +75,11 @@
 
 	const currentState = $derived(stepConfigs[value ?? 0]?.state);
 
+	// safety net for a stale/malformed URL (?step past the end of the story):
+	// value already starts at restoredStep, so this only ever corrects it back
+	// into range once stepConfigs.length is known
 	onMount(() => {
-		if (
-			restoredStep !== null &&
-			restoredStep > 0 &&
-			restoredStep < stepConfigs.length
-		) {
-			value = restoredStep;
-		}
+		if (value >= stepConfigs.length) value = 0;
 	});
 
 	$effect(() => {

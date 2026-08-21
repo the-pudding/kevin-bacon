@@ -869,6 +869,26 @@
 		});
 	});
 
+	// A cold mount straight into raceFull skips playRaceFullEntry entirely
+	// (that only plays on a forward arrival from raceTrades, per the effect
+	// above), so story.raceView is left null and raceLayout's own fallback
+	// (extent[1], i.e. 2025) settles the chart on the wrong camera. This effect
+	// seeds the real rest playhead as soon as width/height are known — unlike
+	// the effect above, it tracks width/height reactively (not via untrack), so
+	// it still fires once they're measured even if that happens after mount.
+	// Guarded on raceView already being null so it never clobbers a live
+	// pan/scrub/entry that has legitimately published its own view.
+	$effect(() => {
+		if (
+			stateName === RACE_FULL_STATE &&
+			width &&
+			height &&
+			story.raceView === null
+		) {
+			story.raceView = { playhead: raceFullRestPlayhead(width, height) };
+		}
+	});
+
 	// Publishes the live camera for the pan control (RaceScrubber). ScrollyVisual is
 	// the only component that knows the canvas width, so the bounds have to come
 	// from here. One-way by construction: no layout's `params` selector reads
