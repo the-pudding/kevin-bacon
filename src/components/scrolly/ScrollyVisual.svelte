@@ -323,6 +323,9 @@
 	// each other instead of snapping. Ported from the pudding-post race-chart.
 	const decollideLabels = createLabelDecollider();
 	const LABEL_LINE_GAP_PX = 16; // ~11px label line-height * 1.15, matches reference
+	// how close a below-dot name may sit to the canvas edge before it stops
+	// sliding outward (see the .node-label transform)
+	const LABEL_EDGE_GAP_PX = 2;
 
 	// layouts are pure in (state, w, h, params) — cache so re-visited states
 	// skip both the recompute and the per-call Float64Array allocation; the
@@ -1233,22 +1236,20 @@
 		{/if}
 		{#each tracked as t (t.id)}
 			<!-- a per-node override ("left"/"right") sits the label beside the dot,
-			     vertically centred; otherwise it hangs below, anchored so it never
-			     spills past the canvas edge (right-align near the right edge,
-			     left-align near the left, else centred on the dot) -->
+			     vertically centred; otherwise it hangs below, centred on the dot and
+			     clamped to the canvas (.visual clips, so a name must not spill). The
+			     clamp is CSS, not px arithmetic here, because the percentages resolve
+			     against the name's own rendered box — so it slides only as far as it
+			     actually has to. On a phone the graph sits within LABEL_EDGE_GAP_PX of
+			     both edges and most names still fit centred; nudging every one of them
+			     a fixed distance inward instead threw them across the constellation. -->
 			{@const dir = labelDirs[t.id]}
 			{@const transform =
 				dir === "right"
 					? `translate(${t.x + t.r + 4}px, calc(${t.y + t.labelOffset}px - 50%))`
 					: dir === "left"
 						? `translate(calc(${t.x - t.r - 4}px - 100%), calc(${t.y + t.labelOffset}px - 50%))`
-						: `translate(${
-								t.x > width - 96
-									? `calc(${t.x}px - 100%)`
-									: t.x < 96
-										? `${t.x}px`
-										: `calc(${t.x}px - 50%)`
-							}, ${t.y + t.r + 4}px)`}
+						: `translate(clamp(${LABEL_EDGE_GAP_PX}px, calc(${t.x}px - 50%), calc(${width - LABEL_EDGE_GAP_PX}px - 100%)), ${t.y + t.r + 4}px)`}
 			<p
 				class="node-label"
 				style="transform: {transform}; opacity: {t.labelAlpha}"
