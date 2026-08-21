@@ -2,8 +2,6 @@ import { NODE_COUNT, ANCHOR_ID, INTRO_IDS } from "../nodes.js";
 import {
 	ATTR_SIZE,
 	DELAY_SIZE,
-	STRIDE,
-	MARGIN,
 	HOP_RGB,
 	CROWD,
 	INK,
@@ -16,7 +14,7 @@ import {
 	introPosition,
 	NETWORK_INTRO_RADIUS
 } from "../layout-shared.js";
-import { routesTo, routeActors, routeHeadline } from "../intro-routes.js";
+import { routesTo, routeActors } from "../intro-routes.js";
 
 const INTRO_ANCHOR_RADIUS = 14;
 const INTRO_RADIUS = 7;
@@ -54,52 +52,18 @@ const INTRO_EDGE_LAG_MS = 400;
 // --- route focus (once the reveal has landed; see the `params` selector below) ---
 const FOCUS_RADIUS = 9; // the picked actor
 const ROUTE_RADIUS = 7; // the hub(s) their route passes through
-const DIM_ALPHA = 0.24; // everyone off the route — their names ride this alpha
+// Everyone off the route: recessed, not erased — the constellation is still the
+// point of the step, so the crowd keeps its dots and its names. Colour carries
+// the emphasis (the route goes ink/green against the crowd's grey), so this only
+// has to push them back, not hide them. Names ride this alpha.
+const DIM_ALPHA = 0.6;
 const ROUTE_EDGE_ALPHA = 0.95;
-const DIM_EDGE_ALPHA = 0.07;
+const DIM_EDGE_ALPHA = 0.2; // enough that the network still reads as connected
 // hit regions: square, centred on the dot, sized off the tightest gap in the
 // fitted layout so boxes never overlap (a 360px viewport squeezes the graph hard)
 const HIT_MIN = 26;
 const HIT_MAX = 44;
 const HIT_SHARE = 0.85;
-// An actor's name, as ScrollyVisual draws it under the dot (.node-label), and the
-// summary line, as it draws a note. Layouts run before anything is in the DOM, so
-// a label's footprint has to be predicted; these are measured off the rendered
-// face — Atlas Typewriter is fixed-pitch and the root font size is a constant
-// 16px, so a character count is an exact width.
-const LABEL_LINE_PX = 13.2;
-const NOTE_CHAR_PX = 7.68;
-const NOTE_LINE_PX = 16.8;
-const NAME_TOP_GAP = 4; // gap from a dot's edge to its name (see .node-label)
-const SUMMARY_GAP_PX = 18; // from the lowest name label to the summary line
-const SUMMARY_WRAP_PX = 300;
-
-/**
- * Footprint of a piece of text, wrapping it if a single line's box would be wider
- * than `maxPx`. The face is fixed-pitch, so packing words by character count is
- * exact — `wrapWidth` is the longest resulting line, which reproduces the same
- * break in the browser (box-sizing is border-box, so it includes the padding)
- * while keeping the box tight around the ink.
- * @returns {{ w: number, h: number, wrapWidth: number|null }}
- */
-function measureLabel(text, charPx, linePx, maxPx, padX = 0) {
-	const pad = padX * 2;
-	if (text.length * charPx + pad <= maxPx) {
-		return { w: text.length * charPx + pad, h: linePx, wrapWidth: null };
-	}
-	const maxChars = Math.max(1, Math.floor((maxPx - pad) / charPx));
-	const lines = [];
-	for (const word of text.split(" ")) {
-		const last = lines.at(-1);
-		if (last === undefined || last.length + 1 + word.length > maxChars) {
-			lines.push(word);
-		} else {
-			lines[lines.length - 1] = `${last} ${word}`;
-		}
-	}
-	const w = Math.max(...lines.map((l) => l.length)) * charPx + pad;
-	return { w, h: lines.length * linePx, wrapWidth: w + 1 };
-}
 
 /** @type {import("../layout-shared.js").LayoutFn} */
 function layoutLone(nodes, w, h) {
@@ -251,34 +215,7 @@ function layoutNetworkIntro(nodes, w, h, edges, params) {
 			round: true
 		};
 	});
-	if (focus == null) return { attrs, delays, hits };
-
-	// The summary reads as a caption under the constellation, clear of its lowest
-	// name label.
-	const graphBottom = Math.max(
-		...INTRO_IDS.map(
-			(id) =>
-				pos.get(id)[1] + attrs[id * STRIDE + 2] + NAME_TOP_GAP + LABEL_LINE_PX
-		)
-	);
-	const text = routeHeadline(focus, routes);
-	const summary = measureLabel(
-		text,
-		NOTE_CHAR_PX,
-		NOTE_LINE_PX,
-		Math.min(SUMMARY_WRAP_PX, w - MARGIN * 2)
-	);
-	const notes = [
-		{
-			x: MARGIN,
-			y: graphBottom + SUMMARY_GAP_PX,
-			text,
-			strong: true,
-			wrap: summary.wrapWidth != null,
-			wrapWidth: summary.wrapWidth ?? undefined
-		}
-	];
-	return { attrs, delays, hits, notes };
+	return { attrs, delays, hits };
 }
 
 export const states = {
@@ -289,9 +226,7 @@ export const states = {
 	},
 	networkIntro: {
 		layout: layoutNetworkIntro,
-		// with a route focused, only its own actors are named: 15 names plus the film
-		// titles is unreadable on a phone, and the crowd's names aren't the point
-		labels: (p) => (p?.focus == null ? INTRO_IDS : [...routeActors(p.focus)]),
+		labels: INTRO_IDS,
 		pulse: ANCHOR_ID,
 		// the path-walk reveal is authored for the forward arrival from `lone`;
 		// stepping back from the hopSeed step just tweens the actors into place

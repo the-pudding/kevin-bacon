@@ -1,6 +1,5 @@
 import rawNodes from "$data/scrolly-nodes.json";
 import story from "$data/scrolly-story.json";
-import { INTRO_IDS } from "./nodes.js";
 import {
 	STRIDE,
 	EDGE_BASE,
@@ -193,7 +192,6 @@ export const STATE_TRACKED = [
 	HANKS,
 	STREEP,
 	DENIRO,
-	...INTRO_IDS,
 	...QUIZ_IDS,
 	...story.genz.candidates.map((c) => c.id)
 ];

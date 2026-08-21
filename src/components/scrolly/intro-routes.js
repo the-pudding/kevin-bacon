@@ -86,13 +86,36 @@ export function routeActors(id) {
 }
 
 /**
- * The headline over a focused actor's routes. Says only the distance: every route
- * is drawn and every film on it named, so the chart already shows how many there
- * are — counting them in words as well is just noise over the top of it.
+ * The caption under a focused actor's routes: a headline giving the distance, and
+ * prose walking each route film by film. The chart draws the routes but names no
+ * films, so this is where they are named — one sentence per route, since the
+ * highlight shows all of them (Margot Robbie has three).
+ * @returns {{ headline: string, detail: string }}
  */
-export function routeHeadline(id, routes) {
+export function routeSummary(id, routes) {
 	const name = NAMES[id];
-	if (!routes.length) return `${name} — the center of this game`;
+	const anchor = NAMES[ANCHOR_ID];
+	if (!routes.length) {
+		return { headline: `${name} — the center of this game`, detail: "" };
+	}
 	const hops = routes[0].length;
-	return `${name} is ${COUNT_WORDS[hops]} movie${hops === 1 ? "" : "s"} away`;
+	const movies = `${COUNT_WORDS[hops]} movie${hops === 1 ? "" : "s"}`;
+	const detail = routes
+		.map((route, i) => {
+			// "They're" for the first route, "Or in" for the alternatives, so the
+			// sentences stack without repeating the actor's name each time
+			const lead = i === 0 ? "They're in" : "Or in";
+			const [first, ...rest] = route;
+			// one hop is the whole story: no one in between to hand off to
+			if (!rest.length) return `${lead} ${first.film} together.`;
+			const links = rest
+				.map((seg) => `who's in ${seg.film} with ${NAMES[seg.to]}`)
+				.join(", ");
+			return `${lead} ${first.film} with ${NAMES[first.to]}, ${links}.`;
+		})
+		.join(" ");
+	return {
+		headline: `${name} is ${movies} away from ${anchor}`,
+		detail
+	};
 }

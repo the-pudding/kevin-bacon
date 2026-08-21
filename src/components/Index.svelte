@@ -11,6 +11,7 @@
 	import useWindowDimensions from "$runes/useWindowDimensions.svelte.js";
 	import urlParams from "$utils/urlParams.js";
 	import { story } from "$components/scrolly/story.svelte.js";
+	import { routesTo, routeSummary } from "$components/scrolly/intro-routes.js";
 
 	const STEP_PARAM = "step";
 	const isRankState = (s) => s === "rankFocus" || s === "rankReveal";
@@ -156,17 +157,37 @@
 						</p>
 					</Step>
 					<Step state="networkIntro">
+						<!-- The tap affordance, and the picked actor's route once there is
+						     one: one slot, directly under the graph it belongs to and above
+						     the narrative. Only once the walk has landed, which is when the
+						     actors actually become tappable (see layouts/intro.js).
+
+						     The route reads as prose in the card rather than as a caption on
+						     the canvas: it runs to several sentences for an actor with more
+						     than one route, and a canvas note can't know how tall this card
+						     is, so on a short viewport it landed on top of this text. Here it
+						     just makes the card taller, which the fixed-height canvas doesn't
+						     feel. -->
+						{#if story.settled === "networkIntro"}
+							{#if story.introFocus == null}
+								<p class="hint">Tap any actor to trace their route to Bacon.</p>
+							{:else}
+								{@const route = routeSummary(
+									story.introFocus,
+									routesTo(story.introFocus)
+								)}
+								<p class="route">
+									<strong>{route.headline}.</strong>
+									{route.detail}
+								</p>
+							{/if}
+						{/if}
 						<p>
 							The intuition is that Kevin Bacon is so prolific and well-known
 							that the game is a lot easier than if it were called the "Six
 							Degrees of John Doe", implying he's some sort of all-encompassing
 							center of Hollywood.
 						</p>
-						<!-- only once the walk has landed, which is when the actors
-						     actually become tappable (see layouts/intro.js) -->
-						{#if story.settled === "networkIntro"}
-							<p class="hint">Tap any actor to trace their route to Bacon.</p>
-						{/if}
 					</Step>
 					<Step state="hopSeed">
 						<p>
@@ -429,17 +450,28 @@
 		}
 	}
 
-	/* step-1 tap affordance: appears with the interaction it describes, so it
-	   never invites a tap the reveal hasn't armed yet */
-	.hint {
-		font-family: var(--font-form);
+	/* step-1 tap affordance, and the route it describes once one is picked: both
+	   appear with the interaction, so neither invites a tap the reveal hasn't
+	   armed yet. Mono, like the names on the chart it is reading out, so it reads
+	   as part of the graph rather than as narrative prose. */
+	.hint,
+	.route {
+		font-family: var(--font-mono);
 		font-size: var(--14px, 14px);
-		color: var(--color-fg-light);
 		animation: panel-in 0.4s ease both;
 	}
 
+	.hint {
+		color: var(--color-fg-light);
+	}
+
+	.route {
+		color: var(--color-fg);
+	}
+
 	@media (prefers-reduced-motion: reduce) {
-		.hint {
+		.hint,
+		.route {
 			animation: none;
 		}
 	}

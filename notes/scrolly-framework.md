@@ -239,10 +239,10 @@ static params; a change re-runs the _current_ layout with a short
 choreography-free tween (`PARAM_TWEEN_MS`). Every interaction is skippable —
 the following step reveals its answer unconditionally. `STATE_LABELS` values
 may be functions of the current params (dynamic labels, e.g. answered quiz
-pairs, or `networkIntro` naming only the actors on the focused route); every id
-such a function can return **must** be listed in `STATE_TRACKED` — `TRACKED_IDS`
-is built from the static label arrays plus that list, so an id missing from it
-has no `<p>` to render into and its name silently never appears.
+pairs); every id such a function can return **must** be listed in
+`STATE_TRACKED` — `TRACKED_IDS` is built from the static label arrays plus that
+list, so an id missing from it has no `<p>` to render into and its name silently
+never appears.
 
 ## How to add a state
 
