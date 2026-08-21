@@ -209,7 +209,9 @@ Slider, both writing only `story.scrubYear`/`scrubbing`, with bounds read from
 canvas width). It renders nothing when the whole extent already fits on screen.
 
 **Chart furniture.** A layout can also return `axes` (`x`/`y` tick arrays +
-`xBase`), `notes` (positioned callouts, `nowrap` by default), and `legend`
+`xBase`), `notes` (positioned callouts, `nowrap` by default; `label: true` renders one as
+the same type as the actor names glued to dots, for naming a mark rather than
+annotating the chart — `networkIntro` labels its links that way), and `legend`
 (color swatch + label pairs, pinned to the bottom of the chart) — all
 rendered as HTML in the overlay and crossfaded per state. `OVERLAYS[state].caption`
 renders top-centre in small caps. A layout can also return `hits` — rectangles

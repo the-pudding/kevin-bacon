@@ -1300,6 +1300,7 @@
 						class="note fade-in {note.align ?? 'left'}"
 						class:strong={note.strong}
 						class:wrap={note.wrap}
+						class:as-label={note.label}
 						style="left: {note.x}px; top: {note.y}px{note.wrapWidth
 							? `; width: ${note.wrapWidth}px; max-width: none`
 							: ''}"
@@ -1372,14 +1373,15 @@
 		margin: 0;
 		/* positioned via inline transform (compositor-only), not left/top */
 		will-change: transform, opacity;
+		padding: 0 3px;
 		font-family: var(--font-mono);
 		font-size: 11px;
 		line-height: 1.2;
 		white-space: nowrap;
 		color: var(--color-gray-900, #222);
-		text-shadow:
-			0 0 3px var(--color-bg, #fff),
-			0 0 6px var(--color-bg, #fff);
+		/* opaque, not a halo: a name sits over the dot cloud and its own links,
+		   and a glow leaves the marks behind it half-legible */
+		background: var(--color-bg, #fff);
 		transition: opacity 0.3s ease;
 	}
 
@@ -1518,6 +1520,18 @@
 
 	.tick-x[style*="top:"] {
 		bottom: auto;
+	}
+
+	/* a note that names a mark on the chart (a film on a link) rather than
+	   annotating the chart — same type and treatment as the actor names above,
+	   so the two read as one layer */
+	.note.as-label {
+		padding: 0 3px;
+		font-size: 11px;
+		line-height: 1.2;
+		color: var(--color-gray-900, #222);
+		background: var(--color-bg, #fff);
+		text-shadow: none;
 	}
 
 	.note.strong {

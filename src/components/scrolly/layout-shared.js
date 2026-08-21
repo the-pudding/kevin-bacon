@@ -28,6 +28,8 @@ export const edgeIndex = (e) => EDGE_BASE + e * STRIDE;
  * @property {string} text
  * @property {"left"|"center"|"right"} [align] default "left"
  * @property {boolean} [strong] render emphasised
+ * @property {boolean} [label] name a mark on the chart rather than annotate the
+ *   chart: same type as the actor names glued to dots, over an opaque background
  * @property {boolean} [wrap] allow multi-line (default nowrap)
  * @property {number} [wrapWidth] px line width, overriding the default cap (wrap
  *   only). Set as a real `width`, not a max: an absolutely-positioned box is
@@ -88,7 +90,7 @@ export const YELLOW = [204, 187, 68]; // --category-yellow
 export const PURPLE = [170, 51, 119]; // --category-purple
 export const CYAN = [102, 204, 238]; // --category-cyan
 export const EDGE_GREY = [120, 120, 120]; // network links at rest
-export const EDGE_HIGHLIGHT = RED; // a highlighted link (see setEdge's `highlight`)
+export const EDGE_HIGHLIGHT = GREEN; // a highlighted link (see setEdge's `highlight`)
 
 export const MARGIN = 32;
 // charts live in the top ~3/5 of the canvas — the step card owns the bottom,
