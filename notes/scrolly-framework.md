@@ -402,6 +402,14 @@ impossible to retrofit meaningfully after launch.
 - Step prose and the wizard nav overlay the bottom of the full-height canvas
   (`.scrolly-steps` in Index.svelte); layouts should keep essential marks out
   of the bottom quarter where they sit.
+- Known and accepted: a step card that grows can cover a layout's `hits`, and
+  the card wins the tap. `networkIntro`'s route caption is the one case — the
+  intro constellation's lowest dots sit at ~0.84 of its baked box, inside the
+  card's zone. Measured with the longest caption (Margot Robbie, three routes):
+  fine at 390×844 and up, covers the four lowest actors at 390×667, and seven
+  including Bacon at 360×640, where nothing is left to clear the selection with.
+  Deliberately left as is — the fixes all cost either the caption's detail or
+  the constellation's size. Revisit if small-phone traffic matters.
 - Overlay label swap uses `{#key}`: new label fades in, old one is removed
   instantly (no crossfade). Fine for PoC; use Svelte transitions later.
 - The dot-transition and color/alpha patterns were adapted from Storybook
