@@ -166,15 +166,6 @@ export const STATE_REVEAL_FROM = pick("revealFrom");
  */
 export const STATE_ENTRY = pick("entry");
 
-/**
- * Empty seed frames: states that pre-position every node (invisible) where the
- * next visual wants it. ScrollyVisual fades the prior visual out *in place*
- * first, then snaps into this frame while invisible — so no dot is seen changing
- * position, only fading.
- * @type {Partial<Record<LayoutState, boolean>>}
- */
-export const STATE_SEED = pick("seed");
-
 export const OVERLAYS = pick("overlay");
 
 /**

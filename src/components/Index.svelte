@@ -191,6 +191,10 @@
 						</p>
 					</Step>
 					<Step state="hopSeed">
+						<!-- The copy lands over the constellation pulling back: the network
+						     Bacon is in the middle of shrinks to a small thing as the line
+						     says he isn't the centre of Hollywood (see layouts/hop-bands.js).
+						     The bands' crowd is already parked behind it, invisible. -->
 						<p>
 							However, Kevin Bacon is <b>not</b> the center of Hollywood. Not
 							only that, he <b>never has been</b>, and almost certainly

@@ -1,4 +1,4 @@
-import { NODE_COUNT, ANCHOR_ID, INTRO_IDS } from "../nodes.js";
+import { NODE_COUNT, EDGE_COUNT, ANCHOR_ID, INTRO_IDS } from "../nodes.js";
 import {
 	ATTR_SIZE,
 	DELAY_SIZE,
@@ -65,32 +65,50 @@ const HIT_MIN = 26;
 const HIT_MAX = 44;
 const HIT_SHARE = 0.85;
 
-// Shared node/edge attrs for the fully-grown network: `focus` picks out a route
-// (used by `networkIntro`); `lone`'s pop-in never focuses anyone, so it always
-// passes `null`.
-function buildNetworkAttrs(nodes, w, h, edges, focus) {
+/**
+ * Writes the constellation — the 15 intro actors and their 18 links — into
+ * `attrs` at `scale`, touching nothing else, and returns their screen
+ * positions. `focus` picks out a route (used by `networkIntro`); the states
+ * that only show the network as a whole pass `null`.
+ *
+ * `scale` is a camera pull-back about Bacon (see introPosition): the dots
+ * shrink with the geometry, so a zoomed-out network reads as further away
+ * rather than as the same diagram with the same fat marks.
+ *
+ * `edgeFade` scales every link's alpha, so a state can keep the constellation's
+ * geometry while dropping the links themselves (hopSeed passes 0 — the lines go
+ * out with the names as the camera starts pulling back). The links keep full
+ * draw progress either way, so they fade in place instead of retracting.
+ *
+ * Exported so `hopSeed` can hang its zoomed-out network over the hop bands'
+ * invisible parks without rebuilding either.
+ */
+export function writeNetwork(
+	attrs,
+	nodes,
+	w,
+	h,
+	focus,
+	scale = 1,
+	edgeFade = 1
+) {
 	const routes = focus == null ? [] : routesTo(focus);
 	const routeEdges = new Set(routes.flat().map((seg) => seg.edge));
 	const routeNodes = focus == null ? new Set() : routeActors(focus);
-	const attrs = new Float64Array(ATTR_SIZE);
-	const introSet = new Set(INTRO_IDS);
 	/** @type {Map<number, [number, number]>} */
 	const pos = new Map();
-	for (const n of nodes) {
-		if (!introSet.has(n.id)) {
-			parkHidden(attrs, n, w, h);
-			continue;
-		}
-		const [x, y] = introPosition(n.id, w, h);
-		pos.set(n.id, [x, y]);
+	for (const id of INTRO_IDS) {
+		const n = nodes[id];
+		const [x, y] = introPosition(id, w, h, scale);
+		pos.set(id, [x, y]);
 		let r = NETWORK_INTRO_RADIUS[n.hop];
-		let rgb = n.id === ANCHOR_ID ? HOP_RGB[0] : CROWD;
+		let rgb = id === ANCHOR_ID ? HOP_RGB[0] : CROWD;
 		let alpha = 1;
-		if (focus != null && n.id !== ANCHOR_ID) {
-			if (n.id === focus) {
+		if (focus != null && id !== ANCHOR_ID) {
+			if (id === focus) {
 				r = FOCUS_RADIUS;
 				rgb = EDGE_HIGHLIGHT;
-			} else if (routeNodes.has(n.id)) {
+			} else if (routeNodes.has(id)) {
 				r = ROUTE_RADIUS;
 				rgb = INK;
 			} else {
@@ -98,9 +116,9 @@ function buildNetworkAttrs(nodes, w, h, edges, focus) {
 				alpha = DIM_ALPHA;
 			}
 		}
-		set(attrs, n.id, x, y, r, rgb, alpha);
+		set(attrs, id, x, y, r * scale, rgb, alpha);
 	}
-	edges.forEach((_, e) => {
+	for (let e = 0; e < EDGE_COUNT; e++) {
 		const onRoute = routeEdges.has(e);
 		const alpha =
 			focus == null
@@ -108,8 +126,20 @@ function buildNetworkAttrs(nodes, w, h, edges, focus) {
 				: onRoute
 					? ROUTE_EDGE_ALPHA
 					: DIM_EDGE_ALPHA;
-		setEdge(attrs, e, 1, alpha, onRoute ? 1 : 0);
-	});
+		setEdge(attrs, e, 1, alpha * edgeFade, onRoute ? 1 : 0);
+	}
+	return pos;
+}
+
+// The full intro frame: the constellation, with every other node parked at the
+// scatter spot a later chapter wants it at (alpha 0).
+function buildNetworkAttrs(nodes, w, h, focus) {
+	const attrs = new Float64Array(ATTR_SIZE);
+	const introSet = new Set(INTRO_IDS);
+	for (const n of nodes) {
+		if (!introSet.has(n.id)) parkHidden(attrs, n, w, h);
+	}
+	const pos = writeNetwork(attrs, nodes, w, h, focus);
 	return { attrs, pos };
 }
 
@@ -193,7 +223,7 @@ function layoutLone(nodes, w, h, edges) {
 		}
 	});
 
-	const attrs = buildNetworkAttrs(nodes, w, h, edges, null).attrs;
+	const attrs = buildNetworkAttrs(nodes, w, h, null).attrs;
 	for (const n of nodes) {
 		delays[n.id] = nodeDelay.get(n.id) ?? 0;
 	}
@@ -213,7 +243,7 @@ function layoutNetworkIntro(nodes, w, h, edges, params) {
 	// `lone`'s pop-in above), so this state is a static settle: same geometry,
 	// just picking out a route once the reader taps an actor.
 	const focus = params?.focus ?? null;
-	const { attrs, pos } = buildNetworkAttrs(nodes, w, h, edges, focus);
+	const { attrs, pos } = buildNetworkAttrs(nodes, w, h, focus);
 	const hits = buildHits(nodes, pos, focus);
 	return { attrs, hits };
 }

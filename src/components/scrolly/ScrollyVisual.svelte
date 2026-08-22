@@ -38,7 +38,6 @@
 		STATE_PARAMS,
 		STATE_REVEAL_FROM,
 		STATE_ENTRY,
-		STATE_SEED,
 		STATE_TRACKED,
 		TRAIL_SIZE,
 		TRAIL_STRIDE,
@@ -69,12 +68,15 @@
 	const TWEEN_JITTER = 0.5;
 
 	const { nodes, edges } = makeNodes();
-	// delays for a skipped reveal (see STATE_REVEAL_FROM below): dots retarget
-	// in unison, but edges hold back until the dots have mostly landed — edges
-	// draw toward their endpoints' *final* spots, so fading them in earlier
-	// strings lines between mid-flight dots and far-away destinations
-	const SKIP_REVEAL_DELAYS = new Float64Array(DELAY_SIZE);
-	SKIP_REVEAL_DELAYS.fill(TWEEN_MS * 0.75, nodes.length);
+	// the fallback delays for any arrival with no authored choreography of its
+	// own, and for one whose choreography this direction skips (see
+	// STATE_REVEAL_FROM below): dots retarget in unison, but edges hold back
+	// until the dots have mostly landed — edges draw toward their endpoints'
+	// *final* spots, so fading them in earlier strings lines between mid-flight
+	// dots and far-away destinations
+	const EDGE_LAG_MS = TWEEN_MS * 0.75;
+	const EDGE_LAG_DELAYS = new Float64Array(DELAY_SIZE);
+	EDGE_LAG_DELAYS.fill(EDGE_LAG_MS, nodes.length);
 	// edges draw outward from the anchor: orient each from its lower-hop end so
 	// the line grows from Bacon toward the outer actor
 	const edgeEnds = edges.map(({ source, target }) =>
@@ -405,6 +407,18 @@
 	// also writes. The CSS opacity transition on .node-label does the fade.
 	/** @type {Set<number> | null} */
 	let entryLabels = null;
+	// Names this arrival is introducing — labelled now, but not by the state we
+	// came from — held back for the same beat as the edges (EDGE_LAG_MS), so the
+	// annotation layer arrives together, once the dots have mostly landed, rather
+	// than gliding along beside them. Names carried over from the previous state
+	// are never held; blanking one already on screen would blink it off and back
+	// on. Not $state, for the same reason as entryLabels above.
+	/** @type {Set<number> | null} */
+	let heldLabels = null;
+	let labelHoldUntil = 0;
+	// ids the current state labels, kept so the next arrival can tell an
+	// introduced name from a carried-over one
+	let prevLabelIds = new Set();
 
 	const overlay = $derived(OVERLAYS[stateName]);
 	// the active state's race camera descriptor ({ extent }), or undefined off the
@@ -749,21 +763,29 @@
 		// a live (target alpha > 0) line's endpoint is drawn at its final spot
 		// (not its live position) so the line points to where the actor is going
 		// and the actor slides onto it, instead of the angle swinging as the
-		// actor tweens into place; a dying line (faded out in the target state)
-		// tracks both live dots instead — the target state's endpoint positions
-		// belong to a layout this edge isn't part of
-		const target = layoutFor(stateName, width, height, layoutParams).attrs;
+		// actor tweens into place; a dying line (faded out in the target frame)
+		// tracks both live dots instead — the frame's endpoint positions belong to
+		// a layout this edge isn't part of.
+		//
+		// "Where it is going" is the TWEENER's target, not the state's static
+		// layout: an entry choreography arrives onto its own frame 0 first (e.g.
+		// hopSeed lands on the full-size network before pulling back from it), and
+		// aiming at the static layout through that arrival detaches every link
+		// from its dots. While the choreography itself owns the frame
+		// (`sweeping`) it is writing positions directly into `current`, so its
+		// stale target says nothing and the lines track both live dots.
+		const target = tweener.target;
 		for (let e = 0; e < edgeEnds.length; e++) {
 			const i = EDGE_BASE + e * STRIDE;
 			const progress = attrs[i];
 			const alpha = attrs[i + 1];
 			if (alpha <= 0.004 || progress <= 0.004) continue;
 			const [from, to] = edgeEnds[e];
-			const dying = target[i + 1] <= 0.004;
+			const liveEnds = sweeping || !target || target[i + 1] <= 0.004;
 			const xa = attrs[from * STRIDE];
 			const ya = attrs[from * STRIDE + 1];
-			const xb = dying ? attrs[to * STRIDE] : target[to * STRIDE];
-			const yb = dying ? attrs[to * STRIDE + 1] : target[to * STRIDE + 1];
+			const xb = liveEnds ? attrs[to * STRIDE] : target[to * STRIDE];
+			const yb = liveEnds ? attrs[to * STRIDE + 1] : target[to * STRIDE + 1];
 			// slot 2 blends the stroke toward the highlight colour and thickens it,
 			// so a highlighted route animates in with everything else
 			const hi = attrs[i + 2];
@@ -805,6 +827,10 @@
 			ctx.fillStyle = style;
 			ctx.fill(path);
 		}
+		// held names (see heldLabels) are still waiting out their lag; drawScene
+		// runs every frame of the arrival tween, which always outlasts the hold, so
+		// this flips over mid-tween with no timer of its own
+		const holding = heldLabels && performance.now() < labelHoldUntil;
 		const nextTracked = TRACKED_IDS.map((id) => ({
 			id,
 			name: nodes[id].name,
@@ -813,9 +839,12 @@
 			r: attrs[id * STRIDE + 2],
 			alpha: attrs[id * STRIDE + 6],
 			// a name rides its dot's alpha, except while an entry choreography is
-			// holding it back until the leg that introduces the actor has finished
+			// holding it back until the leg that introduces the actor has finished,
+			// or while it is waiting out the arrival lag
 			labelAlpha:
-				labelIds.has(id) && (!entryLabels || entryLabels.has(id))
+				labelIds.has(id) &&
+				(!entryLabels || entryLabels.has(id)) &&
+				!(holding && heldLabels.has(id))
 					? attrs[id * STRIDE + 6]
 					: 0,
 			labelOffset: 0
@@ -1054,7 +1083,7 @@
 		// (e.g. scrolling backwards) is one plain tween
 		const revealFrom = STATE_REVEAL_FROM[stateName];
 		const playReveal = !revealFrom || revealFrom.includes(prevState);
-		const stateDelays = playReveal ? delays : SKIP_REVEAL_DELAYS;
+		const stateDelays = (playReveal ? delays : null) ?? EDGE_LAG_DELAYS;
 		// race-chapter arrival (forward, from a revealFrom origin): play the draw-on
 		// entry choreography instead of a plain state tween. Only reached with real
 		// animation — reduced motion/resize are handled by the branch below.
@@ -1089,6 +1118,13 @@
 		// a stale gate would hide the new state's names for good. Re-armed below
 		// only if this arrival actually plays an entry.
 		entryLabels = null;
+		// the names this arrival introduces, for the wait-for-your-dot hold (see
+		// heldLabels); armed below only on a plain state tween, so it never fights
+		// a choreography's own labelsAfter clock
+		const introduced = new Set();
+		for (const id of labelIds) if (!prevLabelIds.has(id)) introduced.add(id);
+		heldLabels = null;
+		prevLabelIds = labelIds;
 		prevState = stateName;
 		prevParamsKey = paramsKey;
 		if (resized || reducedMotion) {
@@ -1175,20 +1211,9 @@
 				playEntry(entryAnim, write, attrs, trailTarget)
 			);
 			trailTweener.to(startTrails, TWEEN_MS, 0);
-		} else if (stateChange && STATE_SEED[stateName]) {
-			// seed frame: fade the prior visual out where it lies (alpha → 0, no
-			// movement), then once faded snap invisibly into the seed positions —
-			// so the next state reveals from a consistent frame without any dot
-			// being seen changing xy
-			const fade = Float64Array.from(tweener.current);
-			for (let i = 0; i < EDGE_BASE; i += STRIDE) fade[i + 6] = 0;
-			for (let i = EDGE_BASE; i < ATTR_SIZE; i += STRIDE) fade[i + 1] = 0;
-			tweener.to(fade, TWEEN_MS, 0, null, () => {
-				tweener.to(attrs, 0);
-				settle(stateName);
-			});
-			trailTweener.to(trailTarget, TWEEN_MS, 0, layout.trailDelays);
 		} else if (stateChange) {
+			heldLabels = introduced.size ? introduced : null;
+			labelHoldUntil = performance.now() + EDGE_LAG_MS;
 			// the tweener only fires onDone once every delayed group has landed, so
 			// this is the end of the state's authored reveal — and a superseded tween
 			// drops its callback, so a reader who hits Next mid-reveal never settles

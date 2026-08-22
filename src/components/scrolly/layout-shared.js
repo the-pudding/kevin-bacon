@@ -455,8 +455,8 @@ export const INTRO_MAX_STRETCH = 1.6;
  * The intro fit: scales the baked 860×680 intro layout into the top ~72% of
  * the canvas (per-axis, each capped at INTRO_MAX_STRETCH beyond uniform) and
  * returns the anchor's fitted screen position plus the axis scales — the one
- * frame the intro-chapter layouts hang off, directly (lone/networkIntro) or
- * as the zoom-out's starting scale (network's entry parks).
+ * frame every intro-chapter layout hangs off (lone/networkIntro at full size,
+ * hopSeed pulled back, see introPosition's `scale`).
  */
 export function introFrame(w, h) {
 	const availW = w - MARGIN * 2;
@@ -472,25 +472,19 @@ export function introFrame(w, h) {
 }
 
 /**
- * Screen position of the anchor node (Bacon) in the intro fit — the single
- * "center of the network" every hop-based layout (lone/networkIntro/network)
- * anchors on, so Bacon doesn't jump between those states.
- */
-export function graphCenter(w, h) {
-	const { cx, cy } = introFrame(w, h);
-	return [cx, cy];
-}
-
-/**
  * Screen position of intro node k in the intro fit — the frame `lone` and
- * `networkIntro` draw the constellation in, and the one the network map's
- * camera 0 reproduces exactly.
+ * `networkIntro` draw the constellation in.
+ *
+ * `scale` pulls the camera back about the anchor: every other node collapses
+ * toward Bacon while Bacon himself stays exactly where he was, so the one dot
+ * the reader has been told is the centre never moves between the full-size
+ * constellation and hopSeed's zoomed-out one.
  */
-export function introPosition(k, w, h) {
+export function introPosition(k, w, h, scale = 1) {
 	const { cx, cy, sx, sy } = introFrame(w, h);
 	const [ax, ay] = INTRO_LAYOUT.xy[ANCHOR_ID];
 	const [x, y] = INTRO_LAYOUT.xy[k];
-	return [cx + (x - ax) * sx, cy + (y - ay) * sy];
+	return [cx + (x - ax) * sx * scale, cy + (y - ay) * sy * scale];
 }
 
 /**

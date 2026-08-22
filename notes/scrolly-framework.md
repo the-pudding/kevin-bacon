@@ -31,7 +31,7 @@ layout via params — see "Interactivity" below.
 | `src/components/scrolly/nodes.js`             | Real data: `makeNodes()` → `{ nodes, edges }` decoded from `src/data/scrolly-nodes.json` (built by `npm run scrolly-data`). 11,486 `ActorNode`s (`id, pid, name, hop, films, avgDistance, rank`); node 0 is the anchor (Kevin Bacon), ids 0–14 are the curated intro network in reveal order (`INTRO_IDS`), edges are the 18 intro edges. Also exports `ANCHOR_ID`, `INTRO_LAYOUT` (baked 860×680 planar intro coords) and `hash01(id, salt)` — deterministic per-node randomness used everywhere (never `Math.random`, which would flicker between renders). |
 | `src/components/scrolly/tween.js`             | `createTweener(size, draw, stride)` → `{ current, to, stop }`. One rAF loop lerping a flat `Float64Array` from the _currently rendered_ values to a target. `to(next, ms, jitter, nodeDelays?)`. Vanilla (hand-rolled `easeCubicInOut`), no d3.                                                                                                                                                                                                                                                                                                               |
 | `src/components/scrolly/layout-shared.js`     | Geometry/color constants, attr/trail helpers (`set`, `setEdge`, `setTrail`, `collapseTrail`, `clipSeries`), named-actor id lookups (`SLJ`, `HANKS`, …), and the `LayoutFn`/`LayoutResult`/`Note`/`Tick` JSDoc typedefs — everything shared across more than one chapter.                                                                                                                                                                                                                                                                                      |
-| `src/components/scrolly/layouts/*.js`         | One module per story chapter (`intro`, `hop-bands`, `rank`, `race`, `scatters`, `prediction`, `career`, `win-bars`, `slj-fan`). Each exports a `states` object mapping state key → `{ layout, labels?, params?, pulse?, revealFrom?, overlay? }` (`revealFrom` scopes the layout's `delays` choreography to specific prior states — arriving from any other state is one plain tween) — everything about one state colocated in one object, instead of spread across parallel top-level maps.                                                                 |
+| `src/components/scrolly/layouts/*.js`         | One module per story chapter (`intro`, `hop-bands`, `rank`, `race`, `scatters`, `prediction`, `career`, `win-bars`, `slj-fan`). Each exports a `states` object mapping state key → `{ layout, labels?, params?, pulse?, revealFrom?, entry?, overlay? }` (`revealFrom` scopes the layout's `delays` choreography to specific prior states — arriving from any other state is one plain tween) — everything about one state colocated in one object, instead of spread across parallel top-level maps.                                                         |
 | `src/components/scrolly/states.js`            | Thin aggregator: merges every chapter's `states` object into one registry and derives the public `STATES`/`STATE_LABELS`/`STATE_PARAMS`/`STATE_PULSE`/`OVERLAYS` exports from it, plus `STATE_TRACKED`, `INTERACTIVE_IDS`, and the `nodeName`/`nodeRank`/`nodeAvgDistance` lookups. This is still the only module other files import from.                                                                                                                                                                                                                    |
 | `src/components/scrolly/Step.svelte`          | One story step: prose in the slot, visual state declared on the tag (`<Step state="lone">…</Step>`). Registers `{ state, params, panel? }` in document order with the `"scrolly-steps"` context provided by `Index.svelte`; renders its prose only while active — no hand-numbered step indices anywhere. `panel` is an optional snippet rendered over the canvas while the step is active (see "Exception" under interaction patterns).                                                                                                                      |
 | `src/components/helpers/Wizard.svelte`        | The step driver: headless Previous/Next buttons + ArrowLeft/ArrowRight advancing a bindable 0-based `value`, which `Index.svelte` maps through `stepConfigs` to the active state/params.                                                                                                                                                                                                                                                                                                                                                                      |
@@ -76,9 +76,20 @@ second canvas writer would corrupt tween starts.
 
 - `delays` provided → choreographed reveal (e.g. `lone`'s path-walk pop-in:
   each edge/node starts on an authored clock).
-- no `delays` → each node starts after a deterministic hashed delay in
-  `[0, ms * jitter]` (currently `TWEEN_JITTER = 0.5` in ScrollyVisual) so nodes
-  start/finish at different times.
+- no `delays` → the state arrival falls back to `EDGE_LAG_DELAYS`: dots retarget
+  in unison, edges hold back until the dots have mostly landed
+  (`TWEEN_MS * 0.75`). Edges are drawn toward their endpoints' _final_ spots, so
+  fading them in any earlier strings lines between mid-flight dots and
+  far-away destinations. A state whose links are fading _out_ over a frame where
+  nothing moves wants the opposite and returns an all-zero clock of its own
+  (`hopSeed`). Outside a state change — an interaction retarget — no delays are
+  passed and each node starts after a deterministic hashed delay in
+  `[0, ms * jitter]` (`TWEEN_JITTER = 0.5`).
+- The **names an arrival introduces** wait out that same `EDGE_LAG_MS`
+  (`heldLabels`), so the whole annotation layer — links and names together —
+  arrives once the dots have mostly landed instead of gliding along beside them.
+  Only names the previous state didn't have are held: blanking one already on
+  screen would blink it off and back on.
 - `ms <= 0` → instant jump, delays ignored. Used for resize/orientation change
   and `prefers-reduced-motion`.
 - First paint is a one-time entry animation (`ENTER_MS = 900` in ScrollyVisual):
@@ -98,21 +109,46 @@ steps register), so ScrollyVisual guards on them. Steps needing _different
 visuals_ get _distinct state keys_ (lone vs networkIntro); `params` is for
 variation within one layout.
 
-**Empty-canvas beats via a seed state.** A step that should read as an empty
-canvas gets a _seed_ layout: a real state that positions every node exactly
-where the next visual wants it but with alpha 0, so the canvas renders nothing.
-The following step then reveals from that shared frame as a pure fade-in — no
-teleport and, crucially, the same animation however fast the reader steps
-(`hopSeed` → `hopBands`, paired with `hopBands`'s `revealFrom: ["hopSeed"]`).
-Prefer this over a truly visual-free step whenever the empty beat sits directly
-before the layout it seeds.
+**Seeding the next reveal.** A state can park the nodes a _later_ layout wants
+at exactly their eventual positions with alpha 0, so nothing of them renders and
+the following step reveals from that shared frame as a pure fade-in — no
+teleport and, crucially, the same animation however fast the reader steps. That
+is what `hopSeed` does with the ~11.5k crowd (paired with `hopBands`'s
+`revealFrom: ["hopSeed"]`) while its own visual, the intro network pulling back,
+holds the frame in front of them. Prefer seeding over letting a crowd fly in
+from wherever a previous chapter parked it.
+
+**Entry choreographies (`STATE_ENTRY`).** When a state's arrival needs an
+animation the tweener can't express — a draw-on, a fan opening, a slow camera
+pull-back — it declares `entry: { phases, frames, labelsAfter? }` and
+ScrollyVisual's `playEntry` runs the legs back to back on its own rAF, each leg
+writing its animated slots straight into the live tween buffers. Three contracts:
+frame 0 of leg 0 is what the ordinary arrival tween lands on (so anything the
+choreography draws must already be right, or invisible, there); the last leg's
+frame 1 must reproduce the static layout call for call, so the settle has nothing
+to move; and it must be skippable — a reader who steps on mid-flight supersedes
+the arrival tween, whose `onDone` is then dropped, so the choreography never
+starts. Reduced motion and resize bypass it via the snap branch. Examples:
+`careerTrio`/`careerMany`'s line draw-ons (`layouts/career.js`) and `hopSeed`'s
+zoom-out (`layouts/hop-bands.js`).
+
+One renderer rule follows from this. `drawScene` draws a live edge's far endpoint
+at its **target** position, so a line points where its actor is going and the
+actor slides onto it. That target is the **tweener's** target (`tweener.target`,
+the last frame handed to `to()`), not the state's static layout: a choreography
+arrives onto its own frame 0 first, and through that arrival the static layout is
+not where the dots are heading — aim at it and every link detaches from its dots.
+While the choreography itself owns the frame (`sweeping`) it writes positions
+straight into `current` and its target is stale, so edges track both **live** dots.
 
 Current states, in story order: `lone` (the intro constellation grows out of
 Bacon here, as the step's own entry pop-in) · `networkIntro` (the grown
 constellation; every actor is selectable and their shortest route(s) to Bacon
 light up, captioned with the distance) · `hopSeed`
-(the "not
-the centre" beat — an empty canvas seeding the bands) · `hopBands`
+(the "not the centre" beat — the same actors, with the camera slowly pulling
+back from them; every link and every name, Bacon's included, goes out on
+arrival, leaving the unlabelled cast the bands are about to sort, over that
+crowd parked invisible) · `hopBands`
 (degree rows, with a bottom legend keying each hop's color) ·
 `rankFocus` (Bacon's hop bar dissolves; the HTML `RankBars` panel + guess
 take over) · `rankReveal` (SLJ) · `raceRecent`/

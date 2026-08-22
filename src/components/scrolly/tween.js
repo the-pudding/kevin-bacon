@@ -7,6 +7,10 @@ export const easeCubicInOut = (t) =>
 /**
  * @typedef {Object} Tweener
  * @property {Float32Array} current live rendered values
+ * @property {Float64Array | null} target the frame `current` is heading for —
+ *   the last frame handed to `to()`, whether it is being tweened toward or was
+ *   set instantly. Read it to know where a mark is going; null before the first
+ *   `to()`.
  * @property {(next: Float64Array, ms: number, jitter?: number, nodeDelays?: Float64Array, onDone?: (() => void) | null) => void} to
  * @property {() => void} stop
  */
@@ -60,6 +64,7 @@ export function createTweener(size, draw, stride = 1) {
 	function to(next, ms, jitter = 0, nodeDelays = null, done = null) {
 		cancelAnimationFrame(frame);
 		onDone = done;
+		target = next;
 		if (ms <= 0) {
 			current.set(next);
 			draw(current);
@@ -70,7 +75,6 @@ export function createTweener(size, draw, stride = 1) {
 			return;
 		}
 		start.set(current);
-		target = next;
 		duration = ms;
 		for (let g = 0; g < groups; g++) {
 			delays[g] = nodeDelays ? nodeDelays[g] : hash01(g, 9) * ms * jitter;
@@ -84,5 +88,13 @@ export function createTweener(size, draw, stride = 1) {
 		onDone = null;
 	}
 
-	return { current, to, stop };
+	// `target` is reassigned on every `to`, so it is exposed as a getter
+	return {
+		current,
+		get target() {
+			return target;
+		},
+		to,
+		stop
+	};
 }
