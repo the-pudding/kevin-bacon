@@ -10,14 +10,11 @@ import {
 	setEdge,
 	pairKey,
 	parkHidden,
-	graphCenter,
 	introPosition,
 	NETWORK_INTRO_RADIUS
 } from "../layout-shared.js";
 import { routesTo, routeActors } from "../intro-routes.js";
 
-const INTRO_ANCHOR_RADIUS = 14;
-const INTRO_RADIUS = 7;
 const INTRO_EDGE_ALPHA = 0.5;
 
 // Reveal is authored as paths (still keyed source→…→Bacon), but each is walked
@@ -27,7 +24,10 @@ const INTRO_EDGE_ALPHA = 0.5;
 // routes sprouting from Bacon rather than a graph dump. The first two paths
 // (Bacon→Ryan→Margot, Bacon→Cumberbatch→Zendaya) play strictly one at a time as a
 // deliberate walk; the rest fill in freely afterwards. Shared nodes/lines animate
-// once, at first mention. Bacon is the shared origin.
+// once, at first mention. Bacon is the shared origin. This walk plays as `lone`'s
+// own entry pop-in (ScrollyVisual seeds every node at zero radius/alpha on first
+// paint, then tweens to these authored positions on these authored delays), so
+// the network is already fully grown by the time the reader reaches `networkIntro`.
 const INTRO_PATHS = [
 	[12, 3], // Margot Robbie → Ryan Gosling → Bacon
 	[14, 5], // Zendaya → Benedict Cumberbatch → Bacon
@@ -65,37 +65,87 @@ const HIT_MIN = 26;
 const HIT_MAX = 44;
 const HIT_SHARE = 0.85;
 
-/** @type {import("../layout-shared.js").LayoutFn} */
-function layoutLone(nodes, w, h) {
-	const attrs = new Float64Array(ATTR_SIZE);
-	const introSet = new Set(INTRO_IDS);
-	for (const n of nodes) {
-		if (n.id === ANCHOR_ID) {
-			const [cx, cy] = graphCenter(w, h);
-			set(attrs, n.id, cx, cy, INTRO_ANCHOR_RADIUS, HOP_RGB[0], 1);
-		} else if (introSet.has(n.id)) {
-			// parked at their eventual networkIntro spot (alpha 0) so they fade in place
-			const [x, y] = introPosition(n.id, w, h);
-			set(attrs, n.id, x, y, INTRO_RADIUS, CROWD, 0);
-		} else {
-			parkHidden(attrs, n, w, h);
-		}
-	}
-	return { attrs };
-}
-
-/** @type {import("../layout-shared.js").LayoutFn} */
-function layoutNetworkIntro(nodes, w, h, edges, params) {
-	// `armed` is false for the whole authored reveal, so nothing is tappable,
-	// dimmed or labelled until the walk has landed (see the state's params below)
-	const armed = params?.armed ?? false;
-	const focus = armed ? (params?.focus ?? null) : null;
+// Shared node/edge attrs for the fully-grown network: `focus` picks out a route
+// (used by `networkIntro`); `lone`'s pop-in never focuses anyone, so it always
+// passes `null`.
+function buildNetworkAttrs(nodes, w, h, edges, focus) {
 	const routes = focus == null ? [] : routesTo(focus);
 	const routeEdges = new Set(routes.flat().map((seg) => seg.edge));
 	const routeNodes = focus == null ? new Set() : routeActors(focus);
 	const attrs = new Float64Array(ATTR_SIZE);
-	const delays = new Float64Array(DELAY_SIZE);
 	const introSet = new Set(INTRO_IDS);
+	/** @type {Map<number, [number, number]>} */
+	const pos = new Map();
+	for (const n of nodes) {
+		if (!introSet.has(n.id)) {
+			parkHidden(attrs, n, w, h);
+			continue;
+		}
+		const [x, y] = introPosition(n.id, w, h);
+		pos.set(n.id, [x, y]);
+		let r = NETWORK_INTRO_RADIUS[n.hop];
+		let rgb = n.id === ANCHOR_ID ? HOP_RGB[0] : CROWD;
+		let alpha = 1;
+		if (focus != null && n.id !== ANCHOR_ID) {
+			if (n.id === focus) {
+				r = FOCUS_RADIUS;
+				rgb = EDGE_HIGHLIGHT;
+			} else if (routeNodes.has(n.id)) {
+				r = ROUTE_RADIUS;
+				rgb = INK;
+			} else {
+				// their name label rides this alpha, so the crowd's names dim too
+				alpha = DIM_ALPHA;
+			}
+		}
+		set(attrs, n.id, x, y, r, rgb, alpha);
+	}
+	edges.forEach((_, e) => {
+		const onRoute = routeEdges.has(e);
+		const alpha =
+			focus == null
+				? INTRO_EDGE_ALPHA
+				: onRoute
+					? ROUTE_EDGE_ALPHA
+					: DIM_EDGE_ALPHA;
+		setEdge(attrs, e, 1, alpha, onRoute ? 1 : 0);
+	});
+	return { attrs, pos };
+}
+
+// Tap regions: one square per actor, all the same size so none can overlap. The
+// label is the region's accessible name and ScrollyVisual keys the buttons on
+// it, so it must NOT change with the selection — aria-pressed carries that.
+function buildHits(nodes, pos, focus) {
+	let tightest = Infinity;
+	for (const [a, [ax, ay]] of pos) {
+		for (const [b, [bx, by]] of pos) {
+			if (a >= b) continue;
+			tightest = Math.min(tightest, Math.hypot(ax - bx, ay - by));
+		}
+	}
+	const side = Math.max(HIT_MIN, Math.min(HIT_MAX, tightest * HIT_SHARE));
+	return INTRO_IDS.map((id) => {
+		const [x, y] = pos.get(id);
+		return {
+			x: x - side / 2,
+			y: y - side / 2,
+			w: side,
+			h: side,
+			label:
+				id === ANCHOR_ID
+					? "Kevin Bacon, the center — clears the highlighted route"
+					: `${nodes[id].name}, trace their route to Kevin Bacon`,
+			value: id,
+			selected: id === focus,
+			round: true
+		};
+	});
+}
+
+/** @type {import("../layout-shared.js").LayoutFn} */
+function layoutLone(nodes, w, h, edges) {
+	const delays = new Float64Array(DELAY_SIZE);
 
 	// index edges by unordered endpoint pair so paths can look them up by name
 	const edgeByPair = new Map();
@@ -143,102 +193,42 @@ function layoutNetworkIntro(nodes, w, h, edges, params) {
 		}
 	});
 
-	/** @type {Map<number, [number, number]>} */
-	const pos = new Map();
+	const attrs = buildNetworkAttrs(nodes, w, h, edges, null).attrs;
 	for (const n of nodes) {
-		if (!introSet.has(n.id)) {
-			parkHidden(attrs, n, w, h);
-			continue;
-		}
-		const [x, y] = introPosition(n.id, w, h);
-		pos.set(n.id, [x, y]);
-		let r = NETWORK_INTRO_RADIUS[n.hop];
-		let rgb = n.id === ANCHOR_ID ? HOP_RGB[0] : CROWD;
-		let alpha = 1;
-		if (focus != null && n.id !== ANCHOR_ID) {
-			if (n.id === focus) {
-				r = FOCUS_RADIUS;
-				rgb = EDGE_HIGHLIGHT;
-			} else if (routeNodes.has(n.id)) {
-				r = ROUTE_RADIUS;
-				rgb = INK;
-			} else {
-				// their name label rides this alpha, so the crowd's names dim too
-				alpha = DIM_ALPHA;
-			}
-		}
-		set(attrs, n.id, x, y, r, rgb, alpha);
 		delays[n.id] = nodeDelay.get(n.id) ?? 0;
 	}
 	edges.forEach(({ source, target }, e) => {
-		const onRoute = routeEdges.has(e);
-		const alpha =
-			focus == null
-				? INTRO_EDGE_ALPHA
-				: onRoute
-					? ROUTE_EDGE_ALPHA
-					: DIM_EDGE_ALPHA;
-		setEdge(attrs, e, 1, alpha, onRoute ? 1 : 0);
 		// secondary links (not on any path) fill in once both ends are up
 		delays[NODE_COUNT + e] =
 			edgeDelay.get(e) ??
 			Math.max(nodeDelay.get(source) ?? 0, nodeDelay.get(target) ?? 0) +
 				INTRO_EDGE_LAG_MS;
 	});
-	if (!armed) return { attrs, delays };
+	return { attrs, delays };
+}
 
-	// Tap regions: one square per actor, all the same size so none can overlap.
-	// The label is the region's accessible name and ScrollyVisual keys the
-	// buttons on it, so it must NOT change with the selection — aria-pressed
-	// carries that.
-	let tightest = Infinity;
-	for (const [a, [ax, ay]] of pos) {
-		for (const [b, [bx, by]] of pos) {
-			if (a >= b) continue;
-			tightest = Math.min(tightest, Math.hypot(ax - bx, ay - by));
-		}
-	}
-	const side = Math.max(HIT_MIN, Math.min(HIT_MAX, tightest * HIT_SHARE));
-	const hits = INTRO_IDS.map((id) => {
-		const [x, y] = pos.get(id);
-		return {
-			x: x - side / 2,
-			y: y - side / 2,
-			w: side,
-			h: side,
-			label:
-				id === ANCHOR_ID
-					? "Kevin Bacon, the center — clears the highlighted route"
-					: `${nodes[id].name}, trace their route to Kevin Bacon`,
-			value: id,
-			selected: id === focus,
-			round: true
-		};
-	});
-	return { attrs, delays, hits };
+/** @type {import("../layout-shared.js").LayoutFn} */
+function layoutNetworkIntro(nodes, w, h, edges, params) {
+	// The network is already fully grown by the time the reader lands here (see
+	// `lone`'s pop-in above), so this state is a static settle: same geometry,
+	// just picking out a route once the reader taps an actor.
+	const focus = params?.focus ?? null;
+	const { attrs, pos } = buildNetworkAttrs(nodes, w, h, edges, focus);
+	const hits = buildHits(nodes, pos, focus);
+	return { attrs, hits };
 }
 
 export const states = {
 	lone: {
 		layout: layoutLone,
-		labels: [ANCHOR_ID],
+		labels: INTRO_IDS,
 		pulse: ANCHOR_ID
 	},
 	networkIntro: {
 		layout: layoutNetworkIntro,
 		labels: INTRO_IDS,
 		pulse: ANCHOR_ID,
-		// the path-walk reveal is authored for the forward arrival from `lone`;
-		// stepping back from the hopSeed step just tweens the actors into place
-		revealFrom: ["lone"],
-		// Held back until this state's own arrival tween has landed, so the reveal
-		// plays with nothing tappable or dimmed; `story.settled` names the state that
-		// landed, so an interrupted reveal never arms. Nothing is focused until the
-		// reader picks someone — the step card's hint carries the invitation.
-		params: (s) => {
-			const armed = s.settled === "networkIntro";
-			return { armed, focus: armed ? s.introFocus : null };
-		},
+		params: (s) => ({ focus: s.introFocus }),
 		// a toggle: tapping the highlighted actor again clears it, as does tapping
 		// Bacon — a route from the anchor to itself says nothing
 		pick: (s, value) =>

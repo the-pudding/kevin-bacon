@@ -159,8 +159,9 @@
 					<Step state="networkIntro">
 						<!-- The tap affordance, and the picked actor's route once there is
 						     one: one slot, directly under the graph it belongs to and above
-						     the narrative. Only once the walk has landed, which is when the
-						     actors actually become tappable (see layouts/intro.js).
+						     the narrative. The network itself finishes growing back on the
+						     `lone` step, so actors are already tappable as soon as this step
+						     is reached (see layouts/intro.js).
 
 						     The route reads as prose in the card rather than as a caption on
 						     the canvas: it runs to several sentences for an actor with more

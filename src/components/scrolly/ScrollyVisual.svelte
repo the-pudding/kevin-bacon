@@ -952,9 +952,8 @@
 		if (story.scrubbing) untrack(() => camPanning || startScrub());
 	});
 
-	// Records the state whose arrival has just landed. A layout reads this to hold
-	// an interaction back until its own authored reveal has finished (see
-	// layouts/intro.js: `armed` is `story.settled === "networkIntro"`).
+	// Records the state whose arrival has just landed. A layout can read this to
+	// hold an interaction back until its own authored reveal has finished.
 	//
 	// Set-only, never cleared: it names a state, so stepping away un-arms every
 	// gate by itself. That matters — clearing it here would write state this

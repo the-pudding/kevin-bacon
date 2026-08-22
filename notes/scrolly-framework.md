@@ -74,7 +74,7 @@ second canvas writer would corrupt tween starts.
 
 **Tween timing.** `tweener.to(attrs, ms, jitter, delays)`:
 
-- `delays` provided → choreographed reveal (e.g. `networkIntro`'s path-walk:
+- `delays` provided → choreographed reveal (e.g. `lone`'s path-walk pop-in:
   each edge/node starts on an authored clock).
 - no `delays` → each node starts after a deterministic hashed delay in
   `[0, ms * jitter]` (currently `TWEEN_JITTER = 0.5` in ScrollyVisual) so nodes
@@ -107,9 +107,10 @@ teleport and, crucially, the same animation however fast the reader steps
 Prefer this over a truly visual-free step whenever the empty beat sits directly
 before the layout it seeds.
 
-Current states, in story order: `lone` · `networkIntro` (the intro
-constellation; once its path walk has landed, every actor is selectable and their
-shortest route(s) to Bacon light up, captioned with the distance) · `hopSeed`
+Current states, in story order: `lone` (the intro constellation grows out of
+Bacon here, as the step's own entry pop-in) · `networkIntro` (the grown
+constellation; every actor is selectable and their shortest route(s) to Bacon
+light up, captioned with the distance) · `hopSeed`
 (the "not
 the centre" beat — an empty canvas seeding the bands) · `hopBands`
 (degree rows, with a bottom legend keying each hop's color) ·
@@ -217,19 +218,22 @@ over the chart, rendered as transparent `<button>`s (so a pick is keyboard- and
 screen-reader-reachable, no canvas hit-testing) whose value is handed to the
 state's `pick` handler (`STATE_PICK`) to write into `story`; that write feeds
 back through the state's `params` selector. `winBars` selects its bars this way,
-and `networkIntro` puts one over every actor in the intro constellation.
+and `networkIntro` puts one over every actor in the intro constellation (armed
+as soon as the step is reached — the path-walk reveal that grows the
+constellation plays earlier, on `lone`'s own entry pop-in).
 
 **Waiting for a reveal.** `story.settled` names the state whose arrival tween has
 just landed (`ScrollyVisual`'s `settle()`, attached to the arrival's `onDone`,
 which the tweener only fires once every delayed group has finished — so it is the
 true end of an authored reveal, and a superseded tween drops it, meaning a reader
-who steps on mid-reveal never settles). A layout gates an interaction on it:
-`networkIntro` returns no `hits` until `story.settled === "networkIntro"`, so its
-8-second path walk plays with nothing tappable. It is **set-only, never cleared** —
-it names a state, so stepping away un-arms every gate by itself. Clearing it would
-write state the render effect derives its params from, re-running that effect with
-an unchanged params key, which lands in its catch-all and snaps the very reveal
-the gate was waiting for.
+who steps on mid-reveal never settles). A layout can gate an interaction on it —
+returning no `hits`, or ignoring a pick, until `story.settled === theOwnState` —
+for a state whose own authored reveal must land before it makes sense to
+interact with. It is **set-only, never cleared** — it names a state, so stepping
+away un-arms every gate by itself. Clearing it would write state the render
+effect derives its params from, re-running that effect with an unchanged params
+key, which lands in its catch-all and snaps the very reveal the gate was
+waiting for.
 
 **Interactivity.** `story.svelte.js` holds shared `$state` (rankGuess,
 quizPicks, prediction toggles, winFocus, introFocus) written by the step-card components
