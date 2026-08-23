@@ -37,6 +37,9 @@ export const edgeIndex = (e) => EDGE_BASE + e * STRIDE;
  * @typedef {Object} LegendItem
  * @property {number[]} color rgb triple
  * @property {string} label
+ * @property {number} [x] px, left edge — when set (with `y`), this item renders as
+ *   its own pinned label at that position instead of joining the shared bottom row
+ * @property {number} [y] px, vertical centre of the pinned label (see `x`)
  *
  * @typedef {Object} Hit
  * @property {number} x px, left edge

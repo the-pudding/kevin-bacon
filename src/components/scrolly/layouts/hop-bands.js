@@ -69,9 +69,11 @@ function layoutHopBands(nodes, w, h, _edges, params) {
 	if (seed) return { attrs };
 	const legend = [1, 2, 3, 4].map((hop) => ({
 		color: HOP_RGB[hop],
-		label: `${hop} movie${hop > 1 ? "s" : ""}${hop === 1 ? " away" : ""}`
+		label: `${hop} movie${hop > 1 ? "s" : ""}${hop === 1 ? " away" : ""}`,
+		x: MARGIN,
+		y: (bandTops[hop] + bandTops[hop + 1]) / 2
 	}));
-	return { attrs, delays, legend, legendY: plotBottom(h) + 14 };
+	return { attrs, delays, legend };
 }
 
 // ---------------------------------------------------------------------------

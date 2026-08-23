@@ -1333,7 +1333,15 @@
 					</p>
 				{/each}
 			{/if}
-			{#if decor?.legend}
+			{#each decor?.legend?.filter((item) => item.x != null) ?? [] as item}
+				<p
+					class="legend-item pinned fade-in"
+					style="left: {item.x}px; top: {item.y}px"
+				>
+					{item.label}
+				</p>
+			{/each}
+			{#if decor?.legend?.some((item) => item.x == null)}
 				<ul
 					class="legend fade-in"
 					style={decor.legendY != null
@@ -1621,5 +1629,18 @@
 		height: 0.6rem;
 		border-radius: 50%;
 		flex-shrink: 0;
+	}
+
+	.legend-item.pinned {
+		position: absolute;
+		margin: 0;
+		transform: translateY(-50%);
+		white-space: nowrap;
+		text-shadow:
+			0 0 4px var(--color-bg, #fff),
+			0 0 4px var(--color-bg, #fff),
+			0 0 8px var(--color-bg, #fff),
+			0 0 8px var(--color-bg, #fff),
+			0 0 12px var(--color-bg, #fff);
 	}
 </style>
