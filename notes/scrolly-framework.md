@@ -431,11 +431,19 @@ must pass the same snippet reference — that's what keeps the component alive
 across the step change. `RankBars.svelte` (the rank chapter's scrollable
 "everyone else" bar list, shown during `rankFocus`/`rankReveal`) is the built
 example. Its rows are hop-bands charts turned on their side, drawn as
-individual dots: the geometry both sides share (`RANK_BAR_H`, `RANK_SEG_MIN`,
-`RANK_DOT_*`, `hopSegmentBounds`) lives in `layout-shared.js`, and the panel
-measures its focused row live and publishes the box to `story.rankFocusBar`,
-which `layouts/rank.js` tweens the canvas bar into — the panel owns the
-geometry, the canvas follows it.
+individual dots: `layout-shared.js`'s `hopDotSlots` generates the dot lattice
+both sides draw — the panel as one path per hop band, the canvas as the spot
+each converging actor lands on — so the frame the arrival tween settles into is
+the frame the panel then fades over. The panel owns the geometry and the canvas
+follows it: RankBars measures its focused row live and publishes the box to
+`story.rankFocusBar`, which `layouts/rank.js` reads as a param.
+
+Two rules come with a measured hand-off like that, both learned the hard way:
+publish from a **pre-effect**, so the box is set before ScrollyVisual's layout
+effect runs in the same flush and the arrival is one collapse rather than a
+tween retargeted mid-flight; and **never re-publish an unchanged value** — that
+re-runs the layout effect with an identical params key, which lands in its
+catch-all and snaps the very reveal the measurement exists to aim.
 
 Also required before publish: a step-visibility analytics beacon — fire on
 `value` changes in `Index.svelte` (the wizard equivalent of the old per-step

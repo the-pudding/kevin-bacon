@@ -101,8 +101,13 @@
 	});
 
 	// keep the focused row centered: instant on first paint (no spoiler pan
-	// from the top), smooth when a guess/reveal moves the focus
-	$effect(() => {
+	// from the top), smooth when a guess/reveal moves the focus.
+	//
+	// A pre-effect, so the box below is published before ScrollyVisual's layout
+	// effect runs in the same flush: that's what lets the arrival be one authored
+	// TWEEN_MS collapse onto this row, instead of a tween aimed at a fallback
+	// spot and then retargeted (fast, PARAM_TWEEN_MS) once the measurement lands.
+	$effect.pre(() => {
 		const id = focusId;
 		const ready = fontsReady;
 		if (!list || !listHeight || id == null) return;
@@ -301,11 +306,14 @@
 		color: var(--color-gray-700, #444);
 		opacity: 0.35;
 		transition: opacity 0.25s ease;
-		/* everyone but Bacon starts invisible and fades in slowly, after the
-		   canvas bar has landed and the step text has had its moment (see
-		   Index.svelte's rank-focus-text) — Bacon's own row is exempted below
-		   so it's there from the start, matching the bar dissolving into it */
-		animation: row-in 1.4s ease 2.15s both;
+	}
+
+	/* everyone but Bacon starts invisible and fades in slowly, after the canvas
+	   bar has landed and the step text has had its moment (see Index.svelte's
+	   rank-focus-text) — Bacon's own row is exempted below so it's there from the
+	   start, matching the bar dissolving into it */
+	.rows li {
+		animation: row-in 1.4s ease 1.75s both;
 	}
 
 	.rows li.focus {
