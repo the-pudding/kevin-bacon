@@ -51,6 +51,9 @@
 	/** @type {HTMLUListElement | undefined} */
 	let list = $state();
 	let listHeight = $state(0);
+	// no top fade while the list is at the top — nothing is cut off up there,
+	// so the fade would just blur the first row for no reason
+	let atTop = $state(true);
 	let scrolledByReader = false;
 	// the very first row-position measurement can land a few px off if it
 	// runs before the mono webfont has swapped in (font.css: font-display:
@@ -121,7 +124,13 @@
 </script>
 
 <div class="rank-bars">
-	<ul class="rows" bind:this={list} bind:clientHeight={listHeight}>
+	<ul
+		class="rows"
+		class:at-top={atTop}
+		bind:this={list}
+		bind:clientHeight={listHeight}
+		onscroll={() => (atTop = list.scrollTop <= 1)}
+	>
 		{#each rows as row (row.id)}
 			<li data-id={row.id} class:focus={row.id === focusId}>
 				<span class="label-row">
@@ -201,20 +210,25 @@
 		padding: 0.5rem 1rem;
 		overflow-y: auto;
 		flex: 1;
+		--fade-top: 1.5rem;
 		mask-image: linear-gradient(
 			to bottom,
 			transparent,
-			black 1.5rem,
+			black var(--fade-top),
 			black calc(100% - 1.5rem),
 			transparent
 		);
 		-webkit-mask-image: linear-gradient(
 			to bottom,
 			transparent,
-			black 1.5rem,
+			black var(--fade-top),
 			black calc(100% - 1.5rem),
 			transparent
 		);
+	}
+
+	.rows.at-top {
+		--fade-top: 0px;
 	}
 
 	.rows li {
