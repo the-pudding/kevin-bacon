@@ -2,33 +2,62 @@
 	// @ts-check
 	import { onMount } from "svelte";
 	import rawNodes from "$data/scrolly-nodes.json";
-	import storyData from "$data/scrolly-story.json";
 	import { story } from "./story.svelte.js";
 	import { ANCHOR_ID } from "./nodes.js";
-	import { BY_RANK, HOP_RGB, SLJ, RANK_TOP_N } from "./layout-shared.js";
+	import {
+		BY_RANK,
+		HOP_RGB,
+		SLJ,
+		RANK_TOP_N,
+		RANK_BAR_H,
+		RANK_DOT_D,
+		hopDotSlots,
+		hopFractions
+	} from "./layout-shared.js";
 
-	// The rank chapter's "everyone else" list: plain HTML/CSS stacked hop-band
-	// bars (per-actor counts from scrolly-story.json's rankHopBands), not
-	// canvas — a native scrollable list is simpler than reinventing
-	// scroll/virtualization on a canvas (see rank.js for the canvas handoff).
+	// The rank chapter's "everyone else" list: plain HTML/SVG hop-band bars
+	// (per-actor counts from scrolly-story.json's rankHopBands), not canvas — a
+	// native scrollable list is simpler than reinventing scroll/virtualization on
+	// a canvas (see rank.js for the canvas handoff). Each bar is a hop-bands
+	// chart turned on its side, with the crowd drawn as individual dots rather
+	// than a solid block, so the canvas waffle dissolves into like for like.
 	/** @type {{ reveal?: boolean }} */
 	let { reveal = false } = $props();
 
-	const SEGMENT_MIN_PX = 10;
-
 	const top = BY_RANK.slice(0, RANK_TOP_N);
 
-	const rows = top.map(({ id, rank }) => {
-		const [, name] = rawNodes.nodes[id];
-		const avgDistance = Number(rawNodes.nodes[id][4]);
-		const counts = storyData.rankHopBands[id];
-		const total = counts.reduce((s, v) => s + v, 0);
-		const segments = counts.map((count, i) => ({
-			color: HOP_RGB[i + 1],
-			fraction: count / total
+	const rows = top.map(({ id, rank }) => ({
+		id,
+		rank,
+		name: rawNodes.nodes[id][1],
+		avgDistance: Number(rawNodes.nodes[id][4]),
+		fractions: hopFractions(id)
+	}));
+
+	// One <path> per hop over the band's shared dot lattice (hopDotSlots), each a
+	// run of near-zero-length subpaths that stroke-linecap: round renders as dots
+	// — four elements per row instead of one per dot, which is what makes 250
+	// dotted rows affordable in the DOM.
+	/**
+	 * @param {number} id node id, so the jitter is stable per actor
+	 * @param {number[]} fractions hop 1–4 shares
+	 * @param {number} width px
+	 */
+	function barPaths(id, fractions, width) {
+		return hopDotSlots(fractions, width, id).map((dots, band) => ({
+			color: HOP_RGB[band + 1],
+			d: dots.map((p) => `M${p.x.toFixed(2)} ${p.y.toFixed(2)}h0.01`).join("")
 		}));
-		return { id, rank, name, avgDistance, segments };
-	});
+	}
+
+	// every row is the same width, so the dot grid is measured once (and
+	// recomputed on resize) rather than per row
+	let barWidth = $state(0);
+	const bars = $derived(
+		barWidth > 0
+			? rows.map((row) => barPaths(row.id, row.fractions, barWidth))
+			: null
+	);
 
 	const legend = [
 		{ color: HOP_RGB[1], label: "1 movie away" },
@@ -116,11 +145,29 @@
 		// whole row overshoots upward past the bar's real position.
 		const panel = list.offsetParent;
 		if (panel instanceof HTMLElement && bar instanceof HTMLElement) {
-			story.rankFocusY = Math.round(
-				panel.offsetTop + bar.offsetTop - clampedTop + bar.offsetHeight / 2
-			);
+			publish({
+				x: panel.offsetLeft + bar.offsetLeft,
+				w: bar.offsetWidth,
+				y: Math.round(
+					panel.offsetTop + bar.offsetTop - clampedTop + bar.offsetHeight / 2
+				)
+			});
 		}
 	});
+
+	// Re-publishing the same box would re-run ScrollyVisual's layout effect with
+	// an unchanged params key, which lands in its catch-all and snaps the arrival
+	// tween this measurement exists to aim (see the note above `settle` there).
+	// The fonts-ready re-run measures an identical box whenever the mono face was
+	// already cached, so this guard is the difference between the crowd
+	// collapsing into the bar and the bar simply appearing.
+	/** @param {{x: number, y: number, w: number}} box */
+	function publish(box) {
+		const prev = story.rankFocusBar;
+		if (prev && prev.x === box.x && prev.y === box.y && prev.w === box.w)
+			return;
+		story.rankFocusBar = box;
+	}
 </script>
 
 <div class="rank-bars">
@@ -131,7 +178,10 @@
 		bind:clientHeight={listHeight}
 		onscroll={() => (atTop = list.scrollTop <= 1)}
 	>
-		{#each rows as row (row.id)}
+		<!-- zero-height gauge: the row width the dot grid is laid out against,
+		     measured inside the scroller's padding so it needs no px assumptions -->
+		<div class="gauge" bind:clientWidth={barWidth} aria-hidden="true"></div>
+		{#each rows as row, i (row.id)}
 			<li data-id={row.id} class:focus={row.id === focusId}>
 				<span class="label-row">
 					<span class="label"
@@ -140,17 +190,27 @@
 					>
 					<span class="avg">{row.avgDistance.toFixed(2)}</span>
 				</span>
+				<!-- the svg lives inside an HTML span: the focus-row handoff below
+				     reads offsetTop/offsetHeight off `.bar`, which SVG elements
+				     don't carry -->
 				<span class="bar">
-					{#each row.segments as segment}
-						<span
-							class="segment"
-							style="width: calc({SEGMENT_MIN_PX}px + (100% - {SEGMENT_MIN_PX *
-								row.segments
-									.length}px) * {segment.fraction}); background: rgb({segment.color.join(
-								','
-							)})"
-						></span>
-					{/each}
+					<svg
+						class="dots"
+						width={barWidth}
+						height={RANK_BAR_H}
+						viewBox="0 0 {barWidth} {RANK_BAR_H}"
+						aria-hidden="true"
+					>
+						{#each bars?.[i] ?? [] as band}
+							<path
+								d={band.d}
+								stroke="rgb({band.color.join(',')})"
+								stroke-width={RANK_DOT_D}
+								stroke-linecap="round"
+								fill="none"
+							/>
+						{/each}
+					</svg>
 				</span>
 			</li>
 		{/each}
@@ -245,7 +305,7 @@
 		   canvas bar has landed and the step text has had its moment (see
 		   Index.svelte's rank-focus-text) — Bacon's own row is exempted below
 		   so it's there from the start, matching the bar dissolving into it */
-		animation: row-in 1.4s ease 1.6s both;
+		animation: row-in 1.4s ease 2.15s both;
 	}
 
 	.rows li.focus {
@@ -276,17 +336,19 @@
 		gap: 0.4rem;
 	}
 
-	.bar {
-		display: flex;
-		width: 100%;
-		height: 6px;
-		overflow: hidden;
-		border-radius: 2px;
+	.gauge {
+		height: 0;
 	}
 
-	.segment {
-		height: 100%;
-		flex-shrink: 0;
+	.bar {
+		display: block;
+		line-height: 0;
+	}
+
+	/* sized by its width/height attributes (px, measured), so the dots keep
+	   their aspect ratio instead of being scaled by the viewBox */
+	.dots {
+		display: block;
 	}
 
 	.label {

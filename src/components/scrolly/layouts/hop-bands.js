@@ -6,6 +6,8 @@ import {
 	plotBottom,
 	HOP_RGB,
 	NETWORK_HOP_DELAY_MS,
+	PULLBACK_ZOOM,
+	writeFieldCrowd,
 	set,
 	parkHidden
 } from "../layout-shared.js";
@@ -87,8 +89,9 @@ function layoutHopBands(nodes, w, h, _edges, params) {
 // consistent frame — only the 15 named actors have any distance left to travel.
 // ---------------------------------------------------------------------------
 
-const HOP_SEED_ZOOM = 0.45; // how far the camera pulls back
-const HOP_SEED_ZOOM_MS = 2400; // "slowly" — the whole pull-back is one long leg
+// "slowly" — the whole pull-back is one long leg, long enough that the reader
+// reads the line while the camera is still moving
+const PULLBACK_ZOOM_MS = 4000;
 // the links are gone for the whole step: they fade out over the arrival tween,
 // in step with the names the state stops labelling
 const HOP_SEED_EDGE_FADE = 0;
@@ -98,7 +101,8 @@ function layoutHopSeed(nodes, w, h, edges) {
 	const { attrs } = layoutHopBands(nodes, w, h, edges, { seed: true });
 	// no focus: whatever route the reader lit up on networkIntro releases as the
 	// camera pulls back, because the step is about the network as a whole again
-	writeNetwork(attrs, nodes, w, h, null, HOP_SEED_ZOOM, HOP_SEED_EDGE_FADE);
+	writeNetwork(attrs, nodes, w, h, null, PULLBACK_ZOOM, HOP_SEED_EDGE_FADE);
+	writeFieldCrowd(attrs, nodes, w, h, PULLBACK_ZOOM);
 	// an all-zero clock, opting out of the default edge lag: that lag is for links
 	// fading IN behind travelling dots, and these are fading OUT over a frame
 	// where nothing moves — so they go with the names, not half a beat later. It
@@ -117,15 +121,9 @@ function layoutHopSeed(nodes, w, h, edges) {
  */
 function zoomOutFrames(nodes, w, h) {
 	return (attrs, _trails, _phase, e) => {
-		writeNetwork(
-			attrs,
-			nodes,
-			w,
-			h,
-			null,
-			1 + (HOP_SEED_ZOOM - 1) * e,
-			HOP_SEED_EDGE_FADE
-		);
+		const scale = 1 + (PULLBACK_ZOOM - 1) * e;
+		writeNetwork(attrs, nodes, w, h, null, scale, HOP_SEED_EDGE_FADE);
+		writeFieldCrowd(attrs, nodes, w, h, scale);
 	};
 }
 
@@ -136,10 +134,11 @@ export const states = {
 		// links on arrival, so the pull-back is of an unlabelled crowd. They also
 		// wouldn't survive a cluster this small — 15 names in that space collide.
 		// hopBands names Bacon again once he has landed at the top.
+		//
 		// the pull-back is authored for the forward arrival out of networkIntro;
 		// stepping back in from hopBands is one plain tween
 		revealFrom: ["networkIntro"],
-		entry: { phases: [HOP_SEED_ZOOM_MS], frames: zoomOutFrames }
+		entry: { phases: [PULLBACK_ZOOM_MS], frames: zoomOutFrames }
 	},
 	hopBands: {
 		layout: (n, w, h, e) => layoutHopBands(n, w, h, e, {}),

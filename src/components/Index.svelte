@@ -410,15 +410,16 @@
 	/* the rank chapter's "everyone else" list: sits below the space where
 	   Bacon's hop bar dissolves (see layouts/rank.js) and above the measured
 	   step card (inline `bottom`). The delayed fade-in keeps the panel's opaque
-	   background from hiding the hopBands → rankFocus canvas tween — the
-	   dissolve gets ~TWEEN_MS to read before the list covers that area. */
+	   background from hiding the hopBands → rankFocus canvas tween: it waits out
+	   TWEEN_MS *and* its jitter, so the last stragglers land on the dots before
+	   the list — which draws that same frame — takes the area over. */
 	.rank-bars-panel {
 		position: absolute;
 		top: 84px;
 		left: 0;
 		right: 0;
 		background: var(--color-bg);
-		animation: panel-in 0.4s ease 0.55s both;
+		animation: panel-in 0.4s ease 1.1s both;
 	}
 
 	@keyframes panel-in {
@@ -445,7 +446,7 @@
 	   reader meets Bacon before the question — see RankBars.svelte's row-in
 	   for the next stage (everyone else fading in after this). */
 	.rank-focus-text {
-		animation: panel-in 0.5s ease 1.1s both;
+		animation: panel-in 0.5s ease 1.65s both;
 	}
 
 	@media (prefers-reduced-motion: reduce) {

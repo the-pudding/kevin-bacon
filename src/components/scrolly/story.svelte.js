@@ -24,10 +24,11 @@ export const story = $state({
 	 * plain constellation, which is where the step rests. Tapping the highlighted
 	 * actor again (or Bacon) clears it (see layouts/intro.js) */
 	introFocus: null,
-	/** rank ladder: on-screen y (canvas coordinate space) of RankBars' centered
-	 * focus row, measured live by RankBars itself — null until it has mounted
-	 * and reported a position (see layouts/rank.js) */
-	rankFocusY: null,
+	/** rank ladder: `{ x, y, w }` in canvas coordinate space of the hop bar on
+	 * RankBars' centered focus row, measured live by RankBars itself — null until
+	 * it has mounted and reported a position. The canvas bar tweens to meet that
+	 * exact box, so the two are the same strip (see layouts/rank.js) */
+	rankFocusBar: null,
 	/** race chart: optional `{ playhead }` camera override; null = the active race
 	 * state rests at the right-hand end of its content extent. It is the *hold*
 	 * target written once when the reader releases a pan (ScrollyVisual owns the

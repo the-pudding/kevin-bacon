@@ -11,6 +11,7 @@ import {
 	pairKey,
 	parkHidden,
 	introPosition,
+	writeFieldCrowd,
 	NETWORK_INTRO_RADIUS
 } from "../layout-shared.js";
 import { routesTo, routeActors } from "../intro-routes.js";
@@ -139,6 +140,12 @@ function buildNetworkAttrs(nodes, w, h, focus) {
 	for (const n of nodes) {
 		if (!introSet.has(n.id)) parkHidden(attrs, n, w, h);
 	}
+	// hopSeed's field, parked (invisible) at full zoom — where the camera would
+	// have pushed it back out to. Without this the crowd is parked on the films
+	// scatter instead, and stepping back out of hopSeed drags 600 visible dots
+	// left across the canvas toward their film counts rather than letting the
+	// camera zoom back in over them.
+	writeFieldCrowd(attrs, nodes, w, h, 1);
 	const pos = writeNetwork(attrs, nodes, w, h, focus);
 	return { attrs, pos };
 }

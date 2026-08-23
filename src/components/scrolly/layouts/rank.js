@@ -5,7 +5,11 @@ import {
 	set,
 	parkHidden,
 	HOP_RGB,
-	INK
+	INK,
+	RANK_BAR_H,
+	RANK_DOT_D,
+	hopDotSlots,
+	hopFractions
 } from "../layout-shared.js";
 
 // ---------------------------------------------------------------------------
@@ -24,34 +28,40 @@ const BACON_Y = MARGIN + 40;
 /** @type {import("../layout-shared.js").LayoutFn} */
 function layoutRank(nodes, w, h, _edges, params) {
 	const attrs = new Float64Array(ATTR_SIZE);
-	const x0 = MARGIN;
-	// RankBars reports where its centered focus row actually lands on screen
-	// (story.rankFocusY) — the bar tweens to meet it there, not a fixed spot
-	const baconY = params?.baconY ?? BACON_Y;
+	// RankBars reports the box its centered row's bar actually occupies
+	// (story.rankFocusBar) — the canvas bar tweens to meet it there, not a fixed
+	// spot, so the strip the dots land on is the strip the panel then draws
+	const bar = params?.bar;
+	const baconY = bar?.y ?? BACON_Y;
+	const x0 = bar?.x ?? MARGIN;
+	const maxBarW = bar?.w ?? w - MARGIN * 2;
 
-	const counts = [0, 0, 0, 0, 0];
-	for (const n of nodes) if (n.hop >= 0) counts[n.hop]++;
-	const dataTotal = counts[1] + counts[2] + counts[3] + counts[4];
-	const maxBarW = w - MARGIN * 2;
+	// Bacon's own corpus hop shares and dot lattice — the exact points his
+	// RankBars row draws (layout-shared.js), not an approximation of them, so
+	// the frame this tween settles on is the frame the panel then fades over.
+	const slots = hopDotSlots(hopFractions(ANCHOR_ID), maxBarW, ANCHOR_ID);
 
-	// segment boundaries mirror RankBars' own per-actor bar proportions
-	const segBounds = [x0];
-	for (let hop = 1; hop <= 4; hop++) {
-		segBounds.push(segBounds[hop - 1] + (counts[hop] / dataTotal) * maxBarW);
-	}
-
-	// every hop 1–4 actor (not just a sample) tweens from its hopBands spot
-	// into its own color's segment — the whole band converges into the bar,
-	// not a borrowed handful of stand-ins
+	// every hop 1–4 actor (not just a sample) tweens from its hopBands spot onto
+	// one of his row's dots — the whole band converges into the bar, several
+	// hundred actors per dot, rather than a borrowed handful of stand-ins
 	for (const n of nodes) {
 		if (n.hop < 1 || n.hop > 4) continue;
-		const segX = segBounds[n.hop - 1];
-		const segW = segBounds[n.hop] - segX;
-		const x = segX + hash01(n.id, 6) * segW;
-		const y = baconY + (hash01(n.id, 7) - 0.5) * 4;
-		set(attrs, n.id, x, y, 1.6, HOP_RGB[n.hop], 0.5);
+		const dots = slots[n.hop - 1];
+		const dot = dots[Math.floor(hash01(n.id, 6) * dots.length)];
+		set(
+			attrs,
+			n.id,
+			x0 + dot.x,
+			baconY - RANK_BAR_H / 2 + dot.y,
+			RANK_DOT_D / 2,
+			HOP_RGB[n.hop],
+			1
+		);
 	}
-	set(attrs, ANCHOR_ID, x0 - 10, baconY, 7, INK, 1);
+	// Bacon himself sits in the gutter to the left of the bar (the row's own
+	// left padding, once the panel lands), flush against its start
+	const BACON_R = 7;
+	set(attrs, ANCHOR_ID, x0 - BACON_R - 2, baconY, BACON_R, INK, 1);
 
 	// everyone else parks off-canvas (hidden), ready for whichever chapter
 	// picks them up next, instead of jittering around as background noise
@@ -64,7 +74,7 @@ function layoutRank(nodes, w, h, _edges, params) {
 	return { attrs };
 }
 
-const params = (s) => ({ baconY: s.rankFocusY });
+const params = (s) => ({ bar: s.rankFocusBar });
 
 export const states = {
 	rankFocus: { layout: layoutRank, params },

@@ -1,4 +1,11 @@
-import { NODE_COUNT, EDGE_COUNT, ANCHOR_ID, INTRO_LAYOUT } from "./nodes.js";
+import {
+	NODE_COUNT,
+	EDGE_COUNT,
+	ANCHOR_ID,
+	INTRO_IDS,
+	INTRO_LAYOUT,
+	hash01
+} from "./nodes.js";
 import rawNodes from "$data/scrolly-nodes.json";
 import story from "$data/scrolly-story.json";
 
@@ -166,6 +173,89 @@ export const ORDER_OF = new Map(BY_RANK.map((n, i) => [n.id, i]));
 // how many top-ranked actors RankBars renders — shared with the rank-guess
 // search so a search result is never outside the visible/scrollable list
 export const RANK_TOP_N = 250;
+
+// ---------------------------------------------------------------------------
+// Rank hop-breakdown bar: a hop-bands chart turned on its side, hops 1→4 left
+// to right, individual actors drawn as dots inside their band. Shared by the
+// canvas handoff (layouts/rank.js) and the HTML list it dissolves into
+// (RankBars.svelte) so the two land dot-for-dot on the same geometry.
+// ---------------------------------------------------------------------------
+
+export const RANK_BAR_H = 10; // px, the dotted strip's height
+// px floor per band. Also the minimum-nodes guarantee: dots are units of width,
+// so the floor that keeps a sparse hop (hop 4 is ~0.1% of a row) visible is
+// what keeps a handful of its dots on screen.
+export const RANK_SEG_MIN = 10;
+export const RANK_DOT_D = 3; // px dot diameter
+export const RANK_DOT_ROWS = 3; // dot rows stacked within RANK_BAR_H
+export const RANK_DOT_PITCH = 5; // px between dot columns
+// how much of the free space around a dot it may wander into: enough that the
+// strip reads as a crowd rather than a stamped lattice, not so much that
+// neighbours merge into a solid line at list widths
+export const RANK_DOT_JITTER = 0.5;
+
+/**
+ * Cumulative left edges (length 5) of hop bands 1–4 across `width`: each band
+ * gets `minPx` plus its share of what's left, so the proportions still read
+ * while no band disappears.
+ * @param {number[]} fractions four shares summing to 1
+ * @param {number} width px
+ * @param {number} [minPx]
+ */
+export function hopSegmentBounds(fractions, width, minPx = 0) {
+	const free = width - minPx * fractions.length;
+	const bounds = [0];
+	for (const fraction of fractions) {
+		bounds.push(bounds[bounds.length - 1] + minPx + free * fraction);
+	}
+	return bounds;
+}
+
+/** an actor's hop 1–4 shares of the corpus, from the rankHopBands export */
+export function hopFractions(id) {
+	const counts = story.rankHopBands[id];
+	const total = counts.reduce((sum, count) => sum + count, 0);
+	return counts.map((count) => count / total);
+}
+
+/**
+ * The dot positions of one actor's bar: per band, a lattice of columns × rows
+ * across the band's own width, each dot nudged off the lattice so the strip
+ * reads as a crowd. `id` keys that nudge, so a row's dots are stable.
+ *
+ * Both sides of the rank handoff draw these exact points — the HTML row as one
+ * path per band, the canvas as the spot each converging actor lands on — so
+ * the frame the canvas settles into is the frame the panel then covers.
+ * @param {number[]} fractions four hop shares (see hopFractions)
+ * @param {number} width px
+ * @param {number} id node id keying the jitter
+ * @returns {{x: number, y: number}[][]} one array of dots per hop band
+ */
+export function hopDotSlots(fractions, width, id) {
+	const bounds = hopSegmentBounds(fractions, width, RANK_SEG_MIN);
+	const rowH = RANK_BAR_H / RANK_DOT_ROWS;
+	const jitterY = Math.max(0, (rowH - RANK_DOT_D) / 2) * RANK_DOT_JITTER;
+	return fractions.map((_, band) => {
+		const x0 = bounds[band];
+		const segW = bounds[band + 1] - x0;
+		// at least one column: a band this narrow is one the min-width floor is
+		// carrying, and it still owes the reader its colour
+		const cols = Math.max(1, Math.round(segW / RANK_DOT_PITCH));
+		const pitch = segW / cols;
+		const jitterX = Math.max(0, (pitch - RANK_DOT_D) / 2) * RANK_DOT_JITTER;
+		const dots = [];
+		for (let col = 0; col < cols; col++) {
+			for (let row = 0; row < RANK_DOT_ROWS; row++) {
+				const key = (id * 4 + band) * 512 + col * RANK_DOT_ROWS + row;
+				dots.push({
+					x: x0 + (col + 0.5) * pitch + (hash01(key, 8) - 0.5) * jitterX * 2,
+					y: (row + 0.5) * rowH + (hash01(key, 9) - 0.5) * jitterY * 2
+				});
+			}
+		}
+		return dots;
+	});
+}
 
 // fixed film-count x-scale shared by every films-scatter variant so dots only
 // travel vertically when the y-metric changes. Floored at 10 films: the scatter
@@ -498,4 +588,95 @@ export function introPosition(k, w, h, scale = 1) {
 export function parkHidden(attrs, n, w, h) {
 	const [x, y] = scatterPosition(n, w, h);
 	set(attrs, n.id, x, y, 2, CROWD, 0);
+}
+
+// ---------------------------------------------------------------------------
+// The pull-back, and the crowd that arrives during it
+//
+// hopSeed backs the camera off the intro constellation about Bacon (see
+// introPosition's `scale`) while a wider crowd of real actors fades in around
+// it. The geometry lives here because two chapters need it: hop-bands draws the
+// pulled-back frame, and the intro states have to park the same crowd where the
+// pull-back would have left it, or stepping backwards drags 600 dots across the
+// canvas to their scatter spots instead of letting the camera push them back out.
+// ---------------------------------------------------------------------------
+
+// how far the camera pulls back: far enough that the crowd dots land at the 2px
+// the scatter chapters draw the corpus at (and near hopBands' own 3px), so the
+// step ends on marks the rest of the story already reads as "one of many"
+// rather than on shrunken portraits
+export const PULLBACK_DOT_R = 2;
+export const PULLBACK_ZOOM = PULLBACK_DOT_R / NETWORK_INTRO_RADIUS[1];
+
+/**
+ * The crowd that arrives as the camera pulls back: a uniform stride over the
+ * hop 1–4 ids, which preserves the sample's hop mix whatever order the corpus
+ * happens to be in, and is identical on every render. Every one of them is a
+ * real actor with a band of its own, so hopBands sorts the crowd the reader just
+ * met rather than swapping it for a different one.
+ *
+ * The intro fifteen are excluded: they are drawn by the constellation writer,
+ * and the ids are low enough that a stride starting at the top of the corpus
+ * lands on one (it took De Niro, the lowest hop 1–4 id there is) and drags them
+ * out of the graph into the field.
+ */
+const FIELD_TARGET = 600;
+const INTRO_SET = new Set(INTRO_IDS);
+const HOP_1_4_IDS = rawNodes.nodes.reduce(
+	(ids, n, id) =>
+		n[2] >= 1 && n[2] <= 4 && !INTRO_SET.has(id) ? (ids.push(id), ids) : ids,
+	/** @type {number[]} */ ([])
+);
+const FIELD_STRIDE = Math.max(1, Math.round(HOP_1_4_IDS.length / FIELD_TARGET));
+export const FIELD_IDS = HOP_1_4_IDS.filter((_, i) => i % FIELD_STRIDE === 0);
+
+// the constellation's own crowd alpha: by the end of the pull-back the fifteen
+// are meant to be indistinguishable members of the field, which is the whole
+// point of the beat — only Bacon stays darker and larger
+const FIELD_ALPHA = 1;
+// ramp width, so a dot crossing the plot edge fades up rather than popping
+const FIELD_FADE_PX = 40;
+// share of the pull-back over which the field opens up. The edge ramp alone
+// cannot hold the opening frame clean: a dot has to be authored a third of the
+// canvas out from Bacon before full zoom pushes it off the edge, which leaves a
+// ring of white between the constellation and the nearest field dot. Gating on
+// the camera instead lets a dot be authored right up against the constellation
+// — the ones already in frame simply fade up where they stand while the outer
+// ones still cross in.
+const FIELD_OPEN_SHARE = 0.35;
+
+/**
+ * Writes the field into `attrs` at the pull-back's live `scale` (1 = full zoom,
+ * PULLBACK_ZOOM = landed), leaving every other slot alone.
+ *
+ * Each dot is authored at the spot it holds when the camera lands, and its
+ * position at any wider scale is that spot pushed out from Bacon — the point the
+ * pull-back turns about — so the field contracts into frame exactly as the
+ * constellation does, and expands back out of it on the way back. Radius follows
+ * the constellation's crowd rather than the landing size, so a dot arrives at
+ * whatever the graph's dots are at that moment instead of popping in already
+ * shrunk. Opacity is geometry and camera only: no per-dot choreography, no
+ * clocks, and the same call serves the static frame and every animated one.
+ */
+export function writeFieldCrowd(attrs, nodes, w, h, scale) {
+	const [bx, by] = introPosition(ANCHOR_ID, w, h);
+	const x0 = MARGIN;
+	const x1 = w - MARGIN;
+	const y0 = MARGIN;
+	const y1 = plotBottom(h);
+	const k = scale / PULLBACK_ZOOM;
+	const opening = Math.min(
+		1,
+		(1 - scale) / ((1 - PULLBACK_ZOOM) * FIELD_OPEN_SHARE)
+	);
+	const r = NETWORK_INTRO_RADIUS[1] * scale;
+	for (const id of FIELD_IDS) {
+		const fx = x0 + hash01(id, 10) * (x1 - x0);
+		const fy = y0 + hash01(id, 11) * (y1 - y0);
+		const x = bx + (fx - bx) * k;
+		const y = by + (fy - by) * k;
+		const inset = Math.min(x - x0, x1 - x, y - y0, y1 - y);
+		const edge = Math.max(0, Math.min(1, inset / FIELD_FADE_PX));
+		set(attrs, id, x, y, r, CROWD, FIELD_ALPHA * edge * Math.max(0, opening));
+	}
 }

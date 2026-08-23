@@ -430,7 +430,12 @@ so the markup lives next to the step that owns it. Steps sharing one visual
 must pass the same snippet reference — that's what keeps the component alive
 across the step change. `RankBars.svelte` (the rank chapter's scrollable
 "everyone else" bar list, shown during `rankFocus`/`rankReveal`) is the built
-example.
+example. Its rows are hop-bands charts turned on their side, drawn as
+individual dots: the geometry both sides share (`RANK_BAR_H`, `RANK_SEG_MIN`,
+`RANK_DOT_*`, `hopSegmentBounds`) lives in `layout-shared.js`, and the panel
+measures its focused row live and publishes the box to `story.rankFocusBar`,
+which `layouts/rank.js` tweens the canvas bar into — the panel owns the
+geometry, the canvas follows it.
 
 Also required before publish: a step-visibility analytics beacon — fire on
 `value` changes in `Index.svelte` (the wizard equivalent of the old per-step
