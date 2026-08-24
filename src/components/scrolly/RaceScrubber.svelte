@@ -18,6 +18,19 @@
 	// playhead the reader is aiming at; falls back to the published camera whenever
 	// they aren't driving it (a step change, a choreography, a resize re-clamp)
 	const value = $derived(story.scrubYear ?? cam?.playhead ?? 0);
+	// The Slider's own domain is whole years, and every value it is handed has to
+	// BE one: the camera's bounds and playhead are fractional (a step's resting
+	// camera is 1970 + however many years the viewport shows), and bits-ui snaps a
+	// value that isn't on its step grid by writing the snapped one back through
+	// onValueChange — indistinguishable here from the reader moving the control, so
+	// the mount of a freshly-arrived step would announce a scrub nobody started
+	// (and never commit it, leaving story.scrubbing stuck on). The grid is rounded
+	// OUTWARD so it always spans at least one whole year however wide the viewport
+	// makes the camera; onSlide clamps the year it yields back to the real bounds,
+	// so the two ends of the track still mean exactly panMin and panMax.
+	const sliderMin = $derived(Math.floor(cam?.panMin ?? 0));
+	const sliderMax = $derived(Math.ceil(cam?.panMax ?? 0));
+	const sliderValue = $derived(Math.round(value));
 
 	/** @type {HTMLElement | undefined} */
 	let surface = $state();
@@ -75,10 +88,10 @@
 		<div class="control">
 			<output class="year">{Math.round(value)}</output>
 			<Slider
-				{value}
+				value={sliderValue}
 				class="race-slider"
-				min={cam.panMin}
-				max={cam.panMax}
+				min={sliderMin}
+				max={sliderMax}
 				step={1}
 				onValueChange={onSlide}
 				onValueCommit={onCommit}

@@ -173,6 +173,10 @@
 	// which also reads better: the modern crowd drops away first, leaving the actors
 	// the step is about.
 	const CAST_DEPART_END = 0.35;
+	// how far into raceRecent's draw-on the cast fades fully in. Short, relative
+	// to the 4s sweep — they should read as "arriving" once the rank crowd has
+	// cleared, not as a second slow reveal riding the whole draw-on
+	const CAST_ARRIVE_END = 0.15;
 	// per-frame cast alpha for one sweep phase: actors joining the landing set
 	// fade in over the phase, actors leaving fade out over CAST_DEPART_END,
 	// everyone else rides at full strength — so contender-membership changes glide
@@ -224,13 +228,18 @@
 	}
 	// run one eased race phase; map(e) → the frame; onDone chains the next; cast
 	// ({from, to} contender Sets) fades membership changes over the phase (see
-	// castAlpha). Every frame publishes its camera into renderPlayhead, so a later
-	// leg (or a reader's grab) continues from wherever this one actually got to.
-	// `fixedYFit` is either one [vMin,vMax,vLo,vHi] held for the whole phase or a
-	// function of the eased progress (raceRewindYFit) for the one phase whose axis moves.
+	// castAlpha) — or, for a phase with no prior membership to compare against
+	// (the entry draw-on's first arrival), a plain `(e) => (id) => alpha`
+	// function of its own. Every frame publishes its camera into renderPlayhead,
+	// so a later leg (or a reader's grab) continues from wherever this one
+	// actually got to. `fixedYFit` is either one [vMin,vMax,vLo,vHi] held for the
+	// whole phase or a function of the eased progress (raceRewindYFit) for the
+	// one phase whose axis moves.
 	function runSweepPhase(map, yCap, onDone, fixedYFit = null, cast = null) {
 		const yFitAt =
 			typeof fixedYFit === "function" ? fixedYFit : () => fixedYFit;
+		const alphaAt =
+			typeof cast === "function" ? cast : (e) => castAlpha(cast, e);
 		runPhase(
 			SWEEP_MS,
 			(e) => {
@@ -243,7 +252,7 @@
 					map(e),
 					yCap,
 					yFit,
-					castAlpha(cast, e)
+					alphaAt(e)
 				);
 				renderPlayhead = cam.playhead;
 				liveYFit = yFit;
@@ -306,8 +315,14 @@
 	}
 	function startScrub() {
 		// single-writer discipline: take the rAF from the generic writers, then own
-		// it for the glide loop
+		// it for the glide loop. Land whatever they were tweening toward first: the
+		// glide's frame writer only stamps the race slots (writeRaceSweepFrame), so
+		// stopping a tween mid-flight would strand every other dot — the crowd of
+		// the chapter we just arrived from — wherever it had got to, with nothing
+		// left running to finish moving it.
 		stopSweep();
+		if (tweener.target) tweener.to(tweener.target, 0);
+		if (trailTweener.target) trailTweener.to(trailTweener.target, 0);
 		tweener.stop();
 		trailTweener.stop();
 		camPanning = true;
@@ -498,6 +513,14 @@
 		// param-tween settle. The sweep casts only raceRecent's contenders
 		// (RACE_ENTRY_CONTENDERS), so its frames always agree with the yCap-
 		// filtered static layouts and nobody pops out at the settle.
+		//
+		// alpha is a plain fade-in over CAST_ARRIVE_END, not castAlpha's from/to
+		// comparison — every contender here is arriving fresh (there is no prior
+		// membership to compare against; the rank crowd they were sitting among a
+		// moment ago has already faded to nothing), so they should tween in, not
+		// pop straight to full strength on this phase's first frame.
+		const arrive = (e) => (id) =>
+			RACE_ENTRY_CONTENDERS.has(id) ? Math.min(1, e / CAST_ARRIVE_END) : 0;
 		tweener.stop();
 		trailTweener.stop();
 		sweeping = true;
@@ -521,7 +544,7 @@
 				}
 			},
 			RACE_RECENT_YFIT,
-			{ from: RACE_ENTRY_CONTENDERS, to: RACE_ENTRY_CONTENDERS }
+			arrive
 		);
 	}
 
@@ -1143,6 +1166,17 @@
 			// first rAF tick of playRaceEntry's sweep does that (outside this
 			// effect), moments later; doing it here too would make this effect
 			// read (via decor's spread) the same decor it's reactively driven by.
+			// Called only to collapse every race trail to invisible (reveal 0) —
+			// its dot placements are overwritten below. Alpha is a flat zero, not
+			// the phase's own cast alpha: a collapsed trail still carries a stroke
+			// alpha, and this arrival TWEENS onto the seed frame, so any non-zero
+			// value fades the lines in before the draw-on has drawn anything. On a
+			// re-entry (the reader stepped back to the rank chapter and forward
+			// again) the buffer still holds the previous visit's curve geometry, so
+			// that fade-in reads as the real lines, already drawn, squeezing toward
+			// the present edge. The draw-on writes its own alphas from its first
+			// frame (see playRaceEntry's `arrive`), so nothing is lost by holding
+			// the seed at zero.
 			writeRaceSweepFrame(
 				startAttrs,
 				startTrails,
@@ -1151,8 +1185,27 @@
 				entryFrame(RACE_RECENT_STEP)(0),
 				STATE_YCAP[RACE_ENTRY_STATE],
 				RACE_RECENT_YFIT,
-				castAlpha({ from: RACE_ENTRY_CONTENDERS, to: RACE_ENTRY_CONTENDERS }, 0)
+				() => 0
 			);
+			// `attrs` parks the whole non-race corpus (the rank chapter's hop
+			// crowd) at its distance-scatter spot, alpha 0 — the position a later
+			// scatter chapter needs so ITS reveal doesn't teleport — and the write
+			// above places the race cast at their real chart spot, fully opaque.
+			// The crowd is still fully visible in the rank bar right now (for
+			// many of them, ~85% under 10 films, that scatter spot sits off the
+			// left edge), and gliding straight there drags a mass of opaque dots
+			// across the whole canvas while they fade. Freeze everyone where they
+			// stand instead and fade the whole rank scene out in place;
+			// playRaceEntry's own draw-on then fades the race cast in fresh at
+			// their real spot (see CAST_ARRIVE_END) with nothing to glide from,
+			// and the raceRecent settle (story.raceView, once the choreography
+			// lands) retargets the hidden crowd onto its real scatter spot with
+			// nothing to see.
+			for (let i = 0; i < EDGE_BASE; i += STRIDE) {
+				startAttrs[i] = tweener.current[i];
+				startAttrs[i + 1] = tweener.current[i + 1];
+				startAttrs[i + 6] = 0;
+			}
 			tweener.to(startAttrs, TWEEN_MS, TWEEN_JITTER, stateDelays, () =>
 				playRaceEntry(RACE_RECENT_STEP)
 			);

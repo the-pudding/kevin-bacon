@@ -9,7 +9,8 @@ import {
 	RANK_BAR_H,
 	RANK_DOT_D,
 	hopDotSlots,
-	hopFractions
+	hopFractions,
+	RACE_SLOT
 } from "../layout-shared.js";
 
 // ---------------------------------------------------------------------------
@@ -43,9 +44,15 @@ function layoutRank(nodes, w, h, _edges, params) {
 
 	// every hop 1–4 actor (not just a sample) tweens from its hopBands spot onto
 	// one of his row's dots — the whole band converges into the bar, several
-	// hundred actors per dot, rather than a borrowed handful of stand-ins
+	// hundred actors per dot, rather than a borrowed handful of stand-ins.
+	// Race-chart actors sit out of the convergence: the bar has no notion of
+	// individual rank position, so an actor who lands in it (their dot is one
+	// hashed slot among hundreds, unrelated to where they actually rank) has
+	// nothing meaningful to depart FROM once the race chapter wants to place
+	// them at their real position — better they stay parked hidden here, same
+	// as everyone the bar doesn't draw at all, and simply fade in fresh there.
 	for (const n of nodes) {
-		if (n.hop < 1 || n.hop > 4) continue;
+		if (n.hop < 1 || n.hop > 4 || RACE_SLOT.has(n.id)) continue;
 		const dots = slots[n.hop - 1];
 		const dot = dots[Math.floor(hash01(n.id, 6) * dots.length)];
 		set(
@@ -63,14 +70,20 @@ function layoutRank(nodes, w, h, _edges, params) {
 	const BACON_R = 7;
 	set(attrs, ANCHOR_ID, x0 - BACON_R - 2, baconY, BACON_R, INK, 1);
 
-	// everyone else parks off-canvas (hidden), ready for whichever chapter
-	// picks them up next, instead of jittering around as background noise
+	// everyone else — including the race cast, held out of the convergence
+	// above — parks off-canvas (hidden), ready for whichever chapter picks
+	// them up next, instead of jittering around as background noise
 	for (const n of nodes) {
-		if (n.id === ANCHOR_ID || (n.hop >= 1 && n.hop <= 4)) continue;
+		if (
+			n.id === ANCHOR_ID ||
+			(n.hop >= 1 && n.hop <= 4 && !RACE_SLOT.has(n.id))
+		)
+			continue;
 		parkHidden(attrs, n, w, h);
 	}
 
-	// no canvas legend: the hop key lives inside the RankBars panel it explains
+	// no hop key here: the hop-bands step just before this one establishes the
+	// colours, so repeating the key over the rank list only adds furniture
 	return { attrs };
 }
 

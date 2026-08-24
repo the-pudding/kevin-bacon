@@ -59,13 +59,6 @@
 			: null
 	);
 
-	const legend = [
-		{ color: HOP_RGB[1], label: "1 movie away" },
-		{ color: HOP_RGB[2], label: "2 movies" },
-		{ color: HOP_RGB[3], label: "3 movies" },
-		{ color: HOP_RGB[4], label: "4 movies" }
-	];
-
 	// pre-guess the list centers on Bacon (#175, the step copy's anchor) rather
 	// than opening on #1 and spoiling the guess
 	const focusId = $derived(
@@ -221,15 +214,6 @@
 		{/each}
 		<p class="footnote">Only the top {RANK_TOP_N} actors shown</p>
 	</ul>
-	<ul class="legend">
-		{#each legend as item}
-			<li>
-				<span class="swatch" style="background: rgb({item.color.join(',')})"
-				></span>
-				{item.label}
-			</li>
-		{/each}
-	</ul>
 </div>
 
 <style>
@@ -244,31 +228,6 @@
 		list-style: none;
 		margin: 0;
 		padding: 0;
-	}
-
-	.legend {
-		display: flex;
-		flex-wrap: nowrap;
-		justify-content: center;
-		gap: 0.6rem;
-		padding: 0.4rem 1rem;
-		white-space: nowrap;
-		font-family: var(--font-mono);
-	}
-
-	.legend li {
-		display: flex;
-		align-items: center;
-		gap: 0.3rem;
-		font-size: 0.6rem;
-		color: var(--color-gray-700, #444);
-	}
-
-	.swatch {
-		width: 0.6rem;
-		height: 0.6rem;
-		border-radius: 50%;
-		flex-shrink: 0;
 	}
 
 	.rows {
