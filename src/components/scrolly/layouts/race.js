@@ -138,6 +138,47 @@ function curveEntry(segs, to, from, vMin, vMax) {
 }
 
 /**
+ * Walking left from `to`, the first year where the curve is back inside
+ * [vMin, vMax] — i.e. where the line's right-hand end belongs when the curve has
+ * already run off scale at `to`. Returns `to` when it is in range to start with,
+ * and null when nothing between `from` and `to` is on scale.
+ *
+ * The mirror of curveEntry, and the reason it exists: curveEntry assumes its `to`
+ * is in range, so a step whose axis is fitted to a later window (raceTrades,
+ * raceFull) needs the right-hand end trimmed first or the line — and the dot
+ * riding it — would be drawn below the x axis.
+ *
+ * @param {ReturnType<typeof monotoneSegments>} segs
+ * @param {number} to right end of the drawn range
+ * @param {number} from furthest left the line could be drawn
+ */
+function curveExit(segs, to, from, vMin, vMax) {
+	const inRange = (x) => {
+		const v = curveYAt(segs, x);
+		return v >= vMin && v <= vMax;
+	};
+	if (inRange(to)) return to;
+	if (to <= from) return null;
+	const STEPS = 48;
+	let lastOut = to;
+	for (let i = 1; i <= STEPS; i++) {
+		const x = to - ((to - from) * i) / STEPS;
+		if (inRange(x)) {
+			// crossing is between x (in) and lastOut — bisect to the pixel
+			let inX = x;
+			for (let j = 0; j < 12; j++) {
+				const mid = (inX + lastOut) / 2;
+				if (inRange(mid)) inX = mid;
+				else lastOut = mid;
+			}
+			return inX;
+		}
+		lastOut = x;
+	}
+	return null;
+}
+
+/**
  * The y-fit for the rewind's second leg: an axis that PANS with the camera instead
  * of holding still, easing from `a` (raceRecent's) to `b` (raceTrades' resting fit)
  * while always containing the dots at the frame's playhead.
@@ -404,27 +445,48 @@ export function writeRaceSweepFrame(
 		// behind it) the cast's lines simply extend further back rather than
 		// leaving the axis empty. The extent still caps the right edge, so a step
 		// never shows years past the one it is about.
-		const sx1 = Math.min(cam.playhead, de, e1);
-		const sx0 = Math.max(
-			cam.camLeft,
-			revealFrom,
-			ds,
-			// ...and a line stops where it leaves the y scale, entering the plot
-			// through an edge like any line chart. That is what lets a step fit its
-			// axis to the years it is ABOUT: the further history its camera happens
-			// to cover goes off-scale instead of stretching the axis to hold it.
-			curveEntry(segs, sx1, Math.max(cam.camLeft, ds), vMin, vMax)
+		// ...and its right-hand end stops where the curve LEAVES the y scale, so a
+		// line whose recent years sit below the fitted axis ends at the plot's
+		// bottom edge instead of being drawn under the x axis. null = this actor is
+		// entirely off scale over the drawn window, so nothing of it is shown.
+		const drawFloor = Math.max(cam.camLeft, ds);
+		const sx1 = curveExit(
+			segs,
+			Math.min(cam.playhead, de, e1),
+			drawFloor,
+			vMin,
+			vMax
 		);
+		const sx0 =
+			sx1 === null
+				? 0
+				: Math.max(
+						cam.camLeft,
+						revealFrom,
+						ds,
+						// ...and a line STARTS where it re-enters the y scale, entering the
+						// plot through an edge like any line chart. That is what lets a step
+						// fit its axis to the years it is ABOUT: the further history its
+						// camera happens to cover goes off-scale instead of stretching the
+						// axis to hold it.
+						curveEntry(segs, sx1, drawFloor, vMin, vMax)
+					);
 		// the dot rides the RIGHT END OF THE VISIBLE LINE, not the raw playhead:
 		// when the playhead is within the actor's data the two coincide (dot pinned
 		// to the plot's right edge), but once the playhead runs past the data the
 		// dot stays glued to the curve's endpoint instead of floating ahead of a
 		// shorter line.
 		const dotYr = Math.min(Math.max(cam.playhead, ds), de);
+		const dotV = curveYAt(segs, dotYr);
 		const dx = cam.xS(dotYr);
-		const dy = yS(curveYAt(segs, dotYr));
-		set(attrsBuf, id, dx, dy, major ? 5 : 3, rgb, (major ? 1 : 0.55) * m);
-		if (sx1 > sx0) {
+		const dy = yS(dotV);
+		// a dot whose value has left the fitted scale is hidden outright rather than
+		// pinned to the plot edge: it would otherwise be drawn below the x axis (or
+		// above the plot, over the axis furniture), showing a value the chart isn't
+		// showing. Its line already ends at that edge (curveExit).
+		const dotM = dotV >= vMin && dotV <= vMax ? m : 0;
+		set(attrsBuf, id, dx, dy, major ? 5 : 3, rgb, (major ? 1 : 0.55) * dotM);
+		if (sx1 !== null && sx1 > sx0) {
 			sampleTrail(
 				trailBuf,
 				slot,
@@ -436,8 +498,10 @@ export function writeRaceSweepFrame(
 				(major ? 0.8 : 0.35) * m
 			);
 		} else {
-			// nothing of this actor is drawn yet (or at all) → park on the dot
-			collapseTrail(trailBuf, slot, dx, dy, (major ? 0.8 : 0.35) * m);
+			// nothing of this actor is drawn yet (or at all) → park on the dot, and
+			// ride the dot's alpha so a collapsed trail doesn't sit off scale where
+			// the dot itself is hidden
+			collapseTrail(trailBuf, slot, dx, dy, (major ? 0.8 : 0.35) * dotM);
 		}
 	}
 	return { axes: raceAxes(cam, yS, vLo, vHi, e1), cam, yS, cast };
