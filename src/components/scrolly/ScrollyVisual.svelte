@@ -401,10 +401,8 @@
 	let prevH = 0;
 	let entered = false;
 	// `camPanning` is true whenever the camera is actively moving (a reader pan, or
-	// the rewind phase) — reactive ($state) because the template also reads it to
-	// hide the era callouts while they're stale mid-pan. The entry draw-on keeps
-	// the camera still, so its notes stay pixel-accurate throughout and don't need
-	// to hide (see the `!camPanning` guard below).
+	// the rewind phase) — a reader's scrub grab is ignored while it is set, so a
+	// choreographed pan is never fought by the scrubber mid-motion.
 	let camPanning = $state(false);
 	// The live camera playhead — the single source of truth for where the race
 	// chapter's camera is. Every camera writer (draw-on, both rewind legs, the pan
@@ -1403,20 +1401,18 @@
 						{tick.label}
 					</p>
 				{/each}
-				{#if !camPanning}
-					{#each decor?.notes ?? [] as note}
-						<p
-							class="note fade-in {note.align ?? 'left'}"
-							class:strong={note.strong}
-							class:wrap={note.wrap}
-							style="left: {note.x}px; top: {note.y}px{note.wrapWidth
-								? `; width: ${note.wrapWidth}px; max-width: none`
-								: ''}"
-						>
-							{note.text}
-						</p>
-					{/each}
-				{/if}
+				{#each decor?.notes ?? [] as note}
+					<p
+						class="note fade-in {note.align ?? 'left'}"
+						class:strong={note.strong}
+						class:wrap={note.wrap}
+						style="left: {note.x}px; top: {note.y}px{note.wrapWidth
+							? `; width: ${note.wrapWidth}px; max-width: none`
+							: ''}"
+					>
+						{note.text}
+					</p>
+				{/each}
 				{#each decor?.legend?.filter((item) => item.x != null) ?? [] as item}
 					<p
 						class="legend-item pinned fade-in"

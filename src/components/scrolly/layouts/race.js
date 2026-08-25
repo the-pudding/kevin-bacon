@@ -1,4 +1,3 @@
-import rawNodes from "$data/scrolly-nodes.json";
 import story from "$data/scrolly-story.json";
 import {
 	ATTR_SIZE,
@@ -53,11 +52,6 @@ import {
 // those two decide how many years a phone can show at once, so buying more
 // padding here costs visible years.
 export const PX_PER_YEAR = 38;
-
-// minimum gap between two era callouts. In year units, which is now the same
-// thing as a pixel budget (PX_PER_YEAR is fixed), so this reads the same on
-// every screen — no width branch.
-const NOTE_MIN_GAP_YEARS = 2;
 
 // full-series monotone-cubic segments per race actor, built once (the data is
 // static). Shared by the static layout and the per-frame sweep so both read the
@@ -507,66 +501,13 @@ export function writeRaceSweepFrame(
 	return { axes: raceAxes(cam, yS, vLo, vHi, e1), cam, yS, cast };
 }
 
-// Era handovers long enough to read, and far enough apart not to collide, whose
-// reign OVERLAPS the camera. Overlap rather than "starts inside the camera": at a
-// fixed scale the camera can be narrower than a reign, and the reader needs to
-// know whose stretch they are looking at — so a reign already in progress gets
-// its callout anchored at the camera's left edge (still labelled with its real
-// start year). The NOTE_MIN_GAP_YEARS check then keeps at most one of those, the
-// longest-running one, instead of stacking every ongoing reign on the edge.
-//
-// The callout height alternates on the era's own index (not the pushed-note
-// count) — with a camera-dependent filter, a count parity would make a note hop
-// vertically as earlier notes pan out of view.
-function raceNotes(cam, yS, extent, cast, minEraYears) {
-	const [e0, e1] = extent;
-	const notes = [];
-	let lastAnchor = -Infinity;
-	story.eras.forEach((era, i) => {
-		const start = yearOf(era.start);
-		const end = era.end ? yearOf(era.end) : e1;
-		if (end - start < minEraYears) return;
-		if (start < e0 || start > e1) return;
-		if (end < cam.camLeft || start > cam.playhead) return;
-		if (!cast.has(era.id)) return;
-		const anchor = Math.max(start, cam.camLeft);
-		if (anchor - lastAnchor < NOTE_MIN_GAP_YEARS) return;
-		const series = clipSeries(story.raceSeries[era.id], e0, e1);
-		if (!series) return;
-		const vAt = valueAt(series, Math.max(anchor, e0));
-		const text = `${rawNodes.nodes[era.id][1]} · ${Math.round(start)}`;
-		// centre-anchored notes clip when their anchor sits within half a label
-		// width of a plot edge, so clamp the centre inward to keep the whole label
-		// inside the plot
-		const hw = text.length * 3.4;
-		const cx = Math.min(
-			Math.max(cam.xS(anchor), cam.left + hw),
-			cam.right - hw
-		);
-		notes.push({
-			x: cx,
-			y: yS(vAt) - (i % 2 === 0 ? 24 : 42),
-			align: /** @type {const} */ ("center"),
-			text
-		});
-		lastAnchor = anchor;
-	});
-	return notes;
-}
-
 /**
  * @param {{extent: [number, number], highlight?: number[]}} step the state's race
  * descriptor — its content extent (also the resting playhead: every race step
  * opens with the camera at the right-hand end of its data) and, optionally, the
  * contenders it is about (see RaceFrame.highlight)
  */
-function raceLayout(
-	step,
-	minEraYears,
-	yCap = Infinity,
-	showEraNotes = true,
-	fixedYFit = null
-) {
+function raceLayout(step, yCap = Infinity, fixedYFit = null) {
 	const { extent } = step;
 	/** @type {import("../layout-shared.js").LayoutFn} */
 	return function layoutRace(nodes, w, h, _edges, params) {
@@ -581,7 +522,7 @@ function raceLayout(
 			const [x, y] = scatterPosition(n, w, h);
 			set(attrs, n.id, x, y, 2, CROWD, 0);
 		}
-		const { axes, cam, yS, cast } = writeRaceSweepFrame(
+		const { axes, cam, cast } = writeRaceSweepFrame(
 			attrs,
 			trails,
 			w,
@@ -615,7 +556,6 @@ function raceLayout(
 			attrs,
 			trails,
 			trailDelays,
-			notes: showEraNotes ? raceNotes(cam, yS, extent, cast, minEraYears) : [],
 			axes
 		};
 	};
@@ -624,13 +564,6 @@ function raceLayout(
 const yearOf = (iso) => {
 	const [y, m, d] = iso.split("-").map(Number);
 	return y + (m - 1) / 12 + (d - 1) / 365;
-};
-const valueAt = (series, x) => {
-	let j = 1;
-	while (j < series.length - 1 && series[j][0] < x) j++;
-	const [x0, v0] = series[j - 1];
-	const [x1, v1] = series[j];
-	return x1 === x0 ? v0 : v0 + ((v1 - v0) * (x - x0)) / (x1 - x0);
 };
 
 const OVERLAY = {
@@ -832,15 +765,7 @@ export function raceFullRestPlayhead(w, h) {
 
 export const states = {
 	raceRecent: {
-		// no era-handover note here: the step's two actors are already named beside
-		// their dots (labels below), so a callout would just repeat a name
-		layout: raceLayout(
-			RACE_RECENT_STEP,
-			3,
-			RACE_RECENT_YCAP,
-			false,
-			RACE_RECENT_YFIT
-		),
+		layout: raceLayout(RACE_RECENT_STEP, RACE_RECENT_YCAP, RACE_RECENT_YFIT),
 		race: RACE_RECENT_STEP,
 		yCap: RACE_RECENT_YCAP,
 		yFit: RACE_RECENT_YFIT,
@@ -861,13 +786,7 @@ export const states = {
 	},
 	raceTrades: {
 		// no yCap: the cast is named outright (RACE_TRADES_STEP.only)
-		layout: raceLayout(
-			RACE_TRADES_STEP,
-			0.4,
-			undefined,
-			true,
-			RACE_TRADES_YFIT
-		),
+		layout: raceLayout(RACE_TRADES_STEP, undefined, RACE_TRADES_YFIT),
 		race: RACE_TRADES_STEP,
 		yFit: RACE_TRADES_YFIT,
 		// every centre of the window is named — that's what the step is showing, and
@@ -886,7 +805,7 @@ export const states = {
 		revealFrom: ["raceRecent"]
 	},
 	raceFull: {
-		layout: raceLayout(RACE_FULL_STEP, 4, Infinity, true, RACE_FULL_YFIT),
+		layout: raceLayout(RACE_FULL_STEP, Infinity, RACE_FULL_YFIT),
 		race: RACE_FULL_STEP,
 		yFit: RACE_FULL_YFIT,
 		labels: [HACKMAN],
