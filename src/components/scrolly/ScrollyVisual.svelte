@@ -380,6 +380,14 @@
 	// static per-state chart furniture (ticks/callouts/legend) from the layout result
 	/** @type {{ axes?: { x?: {pos:number,label:string}[], y?: {pos:number,label:string}[], xBase?: number, yBase?: number }, notes?: import("./states.js").Note[], legend?: import("./layout-shared.js").LegendItem[], legendY?: number, hits?: import("./layout-shared.js").Hit[] } | null} */
 	let decor = $state(null);
+	// true while an arrival is clearing the previous scene off the canvas before
+	// its own chart may appear: the axis furniture (ticks, callouts, legend, axis
+	// titles) stays unmounted until it drops, so the graph doesn't sit behind the
+	// outgoing scene. Set by the race entry (the rank bar fades out in place
+	// there, over the very region the axes occupy) and dropped when the draw-on
+	// takes the rAF; reset by every render pass, so an arrival cut short
+	// mid-fade can't leave the chart hidden.
+	let chartVeiled = $state(false);
 	// tappable chart regions (layout `hits` + the state's `pick`): rendered as
 	// transparent buttons over the canvas, so a pick is keyboard- and
 	// screen-reader-reachable without any canvas hit-testing
@@ -1054,6 +1062,7 @@
 			legendY: layout.legendY,
 			hits: layout.hits
 		};
+		chartVeiled = false;
 		// states without trails fade the previous ones out where they lie
 		let trailTarget = layout.trails;
 		if (!trailTarget) {
@@ -1206,9 +1215,13 @@
 				startAttrs[i + 1] = tweener.current[i + 1];
 				startAttrs[i + 6] = 0;
 			}
-			tweener.to(startAttrs, TWEEN_MS, TWEEN_JITTER, stateDelays, () =>
-				playRaceEntry(RACE_RECENT_STEP)
-			);
+			// ...and hold the chart furniture back until that fade has finished, so
+			// the axes don't draw up behind a rank bar that is still on screen.
+			chartVeiled = true;
+			tweener.to(startAttrs, TWEEN_MS, TWEEN_JITTER, stateDelays, () => {
+				chartVeiled = false;
+				playRaceEntry(RACE_RECENT_STEP);
+			});
 			trailTweener.to(startTrails, TWEEN_MS, 0);
 		} else if (raceRewindArrival) {
 			// no seed frame needed — the rewind sweep recomputes attrs from scratch
@@ -1337,14 +1350,14 @@
 	</div>
 	<div class="overlay">
 		{#key overlay?.xLabel}
-			{#if overlay?.xLabel}
+			{#if overlay?.xLabel && !chartVeiled}
 				<p class="x-label fade-in" style="top: {xLabelTop}px; bottom: auto">
 					{overlay.xLabel}
 				</p>
 			{/if}
 		{/key}
 		{#key overlay?.yLabel}
-			{#if overlay?.yLabel}
+			{#if overlay?.yLabel && !chartVeiled}
 				<!-- centre the axis title on the graph's y-axis extent, not the tall canvas -->
 				<p class="y-label fade-in" style="top: {yLabelTop}px">
 					{overlay.yLabel}
@@ -1356,61 +1369,67 @@
 			     animations (see writeRaceSweepFrame), so they stay pixel-accurate
 			     throughout and don't need to hide. Notes (era-handover callouts) have
 			     no per-frame equivalent, so they still hide during a live scrub/pan
-			     and snap back in once it settles. -->
-			{#each decor?.axes?.x ?? [] as tick}
-				<p
-					class="tick tick-x fade-in"
-					style="left: {tick.pos}px; {decor.axes.xBase != null
-						? `top: ${decor.axes.xBase}px`
-						: ''}"
-				>
-					{tick.label}
-				</p>
-			{/each}
-			{#each decor?.axes?.y ?? [] as tick}
-				<p class="tick tick-y fade-in" style="top: {tick.pos}px">
-					{tick.label}
-				</p>
-			{/each}
-			{#if !camPanning}
-				{#each decor?.notes ?? [] as note}
+			     and snap back in once it settles.
+
+			     `chartVeiled` holds the whole lot back while an arrival is still
+			     fading the previous scene off the canvas; dropping it mounts these,
+			     so each one plays its own fade-in then rather than at the step change. -->
+			{#if !chartVeiled}
+				{#each decor?.axes?.x ?? [] as tick}
 					<p
-						class="note fade-in {note.align ?? 'left'}"
-						class:strong={note.strong}
-						class:wrap={note.wrap}
-						style="left: {note.x}px; top: {note.y}px{note.wrapWidth
-							? `; width: ${note.wrapWidth}px; max-width: none`
+						class="tick tick-x fade-in"
+						style="left: {tick.pos}px; {decor.axes.xBase != null
+							? `top: ${decor.axes.xBase}px`
 							: ''}"
 					>
-						{note.text}
+						{tick.label}
 					</p>
 				{/each}
-			{/if}
-			{#each decor?.legend?.filter((item) => item.x != null) ?? [] as item}
-				<p
-					class="legend-item pinned fade-in"
-					style="left: {item.x}px; top: {item.y}px"
-				>
-					{item.label}
-				</p>
-			{/each}
-			{#if decor?.legend?.some((item) => item.x == null)}
-				<ul
-					class="legend fade-in"
-					style={decor.legendY != null
-						? `top: ${decor.legendY}px; bottom: auto`
-						: ""}
-				>
-					{#each decor.legend as item}
-						<li class="legend-item">
-							<span
-								class="legend-swatch"
-								style="background: rgb({item.color.join(',')})"
-							></span>
-							{item.label}
-						</li>
+				{#each decor?.axes?.y ?? [] as tick}
+					<p class="tick tick-y fade-in" style="top: {tick.pos}px">
+						{tick.label}
+					</p>
+				{/each}
+				{#if !camPanning}
+					{#each decor?.notes ?? [] as note}
+						<p
+							class="note fade-in {note.align ?? 'left'}"
+							class:strong={note.strong}
+							class:wrap={note.wrap}
+							style="left: {note.x}px; top: {note.y}px{note.wrapWidth
+								? `; width: ${note.wrapWidth}px; max-width: none`
+								: ''}"
+						>
+							{note.text}
+						</p>
 					{/each}
-				</ul>
+				{/if}
+				{#each decor?.legend?.filter((item) => item.x != null) ?? [] as item}
+					<p
+						class="legend-item pinned fade-in"
+						style="left: {item.x}px; top: {item.y}px"
+					>
+						{item.label}
+					</p>
+				{/each}
+				{#if decor?.legend?.some((item) => item.x == null)}
+					<ul
+						class="legend fade-in"
+						style={decor.legendY != null
+							? `top: ${decor.legendY}px; bottom: auto`
+							: ""}
+					>
+						{#each decor.legend as item}
+							<li class="legend-item">
+								<span
+									class="legend-swatch"
+									style="background: rgb({item.color.join(',')})"
+								></span>
+								{item.label}
+							</li>
+						{/each}
+					</ul>
+				{/if}
 			{/if}
 		{/key}
 	</div>
