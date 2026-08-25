@@ -204,9 +204,13 @@ handovers in a fifth of the plot:
   rest on: `curveEntry` ends each line where it leaves the scale, so the
   mid-eighties (where the same actors spread over ~0.8) go off-scale through the
   plot edge as in any line chart; and the arrival pan carries its own axis, below.
-- `raceFull` passes `yFit: null` and fits itself over `[1970, 2025]` (≈2.08–4.18).
-  raceTrades → raceFull is a plain tween, so dots and trails glide into that wider
-  scale rather than snapping to it.
+- `RACE_FULL_YFIT` — the era-leader envelope (`raceEraEnvelope`: each holder only
+  across the years they held the crown) over the whole `[1970, 2025]` extent →
+  ≈2.08–2.78, padded to ≈2.04–2.82. Fitting the leader trend rather than every
+  holder's entire curve is what keeps that ~0.7 wide instead of ~2.3; the 1970s
+  end of the trend genuinely sits up at ~2.78. `RACE_FULL_PAN_FLOOR` (1980) stops
+  the camera, not the axis — the extent, the x axis, the lines and this envelope
+  all still start at 1970. raceTrades → raceFull carries its own eased axis, below.
 
 The y-fit is otherwise constant for a whole state and a whole animation phase
 (reader panning never moves it — `racePanBounds` keeps the reader inside the
