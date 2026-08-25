@@ -247,23 +247,41 @@ function raceCamera(w, h, playhead) {
 }
 
 /**
- * How far a *reader* may pan a race step: never right of its content extent, and
- * never so far left that the camera runs off the front of it. `playhead` (the
- * camera's current year) widens the floor, so a grab that starts after a
- * choreography has parked the camera further back doesn't jerk forward.
- * `pannable` is false when the whole extent already fits on screen.
+ * How far a *reader* may pan a race step: never right of its content extent,
+ * never so far left that the camera runs off the front of it, and never back
+ * past the step's own `minPlayhead` (the earliest year it lets the reader put on
+ * the right edge — raceFull stops at 1980 even though its lines run back to
+ * 1970). `playhead` (the camera's current year) widens the floor, so a grab that
+ * starts after a choreography has parked the camera further back doesn't jerk
+ * forward. `pannable` is false when the whole extent already fits on screen.
  *
  * @param {number} w @param {number} h
- * @param {[number, number]} extent @param {number} playhead
+ * @param {{extent: [number, number], minPlayhead?: number}} step
+ * @param {number} playhead
  */
-export function racePanBounds(w, h, extent, playhead) {
-	const [e0, e1] = extent;
-	const panMax = e1;
+export function racePanBounds(w, h, step, playhead) {
+	const panMax = step.extent[1];
 	const panMin = Math.min(
 		panMax,
-		Math.min(e0 + raceVisibleSpan(w, h), playhead)
+		Math.min(raceFloorPlayhead(w, h, step), playhead)
 	);
 	return { panMin, panMax, pannable: panMax - panMin > 0.01 };
+}
+
+/**
+ * The earliest playhead a step allows: far enough forward that the camera's left
+ * edge still sits inside the extent, and no earlier than `minPlayhead` where the
+ * step declares one. The camera-off-the-front rule wins when the viewport is
+ * wide enough to make it the later of the two.
+ *
+ * @param {number} w @param {number} h
+ * @param {{extent: [number, number], minPlayhead?: number}} step
+ */
+function raceFloorPlayhead(w, h, step) {
+	const front = step.extent[0] + raceVisibleSpan(w, h);
+	return step.minPlayhead === undefined
+		? front
+		: Math.max(front, step.minPlayhead);
 }
 
 // x (year) + y (avg distance) tick furniture for one frame — shared by the
@@ -580,6 +598,14 @@ export const RACE_TRADES_EXTENT = /** @type {[number, number]} */ ([
 	1990, 1994
 ]);
 export const RACE_FULL_EXTENT = /** @type {[number, number]} */ ([1970, 2025]);
+// The earliest year raceFull lets the reader put on the plot's right edge. The
+// extent — and so the x axis, the lines and the y-fit envelope — still starts at
+// 1970; this only stops the camera, which on a wide viewport already rests with
+// 1970 at its left edge and 1980-ish on the right. It's the narrow viewports
+// this exists for: a phone shows ~5.5 years, so without a floor the camera would
+// park on 1975 and the reader would open the step on the emptiest stretch of the
+// timeline.
+const RACE_FULL_PAN_FLOOR = 1980;
 
 // yCap for the states that pick their cast by "who gets near the top",
 // re-exported alongside each layout (as STATE_YCAP in states.js) so the
@@ -623,7 +649,10 @@ const RACE_TRADES_FIT = /** @type {[number, number]} */ ([1990, 1994]);
 // foreground treatment there; De Niro and Welker stay on the chart in their own
 // colours, dimmed.
 export const RACE_RECENT_STEP = { extent: RACE_RECENT_EXTENT, highlight: [SLJ, HACKMAN] }; // prettier-ignore
-export const RACE_FULL_STEP = { extent: RACE_FULL_EXTENT };
+export const RACE_FULL_STEP = {
+	extent: RACE_FULL_EXTENT,
+	minPlayhead: RACE_FULL_PAN_FLOOR
+};
 
 /**
  * The ids one state puts on the chart. A step either names its cast outright
@@ -726,16 +755,15 @@ export const RACE_FULL_YFIT = /** @type {[number,number,number,number]} */ ([
 	RACE_FULL_ENV_HI
 ]);
 
-// raceFull's resting camera: 1970 at the plot's left edge, or as far back as
-// the viewport can show if it's narrower than the full [1970, 2025] span.
-// This is the state's true resting playhead regardless of arrival path — the
-// rewind's third leg (see ScrollyVisual's playRaceFullEntry) just animates
-// getting there instead of snapping.
+// raceFull's resting camera: 1970 at the plot's left edge, or RACE_FULL_PAN_FLOOR
+// on its right edge where the viewport is too narrow to show both at once. Same
+// rule as the pan floor by construction — resting anywhere the reader can't pan
+// back to would re-open that floor (racePanBounds widens it to the live
+// playhead) and undo the limit. This is the state's true resting playhead
+// regardless of arrival path — the rewind's third leg (see ScrollyVisual's
+// playRaceFullEntry) just animates getting there instead of snapping.
 export function raceFullRestPlayhead(w, h) {
-	return Math.min(
-		RACE_FULL_EXTENT[1],
-		RACE_FULL_EXTENT[0] + raceVisibleSpan(w, h)
-	);
+	return Math.min(RACE_FULL_EXTENT[1], raceFloorPlayhead(w, h, RACE_FULL_STEP));
 }
 
 export const states = {

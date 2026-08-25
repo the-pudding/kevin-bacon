@@ -279,7 +279,7 @@
 		const { panMin, panMax } = racePanBounds(
 			width,
 			height,
-			extent,
+			raceStep,
 			renderPlayhead
 		);
 		const target = Math.min(
@@ -672,8 +672,9 @@
 	// Race-chapter rewind, leg 3 and final: played on arrival at raceFull from
 	// raceTrades, continuing the same back-through-time pan on from wherever
 	// leg 2 parked the camera, all the way to raceFull's own resting playhead
-	// (1970 at the plot's left edge, or as far back as the viewport shows —
-	// see raceFullRestPlayhead). raceFull's own resting axis (RACE_FULL_YFIT) is
+	// (1970 at the plot's left edge, or its 1980 pan floor on the right where the
+	// viewport is too narrow to show both — see raceFullRestPlayhead).
+	// raceFull's own resting axis (RACE_FULL_YFIT) is
 	// wider than raceTrades' — a straight cut to it the instant the state
 	// changes would jump the axis before the camera has even started panning,
 	// which reads as a jolt independent of the pan itself. So, like leg 2, this
@@ -685,7 +686,8 @@
 	//
 	// Explicitly nulls story.raceCam before the sweep starts: RaceScrubber
 	// renders nothing while it's null, which is what keeps the pan control
-	// hidden until the camera has actually finished arriving at 1970 instead of
+	// hidden until the camera has actually finished arriving at its resting year
+	// instead of
 	// being usable (with stale raceTrades bounds) mid-flight. Safe by effect
 	// ordering — this only ever runs from the render effect, which runs after
 	// the raceStep-driven auto-publish effect within the same flush.
@@ -702,8 +704,8 @@
 		}
 		if (toP >= fromP) {
 			// the resting view sits at or ahead of where the camera already is
-			// (a viewport wide enough that 1970 is no further back than
-			// raceTrades left off, or wider still than the whole extent) —
+			// (a viewport wide enough that the resting year is no further back
+			// than raceTrades left off, or wider still than the whole extent) —
 			// nothing to pan to
 			story.raceView = finalView;
 			publishRaceCam();
@@ -934,10 +936,11 @@
 			if (story.raceView !== null) story.raceView = null;
 			if (story.scrubYear !== null) story.scrubYear = null;
 			if (extent) renderPlayhead = extent[1];
-			// raceFull's true resting camera is 1970 at the left edge (or as far
-			// back as the viewport shows), not the extent's own end — every
-			// arrival path settles here, and playRaceFullEntry just animates
-			// getting there on the one path that deserves the flourish
+			// raceFull's true resting camera is 1970 at the left edge (or its pan
+			// floor on the right, where the viewport can't show both), not the
+			// extent's own end — every arrival path settles here, and
+			// playRaceFullEntry just animates getting there on the one path that
+			// deserves the flourish
 			if (stateName === RACE_FULL_STATE && width && height) {
 				renderPlayhead = raceFullRestPlayhead(width, height);
 			}
@@ -971,12 +974,11 @@
 	// points (state change, resize, every choreography settle) rather than per
 	// frame — the pan control only needs the camera it can be grabbed from.
 	function publishRaceCam() {
-		const extent = raceStep?.extent;
-		if (!extent || !width || !height) {
+		if (!raceStep?.extent || !width || !height) {
 			if (story.raceCam !== null) story.raceCam = null;
 			return;
 		}
-		const bounds = racePanBounds(width, height, extent, renderPlayhead);
+		const bounds = racePanBounds(width, height, raceStep, renderPlayhead);
 		renderPlayhead = Math.min(
 			bounds.panMax,
 			Math.max(bounds.panMin, renderPlayhead)

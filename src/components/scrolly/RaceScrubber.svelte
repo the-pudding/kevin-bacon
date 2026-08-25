@@ -20,7 +20,8 @@
 	const value = $derived(story.scrubYear ?? cam?.playhead ?? 0);
 	// The Slider's own domain is whole years, and every value it is handed has to
 	// BE one: the camera's bounds and playhead are fractional (a step's resting
-	// camera is 1970 + however many years the viewport shows), and bits-ui snaps a
+	// camera is its extent start + however many years the viewport shows), and
+	// bits-ui snaps a
 	// value that isn't on its step grid by writing the snapped one back through
 	// onValueChange — indistinguishable here from the reader moving the control, so
 	// the mount of a freshly-arrived step would announce a scrub nobody started
