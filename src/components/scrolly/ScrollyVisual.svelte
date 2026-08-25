@@ -8,7 +8,7 @@
 		writeRaceSweepFrame,
 		raceVisibleSpan,
 		racePanBounds,
-		raceStepCast,
+		raceStepVisible,
 		PX_PER_YEAR,
 		RACE_RECENT_EXTENT,
 		RACE_RECENT_STEP,
@@ -104,7 +104,7 @@
 	// -- Race path animator ("time machine") -------------------------------------
 	// A third rAF writer. Unlike the two tweeners it does NOT lerp between two
 	// endpoints: each frame it evaluates the race layout at a moving window and
-	// writes the ~15 race dots + their trails straight into the live tweener
+	// writes the race cast's dots + their trails straight into the live tweener
 	// buffers, then repaints. Entry choreography draws the actors' lines on from
 	// the present edge. See delivery-plan Stage 4.
 	const SWEEP_MS = 4000;
@@ -120,7 +120,7 @@
 				? 1 - (SWEEP_V * (1 - p) * (1 - p)) / (2 * SWEEP_R)
 				: SWEEP_V * (p - SWEEP_R / 2);
 	// The three race frame builders. All of them hold the state's content extent
-	// fixed — only the camera (playhead) or the reveal moves — so the cast, the
+	// fixed — only the camera (playhead) or the reveal moves — so what's shown, the
 	// y-fit and the x scale are constant for a whole phase.
 	//
 	// draw-on entry: the camera stands still at the resting playhead while the
@@ -147,8 +147,8 @@
 	const panFrame = (step) => (playhead) => ({ ...step, playhead });
 	// plain axis ease: straight-line interpolation between two fits, no envelope
 	// widening. Used for the raceFull leg (see playRaceFullEntry) rather than
-	// raceRewindYFit — that helper's envelope is tuned for a leg whose cast is a
-	// handful of named holders; raceFull's landing cast is effectively everyone,
+	// raceRewindYFit — that helper's envelope is tuned for a leg that shows a
+	// handful of named holders; raceFull shows the whole cast,
 	// so the same envelope logic would pick up the crowd's wide swings and widen
 	// the axis well past its own resting fit while mid-pan. A pure lerp instead
 	// guarantees the two endpoints exactly — e=0 reads back the exact fit the
@@ -160,9 +160,9 @@
 		);
 	// the one state whose arrival plays the draw-on entry (scoped by revealFrom)
 	const RACE_ENTRY_STATE = "raceRecent";
-	// contender cast at raceRecent's extent — what the draw-on shows from its
+	// what raceRecent shows at its extent — the set the draw-on reveals from its
 	// first frame, so nobody who fails its yCap ever appears just to vanish
-	const RACE_ENTRY_CONTENDERS = raceStepCast(
+	const RACE_ENTRY_VISIBLE = raceStepVisible(
 		RACE_RECENT_STEP,
 		STATE_YCAP[RACE_ENTRY_STATE]
 	);
@@ -173,30 +173,32 @@
 	// the plot, over the axis furniture. They leave while the axis still holds them,
 	// which also reads better: the modern crowd drops away first, leaving the actors
 	// the step is about.
-	const CAST_DEPART_END = 0.35;
-	// how far into raceRecent's draw-on the cast fades fully in. Short, relative
+	const SHOWN_DEPART_END = 0.35;
+	// how far into raceRecent's draw-on its actors fade fully in. Short, relative
 	// to the 4s sweep — they should read as "arriving" once the rank crowd has
 	// cleared, not as a second slow reveal riding the whole draw-on
-	const CAST_ARRIVE_END = 0.15;
-	// per-frame cast alpha for one sweep phase: actors joining the landing set
-	// fade in over the phase, actors leaving fade out over CAST_DEPART_END,
-	// everyone else rides at full strength — so contender-membership changes glide
-	// across the phase instead of popping when the settle layout's filter kicks in
-	const castAlpha = (cast, e) =>
-		cast &&
+	const SHOWN_ARRIVE_END = 0.15;
+	// per-frame alpha for one sweep phase. `shown` is {from, to}: what the step
+	// being left showed and what the landing step shows — NOT cast membership,
+	// which is RACE_CAST on every race step. Actors the landing step adds fade in
+	// over the phase, ones it drops fade out over SHOWN_DEPART_END, everyone else
+	// rides at full strength, so a visibility change glides across the phase
+	// instead of popping when the settle layout's filter kicks in.
+	const shownAlpha = (shown, e) =>
+		shown &&
 		((id) =>
-			cast.to.has(id)
-				? cast.from.has(id)
+			shown.to.has(id)
+				? shown.from.has(id)
 					? 1
 					: e
-				: cast.from.has(id)
-					? Math.max(0, 1 - e / CAST_DEPART_END)
+				: shown.from.has(id)
+					? Math.max(0, 1 - e / SHOWN_DEPART_END)
 					: 0);
 	// the same schedule as a plain (e, id) lookup, for the panning y-fit: it keeps
 	// every VISIBLE dot on the axis, so it needs to know who is on screen when
-	const castAlphaAt = (cast) => (e, id) => castAlpha(cast, e)(id);
+	const shownAlphaAt = (shown) => (e, id) => shownAlpha(shown, e)(id);
 	/** every id a phase draws, arriving and leaving alike */
-	const castIds = (cast) => [...new Set([...cast.from, ...cast.to])];
+	const shownIds = (shown) => [...new Set([...shown.from, ...shown.to])];
 	// the one state whose arrival plays the rewind's second leg (scoped by
 	// revealFrom) — see playRaceEntry/playRaceRewind for the two-leg split
 	const RACE_REWIND_STATE = "raceTrades";
@@ -227,20 +229,20 @@
 		};
 		sweepRaf = requestAnimationFrame(step);
 	}
-	// run one eased race phase; map(e) → the frame; onDone chains the next; cast
-	// ({from, to} contender Sets) fades membership changes over the phase (see
-	// castAlpha) — or, for a phase with no prior membership to compare against
-	// (the entry draw-on's first arrival), a plain `(e) => (id) => alpha`
-	// function of its own. Every frame publishes its camera into renderPlayhead,
+	// run one eased race phase; map(e) → the frame; onDone chains the next; `shown`
+	// ({from, to} Sets of who each end of the leg shows) fades visibility changes
+	// over the phase (see shownAlpha) — or, for a phase with nothing prior to
+	// compare against (the entry draw-on's first arrival), a plain
+	// `(e) => (id) => alpha` function of its own. Every frame publishes its camera into renderPlayhead,
 	// so a later leg (or a reader's grab) continues from wherever this one
 	// actually got to. `fixedYFit` is either one [vMin,vMax,vLo,vHi] held for the
 	// whole phase or a function of the eased progress (raceRewindYFit) for the
 	// one phase whose axis moves.
-	function runSweepPhase(map, yCap, onDone, fixedYFit = null, cast = null) {
+	function runSweepPhase(map, yCap, onDone, fixedYFit = null, shown = null) {
 		const yFitAt =
 			typeof fixedYFit === "function" ? fixedYFit : () => fixedYFit;
 		const alphaAt =
-			typeof cast === "function" ? cast : (e) => castAlpha(cast, e);
+			typeof shown === "function" ? shown : (e) => shownAlpha(shown, e);
 		runPhase(
 			SWEEP_MS,
 			(e) => {
@@ -441,6 +443,19 @@
 	// ids the current state labels, kept so the next arrival can tell an
 	// introduced name from a carried-over one
 	let prevLabelIds = new Set();
+	// The caption each name was last drawn with. STATE_LABEL_TEXT follows the
+	// state, so a label the new state doesn't carry would swap its metric for the
+	// plain name the instant the step flips and then spend its whole fade showing
+	// the shorter string — a visible flicker on the way out. A departing name
+	// keeps what it had; one the new state still labels updates as usual.
+	/** @type {Map<number, string>} */
+	const lastLabelText = new Map();
+	function captionFor(id) {
+		const text = labelTexts[id] ?? nodes[id].name;
+		if (!labelIds.has(id)) return lastLabelText.get(id) ?? text;
+		lastLabelText.set(id, text);
+		return text;
+	}
 
 	const overlay = $derived(OVERLAYS[stateName]);
 	// the active state's race camera descriptor ({ extent }), or undefined off the
@@ -527,17 +542,17 @@
 		}
 		// single-writer discipline: stop the generic writers before the sweep owns
 		// the rAF; on completion pin the chart via raceView, which triggers one
-		// param-tween settle. The sweep casts only raceRecent's contenders
-		// (RACE_ENTRY_CONTENDERS), so its frames always agree with the yCap-
+		// param-tween settle. The sweep shows only raceRecent's contenders
+		// (RACE_ENTRY_VISIBLE), so its frames always agree with the yCap-
 		// filtered static layouts and nobody pops out at the settle.
 		//
-		// alpha is a plain fade-in over CAST_ARRIVE_END, not castAlpha's from/to
+		// alpha is a plain fade-in over SHOWN_ARRIVE_END, not shownAlpha's from/to
 		// comparison — every contender here is arriving fresh (there is no prior
 		// membership to compare against; the rank crowd they were sitting among a
 		// moment ago has already faded to nothing), so they should tween in, not
 		// pop straight to full strength on this phase's first frame.
 		const arrive = (e) => (id) =>
-			RACE_ENTRY_CONTENDERS.has(id) ? Math.min(1, e / CAST_ARRIVE_END) : 0;
+			RACE_ENTRY_VISIBLE.has(id) ? Math.min(1, e / SHOWN_ARRIVE_END) : 0;
 		tweener.stop();
 		trailTweener.stop();
 		sweeping = true;
@@ -577,8 +592,8 @@
 	// stop being contenders there (and fades in any who start), so its last frame
 	// matches the yCap-filtered static settle exactly instead of dropping them in
 	// one pop. The frame's own extent is the leg's camera travel instead, so the
-	// visible line always runs right up to the dot mid-pan; the y-fit and the cast
-	// are both passed in, so that wider extent never leaks into either.
+	// visible line always runs right up to the dot mid-pan; the y-fit and the
+	// visible set are both passed in, so that wider extent never leaks into either.
 	//
 	// `yFit` is the leg's axis: leg 1 holds raceRecent's fit (it settles back onto
 	// raceRecent), leg 2 passes a raceRewindYFit, so the y-scale pans with the camera
@@ -595,14 +610,15 @@
 			Math.min(fromP, toP) - span,
 			Math.max(fromP, toP)
 		]);
-		// both legs start from a frame under raceRecent's cast (leg 1 from the entry
+		// both legs start from a frame showing raceRecent's set (leg 1 from the entry
 		// draw-on, leg 2 from raceRecent wherever its camera had reached)
-		const cast = {
-			from: RACE_ENTRY_CONTENDERS,
-			// raceStepCast, not raceContenders: the landing step may name its cast
-			// outright (RACE_TRADES_STEP.only), and anyone it drops has to fade out
-			// across the leg like any other departure instead of popping at the settle
-			to: raceStepCast(toStep, toCap)
+		const shown = {
+			from: RACE_ENTRY_VISIBLE,
+			// raceStepVisible, not raceContenders: the landing step may name what it
+			// shows outright (RACE_TRADES_STEP.only), and anyone it drops has to fade
+			// out across the leg like any other departure instead of popping at the
+			// settle
+			to: raceStepVisible(toStep, toCap)
 		};
 		sweeping = true;
 		camPanning = true;
@@ -616,7 +632,7 @@
 				publishRaceCam();
 			},
 			yFit,
-			cast
+			shown
 		);
 	}
 
@@ -632,8 +648,8 @@
 	// out of wherever the forward motion actually got to instead of jumping to
 	// raceTrades' resting year first.
 	//
-	// Nobody leaves the chart on the way back (raceRecent's cast is a superset of
-	// raceTrades'), so the joining actors simply fade in and no departure can be left
+	// Nobody leaves the chart on the way back (raceRecent shows a superset of what
+	// raceTrades does), so the joining actors simply fade in and no departure can be left
 	// fading outside the axis it was fitted to.
 	function playRaceReverse() {
 		if (!width || !height) return;
@@ -649,9 +665,9 @@
 			Math.min(fromP, toP) - span,
 			Math.max(fromP, toP)
 		]);
-		const cast = {
-			from: raceStepCast(RACE_TRADES_STEP),
-			to: RACE_ENTRY_CONTENDERS
+		const shown = {
+			from: raceStepVisible(RACE_TRADES_STEP),
+			to: RACE_ENTRY_VISIBLE
 		};
 		sweeping = true;
 		camPanning = true;
@@ -671,10 +687,10 @@
 				RACE_RECENT_YFIT,
 				fromP,
 				toP,
-				castIds(cast),
-				castAlphaAt(cast)
+				shownIds(shown),
+				shownAlphaAt(shown)
 			),
-			cast
+			shown
 		);
 	}
 
@@ -726,9 +742,9 @@
 			Math.min(fromP, toP) - span,
 			Math.max(fromP, toP)
 		]);
-		const cast = {
-			from: raceStepCast(RACE_TRADES_STEP),
-			to: raceStepCast(RACE_FULL_STEP, STATE_YCAP[RACE_FULL_STATE])
+		const shown = {
+			from: raceStepVisible(RACE_TRADES_STEP),
+			to: raceStepVisible(RACE_FULL_STEP, STATE_YCAP[RACE_FULL_STATE])
 		};
 		sweeping = true;
 		camPanning = true;
@@ -742,7 +758,7 @@
 				publishRaceCam();
 			},
 			lerpYFit(fromYFit, RACE_FULL_YFIT),
-			cast
+			shown
 		);
 	}
 
@@ -875,7 +891,7 @@
 		const holding = heldLabels && performance.now() < labelHoldUntil;
 		const nextTracked = TRACKED_IDS.map((id) => ({
 			id,
-			name: labelTexts[id] ?? nodes[id].name,
+			name: captionFor(id),
 			x: attrs[id * STRIDE],
 			y: attrs[id * STRIDE + 1],
 			r: attrs[id * STRIDE + 2],
@@ -1217,7 +1233,7 @@
 			// across the whole canvas while they fade. Freeze everyone where they
 			// stand instead and fade the whole rank scene out in place;
 			// playRaceEntry's own draw-on then fades the race cast in fresh at
-			// their real spot (see CAST_ARRIVE_END) with nothing to glide from,
+			// their real spot (see SHOWN_ARRIVE_END) with nothing to glide from,
 			// and the raceRecent settle (story.raceView, once the choreography
 			// lands) retargets the hidden crowd onto its real scatter spot with
 			// nothing to see.
@@ -1243,9 +1259,9 @@
 			tweener.stop();
 			trailTweener.stop();
 			const fromP = raceExit?.playhead ?? RACE_REWIND_WAYPOINT_YEAR;
-			const leg2Cast = {
-				from: RACE_ENTRY_CONTENDERS,
-				to: raceStepCast(RACE_TRADES_STEP)
+			const leg2Shown = {
+				from: RACE_ENTRY_VISIBLE,
+				to: raceStepVisible(RACE_TRADES_STEP)
 			};
 			playRaceRewind(
 				fromP,
@@ -1257,8 +1273,8 @@
 					RACE_TRADES_YFIT,
 					fromP,
 					RACE_TRADES_STEP.extent[1],
-					castIds(leg2Cast),
-					castAlphaAt(leg2Cast)
+					shownIds(leg2Shown),
+					shownAlphaAt(leg2Shown)
 				)
 			);
 		} else if (raceReverseArrival) {

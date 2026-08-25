@@ -424,6 +424,53 @@ for (const row of rawCsv("top-250-hop-bands-with-hop-counts.csv")) {
 	];
 }
 
+// Step 13's costar zoom: which of those same top 250 each of the two named
+// actors has actually worked with. The adjacency itself lives in the analysis
+// repo's local-graph.sqlite (2 GB, not distributed), but that repo already
+// commits this derived overlap, so the small file is the input here.
+const RANK_TOP_N = 250;
+const overlapSrc = raw("costars-vs-top250-overlap.json");
+assert(
+	overlapSrc.top_n === RANK_TOP_N,
+	`overlap file is top ${overlapSrc.top_n}, not ${RANK_TOP_N}`
+);
+const overlapIds = (name) => {
+	const actor = overlapSrc.actors[name];
+	assert(actor, `costars-vs-top250-overlap has no entry for ${name}`);
+	return actor.top250_overlap.map((e) => {
+		const id = idOf(e.person_id);
+		// the file's rank is the corpus closeness rank, same as the CSV above
+		assert(
+			nodes[id][5] === e.rank,
+			`overlap rank ${e.rank} !== derived ${nodes[id][5]} for ${e.name}`
+		);
+		assert(e.rank <= RANK_TOP_N, `${e.name} is outside the top ${RANK_TOP_N}`);
+		return id;
+	});
+};
+const withPortman = overlapIds("Natalie Portman");
+const withKendrick = overlapIds("Anna Kendrick");
+// the step prose quotes both counts and the gap between them, so a rebuild that
+// moves them has to fail here rather than silently restate the copy
+assert(
+	withPortman.length === 97,
+	`${withPortman.length} Portman costars, not 97`
+);
+assert(
+	withKendrick.length === 35,
+	`${withKendrick.length} Kendrick costars, not 35`
+);
+const bothCostars = withPortman.filter((id) => withKendrick.includes(id));
+assert(
+	bothCostars.length === overlapSrc.both_count,
+	`both-count ${bothCostars.length} !== the file's ${overlapSrc.both_count}`
+);
+assert(bothCostars.length === 9, `${bothCostars.length} in both sets, not 9`);
+assert(
+	withPortman.length / withKendrick.length > 2.5,
+	'the Portman/Kendrick gap no longer supports "almost three times"'
+);
+
 // quiz pairs, remapped to node ids; answers re-checked against the sqlite
 const quiz = quizSrc.pairs.map(({ options, answer }) => {
 	const [a, b] = options.map((o) => idOf(o.person_id));
@@ -607,6 +654,7 @@ const storyOut = {
 	},
 	corr,
 	rankHopBands,
+	centerCostars: { withPortman, withKendrick },
 	quiz,
 	eras,
 	raceSeries,
@@ -630,7 +678,7 @@ for (const [dest, label] of [
 	],
 	[
 		storyDest,
-		`race ${Object.keys(raceSeries).length} anchors, ${cohort.length} cohort lines, ${genz.length} Gen-Z candidates`
+		`race ${Object.keys(raceSeries).length} anchors, ${cohort.length} cohort lines, ${genz.length} Gen-Z candidates, ${withPortman.length}/${withKendrick.length} costars in the top ${RANK_TOP_N}`
 	]
 ]) {
 	console.log(

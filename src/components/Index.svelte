@@ -6,6 +6,7 @@
 	import Step from "$components/scrolly/Step.svelte";
 	import GuessRank from "$components/scrolly/GuessRank.svelte";
 	import RankBars from "$components/scrolly/RankBars.svelte";
+	import GenZList from "$components/scrolly/GenZList.svelte";
 	import RaceScrubber from "$components/scrolly/RaceScrubber.svelte";
 	import PairQuiz from "$components/scrolly/PairQuiz.svelte";
 	import useWindowDimensions from "$runes/useWindowDimensions.svelte.js";
@@ -141,6 +142,14 @@
 				     step below it just sets up the question -->
 				{#snippet quizPanel()}
 					<PairQuiz {visual} />
+				{/snippet}
+				<!-- the Future chapter's contender list. Both Gen Z steps reference
+				     this one snippet, so the list keeps its scroll position across
+				     the step change instead of remounting at the top. -->
+				{#snippet genzPanel()}
+					<div class="genz-list-panel" style="bottom: {stepsHeight + 12}px">
+						<GenZList />
+					</div>
 				{/snippet}
 				{#snippet racePanel()}
 					<div class="race-scrubber-panel" style="bottom: {stepsHeight + 12}px">
@@ -295,11 +304,11 @@
 							distance.
 						</p>
 					</Step>
-					<Step state="scatterCenters">
+					<Step state="scatterCostars">
 						<p>
-							Using our most central actors from earlier, we can see that
-							Natalie Portman has worked with almost three times more of them
-							than Anna Kendrick.
+							This is the same 250 actors we showed earlier. As you can see,
+							Natalie Portman has worked with more of these "big dogs". In fact,
+							it's almost three times as much.
 						</p>
 					</Step>
 					<Step state="degScatter">
@@ -322,14 +331,20 @@
 							closer to the center?
 						</p>
 					</Step>
-					<Step state="scatterGenZ">
+					<Step state="genzList" panel={genzPanel}>
 						<p>
-							We now have everything we need to predict an actor's current
-							average distance using film count and costar data. To predict
-							future average distance we need to model their trajectory by
-							stating what we think their film count and costar data will look
-							like at a certain point in time. To do this, we look at what has
-							happened to actors with similar stats in the past.
+							We now have everything we need to predict Gen Z's Kevin Bacon
+							using film count and costar data. Our contenders are actors born
+							since 1997 that have been in at least 5 films.
+						</p>
+					</Step>
+					<Step state="genzList" panel={genzPanel}>
+						<p>
+							To predict future average distance we need to model their
+							trajectory by stating what we think their film count and costar
+							data will look like at a certain point in time. To do this, we
+							look at what has happened to actors with similar stats in the
+							past.
 						</p>
 					</Step>
 					<Step state="careerTrio">
@@ -423,6 +438,19 @@
 		animation: panel-in 0.4s ease 0.7s both;
 	}
 
+	/* the Future chapter's contender list. Unlike the rank panel there is no
+	   canvas collapse to leave room for, so it covers the whole canvas region
+	   above the step card — `top: 84px` would let the scatter's y-ticks (which
+	   start around MARGIN + 8) show above it — and fades in with no delay. */
+	.genz-list-panel {
+		position: absolute;
+		top: 0;
+		left: 0;
+		right: 0;
+		background: var(--color-bg);
+		animation: panel-in 0.4s ease both;
+	}
+
 	@keyframes panel-in {
 		from {
 			opacity: 0;
@@ -452,6 +480,7 @@
 
 	@media (prefers-reduced-motion: reduce) {
 		.rank-bars-panel,
+		.genz-list-panel,
 		.rank-focus-text {
 			animation: none;
 		}

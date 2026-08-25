@@ -154,13 +154,19 @@ crowd parked invisible) · `hopBands`
 take over) · `rankReveal` (SLJ) · `raceRecent`/
 `raceTrades`/`raceFull` (avg-distance-by-year race, three fixed-scale cameras) ·
 `scatterCenters`/`scatterWalters`/`scatterQuiz` (films-vs-distance scatter
-family) · `concurrenceScatter` · `degScatter` · `predictionScatter`
-(toggleable predictors) · `scatterGenZ` · `careerTrio`/`careerMany`
+family) · `scatterCostars` (the same scatter framed on the top 250 by rank,
+coloured by which of the two named actors has worked with each — the one
+films-scatter state that fits its own x domain, see below) ·
+`concurrenceScatter` · `degScatter` · `predictionScatter`
+(toggleable predictors) · `genzList` (the Gen Z scatter frame, held under the
+HTML `GenZList` contender panel that covers it) · `careerTrio`/`careerMany`
 (films-by-career-age trails) · `winBars` (dot-waffle sim wins; each dot ≈ 25
 of 10k runs) · `sljFan` (SLJ trajectory vs projected winners).
 
-**Trails.** `states.js` exports `TRAIL_META` (fixed slots: 15 race anchors,
-the career trio, 145 cohort career lines, 1 prediction diagonal) and a second
+**Trails.** `states.js` exports `TRAIL_META` (fixed slots, in order: one per
+race actor (`RACE_IDS`), the career trio, one per cohort career line, 1
+prediction diagonal — every slot constant is derived from those lengths, so the
+race cast and the cohort can grow without touching an index) and a second
 tweener in ScrollyVisual morphs `TRAIL_POINTS`-vertex polylines between
 states with the same interruption-safe semantics as dots. A layout returns
 `trails` (vertices + per-trail alpha) or omits it — omission fades the last
@@ -344,20 +350,10 @@ this only re-runs on a machine with the full analysis checkout. That is why the
 two generated JSON files are committed — the app builds and deploys without any
 of the above.
 
-**One input is currently missing**, so a full rebuild does not complete:
-`data/top-250-hop-bands-with-hop-counts.csv`, which feeds `rankHopBands` (the
-rank chapter's per-actor hop breakdown for the top 250). It exists in neither
-repo, is not gitignored, and nothing regenerates it — `hop-tree-shared.json`
-carries only two centres (Bacon and SLJ), so the per-actor counts cannot be
-derived from the shipped artefacts. Every other input resolves, and every assertion
-before that point passes.
-
-Restoring it is a small change to an existing analysis script rather than new
-work. `analysis/compute-actor-distance-distribution.py` already builds the full
-corpus igraph and takes a per-actor distance vector
-(`_G.distances(source=[v])[0]`, ~line 108) to derive avg distance, eccentricity
-and reachability for all 162,409 actors. Binning that same vector into hop
-counts for the top 250 by avg distance is all the CSV needs.
+`data/top-250-hop-bands-with-hop-counts.csv` feeds `rankHopBands` (the rank
+chapter's per-actor hop breakdown for the top 250). It was missing for a while,
+so a full rebuild could not complete; it is present in the analysis repo now and
+every one of the build's inputs resolves.
 
 `rankHopBands` is **full-corpus**: the counts sum to 162,229 (matching the
 sqlite's `reachable`) and their hop-weighted mean reproduces each actor's

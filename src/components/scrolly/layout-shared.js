@@ -152,11 +152,8 @@ export const HANKS = idOf(31);
 export const STREEP = idOf(5064);
 export const DENIRO = idOf(380);
 export const HACKMAN = idOf(193);
-export const WELKER = idOf(15831);
 export const CAGE = idOf(2963);
 export const WALTERS = idOf(477);
-export const WALSH = idOf(588);
-export const STARR = idOf(5170);
 export const OLDMAN = idOf(64);
 export const KIDMAN = idOf(2227);
 export const CGM = story.genz.candidates[0].id;
@@ -258,7 +255,10 @@ export function hopDotSlots(fractions, width, id) {
 }
 
 // fixed film-count x-scale shared by every films-scatter variant so dots only
-// travel vertically when the y-metric changes. Floored at 10 films: the scatter
+// travel vertically when the y-metric changes. The one exception is the
+// scatterCostars state, which fits both axes to the 250 actors it frames — a
+// deliberate zoom, and the reason it's its own state rather than a param on
+// scatterCenters. Floored at 10 films: the scatter
 // chapters only plot actors with more than 10 films — 85% of the corpus has ≤10
 // and just forms a low-signal vertical smear on the left — so the axis starts
 // there and sub-threshold actors park off the left edge (alpha 0).
@@ -285,8 +285,10 @@ export function scatterPosition(n, w, h) {
 
 // ---------------------------------------------------------------------------
 // Trails: polylines tweened by a second tweener (vertex morphing = object
-// constancy for lines). Fixed slots: 15 race anchors, the career trio, 40
-// cohort career lines, 1 diagonal (prediction scatter).
+// constancy for lines). Fixed slots, in order: one per race actor (RACE_IDS),
+// the career trio, one per cohort career line, 1 diagonal (prediction scatter).
+// Every slot constant below is derived from those lengths, so the race cast and
+// the cohort can grow without touching any index here.
 // ---------------------------------------------------------------------------
 
 export const TRAIL_POINTS = 48;
@@ -294,30 +296,16 @@ export const TRAIL_STRIDE = TRAIL_POINTS * 2 + 1; // vertices + alpha
 export const RACE_IDS = Object.keys(story.raceSeries)
 	.map(Number)
 	.sort((a, b) => a - b);
-// Every actor who has held the centre gets their own colour; the rest of the race
-// field is the grey crowd. Walsh and Starr are named because they each hold the
-// crown inside raceTrades' window — an unnamed grey line can't carry a handover.
-export const raceRGB = (id) =>
-	id === SLJ
-		? PURPLE
-		: id === HACKMAN
-			? BLUE
-			: id === DENIRO
-				? GREEN
-				: id === WELKER
-					? YELLOW
-					: id === WALSH
-						? CYAN
-						: id === STARR
-							? RED
-							: CROWD;
 /** @type {{ id: number|null, rgb: number[], width: number }[]} */
 export const TRAIL_META = [
-	...RACE_IDS.map((id) => ({
-		id,
-		rgb: raceRGB(id),
-		width: raceRGB(id) === CROWD ? 1 : 1.75
-	})),
+	// The race chart carries no hue at all: every line is the same grey at the
+	// same width, and emphasis is per-STEP rather than per-actor — the actors a
+	// step is about ride a darker dot and a stronger line alpha (see
+	// writeRaceSweepFrame's `major`). A per-actor palette can't express that,
+	// since a trail's colour and width here are baked once at module load while
+	// which actors matter changes step to step; and with a cast of hundreds a
+	// palette would in any case be a handful of hues against a grey field.
+	...RACE_IDS.map((id) => ({ id, rgb: CROWD, width: 1 })),
 	// career chapter: red hero trajectory, grey comparison lines (the dots are
 	// blue marks — see layouts/career.js)
 	{ id: SWEENEY, rgb: RED, width: 1.5 },

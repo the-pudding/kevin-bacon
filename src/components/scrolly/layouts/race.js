@@ -6,11 +6,11 @@ import {
 	plotBottom,
 	lin,
 	CROWD,
+	INK,
 	SLJ,
 	HACKMAN,
 	set,
 	scatterPosition,
-	raceRGB,
 	RACE_IDS,
 	TRAIL_META,
 	RACE_SLOT,
@@ -23,7 +23,13 @@ import {
 } from "../layout-shared.js";
 
 // ---------------------------------------------------------------------------
-// Race chart (Past chapter): avg distance by year, one line per era anchor.
+// Race chart (Past chapter): avg distance by year, one line per race actor.
+//
+// The chart is monochrome by design: no line carries a hue, and nothing is
+// identified by colour. What separates the actors a step is about from the field
+// behind them is weight — an ink dot and a stronger line alpha against grey —
+// plus the name labels in the right-hand gutter. Emphasis is therefore per STEP
+// (see `subject` in writeRaceSweepFrame), not a property of an actor.
 //
 // The x axis is FIXED-SCALE: PX_PER_YEAR pixels per year on every race step and
 // every viewport, so a year is always the same distance from its neighbour and
@@ -32,10 +38,14 @@ import {
 // raceCamera) that the reader pans and the entry choreographies drive.
 //
 // Three concepts, deliberately separate:
-//   content extent  [e0,e1]  baked per state, width-independent — drives the
-//                            cast, the y-fit, era candidacy and the pan bounds,
-//                            so panning NEVER moves the y axis or changes who is
-//                            on the chart. The y-fit is fixed for a whole state
+//   content extent  [e0,e1]  baked per state, width-independent — drives who the
+//                            step SHOWS, the y-fit, era candidacy and the pan
+//                            bounds, so panning NEVER moves the y axis or changes
+//                            who is visible. (The cast itself is RACE_CAST on
+//                            every race step — an actor a step doesn't show still
+//                            rides their own curve at alpha 0, so the chapter
+//                            only ever fades lines in and out in place.)
+//                            The y-fit is fixed for a whole state
 //                            and a whole animation phase; the one exception is
 //                            the raceRecent -> raceTrades rewind leg, whose axis
 //                            pans with its camera (raceRewindYFit) because each
@@ -68,11 +78,22 @@ const RACE_RANGE = new Map(
 	})
 );
 
+/**
+ * The cast: every tracked actor, on every race step. One shared cast is what
+ * gives the chapter object constancy — an actor a step doesn't show still sits
+ * on their own curve at alpha 0 rather than being taken off the chart, so
+ * stepping between race steps only ever fades lines in and out in place.
+ *
+ * Which of them a given step SHOWS is a separate question — see
+ * raceStepVisible.
+ */
+export const RACE_CAST = new Set(RACE_IDS);
+
 // the race actors who count as contenders over [year0, year1]: their clipped
-// series must exist and dip to (or below) yCap. Reached through raceStepCast, never
-// called directly by a state, and every caller passes a state's *content extent*,
-// so the cast is fixed for a whole step (panning can hide an actor off-camera,
-// never un-cast it).
+// series must exist and dip to (or below) yCap. Reached through
+// raceStepVisible, never called directly by a state, and every caller passes a
+// state's *content extent*, so what a step shows is fixed for the whole step
+// (panning can move an actor off-camera, never out of the visible set).
 export function raceContenders(year0, year1, yCap) {
 	const ids = new Set();
 	for (const id of RACE_IDS) {
@@ -353,20 +374,23 @@ function raceAxes(cam, yS, vLo, vHi, e1) {
  * end); clamped to the camera's pan bounds
  * @property {number} [reveal] entry draw-on progress 0..1 across the VISIBLE
  * span (1 = fully drawn). Only the draw-on passes it.
- * @property {number[]} [highlight] the contenders this step is *about*. Any other
- * coloured contender drops to the background treatment (crowd radius and alpha,
- * its own colour kept), so the step reads as being about two lines instead of
- * four. Omitted → every coloured contender is foreground.
- * @property {number[]} [only] the exact cast, naming it instead of deriving it from
- * yCap (raceTrades lists the centres of its window). Baked into the step
- * descriptor, so the animated frames and the static settle draw the same ids.
+ * @property {number[]} [highlight] the actors this step is *about*: they get the
+ * ink dot and the stronger line, everyone else it shows drops to the grey
+ * background treatment, so the step reads as being about two lines rather than
+ * its whole field. Omitted → everything the step shows is foreground, which is
+ * only right for a step whose entire field is its subject (raceTrades).
+ * @property {number[]} [only] exactly which actors the step SHOWS, naming them
+ * instead of deriving them from yCap (raceTrades lists the centres of its
+ * window). Baked into the step descriptor, so the animated frames and the static
+ * settle draw the same ids.
  */
 
 /**
- * Writes ONLY the ~15 race dot slots + 15 race trail slots for one frame,
- * directly into the live Float32 tweener buffers (no allocation, crowd/other
- * trails left untouched). Actors ride their curves; a dot whose playhead runs
- * past its data clamps to the curve endpoint.
+ * Writes ONLY the race cast's dot slots + trail slots (one each per RACE_IDS)
+ * for one frame, directly into the live Float32 tweener buffers (no allocation,
+ * crowd/other trails left untouched). Actors ride their curves; a dot whose
+ * playhead runs past its data clamps to the curve endpoint. The whole cast is
+ * written every frame, visible or not — see the alpha fast path below.
  *
  * Trails are sampled over the CAMERA's interval, not the content extent:
  * sampleTrail lays its vertices uniformly in data-x, so sampling all 55 years
@@ -392,8 +416,8 @@ function raceAxes(cam, yS, vLo, vHi, e1) {
  * this frame — the sweep animators use it to fade actors who join or leave the
  * cast across a phase, so the final frame's visibility matches the static state
  * it settles onto instead of everyone popping at the settle. Omitted → the
- * frame's own cast at full strength, everyone else hidden.
- * @returns {{axes: {x: {pos:number,label:string}[], xBase:number, y: {pos:number,label:string}[]}, cam: ReturnType<typeof raceCamera>, yS: (v:number)=>number, cast: Set<number>}}
+ * frame's own visible set at full strength, everyone else hidden.
+ * @returns {{axes: {x: {pos:number,label:string}[], xBase:number, y: {pos:number,label:string}[]}, cam: ReturnType<typeof raceCamera>, yS: (v:number)=>number, visible: Set<number>}}
  */
 export function writeRaceSweepFrame(
 	attrsBuf,
@@ -406,8 +430,8 @@ export function writeRaceSweepFrame(
 	alphaOf = null
 ) {
 	const [e0, e1] = frame.extent;
-	const cast = raceStepCast(frame, yCap);
-	const segsList = [...cast].map((id) => RACE_SEGS.get(id));
+	const visible = raceStepVisible(frame, yCap);
+	const segsList = [...visible].map((id) => RACE_SEGS.get(id));
 	const [vMin, vMax, vLo, vHi] = fixedYFit ?? raceYFit(segsList, e0, e1);
 	const cam = raceCamera(w, h, frame.playhead ?? e1);
 	const yS = (v) => lin(v, vMin, vMax, cam.top, cam.bottom);
@@ -415,13 +439,19 @@ export function writeRaceSweepFrame(
 	const revealRight = Math.min(cam.camRight, e1);
 	const revealFrom =
 		revealRight - (revealRight - cam.camLeft) * (frame.reveal ?? 1);
-	const highlight = frame.highlight ? new Set(frame.highlight) : null;
+	// who this step is ABOUT. A step that names a highlight gets exactly those;
+	// one that doesn't is about everything it shows (raceTrades — every line on
+	// it is one of its handover holders). Never the whole cast: on a step showing
+	// a wide field, the ones it isn't about have to stay background.
+	const subject = frame.highlight ? new Set(frame.highlight) : visible;
 	for (const id of RACE_IDS) {
-		const rgb = raceRGB(id);
-		// "foreground" = a coloured contender this step is about. Everyone else
-		// (the grey crowd, and the contenders a highlighted step isn't about) rides
-		// the smaller, fainter background treatment.
-		const major = rgb !== CROWD && (!highlight || highlight.has(id));
+		// "foreground" = an actor this step is about. The chart carries no hue, so
+		// this is the ONLY thing separating a line the reader should follow from
+		// the field behind it: a darker dot, a bigger one, and a stronger line
+		// alpha. Emphasis is per-step, not per-actor — the same actor is
+		// foreground on the step about them and background everywhere else.
+		const major = subject.has(id);
+		const rgb = major ? INK : CROWD;
 		const segs = RACE_SEGS.get(id);
 		const slot = RACE_SLOT.get(id);
 		const [ds, de] = RACE_RANGE.get(id);
@@ -432,8 +462,43 @@ export function writeRaceSweepFrame(
 		const onCamera = de >= cam.camLeft && ds <= cam.playhead;
 		const edgeFade = Math.min(1, Math.max(0, de - cam.camLeft));
 		const m =
-			(alphaOf ? alphaOf(id) : cast.has(id) ? 1 : 0) *
+			(alphaOf ? alphaOf(id) : visible.has(id) ? 1 : 0) *
 			(onCamera ? edgeFade : 0);
+		// the dot rides the RIGHT END OF THE VISIBLE LINE, not the raw playhead:
+		// when the playhead is within the actor's data the two coincide (dot pinned
+		// to the plot's right edge), but once the playhead runs past the data the
+		// dot stays glued to the curve's endpoint instead of floating ahead of a
+		// shorter line.
+		const dotYr = Math.min(Math.max(cam.playhead, ds), de);
+		const dotV = curveYAt(segs, dotYr);
+		const dx = cam.xS(dotYr);
+		const dy = yS(dotV);
+		// a dot whose value has left the fitted scale is hidden outright rather than
+		// pinned to the plot edge: it would otherwise be drawn below the x axis (or
+		// above the plot, over the axis furniture), showing a value the chart isn't
+		// showing. Its line already ends at that edge (curveExit).
+		const dotM = dotV >= vMin && dotV <= vMax ? m : 0;
+		set(attrsBuf, id, dx, dy, major ? 5 : 3, rgb, (major ? 1 : 0.55) * dotM);
+		// Fast path for an actor this ANIMATED frame can't show: keep the dot
+		// placement (it is what holds them on their own curve) and skip the line
+		// work below, which is the expensive part — curveEntry and curveExit each
+		// scan and bisect the curve (~60 curveYAt calls apiece) and sampleTrail
+		// resamples 48 vertices. Most of the cast is hidden on most steps, so this
+		// is what keeps a wide cast affordable across the 4s sweep.
+		//
+		// Only for animated frames (alphaOf), never for a static layout. A static
+		// layout is the geometry the trail TWEENER interpolates out of, so a hidden
+		// line has to hold its true shape there: collapse it to a point and the
+		// next step that reveals it would unspool it from that point instead of
+		// fading it in where it already is. Mid-sweep there is nothing to tween
+		// from — the sweep writes the live buffers every frame, and an actor at any
+		// alpha above this floor takes the full path — so stale geometry for one
+		// invisible frame can't be seen. Static layouts run once per state change,
+		// so paying full price there costs nothing per frame.
+		if (alphaOf && m <= 0.002) {
+			collapseTrail(trailBuf, slot, dx, dy, 0);
+			continue;
+		}
 		// the camera's left edge, not the extent's, is the draw floor: when the
 		// viewport is wider than the step's extent (or a choreography has panned
 		// behind it) the cast's lines simply extend further back rather than
@@ -465,21 +530,6 @@ export function writeRaceSweepFrame(
 						// axis to hold it.
 						curveEntry(segs, sx1, drawFloor, vMin, vMax)
 					);
-		// the dot rides the RIGHT END OF THE VISIBLE LINE, not the raw playhead:
-		// when the playhead is within the actor's data the two coincide (dot pinned
-		// to the plot's right edge), but once the playhead runs past the data the
-		// dot stays glued to the curve's endpoint instead of floating ahead of a
-		// shorter line.
-		const dotYr = Math.min(Math.max(cam.playhead, ds), de);
-		const dotV = curveYAt(segs, dotYr);
-		const dx = cam.xS(dotYr);
-		const dy = yS(dotV);
-		// a dot whose value has left the fitted scale is hidden outright rather than
-		// pinned to the plot edge: it would otherwise be drawn below the x axis (or
-		// above the plot, over the axis furniture), showing a value the chart isn't
-		// showing. Its line already ends at that edge (curveExit).
-		const dotM = dotV >= vMin && dotV <= vMax ? m : 0;
-		set(attrsBuf, id, dx, dy, major ? 5 : 3, rgb, (major ? 1 : 0.55) * dotM);
 		if (sx1 !== null && sx1 > sx0) {
 			sampleTrail(
 				trailBuf,
@@ -498,7 +548,7 @@ export function writeRaceSweepFrame(
 			collapseTrail(trailBuf, slot, dx, dy, (major ? 0.8 : 0.35) * dotM);
 		}
 	}
-	return { axes: raceAxes(cam, yS, vLo, vHi, e1), cam, yS, cast };
+	return { axes: raceAxes(cam, yS, vLo, vHi, e1), cam, yS, visible };
 }
 
 /**
@@ -522,7 +572,7 @@ function raceLayout(step, yCap = Infinity, fixedYFit = null) {
 			const [x, y] = scatterPosition(n, w, h);
 			set(attrs, n.id, x, y, 2, CROWD, 0);
 		}
-		const { axes, cam, cast } = writeRaceSweepFrame(
+		const { axes, cam, visible } = writeRaceSweepFrame(
 			attrs,
 			trails,
 			w,
@@ -535,19 +585,20 @@ function raceLayout(step, yCap = Infinity, fixedYFit = null) {
 			yCap,
 			fixedYFit
 		);
-		// race actors the cap excludes go back to their scatter spot (still alpha
-		// 0), so the next chapter's arrival doesn't fly hidden dots in off the plot
-		for (const id of RACE_IDS) {
-			if (cast.has(id)) continue;
-			const [x, y] = scatterPosition(nodes[id], w, h);
-			set(attrs, id, x, y, 2, CROWD, 0);
-		}
+		// NOTE: the actors this step doesn't show are deliberately left where the
+		// writer put them — on their own curve, at alpha 0 — rather than parked
+		// back at their scatter spot. Parking them is what used to make a dot
+		// travel the width of the canvas between two race steps to arrive, since
+		// the tweener interpolates position while alpha goes 0 -> 1. The outbound
+		// transition doesn't need the park either: raceFull shows the whole cast,
+		// so by the time the story leaves the chapter there is nobody hidden left
+		// to fly in from off the plot.
 		const raceSlots = new Set(RACE_SLOT.values());
 		TRAIL_META.forEach((meta, t) => {
 			// the writer owns every race slot; the rest (career trio, cohort lines,
 			// prediction diagonal) retract into the middle of the plot
 			if (raceSlots.has(t)) {
-				if (meta.id !== null && cast.has(meta.id)) trailDelays[t] = 250;
+				if (meta.id !== null && visible.has(meta.id)) trailDelays[t] = 250;
 				return;
 			}
 			collapseTrail(trails, t, w / 2, cam.bottom, 0);
@@ -643,21 +694,30 @@ const RACE_TRADES_FIT = /** @type {[number, number]} */ ([1990, 1994]);
 // and the static layout it settles onto agree on the extent, the highlight AND
 // the cast.
 // raceRecent is about SLJ taking over from Hackman, so only those two ride the
-// foreground treatment there; De Niro and Welker stay on the chart in their own
-// colours, dimmed.
+// foreground treatment there; the rest of its field stays on the chart, dimmed.
 export const RACE_RECENT_STEP = { extent: RACE_RECENT_EXTENT, highlight: [SLJ, HACKMAN] }; // prettier-ignore
+// raceFull shows the whole cast, so it has to name its subject: without a
+// highlight, `subject` falls back to everything visible and every line on the
+// chart would claim the foreground at once. Hackman is the one it labels, so he
+// is the one it emphasises — keep this list and the state's `labels` in step.
 export const RACE_FULL_STEP = {
 	extent: RACE_FULL_EXTENT,
-	minPlayhead: RACE_FULL_PAN_FLOOR
+	minPlayhead: RACE_FULL_PAN_FLOOR,
+	highlight: [HACKMAN]
 };
 
 /**
- * The ids one state puts on the chart. A step either names its cast outright
- * (`only` — raceTrades lists the centres of its window) or takes everyone whose
- * line dips to its yCap. Every reader of a cast goes through here, so an animated
- * frame, its settle and the sweep animators' fade sets can't disagree.
+ * The ids one state SHOWS. A step either names them outright (`only` —
+ * raceTrades lists the centres of its window) or takes everyone whose line dips
+ * to its yCap. Every reader goes through here, so an animated frame, its settle
+ * and the sweep animators' fade sets can't disagree.
+ *
+ * This is visibility, not membership: the cast itself is RACE_CAST on every race
+ * step, and an actor this set leaves out still rides its own curve at alpha 0
+ * (see writeRaceSweepFrame). That is what lets the reader step between race
+ * steps without a hidden dot travelling across the canvas to arrive.
  */
-export function raceStepCast(step, yCap) {
+export function raceStepVisible(step, yCap) {
 	if (step.only) return new Set(step.only);
 	return raceContenders(step.extent[0], step.extent[1], yCap);
 }
@@ -710,15 +770,20 @@ export const RACE_TRADES_STEP = {
 	only: RACE_TRADES_HOLDERS
 };
 
-const raceCastSegs = (step, cap) =>
-	[...raceStepCast(step, cap)].map((id) => RACE_SEGS.get(id));
+// Segments of the ids a step SHOWS — never of the whole cast. Each race step's
+// y-fit is the range of what it is about, so the actors it leaves at alpha 0
+// can't drag its axis open (the crowd spans ~1.6 against the modern field's
+// ~0.3). Non-visible lines go off-scale instead, and curveEntry/curveExit end
+// them at the plot edge.
+const raceVisibleSegs = (step, cap) =>
+	[...raceStepVisible(step, cap)].map((id) => RACE_SEGS.get(id));
 
 // raceRecent's own y-fit: its cast over the years it can reach. The modern range
 // is ~0.3 wide against the 1970s' ~1.6, so sharing raceTrades' axis (as this step
 // used to) squashed SLJ and Hackman into the top fifth of the plot and hid the
 // handover the step is about.
 export const RACE_RECENT_YFIT = raceYFit(
-	raceCastSegs(RACE_RECENT_STEP, RACE_RECENT_YCAP),
+	raceVisibleSegs(RACE_RECENT_STEP, RACE_RECENT_YCAP),
 	RACE_RECENT_REACH_FLOOR,
 	RACE_RECENT_EXTENT[1]
 );
@@ -726,7 +791,7 @@ export const RACE_RECENT_YFIT = raceYFit(
 // raceTrades' resting y-fit: its centres across RACE_TRADES_FIT, i.e. what its
 // camera actually holds once parked on 1994.
 export const RACE_TRADES_YFIT = raceYFit(
-	raceCastSegs(RACE_TRADES_STEP),
+	raceVisibleSegs(RACE_TRADES_STEP),
 	...RACE_TRADES_FIT
 );
 
