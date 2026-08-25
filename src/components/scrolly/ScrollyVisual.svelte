@@ -85,12 +85,12 @@
 	);
 	// every id any state labels or pulses — tracked out of the attr array each
 	// frame so the HTML annotations stay glued to their dots mid-tween.
-	// Dynamic label states (function values) declare their possible ids in
-	// STATE_TRACKED instead.
+	// Dynamic label and pulse states (function values) declare their possible
+	// ids in STATE_TRACKED instead.
 	const TRACKED_IDS = [
 		...new Set([
 			...Object.values(STATE_LABELS).filter(Array.isArray).flat(),
-			...Object.values(STATE_PULSE),
+			...Object.values(STATE_PULSE).filter((p) => typeof p === "number"),
 			...STATE_TRACKED
 		])
 	];
@@ -477,12 +477,18 @@
 	});
 	// per-node label placement overrides ("left"/"right" beside the dot instead
 	// of the default below-and-centred)
-	const labelDirs = $derived(STATE_LABEL_DIRS[stateName] ?? {});
+	const labelDirs = $derived.by(() => {
+		const spec = STATE_LABEL_DIRS[stateName];
+		return (typeof spec === "function" ? spec(layoutParams) : spec) ?? {};
+	});
 	// per-node label text overrides, so a name can carry the step's number
 	const labelTexts = $derived(
 		STATE_LABEL_TEXT[stateName]?.(nodes, layoutParams) ?? {}
 	);
-	const pulseId = $derived(STATE_PULSE[stateName] ?? null);
+	const pulseId = $derived.by(() => {
+		const spec = STATE_PULSE[stateName];
+		return (typeof spec === "function" ? spec(layoutParams) : spec) ?? null;
+	});
 	// keeps the ring anchored to the last center actor while it fades out
 	let lastPulseId = $state(null);
 	$effect(() => {

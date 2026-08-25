@@ -93,6 +93,11 @@ const avgScatter = (nodes, w, h, highlights) =>
 		highlights
 	});
 
+export const QUIZ_IDS = story.quiz.flatMap((p) => [p.a, p.b]);
+
+const PORTMAN = QUIZ_IDS[2];
+const KENDRICK = QUIZ_IDS[3];
+
 // single-subject highlight discipline (prototype): exactly one ringed subject
 // per state, no supporting-cast dots, no on-canvas callouts — the facts live
 // in the step prose. SLJ takes the default red highlight; Walters a yellow
@@ -100,6 +105,19 @@ const avgScatter = (nodes, w, h, highlights) =>
 
 /** @type {import("../layout-shared.js").LayoutFn} */
 const layoutScatterCenters = (nodes, w, h, _edges, params) => {
+	// the pair step hands the subject over to Portman and Kendrick — they are
+	// the two extremes the prose points at, so SLJ drops back into the cloud
+	if (params?.showPair) {
+		return avgScatter(
+			nodes,
+			w,
+			h,
+			new Map([
+				[PORTMAN, { rgb: BLUE, r: 5.5 }],
+				[KENDRICK, { rgb: BLUE, r: 5.5 }]
+			])
+		);
+	}
 	const highlights = new Map([[SLJ, { rgb: RED, r: 6 }]]);
 	// the film-count step names the runner-up as well, so he gets a mark of his
 	// own — subordinate to the red subject, and only on that step
@@ -110,8 +128,6 @@ const layoutScatterCenters = (nodes, w, h, _edges, params) => {
 /** @type {import("../layout-shared.js").LayoutFn} */
 const layoutScatterWalters = (nodes, w, h) =>
 	avgScatter(nodes, w, h, new Map([[WALTERS, { rgb: YELLOW, r: 6 }]]));
-
-export const QUIZ_IDS = story.quiz.flatMap((p) => [p.a, p.b]);
 
 // every pair index marked picked: the shape layoutScatterQuiz's picks-lookup
 // expects, forcing its "answered" highlight regardless of story.quizPicks
@@ -204,19 +220,37 @@ const AVG_OVERLAY = {
 export const states = {
 	scatterCenters: {
 		layout: layoutScatterCenters,
-		labels: (params) => (params?.showFilms ? [SLJ, CAGE] : [SLJ]),
-		// the film-count step puts the number in both names; the later steps on
-		// this same visual are about other things, so they keep the plain label
-		labelText: (nodes, params) =>
-			params?.showFilms
-				? Object.fromEntries(
-						[SLJ, CAGE].map((id) => [
-							id,
-							`${nodes[id].name} · ${nodes[id].films} films`
-						])
-					)
-				: {},
-		pulse: SLJ,
+		labels: (params) => {
+			if (params?.showPair) return [PORTMAN, KENDRICK];
+			return params?.showFilms ? [SLJ, CAGE] : [SLJ];
+		},
+		// the pair labels carry their metric, so they're too wide to sit beside
+		// their dots at the right edge of the cloud — they hang below (clamped)
+		// on this step, and take PAIR_LABEL_DIRS' right placement everywhere else
+		labelDirs: (params) => (params?.showPair ? {} : PAIR_LABEL_DIRS),
+		// the film-count and pair steps each put their own metric in the names —
+		// the number is the point being made. The remaining steps on this same
+		// visual are about other things, so they keep the plain label.
+		labelText: (nodes, params) => {
+			if (params?.showPair) {
+				return Object.fromEntries(
+					[PORTMAN, KENDRICK].map((id) => [
+						id,
+						`${nodes[id].name} · ${nodes[id].avgDistance.toFixed(2)} avg. distance`
+					])
+				);
+			}
+			if (params?.showFilms) {
+				return Object.fromEntries(
+					[SLJ, CAGE].map((id) => [
+						id,
+						`${nodes[id].name} · ${nodes[id].films} films`
+					])
+				);
+			}
+			return {};
+		},
+		pulse: (params) => (params?.showPair ? null : SLJ),
 		overlay: AVG_OVERLAY
 	},
 	scatterWalters: {

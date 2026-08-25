@@ -105,7 +105,10 @@ export const STATE_PARAMS = pick("params");
  */
 export const STATE_PICK = pick("pick");
 
-/** per-state "center actor" node id — gets the ripple pulse */
+/**
+ * per-state "center actor" node id — gets the ripple pulse. A function form
+ * reads the step's params, for states whose subject changes between steps.
+ */
 export const STATE_PULSE = pick("pulse");
 
 /** per-state yCap for the race chart's y-fit — see writeRaceSweepFrame */
@@ -173,8 +176,9 @@ export const OVERLAYS = pick("overlay");
  * Per-state override of where a node's label sits relative to its dot:
  * `"left"` / `"right"` place it beside the dot (vertically centred) instead of
  * the default below-and-centred. Keyed by node id. Used to de-clutter tight
- * clusters (e.g. the quiz pairs).
- * @type {Partial<Record<LayoutState, Record<number, "left" | "right">>>}
+ * clusters (e.g. the quiz pairs). A function form reads the step's params, for
+ * states whose labels move between steps.
+ * @type {Partial<Record<LayoutState, Record<number, "left" | "right"> | ((params?: Object) => Record<number, "left" | "right">)>>}
  */
 export const STATE_LABEL_DIRS = pick("labelDirs");
 

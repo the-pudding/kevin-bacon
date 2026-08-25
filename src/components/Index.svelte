@@ -277,7 +277,7 @@
 							anyone else, 20 more than Nicolas Cage who's next closest.
 						</p>
 					</Step>
-					<Step state="scatterCenters">
+					<Step state="scatterCenters" params={{ showPair: true }}>
 						<p>
 							The relationship between film count and average distance is
 							strong, but it doesn't explain it fully. Two actors can have the
@@ -286,7 +286,7 @@
 							two extremes of the data.
 						</p>
 					</Step>
-					<Step state="scatterCenters">
+					<Step state="scatterCenters" params={{ showPair: true }}>
 						<p>
 							So what's different about them? Put simply: better costars.
 							Natalie Portman stars with more "big dogs" than Anna Kendrick.
