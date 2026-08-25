@@ -270,7 +270,7 @@
 							center.
 						</p>
 					</Step>
-					<Step state="scatterCenters">
+					<Step state="scatterCenters" params={{ showFilms: true }}>
 						<p>
 							The obvious one is film count. More films means closer to the
 							center. Indeed, Samuel L. Jackson has been in far more films than

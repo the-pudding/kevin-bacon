@@ -14,6 +14,7 @@ import {
 	HANKS,
 	STREEP,
 	DENIRO,
+	CAGE,
 	BY_RANK,
 	RANK_TOP_N
 } from "./layout-shared.js";
@@ -177,12 +178,21 @@ export const OVERLAYS = pick("overlay");
  */
 export const STATE_LABEL_DIRS = pick("labelDirs");
 
+/**
+ * Per-state override of a labelled node's text, so a name can carry the number
+ * the step is about instead of just the name. Keyed by node id; ids absent from
+ * the returned map keep their plain name.
+ * @type {Partial<Record<LayoutState, (nodes: import("./nodes.js").ActorNode[], params?: Object) => Record<number, string>>>}
+ */
+export const STATE_LABEL_TEXT = pick("labelText");
+
 /** every id a dynamic STATE_LABELS function could return (for frame tracking) */
 export const STATE_TRACKED = [
 	SLJ,
 	HANKS,
 	STREEP,
 	DENIRO,
+	CAGE,
 	...QUIZ_IDS,
 	...story.genz.candidates.map((c) => c.id)
 ];

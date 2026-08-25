@@ -13,7 +13,9 @@ import {
 	GREEN,
 	PURPLE,
 	YELLOW,
+	CYAN,
 	SLJ,
+	CAGE,
 	WALTERS,
 	CGM
 } from "../layout-shared.js";
@@ -97,8 +99,13 @@ const avgScatter = (nodes, w, h, highlights) =>
 // variant, kept consistent everywhere she carries over through step 19.
 
 /** @type {import("../layout-shared.js").LayoutFn} */
-const layoutScatterCenters = (nodes, w, h) =>
-	avgScatter(nodes, w, h, new Map([[SLJ, { rgb: RED, r: 6 }]]));
+const layoutScatterCenters = (nodes, w, h, _edges, params) => {
+	const highlights = new Map([[SLJ, { rgb: RED, r: 6 }]]);
+	// the film-count step names the runner-up as well, so he gets a mark of his
+	// own — subordinate to the red subject, and only on that step
+	if (params?.showFilms) highlights.set(CAGE, { rgb: CYAN, r: 5 });
+	return avgScatter(nodes, w, h, highlights);
+};
 
 /** @type {import("../layout-shared.js").LayoutFn} */
 const layoutScatterWalters = (nodes, w, h) =>
@@ -197,7 +204,18 @@ const AVG_OVERLAY = {
 export const states = {
 	scatterCenters: {
 		layout: layoutScatterCenters,
-		labels: [SLJ],
+		labels: (params) => (params?.showFilms ? [SLJ, CAGE] : [SLJ]),
+		// the film-count step puts the number in both names; the later steps on
+		// this same visual are about other things, so they keep the plain label
+		labelText: (nodes, params) =>
+			params?.showFilms
+				? Object.fromEntries(
+						[SLJ, CAGE].map((id) => [
+							id,
+							`${nodes[id].name} · ${nodes[id].films} films`
+						])
+					)
+				: {},
 		pulse: SLJ,
 		overlay: AVG_OVERLAY
 	},

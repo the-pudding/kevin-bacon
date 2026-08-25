@@ -29,6 +29,7 @@
 		STATES,
 		OVERLAYS,
 		STATE_LABELS,
+		STATE_LABEL_TEXT,
 		STATE_LABEL_DIRS,
 		STATE_PICK,
 		STATE_PULSE,
@@ -477,6 +478,10 @@
 	// per-node label placement overrides ("left"/"right" beside the dot instead
 	// of the default below-and-centred)
 	const labelDirs = $derived(STATE_LABEL_DIRS[stateName] ?? {});
+	// per-node label text overrides, so a name can carry the step's number
+	const labelTexts = $derived(
+		STATE_LABEL_TEXT[stateName]?.(nodes, layoutParams) ?? {}
+	);
 	const pulseId = $derived(STATE_PULSE[stateName] ?? null);
 	// keeps the ring anchored to the last center actor while it fades out
 	let lastPulseId = $state(null);
@@ -866,7 +871,7 @@
 		const holding = heldLabels && performance.now() < labelHoldUntil;
 		const nextTracked = TRACKED_IDS.map((id) => ({
 			id,
-			name: nodes[id].name,
+			name: labelTexts[id] ?? nodes[id].name,
 			x: attrs[id * STRIDE],
 			y: attrs[id * STRIDE + 1],
 			r: attrs[id * STRIDE + 2],
