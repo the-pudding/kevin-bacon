@@ -255,10 +255,7 @@ export function hopDotSlots(fractions, width, id) {
 }
 
 // fixed film-count x-scale shared by every films-scatter variant so dots only
-// travel vertically when the y-metric changes. The one exception is the
-// scatterCostars state, which fits both axes to the 250 actors it frames — a
-// deliberate zoom, and the reason it's its own state rather than a param on
-// scatterCenters. Floored at 10 films: the scatter
+// travel vertically when the y-metric changes. Floored at 10 films: the scatter
 // chapters only plot actors with more than 10 films — 85% of the corpus has ≤10
 // and just forms a low-signal vertical smear on the left — so the axis starts
 // there and sub-threshold actors park off the left edge (alpha 0).

@@ -304,13 +304,6 @@
 							distance.
 						</p>
 					</Step>
-					<Step state="scatterCostars">
-						<p>
-							This is the same 250 actors we showed earlier. As you can see,
-							Natalie Portman has worked with more of these "big dogs". In fact,
-							it's almost three times as much.
-						</p>
-					</Step>
 					<Step state="degScatter">
 						<p>
 							It would be too circular to use costars with low average distance

@@ -154,9 +154,7 @@ crowd parked invisible) · `hopBands`
 take over) · `rankReveal` (SLJ) · `raceRecent`/
 `raceTrades`/`raceFull` (avg-distance-by-year race, three fixed-scale cameras) ·
 `scatterCenters`/`scatterWalters`/`scatterQuiz` (films-vs-distance scatter
-family) · `scatterCostars` (the same scatter framed on the top 250 by rank,
-coloured by which of the two named actors has worked with each — the one
-films-scatter state that fits its own x domain, see below) ·
+family) ·
 `concurrenceScatter` · `degScatter` · `predictionScatter`
 (toggleable predictors) · `genzList` (the Gen Z scatter frame, held under the
 HTML `GenZList` contender panel that covers it) · `careerTrio`/`careerMany`
