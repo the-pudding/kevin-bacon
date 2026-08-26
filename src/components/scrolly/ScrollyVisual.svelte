@@ -614,10 +614,9 @@
 		// draw-on, leg 2 from raceRecent wherever its camera had reached)
 		const shown = {
 			from: RACE_ENTRY_VISIBLE,
-			// raceStepVisible, not raceContenders: the landing step may name what it
-			// shows outright (RACE_TRADES_STEP.only), and anyone it drops has to fade
-			// out across the leg like any other departure instead of popping at the
-			// settle
+			// raceStepVisible, not raceContenders: it is the single reader of a step's
+			// visible set, so anyone the landing step drops fades out across the leg
+			// like any other departure instead of popping at the settle
 			to: raceStepVisible(toStep, toCap)
 		};
 		sweeping = true;
@@ -666,7 +665,7 @@
 			Math.max(fromP, toP)
 		]);
 		const shown = {
-			from: raceStepVisible(RACE_TRADES_STEP),
+			from: raceStepVisible(RACE_TRADES_STEP, STATE_YCAP[RACE_REWIND_STATE]),
 			to: RACE_ENTRY_VISIBLE
 		};
 		sweeping = true;
@@ -743,7 +742,7 @@
 			Math.max(fromP, toP)
 		]);
 		const shown = {
-			from: raceStepVisible(RACE_TRADES_STEP),
+			from: raceStepVisible(RACE_TRADES_STEP, STATE_YCAP[RACE_REWIND_STATE]),
 			to: raceStepVisible(RACE_FULL_STEP, STATE_YCAP[RACE_FULL_STATE])
 		};
 		sweeping = true;
@@ -1261,7 +1260,7 @@
 			const fromP = raceExit?.playhead ?? RACE_REWIND_WAYPOINT_YEAR;
 			const leg2Shown = {
 				from: RACE_ENTRY_VISIBLE,
-				to: raceStepVisible(RACE_TRADES_STEP)
+				to: raceStepVisible(RACE_TRADES_STEP, STATE_YCAP[RACE_REWIND_STATE])
 			};
 			playRaceRewind(
 				fromP,

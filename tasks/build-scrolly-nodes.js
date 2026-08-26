@@ -169,7 +169,19 @@ for (const [hop, target] of Object.entries(HOP_TARGETS)) {
 const predictionPoints = design("prediction-scatter.json").points;
 const quizSrc = design("distance-quiz.json");
 const genzSrc = raw("genz-mc-knn-bootstrap.json");
-const raceSrc = design("actor-trajectory-anchors.json");
+// The race chart's cast: everyone who reached a year-end top 50 by avg distance
+// between 1980 and 2025, plus every era anchor (analysis/export-yearly-top-n.py
+// -> analysis/actor-trajectory.py). Not just the 15 crown-holders the era
+// timeline collapses to, so the chart can show the field a centre was pulling
+// away from rather than only the winners.
+const raceSrc = design("actor-trajectory-race-cast.json");
+// avg distance to the WHOLE giant component each year (top_n 0). A run with a
+// target cap would put a different, incomparable metric on the same axis.
+assert(
+	raceSrc.top_n === 0,
+	`race trajectories are top_n ${raceSrc.top_n}, not 0`
+);
+const RACE_CAST_SIZE = 224;
 const timeMachine = raw("time-machine.json");
 const trajectories = design("actor-trajectories.json");
 const distanceFilms = design("distance-films-scatter.json").points;
@@ -433,7 +445,7 @@ const quiz = quizSrc.pairs.map(({ options, answer }) => {
 	return { a, b, answer };
 });
 
-// race chart: per-anchor avg_distance by year + the era timeline annotations
+// race chart: per-actor avg_distance by year + the era timeline annotations
 const raceSeries = {};
 for (const a of Object.values(raceSrc.actors)) {
 	raceSeries[idOf(a.person_id)] = a.trajectory
@@ -450,6 +462,12 @@ assert(eras.at(-1).id === idOf(SLJ), "last era anchor should be SLJ");
 assert(
 	eras.every((e) => raceSeries[e.id]),
 	"every era anchor needs a race series"
+);
+// the cast size is a story fact now (it is the field the chart draws), so a
+// rebuild that changes it has to fail here rather than quietly redraw the chart
+assert(
+	Object.keys(raceSeries).length === RACE_CAST_SIZE,
+	`${Object.keys(raceSeries).length} race series, not ${RACE_CAST_SIZE}`
 );
 
 // career lines: the named trio + a deterministic cohort spread for the

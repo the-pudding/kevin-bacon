@@ -9,8 +9,7 @@ import {
 	RANK_BAR_H,
 	RANK_DOT_D,
 	hopDotSlots,
-	hopFractions,
-	RACE_SLOT
+	hopFractions
 } from "../layout-shared.js";
 
 // ---------------------------------------------------------------------------
@@ -45,14 +44,17 @@ function layoutRank(nodes, w, h, _edges, params) {
 	// every hop 1–4 actor (not just a sample) tweens from its hopBands spot onto
 	// one of his row's dots — the whole band converges into the bar, several
 	// hundred actors per dot, rather than a borrowed handful of stand-ins.
-	// Race-chart actors sit out of the convergence: the bar has no notion of
-	// individual rank position, so an actor who lands in it (their dot is one
-	// hashed slot among hundreds, unrelated to where they actually rank) has
-	// nothing meaningful to depart FROM once the race chapter wants to place
-	// them at their real position — better they stay parked hidden here, same
-	// as everyone the bar doesn't draw at all, and simply fade in fresh there.
+	//
+	// The race cast converges with everyone else. It used to sit the convergence
+	// out, on the grounds that a dot in the bar has no meaningful position to
+	// depart FROM when the race chapter places it on its curve — but the race
+	// arrival doesn't glide anyone out of the bar: it freezes the whole rank scene
+	// where it stands, fades it out in place, and draws the chart on fresh (see
+	// playRaceEntry). So the exclusion bought nothing, and once the cast grew to
+	// the full top-50 field it cost the bar 18% of its hop-1 dots — the
+	// best-connected actors are exactly the ones the race chart tracks.
 	for (const n of nodes) {
-		if (n.hop < 1 || n.hop > 4 || RACE_SLOT.has(n.id)) continue;
+		if (n.hop < 1 || n.hop > 4) continue;
 		const dots = slots[n.hop - 1];
 		const dot = dots[Math.floor(hash01(n.id, 6) * dots.length)];
 		set(
@@ -70,15 +72,10 @@ function layoutRank(nodes, w, h, _edges, params) {
 	const BACON_R = 7;
 	set(attrs, ANCHOR_ID, x0 - BACON_R - 2, baconY, BACON_R, INK, 1);
 
-	// everyone else — including the race cast, held out of the convergence
-	// above — parks off-canvas (hidden), ready for whichever chapter picks
+	// everyone else parks off-canvas (hidden), ready for whichever chapter picks
 	// them up next, instead of jittering around as background noise
 	for (const n of nodes) {
-		if (
-			n.id === ANCHOR_ID ||
-			(n.hop >= 1 && n.hop <= 4 && !RACE_SLOT.has(n.id))
-		)
-			continue;
+		if (n.id === ANCHOR_ID || (n.hop >= 1 && n.hop <= 4)) continue;
 		parkHidden(attrs, n, w, h);
 	}
 

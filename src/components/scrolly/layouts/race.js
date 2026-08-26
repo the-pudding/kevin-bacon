@@ -379,10 +379,6 @@ function raceAxes(cam, yS, vLo, vHi, e1) {
  * background treatment, so the step reads as being about two lines rather than
  * its whole field. Omitted → everything the step shows is foreground, which is
  * only right for a step whose entire field is its subject (raceTrades).
- * @property {number[]} [only] exactly which actors the step SHOWS, naming them
- * instead of deriving them from yCap (raceTrades lists the centres of its
- * window). Baked into the step descriptor, so the animated frames and the static
- * settle draw the same ids.
  */
 
 /**
@@ -707,10 +703,10 @@ export const RACE_FULL_STEP = {
 };
 
 /**
- * The ids one state SHOWS. A step either names them outright (`only` —
- * raceTrades lists the centres of its window) or takes everyone whose line dips
- * to its yCap. Every reader goes through here, so an animated frame, its settle
- * and the sweep animators' fade sets can't disagree.
+ * The ids one state SHOWS: everyone whose line dips to its yCap somewhere in its
+ * extent, i.e. everyone who comes onto its axis. Every reader goes through here,
+ * so an animated frame, its settle and the sweep animators' fade sets can't
+ * disagree.
  *
  * This is visibility, not membership: the cast itself is RACE_CAST on every race
  * step, and an actor this set leaves out still rides its own curve at alpha 0
@@ -718,7 +714,6 @@ export const RACE_FULL_STEP = {
  * steps without a hidden dot travelling across the canvas to arrive.
  */
 export function raceStepVisible(step, yCap) {
-	if (step.only) return new Set(step.only);
 	return raceContenders(step.extent[0], step.extent[1], yCap);
 }
 
@@ -765,35 +760,53 @@ function raceEraEnvelope(year0, year1) {
 // is raceTrades' whole point, so its cast is this list rather than a yCap
 // threshold that would both miss holders and admit non-holders.
 const RACE_TRADES_HOLDERS = raceHolders(...RACE_TRADES_DECADE);
+// The holders are what this step is ABOUT, not the only thing it draws: the
+// field carries over from raceRecent so the reader keeps the same chart rather
+// than watching it empty out to five lines and refill.
 export const RACE_TRADES_STEP = {
 	extent: RACE_TRADES_EXTENT,
-	only: RACE_TRADES_HOLDERS
+	highlight: RACE_TRADES_HOLDERS
 };
 
-// Segments of the ids a step SHOWS — never of the whole cast. Each race step's
-// y-fit is the range of what it is about, so the actors it leaves at alpha 0
-// can't drag its axis open (the crowd spans ~1.6 against the modern field's
-// ~0.3). Non-visible lines go off-scale instead, and curveEntry/curveExit end
-// them at the plot edge.
-const raceVisibleSegs = (step, cap) =>
-	[...raceStepVisible(step, cap)].map((id) => RACE_SEGS.get(id));
+// Segments of the ids a step is ABOUT — its highlight, or everything it shows
+// when its whole field is the subject. The same rule writeRaceSweepFrame's
+// `subject` follows, so a step's axis frames exactly the lines it emphasises.
+//
+// Deliberately NOT the visible set. With a cast of hundreds, the field a step
+// shows spans the whole crowd's range (~0.9 on raceRecent against its subject's
+// ~0.21), and fitting to that squashes the handover the step exists to show into
+// a fifth of the plot. Fitting to the subject instead lets the field fill in
+// behind wherever it happens to be on scale; the rest runs off the top and
+// curveEntry/curveExit end those lines at the plot edge, entering and leaving
+// through it like any line chart.
+const raceSubjectSegs = (step, cap) =>
+	[...(step.highlight ?? raceStepVisible(step, cap))].map((id) =>
+		RACE_SEGS.get(id)
+	);
 
-// raceRecent's own y-fit: its cast over the years it can reach. The modern range
-// is ~0.3 wide against the 1970s' ~1.6, so sharing raceTrades' axis (as this step
-// used to) squashed SLJ and Hackman into the top fifth of the plot and hid the
-// handover the step is about.
+// raceRecent's own y-fit: SLJ and Hackman across the years its camera can reach.
+// The modern range is ~0.2 wide against the 1970s' ~1.6, so sharing raceTrades'
+// axis (as this step used to) squashed the pair into the top fifth of the plot
+// and hid the handover the step is about.
 export const RACE_RECENT_YFIT = raceYFit(
-	raceVisibleSegs(RACE_RECENT_STEP, RACE_RECENT_YCAP),
+	raceSubjectSegs(RACE_RECENT_STEP, RACE_RECENT_YCAP),
 	RACE_RECENT_REACH_FLOOR,
 	RACE_RECENT_EXTENT[1]
 );
 
 // raceTrades' resting y-fit: its centres across RACE_TRADES_FIT, i.e. what its
-// camera actually holds once parked on 1994.
+// camera actually holds once parked on 1994. It names no highlight — every line
+// on it is one of its handover holders — so its subject is its whole field.
 export const RACE_TRADES_YFIT = raceYFit(
-	raceVisibleSegs(RACE_TRADES_STEP),
+	raceSubjectSegs(RACE_TRADES_STEP),
 	...RACE_TRADES_FIT
 );
+
+// A step shows everyone whose line comes onto its axis — so the yCap IS the top
+// of the fit. That is what raceRecent's hand-picked 2.3 already amounts to
+// (its axis tops out at 2.309); deriving it here means the field and the axis
+// can't drift apart when the data is rebuilt.
+const RACE_TRADES_YCAP = RACE_TRADES_YFIT[1];
 
 // raceFull's resting y-fit: the era-leader envelope over the whole [1970, 2025]
 // extent (raceEraEnvelope), padded the same 6% as every other fit. Fitting to
@@ -850,9 +863,9 @@ export const states = {
 		revealFrom: ["rankReveal"]
 	},
 	raceTrades: {
-		// no yCap: the cast is named outright (RACE_TRADES_STEP.only)
-		layout: raceLayout(RACE_TRADES_STEP, undefined, RACE_TRADES_YFIT),
+		layout: raceLayout(RACE_TRADES_STEP, RACE_TRADES_YCAP, RACE_TRADES_YFIT),
 		race: RACE_TRADES_STEP,
+		yCap: RACE_TRADES_YCAP,
 		yFit: RACE_TRADES_YFIT,
 		// every centre of the window is named — that's what the step is showing, and
 		// two of them (Walsh, Starr) hold it only briefly, so a name is the only way
