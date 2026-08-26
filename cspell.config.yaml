@@ -54,6 +54,7 @@ words:
   - joinable
   - reframing
   - igraph
+  - onnavigate
 ignorePaths:
   - node_modules
   - build

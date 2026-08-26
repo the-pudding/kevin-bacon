@@ -11,6 +11,11 @@ export const story = $state({
 	rankGaveUp: false,
 	/** pair quiz: per-pair pick, keyed by pair index → picked pid */
 	quizPicks: {},
+	/** pair quiz: the reader stepped *back* into the quiz step, so it shows every
+	 * pair revealed instead of re-asking — whether they answered or skipped. Set
+	 * (and cleared again on a forwards arrival) by Index's navigate(), which runs
+	 * before the step renders so PairQuiz reads the right value at mount */
+	quizRevealed: false,
 	/** prediction scatter: false = film count alone, true = the full model */
 	predictInsights: false,
 	/** win-bar breakdown: pid of the bar the reader tapped (null = none) */

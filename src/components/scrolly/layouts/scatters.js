@@ -344,12 +344,11 @@ export const states = {
 				WALTERS
 			];
 		},
-		// the step *after* the interactive quiz card (params.revealed) recaps it,
-		// same as every downstream chapter: reveal all pairs unconditionally,
-		// regardless of whether the reader actually answered (see story.svelte.js
-		// — "every interaction is skippable... reveals its answer unconditionally")
-		params: (s, p) => ({
-			picks: p?.revealed ? ALL_PICKED : { ...s.quizPicks }
+		// once the reader has been past this step, every pair reads as answered:
+		// the reveal is unconditional, so a skipped quiz is revealed too rather
+		// than left blank (see story.svelte.js — "every interaction is skippable")
+		params: (s) => ({
+			picks: s.quizRevealed ? ALL_PICKED : { ...s.quizPicks }
 		}),
 		labelDirs: PAIR_LABEL_DIRS,
 		overlay: AVG_OVERLAY

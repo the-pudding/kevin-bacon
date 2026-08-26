@@ -6,7 +6,6 @@
 	import Step from "$components/scrolly/Step.svelte";
 	import GuessRank from "$components/scrolly/GuessRank.svelte";
 	import RankBars from "$components/scrolly/RankBars.svelte";
-	import GenZList from "$components/scrolly/GenZList.svelte";
 	import RaceScrubber from "$components/scrolly/RaceScrubber.svelte";
 	import PairQuiz from "$components/scrolly/PairQuiz.svelte";
 	import useWindowDimensions from "$runes/useWindowDimensions.svelte.js";
@@ -16,6 +15,7 @@
 
 	const STEP_PARAM = "step";
 	const isRankState = (s) => s === "rankFocus" || s === "rankReveal";
+	const isQuizState = (s) => s === "scatterQuiz";
 
 	// current step lives in the URL query (?step=N) so each tab keeps its own
 	// place across refreshes independently — unlike localStorage, which is
@@ -88,6 +88,17 @@
 		urlParams.set(STEP_PARAM, value);
 	});
 
+	// Runs before `value` changes, so state the destination step's own components
+	// read at mount is already correct — PairQuiz decides whether to ask from
+	// story.quizRevealed as it mounts, and a post-render $effect would leave it
+	// painting the blurred question for a frame before being told not to.
+	function navigate(to) {
+		// arriving at the quiz backwards means the reader has already been through
+		// it, so reveal every pair instead of re-asking (whether they answered or
+		// skipped — see story.svelte.js). Arriving forwards re-arms the question.
+		if (isQuizState(stepConfigs[to]?.state)) story.quizRevealed = to < value;
+	}
+
 	let prevValue = 0;
 	$effect(() => {
 		const state = stepConfigs[value]?.state;
@@ -143,20 +154,12 @@
 				{#snippet quizPanel()}
 					<PairQuiz {visual} />
 				{/snippet}
-				<!-- the Future chapter's contender list. Both Gen Z steps reference
-				     this one snippet, so the list keeps its scroll position across
-				     the step change instead of remounting at the top. -->
-				{#snippet genzPanel()}
-					<div class="genz-list-panel" style="bottom: {stepsHeight + 12}px">
-						<GenZList />
-					</div>
-				{/snippet}
 				{#snippet racePanel()}
 					<div class="race-scrubber-panel" style="bottom: {stepsHeight + 12}px">
 						<RaceScrubber />
 					</div>
 				{/snippet}
-				<Wizard bind:value count={stepConfigs.length}>
+				<Wizard bind:value count={stepConfigs.length} onnavigate={navigate}>
 					<!-- PRESENT -->
 					<Step state="lone">
 						<p>
@@ -309,20 +312,24 @@
 						params={{ showPair: true, showCostars: true }}
 					>
 						<p>
-							For example, of those 250 most-connected actors from earlier,
-							Natalie Portman has worked with 97 of them vs Anna Kendrick's 35.
+							For example, of the 250 most-connected actors from earlier,
+							Natalie Portman has worked almost three times as many.
 						</p>
 					</Step>
 					<Step state="degScatter">
 						<p>
 							It would be too circular to use costars with low average distance
 							as our measure. That's like saying "We think the most expensive
-							houses will be the ones with the highest price". Instead we use
-							the costar film count as a sort of proxy. Concretely, this is an
-							actor's 50 most prolific costars by number of films, taken as an
-							average. If you work with more "big dog" actors compared to
-							someone with the same film count, you'll almost definitely be
-							closer to the center of Hollywood than them.
+							houses will be the ones with the highest price".
+						</p>
+					</Step>
+					<Step state="degScatter">
+						<p>
+							Instead we use the costar film count as a sort of proxy.
+							Concretely, this is an actor's 50 most prolific costars by number
+							of films, taken as an average. If you work with more "big dog"
+							actors compared to someone with the same film count, you'll almost
+							definitely be closer to the center of Hollywood than them.
 						</p>
 					</Step>
 					<Step state="scatterQuiz" panel={quizPanel}>
@@ -333,14 +340,14 @@
 							closer to the center?
 						</p>
 					</Step>
-					<Step state="genzList" panel={genzPanel}>
+					<Step state="scatterGenZ">
 						<p>
 							We now have everything we need to predict Gen Z's Kevin Bacon
 							using film count and costar data. Our contenders are actors born
 							since 1997 that have been in at least 5 films.
 						</p>
 					</Step>
-					<Step state="genzList" panel={genzPanel}>
+					<Step state="scatterGenZ">
 						<p>
 							To predict future average distance we need to model their
 							trajectory by stating what we think their film count and costar
@@ -440,19 +447,6 @@
 		animation: panel-in 0.4s ease 0.7s both;
 	}
 
-	/* the Future chapter's contender list. Unlike the rank panel there is no
-	   canvas collapse to leave room for, so it covers the whole canvas region
-	   above the step card — `top: 84px` would let the scatter's y-ticks (which
-	   start around MARGIN + 8) show above it — and fades in with no delay. */
-	.genz-list-panel {
-		position: absolute;
-		top: 0;
-		left: 0;
-		right: 0;
-		background: var(--color-bg);
-		animation: panel-in 0.4s ease both;
-	}
-
 	@keyframes panel-in {
 		from {
 			opacity: 0;
@@ -482,7 +476,6 @@
 
 	@media (prefers-reduced-motion: reduce) {
 		.rank-bars-panel,
-		.genz-list-panel,
 		.rank-focus-text {
 			animation: none;
 		}

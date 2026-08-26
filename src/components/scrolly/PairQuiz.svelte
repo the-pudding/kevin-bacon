@@ -26,12 +26,18 @@
 
 	const pairs = INTERACTIVE_IDS.quiz;
 
-	// first unanswered pair, so stepping back after answering shows the finished
-	// (blur-free) state rather than re-asking
+	// Where this mount picks up. Past the end (nothing rendered, blur-free) when
+	// the reader stepped back into this step — quizRevealed — or when every pair
+	// is answered; otherwise the first unanswered pair, which resumes a quiz left
+	// part-finished by stepping back to an earlier step and forward again.
 	const firstUnanswered = pairs.findIndex(
 		(_, idx) => story.quizPicks[idx] === undefined
 	);
-	let i = $state(firstUnanswered === -1 ? pairs.length : firstUnanswered);
+	let i = $state(
+		story.quizRevealed || firstUnanswered === -1
+			? pairs.length
+			: firstUnanswered
+	);
 	let phase = $state("asking"); // "asking" | "resolving"
 
 	/** @type {HTMLButtonElement[]} */
