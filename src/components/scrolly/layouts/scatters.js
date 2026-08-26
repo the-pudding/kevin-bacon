@@ -226,23 +226,28 @@ export const states = {
 		// on the pair step, and take PAIR_LABEL_DIRS' right placement on the
 		// film-count one
 		labelDirs: (params) => (params?.showPair ? {} : PAIR_LABEL_DIRS),
-		// this state's two shapes are the film-count step and the pair step, and
-		// each puts its own metric in the names — the number is the point being
-		// made
+		// this state's three shapes are the film-count step, the avg-distance pair
+		// step, and the costar-count pair step — each puts its own metric in the
+		// names, since the number is the point being made
 		labelText: (nodes, params) =>
-			params?.showPair
-				? Object.fromEntries(
-						[PORTMAN, KENDRICK].map((id) => [
-							id,
-							`${nodes[id].name} · ${nodes[id].avgDistance.toFixed(2)} avg. distance`
-						])
-					)
-				: Object.fromEntries(
-						[SLJ, CAGE].map((id) => [
-							id,
-							`${nodes[id].name} · ${nodes[id].films} films`
-						])
-					),
+			params?.showCostars
+				? {
+						[PORTMAN]: `${nodes[PORTMAN].name} · 97 of the top 250`,
+						[KENDRICK]: `${nodes[KENDRICK].name} · 35 of the top 250`
+					}
+				: params?.showPair
+					? Object.fromEntries(
+							[PORTMAN, KENDRICK].map((id) => [
+								id,
+								`${nodes[id].name} · ${nodes[id].avgDistance.toFixed(2)} avg. distance`
+							])
+						)
+					: Object.fromEntries(
+							[SLJ, CAGE].map((id) => [
+								id,
+								`${nodes[id].name} · ${nodes[id].films} films`
+							])
+						),
 		pulse: (params) => (params?.showPair ? null : SLJ),
 		overlay: AVG_OVERLAY
 	},

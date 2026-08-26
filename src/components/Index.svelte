@@ -304,6 +304,15 @@
 							distance.
 						</p>
 					</Step>
+					<Step
+						state="scatterCenters"
+						params={{ showPair: true, showCostars: true }}
+					>
+						<p>
+							For example, of those 250 most-connected actors from earlier,
+							Natalie Portman has worked with 97 of them vs Anna Kendrick's 35.
+						</p>
+					</Step>
 					<Step state="degScatter">
 						<p>
 							It would be too circular to use costars with low average distance
