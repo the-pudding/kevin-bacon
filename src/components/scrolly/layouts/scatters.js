@@ -1,6 +1,7 @@
 import story from "$data/scrolly-story.json";
 import {
 	ATTR_SIZE,
+	STRIDE,
 	MARGIN,
 	plotBottom,
 	lin,
@@ -31,6 +32,9 @@ import {
  * @param {boolean} [cfg.invert] smaller value = higher up (avg-distance charts)
  * @param {number} [cfg.tickStep] y ticks at even steps of the metric (default 0.5)
  * @param {Map<number, { rgb: number[], r: number, alpha?: number }>} [cfg.highlights]
+ * @param {(t: number) => string} [cfg.labelOf] formats a y tick's raw value; default 1dp of the raw value
+ * @param {number} [cfg.floor] raises the y-domain's lower bound past the data minimum; actors below it clamp to the floor, dimmed, same as anyone past vMax
+ * @param {number} [cfg.ceil] raises the y-domain's upper bound past the data maximum, widening headroom above the highest actor without clamping anyone
  */
 function filmsScatter(nodes, w, h, cfg) {
 	const attrs = new Float64Array(ATTR_SIZE);
@@ -45,6 +49,8 @@ function filmsScatter(nodes, w, h, cfg) {
 		vMin = Math.min(vMin, v);
 		vMax = Math.max(vMax, v);
 	}
+	if (cfg.floor != null) vMin = Math.max(vMin, cfg.floor);
+	if (cfg.ceil != null) vMax = Math.max(vMax, cfg.ceil);
 	const pad = (vMax - vMin) * 0.04;
 	const top = MARGIN + 8;
 	const bottom = plotBottom(h);
@@ -78,11 +84,14 @@ function filmsScatter(nodes, w, h, cfg) {
 	// x-axis carries no ticks or numbers — just the title below (the log scale
 	// is described, not quantified); y ticks at even metric steps, no gridlines
 	const step = cfg.tickStep ?? 0.5;
+	const labelOf = cfg.labelOf ?? ((t) => t.toFixed(1));
 	const y = [];
 	for (let t = Math.ceil(vMin / step) * step; t <= vMax; t += step) {
-		y.push({ pos: yS(t), label: t.toFixed(1) });
+		y.push({ pos: yS(t), label: labelOf(t) });
 	}
-	return { attrs, axes: { xBase: bottom + 10, y } };
+	// yS rides along for the one caller that seeds a later state's cast on this
+	// frame's scale (seedGenzCandidates); the framework ignores the extra key
+	return { attrs, yS, axes: { xBase: bottom + 10, y } };
 }
 
 const avgScatter = (nodes, w, h, highlights) =>
@@ -165,7 +174,10 @@ function layoutScatterQuiz(nodes, w, h, _edges, params) {
 	// Walters carries over from her earlier solo step, in a distinct yellow so
 	// she's never mistaken for a quiz pair
 	highlights.set(WALTERS, { rgb: YELLOW, r: 6 });
-	return avgScatter(nodes, w, h, highlights);
+	const result = avgScatter(nodes, w, h, highlights);
+	// this is the step scatterGenZ arrives from — seed its cast (below)
+	seedGenzCandidates(result.attrs, nodes, w, h, result.yS);
+	return result;
 }
 
 // all six quiz actors as uniform blue marks (the prototype's single mark
@@ -194,6 +206,20 @@ const DEG_SCATTER_HIGHLIGHTS = new Map([
 	[KENDRICK, { rgb: RED, r: 5.5 }]
 ]);
 
+// inverts top50's log(films + 1) build transform back to a plain film count,
+// shared by the axis ticks and the node labels so both read the same number
+const deLogFilms = (t) => Math.round(Math.exp(t) - 1);
+
+// raises the axis floor to a ~27-film costar average (10% below the earlier
+// 30-film cut) — below that isn't a meaningful "big dog" costar anyway, and
+// the true data minimum (~16) left most of the range spent on actors nobody
+// in the prose is pointing at. Kendrick (47) still clears it comfortably, so
+// she isn't pinned to the floor. The ceiling gets the same ~10% widening
+// above the true data max (~61), so the top of the range isn't crowded right
+// up against Portman's dot either.
+const DEG_SCATTER_FLOOR = Math.log(28);
+const DEG_SCATTER_CEIL = Math.log(68);
+
 /** @type {import("../layout-shared.js").LayoutFn} */
 const layoutDegScatter = (nodes, w, h) =>
 	filmsScatter(nodes, w, h, {
@@ -202,7 +228,13 @@ const layoutDegScatter = (nodes, w, h) =>
 		// plotted range is ~2-5. The 0.5 default was tuned for the retired
 		// log-degree metric's ~7-8 band and leaves too few ticks here.
 		tickStep: 0.25,
-		highlights: DEG_SCATTER_HIGHLIGHTS
+		highlights: DEG_SCATTER_HIGHLIGHTS,
+		floor: DEG_SCATTER_FLOOR,
+		ceil: DEG_SCATTER_CEIL,
+		// ticks stay evenly spaced in log space (that's the plotted scale), but
+		// the label de-logs back to a film count — the raw log value on its own
+		// means nothing to a reader
+		labelOf: (t) => String(deLogFilms(t))
 	});
 
 // The Gen Z frame is zoomed onto the candidate pool rather than sharing the
@@ -219,21 +251,25 @@ const GENZ_FILM_MAX = 40;
 const inGenzWindow = (n) =>
 	n.films > FILM_MIN_SHOWN && n.films <= GENZ_FILM_MAX;
 
-/** @type {import("../layout-shared.js").LayoutFn} */
-function layoutScatterGenZ(nodes, w, h) {
-	// CGM is candidates[0], so she wears the same green candidate mark
-	const highlights = new Map(
-		story.genz.candidates.map((c) => [c.id, { rgb: GREEN, r: 3.5, alpha: 0.9 }])
-	);
-	const result = avgScatter(nodes, w, h, highlights);
-	const { attrs } = result;
+// CGM is candidates[0], so she wears the same green candidate mark
+const GENZ_MARK = { rgb: GREEN, r: 3.5, alpha: 0.9 };
+const GENZ_HIGHLIGHTS = new Map(
+	story.genz.candidates.map((c) => [c.id, GENZ_MARK])
+);
+
+/**
+ * The zoomed frame's scales and the spot it gives a node. Shared by the layout
+ * and by `seedGenzCandidates` below, so a candidate that arrives hidden enters
+ * on the row the layout will hold it at.
+ */
+function genzFrame(nodes, w, h) {
 	// y fits everything the frame actually draws — candidates *and* the crowd
 	// inside the film window. Fitting the candidates alone would clamp the ~150
 	// crowd dots that are better connected than CGM into a stripe on the top edge
 	let vMin = Infinity;
 	let vMax = -Infinity;
 	for (const n of nodes) {
-		if (!highlights.has(n.id) && !inGenzWindow(n)) continue;
+		if (!GENZ_HIGHLIGHTS.has(n.id) && !inGenzWindow(n)) continue;
 		vMin = Math.min(vMin, n.avgDistance);
 		vMax = Math.max(vMax, n.avgDistance);
 	}
@@ -246,24 +282,61 @@ function layoutScatterGenZ(nodes, w, h) {
 	const xS = (films) =>
 		lin(Math.log(films), xLogMin - xPad, xLogMax + xPad, MARGIN, w - MARGIN);
 	const yS = (v) => lin(v, vMin - vPad, vMax + vPad, top, bottom); // inverted
+	// unlike the corpus-wide frame this one has an end to fall off, and the crowd
+	// avgScatter draws runs past it. Everyone outside the window parks on the
+	// clamped edge at alpha 0 — a zoom carries its surplus off frame, and letting
+	// the 84 actors past the ceiling pile up on the boundary instead would read
+	// as a real cluster. Parked dots are clamped on both axes: an unclamped y
+	// would fling the long tail of thin, distant actors hundreds of pixels off
+	// canvas, and the neighbouring states would tween them all the way back in.
+	const place = (n) => [
+		xS(Math.min(GENZ_FILM_MAX, Math.max(GENZ_FILM_MIN, n.films))),
+		yS(Math.min(vMax, Math.max(vMin, n.avgDistance)))
+	];
+	return { vMin, vMax, bottom, xS, yS, place };
+}
+
+/**
+ * Park every Gen Z candidate the *calling* chart hides on the spot that chart
+ * would have given it had it plotted them, at alpha 0 — so scatterGenZ's zoom is
+ * the only thing that moves them, exactly as it moves the ~40 candidates already
+ * on screen, and the pool arrives with the crowd instead of separately.
+ *
+ * Neither leg of the entry is authored, then: the x comes from the caller's own
+ * films scale below its 10-film floor (a 5-film actor waits ~200px off the left
+ * of the canvas, and the zoom onto 4–40 films carries every candidate the same
+ * ~340px in), and the y from the caller's fitted avg-distance scale, which sits
+ * 30–60px lower than the zoomed one — the drop the crowd makes on the way in.
+ * `scatterPosition`'s y is what can't be used: it runs the whole corpus domain
+ * out to 4.79, bunching this pool near the top edge, which is why they came in
+ * from above.
+ *
+ * @param {(v: number) => number} yS the caller's avg-distance scale
+ */
+function seedGenzCandidates(attrs, nodes, w, h, yS) {
+	for (const id of GENZ_HIGHLIGHTS.keys()) {
+		if (attrs[id * STRIDE + 6] > 0) continue; // on screen here — let it travel
+		const [x] = scatterPosition(nodes[id], w, h);
+		// unclamped: the shift has to stay smooth across the pool, and the few
+		// candidates past the caller's domain land only ~20px below its plot floor
+		set(attrs, id, x, yS(nodes[id].avgDistance), GENZ_MARK.r, GENZ_MARK.rgb, 0);
+	}
+}
+
+/** @type {import("../layout-shared.js").LayoutFn} */
+function layoutScatterGenZ(nodes, w, h) {
+	const result = avgScatter(nodes, w, h, GENZ_HIGHLIGHTS);
+	const { attrs } = result;
+	const { vMin, vMax, bottom, xS, yS, place } = genzFrame(nodes, w, h);
 	for (const n of nodes) {
-		const hi = highlights.get(n.id);
+		const hi = GENZ_HIGHLIGHTS.get(n.id);
 		const shown = hi || inGenzWindow(n);
-		// unlike the corpus-wide frame this one has an end to fall off, and the
-		// crowd avgScatter just drew runs past it. Everyone outside the window
-		// parks on the clamped edge at alpha 0 — a zoom carries its surplus off
-		// frame, and letting the 84 actors past the ceiling pile up on the
-		// boundary instead would read as a real cluster
-		const films = Math.min(GENZ_FILM_MAX, Math.max(GENZ_FILM_MIN, n.films));
-		// parked dots are clamped on both axes too: an unclamped y would fling
-		// the long tail of thin, distant actors hundreds of pixels off canvas,
-		// and the neighbouring states would tween them all the way back in
-		const dist = Math.min(vMax, Math.max(vMin, n.avgDistance));
+		const [x, y] = place(n);
 		set(
 			attrs,
 			n.id,
-			xS(films),
-			yS(dist),
+			x,
+			y,
 			hi?.r ?? 2,
 			hi?.rgb ?? CROWD,
 			shown ? (hi ? (hi.alpha ?? 1) : 0.3) : 0
@@ -368,9 +441,19 @@ export const states = {
 		// no labelDirs entry for either id: they fall back to hanging below the
 		// dot, which is what "only these two" calls for once the crowd is gone
 		labelDirs: {},
+		// names carry the de-logged film count, same number the axis itself now
+		// shows, so Portman's dot reads as "Natalie Portman · 54" rather than
+		// just her name
+		labelText: (nodes) =>
+			Object.fromEntries(
+				[PORTMAN, KENDRICK].map((id) => [
+					id,
+					`${nodes[id].name} · ${deLogFilms(nodes[id].top50)}`
+				])
+			),
 		overlay: {
 			xLabel: "Films (log scale)",
-			yLabel: "Stronger co-stars →"
+			yLabel: "Costar film count average (log scale)"
 		}
 	},
 	scatterGenZ: {
