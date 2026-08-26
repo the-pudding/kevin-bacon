@@ -11,7 +11,6 @@ import {
 	RED,
 	BLUE,
 	GREEN,
-	PURPLE,
 	YELLOW,
 	CYAN,
 	SLJ,
@@ -106,7 +105,9 @@ const KENDRICK = QUIZ_IDS[3];
 /** @type {import("../layout-shared.js").LayoutFn} */
 const layoutScatterCenters = (nodes, w, h, _edges, params) => {
 	// the pair step hands the subject over to Portman and Kendrick — they are
-	// the two extremes the prose points at, so SLJ drops back into the cloud
+	// the two extremes the prose points at, so SLJ drops back into the cloud.
+	// Each takes the colour their costar group wears on the zoom step that
+	// follows, so the reader carries the pairing across into it.
 	if (params?.showPair) {
 		return avgScatter(
 			nodes,
@@ -114,7 +115,7 @@ const layoutScatterCenters = (nodes, w, h, _edges, params) => {
 			h,
 			new Map([
 				[PORTMAN, { rgb: BLUE, r: 5.5 }],
-				[KENDRICK, { rgb: BLUE, r: 5.5 }]
+				[KENDRICK, { rgb: RED, r: 5.5 }]
 			])
 		);
 	}
@@ -186,6 +187,13 @@ const layoutConcScatter = (nodes, w, h) =>
 		highlights: PAIR_HIGHLIGHTS
 	});
 
+// this step narrows the highlight to just the Portman/Kendrick pair from the
+// earlier scatter steps — every other dot stays in frame as plain crowd
+const DEG_SCATTER_HIGHLIGHTS = new Map([
+	[PORTMAN, { rgb: BLUE, r: 5.5 }],
+	[KENDRICK, { rgb: RED, r: 5.5 }]
+]);
+
 /** @type {import("../layout-shared.js").LayoutFn} */
 const layoutDegScatter = (nodes, w, h) =>
 	filmsScatter(nodes, w, h, {
@@ -194,8 +202,22 @@ const layoutDegScatter = (nodes, w, h) =>
 		// plotted range is ~2-5. The 0.5 default was tuned for the retired
 		// log-degree metric's ~7-8 band and leaves too few ticks here.
 		tickStep: 0.25,
-		highlights: PAIR_HIGHLIGHTS
+		highlights: DEG_SCATTER_HIGHLIGHTS
 	});
+
+// The Gen Z frame is zoomed onto the candidate pool rather than sharing the
+// corpus-wide films axis: no candidate has more than 37 films, so the shared
+// scale (up to SLJ's 116) spends its right-hand half on actors this chapter
+// never mentions, and its SLJ-driven y domain leaves the green cloud sagging in
+// the lower band with the thinnest candidates clamped off the bottom: base
+// frame from avgScatter, then every position rewritten through locally fitted
+// scales. The shared scatterPosition scale is deliberately left alone — five
+// other chapters park their hidden dots on it.
+const GENZ_FILM_MIN = 4;
+const GENZ_FILM_MAX = 40;
+/** actors the zoomed frame draws in grey behind the candidates */
+const inGenzWindow = (n) =>
+	n.films > FILM_MIN_SHOWN && n.films <= GENZ_FILM_MAX;
 
 /** @type {import("../layout-shared.js").LayoutFn} */
 function layoutScatterGenZ(nodes, w, h) {
@@ -203,10 +225,65 @@ function layoutScatterGenZ(nodes, w, h) {
 	const highlights = new Map(
 		story.genz.candidates.map((c) => [c.id, { rgb: GREEN, r: 3.5, alpha: 0.9 }])
 	);
-	highlights.set(SLJ, { rgb: PURPLE, r: 4.5, alpha: 0.9 });
 	const result = avgScatter(nodes, w, h, highlights);
-	result.legend = [{ color: GREEN, label: "Gen Z actors" }];
-	result.legendY = plotBottom(h) + 14;
+	const { attrs } = result;
+	// y fits everything the frame actually draws — candidates *and* the crowd
+	// inside the film window. Fitting the candidates alone would clamp the ~150
+	// crowd dots that are better connected than CGM into a stripe on the top edge
+	let vMin = Infinity;
+	let vMax = -Infinity;
+	for (const n of nodes) {
+		if (!highlights.has(n.id) && !inGenzWindow(n)) continue;
+		vMin = Math.min(vMin, n.avgDistance);
+		vMax = Math.max(vMax, n.avgDistance);
+	}
+	const xLogMin = Math.log(GENZ_FILM_MIN);
+	const xLogMax = Math.log(GENZ_FILM_MAX);
+	const xPad = (xLogMax - xLogMin) * 0.04;
+	const vPad = (vMax - vMin) * 0.04;
+	const top = MARGIN + 8;
+	const bottom = plotBottom(h);
+	const xS = (films) =>
+		lin(Math.log(films), xLogMin - xPad, xLogMax + xPad, MARGIN, w - MARGIN);
+	const yS = (v) => lin(v, vMin - vPad, vMax + vPad, top, bottom); // inverted
+	for (const n of nodes) {
+		const hi = highlights.get(n.id);
+		const shown = hi || inGenzWindow(n);
+		// unlike the corpus-wide frame this one has an end to fall off, and the
+		// crowd avgScatter just drew runs past it. Everyone outside the window
+		// parks on the clamped edge at alpha 0 — a zoom carries its surplus off
+		// frame, and letting the 84 actors past the ceiling pile up on the
+		// boundary instead would read as a real cluster
+		const films = Math.min(GENZ_FILM_MAX, Math.max(GENZ_FILM_MIN, n.films));
+		// parked dots are clamped on both axes too: an unclamped y would fling
+		// the long tail of thin, distant actors hundreds of pixels off canvas,
+		// and the neighbouring states would tween them all the way back in
+		const dist = Math.min(vMax, Math.max(vMin, n.avgDistance));
+		set(
+			attrs,
+			n.id,
+			xS(films),
+			yS(dist),
+			hi?.r ?? 2,
+			hi?.rgb ?? CROWD,
+			shown ? (hi ? (hi.alpha ?? 1) : 0.3) : 0
+		);
+	}
+	// both axes are re-ticked against the local scales — avgScatter's ticks were
+	// positioned by the corpus-wide y domain this frame just replaced. 0.25 steps
+	// because the zoomed band is only ~0.7 wide and filmsScatter's 0.5 default
+	// would leave it with a single tick
+	const y = [];
+	for (let t = Math.ceil(vMin / 0.25) * 0.25; t <= vMax; t += 0.25) {
+		y.push({ pos: yS(t), label: t.toFixed(2) });
+	}
+	// the shared films axis is described but never quantified (see filmsScatter);
+	// this one is narrow enough to label
+	result.axes = {
+		x: [5, 10, 20, 40].map((f) => ({ pos: xS(f), label: String(f) })),
+		xBase: bottom + 10,
+		y
+	};
 	return result;
 }
 
@@ -226,9 +303,9 @@ export const states = {
 		// on the pair step, and take PAIR_LABEL_DIRS' right placement on the
 		// film-count one
 		labelDirs: (params) => (params?.showPair ? {} : PAIR_LABEL_DIRS),
-		// this state's three shapes are the film-count step, the avg-distance pair
-		// step, and the costar-count pair step — each puts its own metric in the
-		// names, since the number is the point being made
+		// this state's three shapes are the film-count step, the avg-distance
+		// pair step, and the costar-count pair step — each puts its own metric
+		// in the names, since the number is the point being made
 		labelText: (nodes, params) =>
 			params?.showCostars
 				? {
@@ -288,8 +365,10 @@ export const states = {
 	},
 	degScatter: {
 		layout: layoutDegScatter,
-		labels: PAIR_LABELS,
-		labelDirs: PAIR_LABEL_DIRS,
+		labels: [PORTMAN, KENDRICK],
+		// no labelDirs entry for either id: they fall back to hanging below the
+		// dot, which is what "only these two" calls for once the crowd is gone
+		labelDirs: {},
 		overlay: {
 			xLabel: "Films (log scale)",
 			yLabel: "Stronger co-stars →"
@@ -297,7 +376,6 @@ export const states = {
 	},
 	scatterGenZ: {
 		layout: layoutScatterGenZ,
-		labels: [CGM, SLJ],
 		pulse: CGM,
 		overlay: AVG_OVERLAY
 	}
