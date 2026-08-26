@@ -154,10 +154,11 @@ crowd parked invisible) · `hopBands`
 take over) · `rankReveal` (SLJ) · `raceRecent`/
 `raceTrades`/`raceFull` (avg-distance-by-year race, three fixed-scale cameras) ·
 `scatterCenters`/`scatterWalters`/`scatterQuiz` (films-vs-distance scatter
-family) ·
+family) · `scatterCostars` (the same scatter framed on the top 250 by rank,
+coloured by which of the two named actors has worked with each — the one
+films-scatter state that fits its own x domain, see below) ·
 `concurrenceScatter` · `degScatter` · `predictionScatter`
-(toggleable predictors) · `genzList` (the Gen Z scatter frame, held under the
-HTML `GenZList` contender panel that covers it) · `careerTrio`/`careerMany`
+(toggleable predictors) · `scatterGenZ` · `careerTrio`/`careerMany`
 (films-by-career-age trails) · `winBars` (dot-waffle sim wins; each dot ≈ 25
 of 10k runs) · `sljFan` (SLJ trajectory vs projected winners).
 
@@ -178,67 +179,90 @@ own label. Each step therefore holds more years than fit on screen and is a
 _camera_ over its data. Three concepts stay separate (`layouts/race.js`):
 
 - **content extent** `[e0, e1]`, baked per state in `race: { extent }`
-  (`STATE_RACE`) and width-independent: it drives the cast, the y-fit
-  (`STATE_YFIT`, see below), era candidacy and the reader's pan bounds, so panning
-  never moves the y axis or changes who is on the chart.
+  (`STATE_RACE`) and width-independent: it drives the cast, era candidacy and the
+  reader's pan bounds, so panning never changes who is on the chart. It does _not_
+  drive the axis — see below.
 - **camera**, one `playhead` year at the plot's RIGHT edge (`xS(playhead) ===
 right`, which is what keeps "dots ride the right end of their line" true).
   `raceCamera` is a pure function of `(playhead, width)` with no clamping — that
   is what makes an animated frame and the static layout it settles onto
   pixel-identical even when a choreography pans a step past its own extent (the
-  rewind takes raceRecent back to `RACE_REWIND_WAYPOINT_YEAR`). Reader input is
-  clamped at its source via `racePanBounds`.
+  rewind takes raceRecent back to `RACE_REWIND_WAYPOINT_YEAR`). Both axes are
+  derived from it, so that purity covers the whole frame rather than just x.
+  Reader input is clamped at its source via `racePanBounds`.
 - **reveal** `0..1`, the entry draw-on only.
 
-**Race y-fits.** Each race step carries an explicit `[vMin, vMax, vLo, vHi]`
-(`STATE_YFIT`, computed at module load because the extents are
-width-independent), and every animator writing that step's frames must pass the
-same one or the axis snaps between the animated frames and the static settle.
-A step is fitted over every year its camera **visits** — its own window plus the
-`REACH_FLOOR` its camera's left edge reaches (the left edge is the draw floor) and
-the corridor its arrival pan travels through. Fitting a wider content extent puts
-years on the axis that the step never displays, which is what buried both
-handovers in a fifth of the plot:
+**The race y axis.** One record, shared by every step: `RACE_ANCHOR` in
+`layouts/race.js` holds the avg-distance of whoever was the centre of Hollywood,
+per year, built at module load from `story.eras` × `story.raceSeries`. It is
+derived here rather than baked into `scrolly-story.json`, so changing it never
+needs an `ANALYSIS_REPO` rebuild. `buildRaceAnchor` throws on a gap.
 
-- `RACE_RECENT_YFIT` — raceRecent's cast from `RACE_RECENT_REACH_FLOOR` (2003) to
-  2025 → ≈2.07–2.39, so SLJ pulling clear of Hackman is legible.
-- `RACE_TRADES_YFIT` — raceTrades' centres across `RACE_TRADES_FIT` (1990–1994, the
-  run-up its camera holds once the rewind parks its dots on 1994) → ≈2.21–2.42.
-  Two mechanisms keep that tight rather than stretched to cover years it doesn't
-  rest on: `curveEntry` ends each line where it leaves the scale, so the
-  mid-eighties (where the same actors spread over ~0.8) go off-scale through the
-  plot edge as in any line chart; and the arrival pan carries its own axis, below.
-- `RACE_FULL_YFIT` — the era-leader envelope (`raceEraEnvelope`: each holder only
-  across the years they held the crown) over the whole `[1970, 2025]` extent →
-  ≈2.08–2.78, padded to ≈2.04–2.82. Fitting the leader trend rather than every
-  holder's entire curve is what keeps that ~0.7 wide instead of ~2.3; the 1970s
-  end of the trend genuinely sits up at ~2.78. `RACE_FULL_PAN_FLOOR` (1980) stops
-  the camera, not the axis — the extent, the x axis, the lines and this envelope
-  all still start at 1970. raceTrades → raceFull carries its own eased axis, below.
+`raceWindowYFit(camLeft, camRight)` is the whole rule: the record's range over the
+years **on screen**, raised to at least `RACE_Y_FLOOR` (0.45) tall, padded 6%.
+`writeRaceSweepFrame` calls it with its own camera, so:
 
-The y-fit is otherwise constant for a whole state and a whole animation phase
-(reader panning never moves it — `racePanBounds` keeps the reader inside the
-extent). The one exception is the rewind's leg 2, arriving at raceTrades: it hands
-`runSweepPhase` a `raceRewindYFit(...)` instead of a constant, so the axis **pans
-with the camera** — easing from raceRecent's fit onto raceTrades' and, at every
-frame, widening to contain the dots at that frame's playhead. The dot envelope is
-load-bearing: the corridor between the two steps dips below both of their fits, so
-a straight interpolation would leave the dots ~40px above the plot mid-pan, and
-widening either endpoint to cover the corridor is what left raceTrades' resting
-axis a third empty. `runSweepPhase` accepts a tuple or a function of eased
-progress; `writeRaceSweepFrame` only ever sees a resolved tuple.
+- **No step owns an axis and no animator carries one.** There is no `STATE_YFIT`,
+  no `fixedYFit` parameter, and nothing to hand across a step transition. An
+  animated frame and the static settle it lands on agree because both are the same
+  pure function of `(playhead, width, height)` — a type-level guarantee, not a
+  review property. This is what let `raceRewindYFit`, `lerpYFit`, `liveYFit` and
+  `raceExit.yFit` all be deleted: leg 2's "axis pans with the camera" behaviour is
+  now simply what the axis does everywhere.
+- **The y scale is near-fixed**, 0.504–0.635 tall anywhere in 1970–2025 (1.26×,
+  measured across viewports 360–700px), so a vertical distance means the same thing
+  on every step — the y counterpart of `PX_PER_YEAR`. Y ticks therefore sit on round
+  tenths and _slide_, exactly as the x ticks travel with their years; spacing them
+  evenly across the domain instead would pin them to fixed rows and roll their
+  digits on every frame of a pan.
+- **Reader panning moves the axis**, and must: the settle it hands off to derives
+  its own fit from the same playhead.
 
-Two consequences of a step-specific axis, both load-bearing:
+Two properties of the record make it the right thing to hang the axis on. It is
+the chart's exact **floor** — no actor in the cast sits below the crown holder in
+any year (measured deficit 0.0000 across all 224 series) — so the low end needs no
+guesswork and nothing clips off the bottom. And it is read **interpolated**
+(`raceAnchorAt`), not sampled on whole years: sampled discretely the fit would be a
+step function of the camera and the axis would visibly tick every time a year
+crossed the plot edge mid-pan. That trades in one risk — a monotone cubic sagging
+below the straight line between two record points — which measures at most 0.021
+against the fit's ~0.030 of bottom padding.
 
-- **`raceStepCast`** is the single source of who is on a step. A step either names
-  its cast outright (`only` — raceTrades lists the centres of its window, from
-  `story.eras`) or takes everyone whose line dips to its `yCap`. Anything reading a
-  cast must go through it, never `raceContenders` directly, or an actor a step
-  drops fades back in at the settle.
-- **`CAST_DEPART_END`** (ScrollyVisual) retires a departing actor over the first
-  third of a phase rather than all of it. Leg 2 tightens the axis as it pans, and a
-  line still fading at the end of it can sit outside the landing step's range —
-  which would draw it over the axis furniture instead of inside the plot.
+`RACE_Y_FLOOR` is the one dial, and it is derived: 0.411 is the measured minimum
+that keeps every labelled dot on the plot at every reachable playhead and viewport
+width, so 0.45 carries margin. Raising it flattens every step's lines; lowering it
+risks a clipped dot. Verified at 0 clipped of 2963 labelled-dot samples.
+
+The accepted cost of one shared scale: raceRecent's SLJ/Hackman handover occupies
+~42% of the plot height rather than filling it. Lines that run off the top are
+ended at the plot edge by `curveEntry`/`curveExit`, entering and leaving through it
+as in any line chart.
+
+**Who a step shows** is a separate question from the axis, and still
+width-independent so it can be computed at module load. `raceStepCap(step)` is the
+centre at the step's resting year plus one chapter-wide `RACE_YCAP_REACH` (0.213).
+Expressing the reach _from the centre_ rather than as an absolute avg-distance is
+load-bearing: the crown itself moves from ~2.82 in 1971 to ~2.09 in 2025, so a
+single absolute cap cannot mean the same thing on two steps a decade apart —
+raceRecent's old hand-picked 2.3 would have shown raceTrades just 16 of its 224
+lines, emptying out the field it is meant to sit behind. 0.213 is that same 2.3
+read against the 2025 centre, so raceRecent's field is unchanged at 131 lines and
+raceTrades' is now derived the same way (137) instead of falling out of a y-fit
+constant. raceFull has no cap; it shows the whole cast by design.
+
+Two consequences of the shared axis, both load-bearing:
+
+- **`raceStepVisible`** is the single source of who is on a step: everyone whose
+  line dips to its `yCap` somewhere in its extent. Anything reading a visible set
+  must go through it, never `raceContenders` directly, or an actor a step drops
+  fades back in at the settle. Which actors a step _emphasises_ is separate again —
+  its `highlight` (raceTrades lists the centres of its window, from `story.eras`).
+- **`SHOWN_DEPART_END`** (ScrollyVisual) retires a departing actor over the first
+  third of a phase rather than all of it. This is now purely how it reads — the
+  modern crowd drops away first, leaving the actors the step is about. It used to be
+  a correctness rule as well, when the axis was fitted per step and a line still
+  fading at the end of a pan could be drawn outside the plot the leg was landing
+  on.
 
 `writeRaceSweepFrame` is the single placer of race dots and trails — the static
 layout delegates to it, so settles are byte-identical by construction rather

@@ -405,43 +405,6 @@ export function curveYAt(segs, x) {
 }
 
 /**
- * y-extent covered by a set of monotone-segment lists over the window [x0, x1]:
- * each curve's value at both window edges (curveYAt clamps past-data to the
- * terminal value) plus any of its data knots strictly inside the window. Monotone
- * segments don't overshoot, so edges + interior knots bound the true range.
- * Returns [lo, hi], or null if no curve contributes. Port of the reference
- * race-chart's visibleYRange; feeds the per-frame y-refit during the sweep.
- * @param {number[][][][]} segsList one segment array per curve
- */
-export function curveYRange(segsList, x0, x1) {
-	let lo = Infinity;
-	let hi = -Infinity;
-	for (const segs of segsList) {
-		if (!segs.length) continue;
-		for (const x of [x0, x1]) {
-			const v = curveYAt(segs, x);
-			if (v < lo) lo = v;
-			if (v > hi) hi = v;
-		}
-		for (const seg of segs) {
-			const kx = seg[0][0];
-			if (kx > x0 && kx < x1) {
-				const v = seg[0][1];
-				if (v < lo) lo = v;
-				if (v > hi) hi = v;
-			}
-		}
-		// the last segment's endpoint knot (loop above only reads each seg's start)
-		const last = segs.at(-1)[3];
-		if (last[0] > x0 && last[0] < x1) {
-			if (last[1] < lo) lo = last[1];
-			if (last[1] > hi) hi = last[1];
-		}
-	}
-	return lo <= hi ? [lo, hi] : null;
-}
-
-/**
  * resamples TRAIL_POINTS vertices uniformly in data-x over [x0, x1], reading y
  * off PRE-BUILT monotone segments, into trail slot t. Because the segments are
  * supplied (not rebuilt from a clipped subset here), the caller can pass segments

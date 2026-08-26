@@ -21,6 +21,7 @@ words:
   - bindable
   - crossfade
   - lerping
+  - lerp
   - wordmark
   - barebones
   - hackman
@@ -47,6 +48,7 @@ words:
   - decollider
   - repro
   - yfit
+  - ycap
   - jacque
   - sarandon
   - pred
