@@ -12,11 +12,9 @@ import {
 	RED,
 	BLUE,
 	GREEN,
-	YELLOW,
 	CYAN,
 	SLJ,
 	CAGE,
-	WALTERS,
 	CGM
 } from "../layout-shared.js";
 
@@ -108,8 +106,7 @@ const KENDRICK = QUIZ_IDS[3];
 
 // single-subject highlight discipline (prototype): exactly one ringed subject
 // per state, no supporting-cast dots, no on-canvas callouts — the facts live
-// in the step prose. SLJ takes the default red highlight; Walters a yellow
-// variant, kept consistent everywhere she carries over through step 19.
+// in the step prose. SLJ takes the default red highlight.
 
 /** @type {import("../layout-shared.js").LayoutFn} */
 const layoutScatterCenters = (nodes, w, h, _edges, params) => {
@@ -135,10 +132,6 @@ const layoutScatterCenters = (nodes, w, h, _edges, params) => {
 	return avgScatter(nodes, w, h, highlights);
 };
 
-/** @type {import("../layout-shared.js").LayoutFn} */
-const layoutScatterWalters = (nodes, w, h) =>
-	avgScatter(nodes, w, h, new Map([[WALTERS, { rgb: YELLOW, r: 6 }]]));
-
 // every pair index marked picked: the shape layoutScatterQuiz's picks-lookup
 // expects, forcing its "answered" highlight regardless of story.quizPicks
 const ALL_PICKED = Object.fromEntries(story.quiz.map((_, i) => [i, true]));
@@ -155,11 +148,6 @@ export const QUIZ_LABEL_DIRS = {
 	[QUIZ_IDS[5]]: "left" // Dave Franco
 };
 
-// step-18 metric scatters also carry Walters (her mid-cloud film count puts her
-// label left); a direction is what enrols a label in ScrollyVisual's vertical
-// de-collision pass, so every name shown here needs one
-const PAIR_LABEL_DIRS = { ...QUIZ_LABEL_DIRS, [WALTERS]: "left" };
-
 /** @type {import("../layout-shared.js").LayoutFn} */
 function layoutScatterQuiz(nodes, w, h, _edges, params) {
 	const highlights = new Map();
@@ -171,9 +159,6 @@ function layoutScatterQuiz(nodes, w, h, _edges, params) {
 		highlights.set(pair.a, { rgb: BLUE, r: 5.5 });
 		highlights.set(pair.b, { rgb: BLUE, r: 5.5 });
 	});
-	// Walters carries over from her earlier solo step, in a distinct yellow so
-	// she's never mistaken for a quiz pair
-	highlights.set(WALTERS, { rgb: YELLOW, r: 6 });
 	const result = avgScatter(nodes, w, h, highlights);
 	// this is the step scatterGenZ arrives from — seed its cast (below)
 	seedGenzCandidates(result.attrs, nodes, w, h, result.yS);
@@ -181,14 +166,12 @@ function layoutScatterQuiz(nodes, w, h, _edges, params) {
 }
 
 // all six quiz actors as uniform blue marks (the prototype's single mark
-// family — no per-pair colour coding); Walters keeps her own yellow so she
-// stays visually consistent from her solo step through step 19
-const PAIR_HIGHLIGHTS = new Map([
-	...QUIZ_IDS.map((id) => [id, { rgb: BLUE, r: 5.5 }]),
-	[WALTERS, { rgb: YELLOW, r: 6 }]
-]);
+// family — no per-pair colour coding)
+const PAIR_HIGHLIGHTS = new Map(
+	QUIZ_IDS.map((id) => [id, { rgb: BLUE, r: 5.5 }])
+);
 
-const PAIR_LABELS = [...QUIZ_IDS, WALTERS];
+const PAIR_LABELS = [...QUIZ_IDS];
 
 /** @type {import("../layout-shared.js").LayoutFn} */
 const layoutConcScatter = (nodes, w, h) =>
@@ -373,9 +356,9 @@ export const states = {
 		labels: (params) => (params?.showPair ? [PORTMAN, KENDRICK] : [SLJ, CAGE]),
 		// the pair labels carry their metric, so they're too wide to sit beside
 		// their dots at the right edge of the cloud — they hang below (clamped)
-		// on the pair step, and take PAIR_LABEL_DIRS' right placement on the
+		// on the pair step, and take QUIZ_LABEL_DIRS' right placement on the
 		// film-count one
-		labelDirs: (params) => (params?.showPair ? {} : PAIR_LABEL_DIRS),
+		labelDirs: (params) => (params?.showPair ? {} : QUIZ_LABEL_DIRS),
 		// this state's three shapes are the film-count step, the avg-distance
 		// pair step, and the costar-count pair step — each puts its own metric
 		// in the names, since the number is the point being made
@@ -401,21 +384,13 @@ export const states = {
 		pulse: (params) => (params?.showPair ? null : SLJ),
 		overlay: AVG_OVERLAY
 	},
-	scatterWalters: {
-		layout: layoutScatterWalters,
-		labels: [WALTERS],
-		overlay: AVG_OVERLAY
-	},
 	scatterQuiz: {
 		layout: layoutScatterQuiz,
 		labels: (params) => {
 			const picks = params?.picks ?? {};
-			return [
-				...story.quiz.flatMap((pair, i) =>
-					picks[i] === undefined ? [] : [pair.a, pair.b]
-				),
-				WALTERS
-			];
+			return story.quiz.flatMap((pair, i) =>
+				picks[i] === undefined ? [] : [pair.a, pair.b]
+			);
 		},
 		// once the reader has been past this step, every pair reads as answered:
 		// the reveal is unconditional, so a skipped quiz is revealed too rather
@@ -423,13 +398,13 @@ export const states = {
 		params: (s) => ({
 			picks: s.quizRevealed ? ALL_PICKED : { ...s.quizPicks }
 		}),
-		labelDirs: PAIR_LABEL_DIRS,
+		labelDirs: QUIZ_LABEL_DIRS,
 		overlay: AVG_OVERLAY
 	},
 	concurrenceScatter: {
 		layout: layoutConcScatter,
 		labels: PAIR_LABELS,
-		labelDirs: PAIR_LABEL_DIRS,
+		labelDirs: QUIZ_LABEL_DIRS,
 		overlay: {
 			xLabel: "Films (log scale)",
 			yLabel: "Fewer recurring co-stars →"

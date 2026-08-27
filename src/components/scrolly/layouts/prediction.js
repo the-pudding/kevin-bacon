@@ -9,9 +9,7 @@ import {
 	CROWD,
 	RED,
 	BLUE,
-	YELLOW,
 	SLJ,
-	WALTERS,
 	TRAIL_META,
 	DIAG_SLOT,
 	setTrail,
@@ -74,7 +72,6 @@ function layoutPredScatter(nodes, w, h, _edges, params) {
 		const x = xS(n[field]);
 		const y = yS(n.avgDistance);
 		if (n.id === SLJ) set(attrs, n.id, x, y, 6, RED, 1);
-		else if (n.id === WALTERS) set(attrs, n.id, x, y, 4.5, YELLOW, 1);
 		else if (marks.has(n.id)) set(attrs, n.id, x, y, 4.5, BLUE, 1);
 		else set(attrs, n.id, x, y, 2.2, CROWD, 0.35);
 	}
@@ -113,7 +110,7 @@ function layoutPredScatter(nodes, w, h, _edges, params) {
 export const states = {
 	predictionScatter: {
 		layout: layoutPredScatter,
-		labels: [SLJ, ...QUIZ_IDS, WALTERS],
+		labels: [SLJ, ...QUIZ_IDS],
 		// same side-anchors as the other scatters so the persisting quiz labels
 		// don't snap orientation on arrival
 		labelDirs: QUIZ_LABEL_DIRS,

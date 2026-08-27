@@ -153,7 +153,6 @@ export const STREEP = idOf(5064);
 export const DENIRO = idOf(380);
 export const HACKMAN = idOf(193);
 export const CAGE = idOf(2963);
-export const WALTERS = idOf(477);
 export const OLDMAN = idOf(64);
 export const KIDMAN = idOf(2227);
 export const CGM = story.genz.candidates[0].id;
