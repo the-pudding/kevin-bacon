@@ -259,11 +259,13 @@ export function hopDotSlots(fractions, width, id) {
 }
 
 // fixed film-count x-scale shared by every films-scatter variant so dots only
-// travel vertically when the y-metric changes. Floored at 10 films: the scatter
-// chapters only plot actors with more than 10 films — 85% of the corpus has ≤10
-// and just forms a low-signal vertical smear on the left — so the axis starts
-// there and sub-threshold actors park off the left edge (alpha 0).
-export const FILM_MIN_SHOWN = 10;
+// travel vertically when the y-metric changes. Floored at 5 films: below that
+// the corpus is mostly one-and-done credits, a low-signal vertical smear on the
+// left, so the axis starts here and thinner actors park off the left edge
+// (alpha 0). It matches build-scrolly-nodes.js's FILM_MIN exactly — the node
+// file carries the *whole* corpus from this count up, so every column of the
+// plotted cloud is a full population rather than a sample.
+export const FILM_MIN_SHOWN = 5;
 const FILM_LOGS = rawNodes.nodes.map((n) => Math.log(Math.max(1, n[3])));
 export const FILM_LOG_MIN = Math.log(FILM_MIN_SHOWN);
 export const FILM_LOG_MAX = Math.max(...FILM_LOGS);

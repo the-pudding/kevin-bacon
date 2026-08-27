@@ -1,7 +1,6 @@
 import story from "$data/scrolly-story.json";
 import {
 	ATTR_SIZE,
-	STRIDE,
 	MARGIN,
 	plotBottom,
 	lin,
@@ -34,13 +33,13 @@ import {
 function filmsScatter(nodes, w, h, cfg) {
 	const attrs = new Float64Array(ATTR_SIZE);
 	const values = nodes.map((n) => cfg.yOf(n));
-	// y-domain from the SHOWN (>10-film) subset only — sub-threshold actors'
-	// long tail would stretch the domain and squash the plotted cloud
+	// y-domain from the SHOWN subset only — sub-threshold actors' long tail
+	// would stretch the domain and squash the plotted cloud
 	let vMin = Infinity;
 	let vMax = -Infinity;
 	for (const n of nodes) {
 		const v = values[n.id];
-		if (v == null || n.films <= FILM_MIN_SHOWN) continue;
+		if (v == null || n.films < FILM_MIN_SHOWN) continue;
 		vMin = Math.min(vMin, v);
 		vMax = Math.max(vMax, v);
 	}
@@ -56,11 +55,11 @@ function filmsScatter(nodes, w, h, cfg) {
 		const v = values[n.id];
 		const [sx] = scatterPosition(n, w, h);
 		const hi = cfg.highlights?.get(n.id);
-		// only the >10-film actors are plotted (see FILM_LOG_MIN); everyone
-		// else — and anyone missing the y-metric — holds their scatter spot at
-		// alpha 0. Highlighted actors are always drawn, unless the metric is
-		// missing (nothing to plot).
-		if (v == null || (n.films <= FILM_MIN_SHOWN && !hi)) {
+		// only actors at or above the film floor are plotted (see FILM_LOG_MIN);
+		// everyone else — and anyone missing the y-metric — holds their scatter
+		// spot at alpha 0. Highlighted actors are always drawn, unless the metric
+		// is missing (nothing to plot).
+		if (v == null || (n.films < FILM_MIN_SHOWN && !hi)) {
 			const [, sy] = scatterPosition(n, w, h);
 			set(attrs, n.id, sx, sy, 2, CROWD, 0);
 			continue;
@@ -84,9 +83,7 @@ function filmsScatter(nodes, w, h, cfg) {
 	for (let t = Math.ceil(vMin / step) * step; t <= vMax; t += step) {
 		y.push({ pos: yS(t), label: labelOf(t) });
 	}
-	// yS rides along for the one caller that seeds a later state's cast on this
-	// frame's scale (seedGenzCandidates); the framework ignores the extra key
-	return { attrs, yS, axes: { xBase: bottom + 10, y } };
+	return { attrs, axes: { xBase: bottom + 10, y } };
 }
 
 const avgScatter = (nodes, w, h, highlights) =>
@@ -169,10 +166,7 @@ function layoutScatterQuiz(nodes, w, h, _edges, params) {
 		highlights.set(pair.a, { rgb: CROWD, r: 5.5 });
 		highlights.set(pair.b, { rgb: CROWD, r: 5.5 });
 	});
-	const result = avgScatter(nodes, w, h, highlights);
-	// this is the step scatterGenZ arrives from — seed its cast (below)
-	seedGenzCandidates(result.attrs, nodes, w, h, result.yS);
-	return result;
+	return avgScatter(nodes, w, h, highlights);
 }
 
 // all six quiz actors as uniform marks (the prototype's single mark
@@ -238,11 +232,14 @@ const layoutDegScatter = (nodes, w, h) =>
 // frame from avgScatter, then every position rewritten through locally fitted
 // scales. The shared scatterPosition scale is deliberately left alone — five
 // other chapters park their hidden dots on it.
-const GENZ_FILM_MIN = 4;
+// the thinnest candidate has 5 films, which is also the corpus floor the node
+// file carries in full — so the window opens exactly where the backdrop crowd
+// stops being a complete population
+const GENZ_FILM_MIN = FILM_MIN_SHOWN;
 const GENZ_FILM_MAX = 40;
 /** actors the zoomed frame draws in grey behind the candidates */
 const inGenzWindow = (n) =>
-	n.films > FILM_MIN_SHOWN && n.films <= GENZ_FILM_MAX;
+	n.films >= GENZ_FILM_MIN && n.films <= GENZ_FILM_MAX;
 
 // CGM is candidates[0], so she wears the same candidate mark
 const GENZ_MARK = { rgb: CROWD, r: 3.5, alpha: 0.9 };
@@ -289,32 +286,10 @@ function genzFrame(nodes, w, h) {
 	return { vMin, vMax, bottom, xS, yS, place };
 }
 
-/**
- * Park every Gen Z candidate the *calling* chart hides on the spot that chart
- * would have given it had it plotted them, at alpha 0 — so scatterGenZ's zoom is
- * the only thing that moves them, exactly as it moves the ~40 candidates already
- * on screen, and the pool arrives with the crowd instead of separately.
- *
- * Neither leg of the entry is authored, then: the x comes from the caller's own
- * films scale below its 10-film floor (a 5-film actor waits ~200px off the left
- * of the canvas, and the zoom onto 4–40 films carries every candidate the same
- * ~340px in), and the y from the caller's fitted avg-distance scale, which sits
- * 30–60px lower than the zoomed one — the drop the crowd makes on the way in.
- * `scatterPosition`'s y is what can't be used: it runs the whole corpus domain
- * out to 4.79, bunching this pool near the top edge, which is why they came in
- * from above.
- *
- * @param {(v: number) => number} yS the caller's avg-distance scale
- */
-function seedGenzCandidates(attrs, nodes, w, h, yS) {
-	for (const id of GENZ_HIGHLIGHTS.keys()) {
-		if (attrs[id * STRIDE + 6] > 0) continue; // on screen here — let it travel
-		const [x] = scatterPosition(nodes[id], w, h);
-		// unclamped: the shift has to stay smooth across the pool, and the few
-		// candidates past the caller's domain land only ~20px below its plot floor
-		set(attrs, id, x, yS(nodes[id].avgDistance), GENZ_MARK.r, GENZ_MARK.rgb, 0);
-	}
-}
+// No seeding step here any more: the thinnest Gen Z candidate has 5 films, which
+// is the shared scatter floor, so every candidate is already on screen in the
+// crowd on the step scatterGenZ arrives from. The zoom is the only thing that
+// moves them, which is what the old off-canvas parking was arranging by hand.
 
 /** @type {import("../layout-shared.js").LayoutFn} */
 function layoutScatterGenZ(nodes, w, h) {

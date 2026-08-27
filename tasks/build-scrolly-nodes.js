@@ -286,6 +286,40 @@ for (const pid of appended) {
 }
 
 // ---------------------------------------------------------------------------
+// Block 3 (appended, sorted by pid): the rest of the films-scatter population —
+// every corpus actor with at least FILM_MIN films and an average distance.
+//
+// Blocks 1–2 already carry every actor with 20+ films (the prediction cohort
+// covers them), but below that they hold only whatever the hop-tree sample and
+// the named casts happened to include: 227 of the corpus's 2,660 actors in the
+// 11–19 band, and a similar fraction down to 5. That left the scatter chapters'
+// left-hand third all but empty, and — worse — what did land there was a
+// residue of incidental co-stars rather than a population, so the sparse band
+// read as a real shape. This block fills it from the metrics DB directly.
+//
+// FILM_MIN is 5, not the scatters' own display floor: scatterGenZ zooms onto
+// 4–40 films, so its grey backdrop needs the thin end of the range too.
+// ---------------------------------------------------------------------------
+
+const FILM_MIN = 5;
+const scatterPop = db
+	.prepare(
+		`SELECT person_id, name FROM actor_metrics
+		 WHERE total_films >= ? AND avg_distance IS NOT NULL
+		 ORDER BY person_id`
+	)
+	.all(FILM_MIN);
+const inSample = new Set(sample.map((n) => n.pid));
+for (const row of scatterPop) {
+	if (inSample.has(row.person_id)) continue;
+	sample.push({
+		pid: row.person_id,
+		name: row.name,
+		hop: hopByPid.get(row.person_id) ?? -1
+	});
+}
+
+// ---------------------------------------------------------------------------
 // Node rows: join sqlite metrics + scatter-chapter metrics onto every node.
 // ---------------------------------------------------------------------------
 
@@ -351,6 +385,22 @@ const careerAgeCount = nodes.filter((r) => r[12] != null).length;
 assert(
 	careerAgeCount > 3000,
 	`only ${careerAgeCount} nodes carry a career age`
+);
+// Block 3's whole point: the films scatters plot a population, not a residue.
+// The first guard catches a node set that fell back out of sync with the
+// metrics DB; the second catches the concurrence export drifting back above
+// FILM_MIN, which would leave that one chapter's cloud sparse where the rest
+// are full.
+const scatterNodes = nodes.filter((r) => r[3] >= FILM_MIN);
+assert(
+	scatterNodes.length === scatterPop.length,
+	`${scatterNodes.length} nodes at ${FILM_MIN}+ films, but the corpus has ${scatterPop.length}`
+);
+const missingConc = scatterNodes.filter((r) => r[6] == null).length;
+assert(
+	missingConc === 0,
+	`${missingConc} of the ${FILM_MIN}+ film population lack a concurrence score ` +
+		"(re-run analysis/export-concurrence-vs-films-scatter.py with a matching FILM_FLOOR)"
 );
 const idOf = (pid) => {
 	const id = idByPid.get(pid);
