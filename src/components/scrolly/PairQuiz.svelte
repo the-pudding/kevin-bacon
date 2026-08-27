@@ -4,13 +4,14 @@
 	// (references/pudding-post/.../distance-films-quiz.js) onto the shared canvas.
 	// The quiz appears as a blurred overlay ON the scatter, one pair at a time;
 	// picking either option flies BOTH cards onto the graph — each morphs into a
-	// blue dot and lands at its true avg-distance position, then stays there
-	// labelled. Neutral reveal: no ✓/✗, no numbers — the dot's height (closer =
-	// higher) is the answer. This is a `panel` snippet rendered over the canvas by
-	// Index.svelte (see notes/scrolly-framework.md "Exception").
+	// dot (the same neutral grey the canvas lands it in) and lands at its true
+	// avg-distance position, then stays there labelled. Neutral reveal: no ✓/✗,
+	// no numbers — the dot's height (closer = higher) is the answer. This is a
+	// `panel` snippet rendered over the canvas by Index.svelte (see
+	// notes/scrolly-framework.md "Exception").
 	import { story } from "./story.svelte.js";
 	import { INTERACTIVE_IDS, nodeName } from "./states.js";
-	import { BLUE } from "./layout-shared.js";
+	import { CROWD } from "./layout-shared.js";
 
 	/**
 	 * @type {{ visual?: { locate: (id: number) => { x: number, y: number } | null } }}
@@ -22,7 +23,7 @@
 	const EASE = "cubic-bezier(0.65, 0, 0.35, 1)";
 	const DOT_DIAMETER = 11; // landing dot is r 5.5; card squishes to this footprint
 	const HOLD_MS = 450; // matches ScrollyVisual's PARAM_TWEEN_MS (dot fade-in)
-	const DOT_FILL = `rgb(${BLUE.join(", ")})`;
+	const DOT_FILL = `rgb(${CROWD.join(", ")})`;
 
 	const pairs = INTERACTIVE_IDS.quiz;
 

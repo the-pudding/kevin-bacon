@@ -11,7 +11,8 @@ import {
 	CROWD,
 	SLJ,
 	CAGE,
-	CGM
+	CGM,
+	idOf
 } from "../layout-shared.js";
 
 // ---------------------------------------------------------------------------
@@ -95,10 +96,18 @@ const avgScatter = (nodes, w, h, highlights) =>
 		highlights
 	});
 
-export const QUIZ_IDS = story.quiz.flatMap((p) => [p.a, p.b]);
+// by tmdb id, not QUIZ_IDS position: Portman/Kendrick are the worked example
+// for scatterCenters/concurrenceScatter/degScatter regardless of whether
+// they're one of the quiz pairs, and this stays correct across data rebuilds
+const PORTMAN = idOf(524);
+const KENDRICK = idOf(84223);
 
-const PORTMAN = QUIZ_IDS[2];
-const KENDRICK = QUIZ_IDS[3];
+// quiz pairs exclude Portman/Kendrick — they're the dedicated worked example,
+// not a quiz question
+export const QUIZ_PAIRS = story.quiz.filter(
+	(p) => ![p.a, p.b].includes(PORTMAN) && ![p.a, p.b].includes(KENDRICK)
+);
+export const QUIZ_IDS = QUIZ_PAIRS.flatMap((p) => [p.a, p.b]);
 
 // single-subject highlight discipline (prototype): exactly one ringed subject
 // per state, no supporting-cast dots, no on-canvas callouts — the facts live
@@ -130,18 +139,23 @@ const layoutScatterCenters = (nodes, w, h, _edges, params) => {
 
 // every pair index marked picked: the shape layoutScatterQuiz's picks-lookup
 // expects, forcing its "answered" highlight regardless of story.quizPicks
-const ALL_PICKED = Object.fromEntries(story.quiz.map((_, i) => [i, true]));
+const ALL_PICKED = Object.fromEntries(QUIZ_PAIRS.map((_, i) => [i, true]));
 
 // Label placement for the quiz dots, to keep names off each other in the tight
-// cluster: the high-film pair sits on the right of the cloud so their labels go
-// right; the low-film pair sits on the left so theirs go left.
+// cluster: high-film pairs sit on the right of the cloud so their labels go
+// right; low-film pairs sit on the left so theirs go left. Pairs left out of
+// this map fall back to the default below-dot placement, which also keeps
+// them out of the beside-dot vertical decollision pool — with five pairs
+// crowding the cloud, only Theron/Rogen/Robbie/Franco/Murphy/DiCaprio need
+// beside-dot placement; the rest read fine underneath.
 export const QUIZ_LABEL_DIRS = {
-	[QUIZ_IDS[0]]: "right", // Charlize Theron
-	[QUIZ_IDS[1]]: "right", // Seth Rogen
-	[QUIZ_IDS[2]]: "right", // Natalie Portman
-	[QUIZ_IDS[3]]: "right", // Anna Kendrick
-	[QUIZ_IDS[4]]: "left", // Margot Robbie
-	[QUIZ_IDS[5]]: "left" // Dave Franco
+	[QUIZ_IDS[0]]: "right", // Charlize Theron (49 films)
+	[QUIZ_IDS[1]]: "right", // Seth Rogen (48 films)
+	[QUIZ_IDS[2]]: "left", // Margot Robbie (27 films)
+	[QUIZ_IDS[3]]: "left", // Dave Franco (26 films)
+	[QUIZ_IDS[4]]: "left", // Cillian Murphy (33 films)
+	[QUIZ_IDS[5]]: "left" // Leonardo DiCaprio (31 films)
+	// Harrison Ford, Colin Firth, Rupert Grint, Mahershala Ali: underneath
 };
 
 /** @type {import("../layout-shared.js").LayoutFn} */
@@ -150,7 +164,7 @@ function layoutScatterQuiz(nodes, w, h, _edges, params) {
 	const picks = params?.picks ?? {};
 	// Neutral reveal: both actors in an answered pair get the same larger mark.
 	// The dot's height (closer = higher) is the answer — no colour coding.
-	story.quiz.forEach((pair, i) => {
+	QUIZ_PAIRS.forEach((pair, i) => {
 		if (picks[i] === undefined) return;
 		highlights.set(pair.a, { rgb: CROWD, r: 5.5 });
 		highlights.set(pair.b, { rgb: CROWD, r: 5.5 });
@@ -384,7 +398,7 @@ export const states = {
 		layout: layoutScatterQuiz,
 		labels: (params) => {
 			const picks = params?.picks ?? {};
-			return story.quiz.flatMap((pair, i) =>
+			return QUIZ_PAIRS.flatMap((pair, i) =>
 				picks[i] === undefined ? [] : [pair.a, pair.b]
 			);
 		},

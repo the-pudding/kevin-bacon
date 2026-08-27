@@ -317,7 +317,8 @@
 	// nudges apart labels whose dots have landed within a line-height of each
 	// other, easing the displacement per id so a rank swap slides names past
 	// each other instead of snapping. Ported from the pudding-post race-chart.
-	const decollideLabels = createLabelDecollider();
+	const decollideLabelsLeft = createLabelDecollider();
+	const decollideLabelsRight = createLabelDecollider();
 	const LABEL_LINE_GAP_PX = 16; // ~11px label line-height * 1.15, matches reference
 	// how close a below-dot name may sit to the canvas edge before it stops
 	// sliding outward (see the .node-label transform)
@@ -964,12 +965,25 @@
 			labelOffset: 0
 		}));
 		// only beside-dot labels ("left"/"right") stack vertically — below-dot
-		// labels are already x-separated by their own dot, so they're excluded
+		// labels are already x-separated by their own dot, so they're excluded.
+		// Left and right labels sit on opposite sides of the cloud and never
+		// visually collide with each other, so each side decollides on its own —
+		// otherwise a left label can shove a right label down (or vice versa)
+		// just for sharing a y, with no actual overlap to avoid.
 		const besideDot = nextTracked.filter(
 			(t) => t.labelAlpha > 0 && labelDirs[t.id] != null
 		);
-		if (besideDot.length > 1) {
-			const shownOffset = decollideLabels(besideDot, LABEL_LINE_GAP_PX);
+		if (besideDot.length > 0) {
+			const shownOffset = new Map([
+				...decollideLabelsLeft(
+					besideDot.filter((t) => labelDirs[t.id] === "left"),
+					LABEL_LINE_GAP_PX
+				),
+				...decollideLabelsRight(
+					besideDot.filter((t) => labelDirs[t.id] === "right"),
+					LABEL_LINE_GAP_PX
+				)
+			]);
 			ctx.lineWidth = 1;
 			for (const t of besideDot) {
 				const offset = shownOffset.get(t.id) ?? 0;

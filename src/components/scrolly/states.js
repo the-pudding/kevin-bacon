@@ -22,11 +22,15 @@ import { states as introStates } from "./layouts/intro.js";
 import { states as hopBandsStates } from "./layouts/hop-bands.js";
 import { states as rankStates } from "./layouts/rank.js";
 import { states as raceStates } from "./layouts/race.js";
-import { states as scattersStates, QUIZ_IDS } from "./layouts/scatters.js";
+import {
+	states as scattersStates,
+	QUIZ_IDS,
+	QUIZ_PAIRS
+} from "./layouts/scatters.js";
 import { states as predictionStates } from "./layouts/prediction.js";
 import { states as careerStates } from "./layouts/career.js";
 import { states as simRaceStates } from "./layouts/sim-race.js";
-import { states as sljFanStates } from "./layouts/slj-fan.js";
+import { states as genzLineStates } from "./layouts/genz-line.js";
 
 // re-exported so ScrollyVisual.svelte can keep importing everything from
 // this one module; the actual definitions live in layout-shared.js
@@ -61,7 +65,7 @@ const REGISTRY = {
 	...predictionStates,
 	...careerStates,
 	...simRaceStates,
-	...sljFanStates
+	...genzLineStates
 };
 
 const pick = (field) => {
@@ -195,7 +199,7 @@ export const STATE_TRACKED = [
 
 /** ids the interactive step-card components need (see story.svelte.js) */
 export const INTERACTIVE_IDS = {
-	quiz: story.quiz
+	quiz: QUIZ_PAIRS
 };
 
 /** name/rank lookups for the interactive step-card components */
