@@ -21,6 +21,10 @@ export const story = $state({
 	quizRevealed: false,
 	/** prediction scatter: false = film count alone, true = the full model */
 	predictInsights: false,
+	/** Gen Z number line: which percentile of each contender's simulated future
+	 * places their dot — `"p50"` (the median outcome) or `"p10"` (their best
+	 * tenth of runs). Both are already in the exported candidate records */
+	genzPercentile: "p50",
 	/** simulation race: how many of the 10,000 recorded runs have been replayed —
 	 * the chart's playhead. 0 = the reader hasn't pressed Run yet. Written once
 	 * per run (0 or all of them), never per frame: the animation writes the canvas

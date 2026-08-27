@@ -8,6 +8,7 @@
 	import RankBars from "$components/scrolly/RankBars.svelte";
 	import RaceScrubber from "$components/scrolly/RaceScrubber.svelte";
 	import SimRunner from "$components/scrolly/SimRunner.svelte";
+	import GenZOutlook from "$components/scrolly/GenZOutlook.svelte";
 	import PairQuiz from "$components/scrolly/PairQuiz.svelte";
 	import useWindowDimensions from "$runes/useWindowDimensions.svelte.js";
 	import urlParams from "$utils/urlParams.js";
@@ -212,6 +213,15 @@
 				{#snippet simPanel()}
 					<div class="race-scrubber-panel" style="bottom: {stepsHeight + 12}px">
 						<SimRunner />
+					</div>
+				{/snippet}
+				<!-- Gen Z number line: the typical-sim/over-performing (P50/P10)
+				     percentile toggle. Both genzLine steps reference this one snippet,
+				     so the control (and the reader's pick) survives the step change
+				     between them. -->
+				{#snippet outlookPanel()}
+					<div class="race-scrubber-panel" style="bottom: {stepsHeight + 12}px">
+						<GenZOutlook />
 					</div>
 				{/snippet}
 				<Wizard bind:value count={stepConfigs.length} onnavigate={navigate}>
@@ -444,7 +454,7 @@
 							and see who comes out on top.
 						</p>
 					</Step>
-					<Step state="sljFan">
+					<Step state="genzLine" panel={outlookPanel}>
 						<p>
 							Here's what we think will happen to each Gen Z actor's average
 							distance. You'll notice that none of them overtake Samuel L.
@@ -454,7 +464,7 @@
 							universe being spawned again.
 						</p>
 					</Step>
-					<Step state="sljFan">
+					<Step state="genzLine" panel={outlookPanel}>
 						<p>
 							What I can tell you is that our first female center of Hollywood
 							is very likely to happen next, with 65% of the wins going to

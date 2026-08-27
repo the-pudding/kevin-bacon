@@ -11,7 +11,7 @@ import {
 	BLUE,
 	SLJ,
 	TRAIL_META,
-	DIAG_SLOT,
+	RULE_SLOT,
 	setTrail,
 	collapseTrail
 } from "../layout-shared.js";
@@ -76,7 +76,7 @@ function layoutPredScatter(nodes, w, h, _edges, params) {
 		else set(attrs, n.id, x, y, 2.2, CROWD, 0.35);
 	}
 	TRAIL_META.forEach((_meta, t) => {
-		if (t === DIAG_SLOT) {
+		if (t === RULE_SLOT) {
 			setTrail(
 				trails,
 				t,

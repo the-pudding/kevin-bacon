@@ -7,7 +7,7 @@
 		type = "single", // "single" | "multiple"
 		variant = "default", // "default" | "spaced",
 		required = false,
-		class: className,
+		class: className = "",
 		value = $bindable(),
 		...restProps
 	} = $props();

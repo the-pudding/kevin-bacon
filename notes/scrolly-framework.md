@@ -21,8 +21,9 @@ dots tween seamlessly between per-step layout **states** (object constancy — d
 travel, they don't fade out/in wholesale). A second tweener does the same for
 **trails** (polylines: race-chart lines, career curves, the prediction
 diagonal), so lines morph/unspool rather than popping. Interactive steps
-(rank guess, pair quiz, prediction toggles, win-bar picker) re-run the current
-layout via params — see "Interactivity" below.
+(rank guess, pair quiz, prediction toggles, win-bar picker, the Gen Z number
+line's P50/P10 toggle) re-run the current layout via params — see
+"Interactivity" below.
 
 ## Files
 
@@ -31,7 +32,7 @@ layout via params — see "Interactivity" below.
 | `src/components/scrolly/nodes.js`             | Real data: `makeNodes()` → `{ nodes, edges }` decoded from `src/data/scrolly-nodes.json` (built by `npm run scrolly-data`). 11,486 `ActorNode`s (`id, pid, name, hop, films, avgDistance, rank`); node 0 is the anchor (Kevin Bacon), ids 0–14 are the curated intro network in reveal order (`INTRO_IDS`), edges are the 18 intro edges. Also exports `ANCHOR_ID`, `INTRO_LAYOUT` (baked 860×680 planar intro coords) and `hash01(id, salt)` — deterministic per-node randomness used everywhere (never `Math.random`, which would flicker between renders). |
 | `src/components/scrolly/tween.js`             | `createTweener(size, draw, stride)` → `{ current, to, stop }`. One rAF loop lerping a flat `Float64Array` from the _currently rendered_ values to a target. `to(next, ms, jitter, nodeDelays?)`. Vanilla (hand-rolled `easeCubicInOut`), no d3.                                                                                                                                                                                                                                                                                                               |
 | `src/components/scrolly/layout-shared.js`     | Geometry/color constants, attr/trail helpers (`set`, `setEdge`, `setTrail`, `collapseTrail`, `clipSeries`), named-actor id lookups (`SLJ`, `HANKS`, …), and the `LayoutFn`/`LayoutResult`/`Note`/`Tick` JSDoc typedefs — everything shared across more than one chapter.                                                                                                                                                                                                                                                                                      |
-| `src/components/scrolly/layouts/*.js`         | One module per story chapter (`intro`, `hop-bands`, `rank`, `race`, `scatters`, `prediction`, `career`, `sim-race`, `slj-fan`). Each exports a `states` object mapping state key → `{ layout, labels?, params?, pulse?, revealFrom?, entry?, overlay? }` (`revealFrom` scopes the layout's `delays` choreography to specific prior states — arriving from any other state is one plain tween) — everything about one state colocated in one object, instead of spread across parallel top-level maps.                                                         |
+| `src/components/scrolly/layouts/*.js`         | One module per story chapter (`intro`, `hop-bands`, `rank`, `race`, `scatters`, `prediction`, `career`, `sim-race`, `genz-line`). Each exports a `states` object mapping state key → `{ layout, labels?, params?, pulse?, revealFrom?, entry?, overlay? }` (`revealFrom` scopes the layout's `delays` choreography to specific prior states — arriving from any other state is one plain tween) — everything about one state colocated in one object, instead of spread across parallel top-level maps.                                                       |
 | `src/components/scrolly/states.js`            | Thin aggregator: merges every chapter's `states` object into one registry and derives the public `STATES`/`STATE_LABELS`/`STATE_PARAMS`/`STATE_PULSE`/`OVERLAYS` exports from it, plus `STATE_TRACKED`, `INTERACTIVE_IDS`, and the `nodeName`/`nodeRank`/`nodeAvgDistance` lookups. This is still the only module other files import from.                                                                                                                                                                                                                    |
 | `src/components/scrolly/Step.svelte`          | One story step: prose in the slot, visual state declared on the tag (`<Step state="lone">…</Step>`). Registers `{ state, params, panel? }` in document order with the `"scrolly-steps"` context provided by `Index.svelte`; renders its prose only while active — no hand-numbered step indices anywhere. `panel` is an optional snippet rendered over the canvas while the step is active (see "Exception" under interaction patterns).                                                                                                                      |
 | `src/components/helpers/Wizard.svelte`        | The step driver: headless Previous/Next buttons + ArrowLeft/ArrowRight advancing a bindable 0-based `value`, which `Index.svelte` maps through `stepConfigs` to the active state/params.                                                                                                                                                                                                                                                                                                                                                                      |
@@ -160,14 +161,16 @@ films-scatter state that fits its own x domain, see below) ·
 `concurrenceScatter` · `degScatter` · `predictionScatter`
 (toggleable predictors) · `scatterGenZ` · `careerTrio`/`careerMany`
 (films-by-career-age trails) · `simRace` (reader-run replay of the 10k
-recorded simulations, cumulative wins per contender) · `sljFan` (SLJ
-trajectory vs projected winners).
+recorded simulations, cumulative wins per contender) · `genzLine` (vertical
+number line of average distance: SLJ alone at the top, the whole Gen Z field
+as a dot plot below him, on a fixed scale the reader can re-place at the
+simulation's P50 or P10).
 
 **Trails.** `states.js` exports `TRAIL_META` (fixed slots, in order: one per
 race actor (`RACE_IDS`), the career trio, one per cohort career line, one per
-simulation-race line (`SIM_SERIES`), 1
-prediction diagonal — every slot constant is derived from those lengths, so the
-race cast and the cohort can grow without touching an index) and a second
+simulation-race line (`SIM_SERIES`), 1 reference rule (the prediction diagonal,
+the Gen Z number line) — every slot constant is derived from those lengths, so
+the race cast and the cohort can grow without touching an index) and a second
 tweener in ScrollyVisual morphs `TRAIL_POINTS`-vertex polylines between
 states with the same interruption-safe semantics as dots. A layout returns
 `trails` (vertices + per-trail alpha) or omits it — omission fades the last

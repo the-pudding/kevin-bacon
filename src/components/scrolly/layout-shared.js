@@ -302,7 +302,7 @@ export const SIM_LABEL_IDS = SIM_SERIES.slice(0, SIM_LABEL_N);
 // ---------------------------------------------------------------------------
 // Trails: polylines tweened by a second tweener (vertex morphing = object
 // constancy for lines). Fixed slots, in order: one per race actor (RACE_IDS),
-// the career trio, one per cohort career line, 1 diagonal (prediction scatter).
+// the career trio, one per cohort career line, 1 reference rule.
 // Every slot constant below is derived from those lengths, so the race cast and
 // the cohort can grow without touching any index here.
 // ---------------------------------------------------------------------------
@@ -332,7 +332,7 @@ export const TRAIL_META = [
 	// the same reason — emphasis is which lines the step labels, not a palette of
 	// 99 hues
 	...SIM_SERIES.map((id) => ({ id, rgb: CROWD, width: 1 })),
-	{ id: null, rgb: CROWD, width: 1 } // prediction diagonal
+	{ id: null, rgb: CROWD, width: 1 } // reference rule (prediction diagonal, Gen Z number line)
 ];
 export const TRAIL_SIZE = TRAIL_META.length * TRAIL_STRIDE;
 export const RACE_SLOT = new Map(RACE_IDS.map((id, i) => [id, i]));
@@ -341,7 +341,7 @@ export const DENIRO_SLOT = RACE_IDS.length + 1;
 export const CHASE_SLOT = RACE_IDS.length + 2;
 export const COHORT_SLOT = RACE_IDS.length + 3;
 export const SIM_SLOT_BASE = COHORT_SLOT + story.careers.cohort.length;
-export const DIAG_SLOT = TRAIL_META.length - 1;
+export const RULE_SLOT = TRAIL_META.length - 1;
 
 // ---------------------------------------------------------------------------
 // Monotone-cubic smoothing (ported from the pudding-post race-chart). A
