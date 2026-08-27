@@ -9,10 +9,6 @@ import {
 	scatterPosition,
 	FILM_MIN_SHOWN,
 	CROWD,
-	RED,
-	BLUE,
-	GREEN,
-	CYAN,
 	SLJ,
 	CAGE,
 	CGM
@@ -120,15 +116,15 @@ const layoutScatterCenters = (nodes, w, h, _edges, params) => {
 			w,
 			h,
 			new Map([
-				[PORTMAN, { rgb: BLUE, r: 5.5 }],
-				[KENDRICK, { rgb: RED, r: 5.5 }]
+				[PORTMAN, { rgb: CROWD, r: 5.5 }],
+				[KENDRICK, { rgb: CROWD, r: 5.5 }]
 			])
 		);
 	}
-	const highlights = new Map([[SLJ, { rgb: RED, r: 6 }]]);
+	const highlights = new Map([[SLJ, { rgb: CROWD, r: 6 }]]);
 	// the film-count step names the runner-up as well, so he gets a mark of his
-	// own — subordinate to the red subject, and only on that step
-	if (params?.showFilms) highlights.set(CAGE, { rgb: CYAN, r: 5 });
+	// own — subordinate to the subject, and only on that step
+	if (params?.showFilms) highlights.set(CAGE, { rgb: CROWD, r: 5 });
 	return avgScatter(nodes, w, h, highlights);
 };
 
@@ -152,12 +148,12 @@ export const QUIZ_LABEL_DIRS = {
 function layoutScatterQuiz(nodes, w, h, _edges, params) {
 	const highlights = new Map();
 	const picks = params?.picks ?? {};
-	// Neutral reveal: both actors in an answered pair land the same blue. The dot's
-	// height (closer = higher) is the answer — no right/wrong colour coding.
+	// Neutral reveal: both actors in an answered pair get the same larger mark.
+	// The dot's height (closer = higher) is the answer — no colour coding.
 	story.quiz.forEach((pair, i) => {
 		if (picks[i] === undefined) return;
-		highlights.set(pair.a, { rgb: BLUE, r: 5.5 });
-		highlights.set(pair.b, { rgb: BLUE, r: 5.5 });
+		highlights.set(pair.a, { rgb: CROWD, r: 5.5 });
+		highlights.set(pair.b, { rgb: CROWD, r: 5.5 });
 	});
 	const result = avgScatter(nodes, w, h, highlights);
 	// this is the step scatterGenZ arrives from — seed its cast (below)
@@ -165,10 +161,10 @@ function layoutScatterQuiz(nodes, w, h, _edges, params) {
 	return result;
 }
 
-// all six quiz actors as uniform blue marks (the prototype's single mark
+// all six quiz actors as uniform marks (the prototype's single mark
 // family — no per-pair colour coding)
 const PAIR_HIGHLIGHTS = new Map(
-	QUIZ_IDS.map((id) => [id, { rgb: BLUE, r: 5.5 }])
+	QUIZ_IDS.map((id) => [id, { rgb: CROWD, r: 5.5 }])
 );
 
 const PAIR_LABELS = [...QUIZ_IDS];
@@ -185,8 +181,8 @@ const layoutConcScatter = (nodes, w, h) =>
 // this step narrows the highlight to just the Portman/Kendrick pair from the
 // earlier scatter steps — every other dot stays in frame as plain crowd
 const DEG_SCATTER_HIGHLIGHTS = new Map([
-	[PORTMAN, { rgb: BLUE, r: 5.5 }],
-	[KENDRICK, { rgb: RED, r: 5.5 }]
+	[PORTMAN, { rgb: CROWD, r: 5.5 }],
+	[KENDRICK, { rgb: CROWD, r: 5.5 }]
 ]);
 
 // inverts top50's log(films + 1) build transform back to a plain film count,
@@ -234,8 +230,8 @@ const GENZ_FILM_MAX = 40;
 const inGenzWindow = (n) =>
 	n.films > FILM_MIN_SHOWN && n.films <= GENZ_FILM_MAX;
 
-// CGM is candidates[0], so she wears the same green candidate mark
-const GENZ_MARK = { rgb: GREEN, r: 3.5, alpha: 0.9 };
+// CGM is candidates[0], so she wears the same candidate mark
+const GENZ_MARK = { rgb: CROWD, r: 3.5, alpha: 0.9 };
 const GENZ_HIGHLIGHTS = new Map(
 	story.genz.candidates.map((c) => [c.id, GENZ_MARK])
 );
