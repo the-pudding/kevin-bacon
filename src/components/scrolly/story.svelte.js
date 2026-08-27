@@ -21,8 +21,23 @@ export const story = $state({
 	quizRevealed: false,
 	/** prediction scatter: false = film count alone, true = the full model */
 	predictInsights: false,
-	/** win-bar breakdown: pid of the bar the reader tapped (null = none) */
-	winFocus: null,
+	/** simulation race: how many of the 10,000 recorded runs have been replayed —
+	 * the chart's playhead. 0 = the reader hasn't pressed Run yet. Written once
+	 * per run (0 or all of them), never per frame: the animation writes the canvas
+	 * buffers directly, and a per-frame write here would retarget the tweener
+	 * mid-run (see ScrollyVisual's playSimRun) */
+	simRuns: 0,
+	/** simulation race: a replay is in flight. ScrollyVisual owns this write;
+	 * SimRunner only reads it, to disable its buttons */
+	simRunning: false,
+	/** simulation race: bumped by SimRunner to ask for a replay. A counter rather
+	 * than a boolean so pressing Start again re-runs from zero */
+	simRunNonce: 0,
+	/** simulation race: how many of the leaders' names the replay has reached (see
+	 * SIM_NAMES_AT / simNamesDue — they arrive one at a time, in win order).
+	 * Written by ScrollyVisual, a handful of times per run, because the layout
+	 * never sees the live playhead: `simRuns` is only published when a run ends */
+	simNames: 0,
 	/** name of the state whose arrival tween has finished, else null. Set by
 	 * ScrollyVisual — a layout reads it to hold an interaction back until its
 	 * own authored reveal has landed (see layouts/intro.js). Cleared on every
@@ -37,13 +52,21 @@ export const story = $state({
 	 * it has mounted and reported a position. The canvas bar tweens to meet that
 	 * exact box, so the two are the same strip (see layouts/rank.js) */
 	rankFocusBar: null,
-	/** rank ladder: `{ x, top, pitch }` in canvas coordinate space of RankBars'
-	 * rows — the centre of row #1's bar at the list's current scroll, and the
-	 * px between consecutive rows. The race chapter's arrival reads it to fly its
-	 * cast out of the row each actor occupied in the list (see ScrollyVisual's
-	 * raceEntry branch); no layout consumes it, so republishing it as the reader
-	 * scrolls can't retarget a tween */
+	/** rank ladder: `{ cx, top, pitch }` in canvas coordinate space of RankBars'
+	 * rows — the CENTRE of row #1's bar at the list's current scroll (where the
+	 * bar collapses to), and the px between consecutive rows. The race chapter's
+	 * arrival reads it to place the canvas copy of each collapsed node on the row
+	 * its actor occupied in the list (see ScrollyVisual's raceEntry branch); no
+	 * layout consumes it, so republishing it as the reader scrolls can't retarget
+	 * a tween */
 	rankListRows: null,
+	/** rank ladder: true once RankBars' bars have finished collapsing into single
+	 * nodes and the HTML overlay has stood down, so the canvas can take the same
+	 * nodes over and fly them onto the race chart. RankBars owns the clock
+	 * (RANK_COLLAPSE_MS); ScrollyVisual only waits on this flag. Reset when the
+	 * reader steps back into the rank chapter. No layout's params selector reads
+	 * it, so writing it mid-transition can never retarget a tween */
+	rankCollapsed: false,
 	/** race chart: optional `{ playhead }` camera override; null = the active race
 	 * state rests at the right-hand end of its content extent. It is the *hold*
 	 * target written once when the reader releases a pan (ScrollyVisual owns the

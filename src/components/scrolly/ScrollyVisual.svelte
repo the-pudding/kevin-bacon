@@ -18,6 +18,11 @@
 		raceFullRestPlayhead
 	} from "./layouts/race.js";
 	import {
+		writeSimFrame,
+		simNamesDue,
+		SIM_N_SIMS
+	} from "./layouts/sim-race.js";
+	import {
 		ATTR_SIZE,
 		DELAY_SIZE,
 		STRIDE,
@@ -757,6 +762,61 @@
 		);
 	}
 
+	// -- Simulation replay -------------------------------------------------------
+	// Reader-triggered, unlike every choreography above it: SimRunner bumps
+	// story.simRunNonce and this replays the 10,000 recorded simulation runs as a
+	// moving playhead, writing the chart straight into the live buffers each frame
+	// (same single-writer discipline as startScrub). ~3s, eased by the shared
+	// trapezoid so the counts land softly on their finals.
+	const SIM_MS = 3000;
+
+	function playSimRun() {
+		if (!width || !height) return;
+		// under reduced motion there is no run to watch — hand the settled chart
+		// straight to the reactive layout path, which snaps
+		if (reducedMotion) {
+			story.simRuns = SIM_N_SIMS;
+			return;
+		}
+		stopSweep();
+		if (tweener.target) tweener.to(tweener.target, 0);
+		if (trailTweener.target) trailTweener.to(trailTweener.target, 0);
+		tweener.stop();
+		trailTweener.stop();
+		sweeping = true;
+		story.simNames = 0;
+		story.simRunning = true;
+		runPhase(
+			SIM_MS,
+			(e) => {
+				const played = e * SIM_N_SIMS;
+				const { axes } = writeSimFrame(
+					tweener.current,
+					trailTweener.current,
+					width,
+					height,
+					played
+				);
+				decor = { ...decor, axes };
+				// the one thing the replay publishes while it runs: the names come in
+				// one at a time part-way through, and the layout can't see the
+				// playhead. Only on the runs a name is due — a per-frame write would
+				// retarget the tweener mid-run
+				const due = simNamesDue(played);
+				if (due !== story.simNames) story.simNames = due;
+			},
+			() => {
+				// the last frame IS the settled layout (both go through writeSimFrame),
+				// so publishing the playhead hands off to the reactive path with
+				// nothing left to move — and leaves the chart where a step back to
+				// this state will find it
+				sweeping = false;
+				story.simRunning = false;
+				story.simRuns = SIM_N_SIMS;
+			}
+		);
+	}
+
 	// Generic entry choreography (STATE_ENTRY): play the state's legs back to
 	// back, each writing its animated slots straight into the live buffers, then
 	// settle onto the static layout. Same shape as the race animators above —
@@ -1034,6 +1094,20 @@
 		if (story.scrubbing) untrack(() => camPanning || startScrub());
 	});
 
+	// Simulation replay: SimRunner asks for a run by bumping the nonce. Watched as
+	// a counter, not a flag, so pressing Start again re-runs — and so the reset back
+	// to nonce 0 isn't itself a request. Declared before the render effect for the
+	// same reason as the scrub trigger above: it has to win the flush, or the
+	// playhead's own param change would tween the chart on before the run starts.
+	let simNonceSeen = 0;
+	$effect(() => {
+		const nonce = story.simRunNonce;
+		if (nonce === simNonceSeen) return;
+		simNonceSeen = nonce;
+		if (nonce === 0 || stateName !== "simRace") return;
+		untrack(playSimRun);
+	});
+
 	// Records the state whose arrival has just landed. A layout can read this to
 	// hold an interaction back until its own authored reveal has finished.
 	//
@@ -1063,6 +1137,9 @@
 			stopSweep();
 			sweeping = false;
 			if (story.scrubbing) untrack(() => (story.scrubbing = false));
+			// a replay the reader stepped away from is over, however far it got —
+			// leave its controls usable if they step back
+			if (story.simRunning) untrack(() => (story.simRunning = false));
 		}
 		const resized = width !== prevW || height !== prevH;
 		if (resized) {

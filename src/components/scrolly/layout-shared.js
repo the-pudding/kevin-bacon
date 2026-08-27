@@ -189,6 +189,11 @@ export const RANK_DOT_PITCH = 5; // px between dot columns
 // strip reads as a crowd rather than a stamped lattice, not so much that
 // neighbours merge into a solid line at list widths
 export const RANK_DOT_JITTER = 0.5;
+// How long the list's bars take to collapse into single nodes when the story
+// steps on into the race chapter (RankBars' `collapse`). Shared vocabulary: the
+// panel owns the clock and the canvas waits for it (story.rankCollapsed), so
+// this lives here rather than in either component.
+export const RANK_COLLAPSE_MS = 500;
 
 /**
  * Cumulative left edges (length 5) of hop bands 1–4 across `width`: each band
@@ -280,6 +285,21 @@ export function scatterPosition(n, w, h) {
 }
 
 // ---------------------------------------------------------------------------
+// Simulation race (layouts/sim-race.js): the reader replays the 10,000 recorded
+// simulation runs and watches each contender's win count climb. Every contender
+// gets a line, so the lines account for all 10,000 runs between them.
+// ---------------------------------------------------------------------------
+
+/** one line per contender, in win order */
+export const SIM_SERIES = story.genz.candidates.map((c) => c.id);
+/** how many of the leaders carry a name beside their dot. Every line is the same
+ * grey (see TRAIL_META), so a name is what makes a line followable — and 99
+ * names down one edge is a wall of text rather than a legend. */
+export const SIM_LABEL_N = 5;
+/** the contenders whose line carries their name */
+export const SIM_LABEL_IDS = SIM_SERIES.slice(0, SIM_LABEL_N);
+
+// ---------------------------------------------------------------------------
 // Trails: polylines tweened by a second tweener (vertex morphing = object
 // constancy for lines). Fixed slots, in order: one per race actor (RACE_IDS),
 // the career trio, one per cohort career line, 1 diagonal (prediction scatter).
@@ -308,6 +328,10 @@ export const TRAIL_META = [
 	{ id: DENIRO, rgb: CROWD, width: 1.5 },
 	{ id: CHASE, rgb: CROWD, width: 1.5 },
 	...story.careers.cohort.map(() => ({ id: null, rgb: CROWD, width: 1 })),
+	// simulation race: one line per contender. Grey like the race chart and for
+	// the same reason — emphasis is which lines the step labels, not a palette of
+	// 99 hues
+	...SIM_SERIES.map((id) => ({ id, rgb: CROWD, width: 1 })),
 	{ id: null, rgb: CROWD, width: 1 } // prediction diagonal
 ];
 export const TRAIL_SIZE = TRAIL_META.length * TRAIL_STRIDE;
@@ -316,6 +340,7 @@ export const SWEENEY_SLOT = RACE_IDS.length;
 export const DENIRO_SLOT = RACE_IDS.length + 1;
 export const CHASE_SLOT = RACE_IDS.length + 2;
 export const COHORT_SLOT = RACE_IDS.length + 3;
+export const SIM_SLOT_BASE = COHORT_SLOT + story.careers.cohort.length;
 export const DIAG_SLOT = TRAIL_META.length - 1;
 
 // ---------------------------------------------------------------------------
@@ -444,6 +469,29 @@ export function setTrail(trails, t, pairs, xScale, yScale, alpha) {
 		yScale,
 		alpha
 	);
+}
+
+/**
+ * Writes an EXPLICIT vertex list (already in px) into trail slot t, padding the
+ * unused vertices onto the last point — so a line with fewer than TRAIL_POINTS
+ * vertices ends where its data ends, the surplus piling up as zero-length
+ * segments at the tip.
+ *
+ * The counterpart to `sampleTrail`, for a line that GROWS at its tip rather than
+ * sliding under a camera: resampling a widening window puts every interior
+ * vertex on different data each frame, so the line's real wobble slides
+ * backwards through it and the whole thing shimmers. Vertices handed in here
+ * stay exactly where the caller put them, frame after frame.
+ */
+export function setTrailPoints(trails, t, points, alpha) {
+	const base = t * TRAIL_STRIDE;
+	const last = points.length - 1;
+	for (let k = 0; k < TRAIL_POINTS; k++) {
+		const [x, y] = points[Math.min(k, last)];
+		trails[base + k * 2] = x;
+		trails[base + k * 2 + 1] = y;
+	}
+	trails[base + TRAIL_POINTS * 2] = alpha;
 }
 
 /** collapses trail slot t onto a point (line unspools from/retracts into a dot) */

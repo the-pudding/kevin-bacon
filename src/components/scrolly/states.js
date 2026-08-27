@@ -25,7 +25,7 @@ import { states as raceStates } from "./layouts/race.js";
 import { states as scattersStates, QUIZ_IDS } from "./layouts/scatters.js";
 import { states as predictionStates } from "./layouts/prediction.js";
 import { states as careerStates } from "./layouts/career.js";
-import { states as winBarsStates } from "./layouts/win-bars.js";
+import { states as simRaceStates } from "./layouts/sim-race.js";
 import { states as sljFanStates } from "./layouts/slj-fan.js";
 
 // re-exported so ScrollyVisual.svelte can keep importing everything from
@@ -60,7 +60,7 @@ const REGISTRY = {
 	...scattersStates,
 	...predictionStates,
 	...careerStates,
-	...winBarsStates,
+	...simRaceStates,
 	...sljFanStates
 };
 

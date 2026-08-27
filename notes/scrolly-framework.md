@@ -31,7 +31,7 @@ layout via params — see "Interactivity" below.
 | `src/components/scrolly/nodes.js`             | Real data: `makeNodes()` → `{ nodes, edges }` decoded from `src/data/scrolly-nodes.json` (built by `npm run scrolly-data`). 11,486 `ActorNode`s (`id, pid, name, hop, films, avgDistance, rank`); node 0 is the anchor (Kevin Bacon), ids 0–14 are the curated intro network in reveal order (`INTRO_IDS`), edges are the 18 intro edges. Also exports `ANCHOR_ID`, `INTRO_LAYOUT` (baked 860×680 planar intro coords) and `hash01(id, salt)` — deterministic per-node randomness used everywhere (never `Math.random`, which would flicker between renders). |
 | `src/components/scrolly/tween.js`             | `createTweener(size, draw, stride)` → `{ current, to, stop }`. One rAF loop lerping a flat `Float64Array` from the _currently rendered_ values to a target. `to(next, ms, jitter, nodeDelays?)`. Vanilla (hand-rolled `easeCubicInOut`), no d3.                                                                                                                                                                                                                                                                                                               |
 | `src/components/scrolly/layout-shared.js`     | Geometry/color constants, attr/trail helpers (`set`, `setEdge`, `setTrail`, `collapseTrail`, `clipSeries`), named-actor id lookups (`SLJ`, `HANKS`, …), and the `LayoutFn`/`LayoutResult`/`Note`/`Tick` JSDoc typedefs — everything shared across more than one chapter.                                                                                                                                                                                                                                                                                      |
-| `src/components/scrolly/layouts/*.js`         | One module per story chapter (`intro`, `hop-bands`, `rank`, `race`, `scatters`, `prediction`, `career`, `win-bars`, `slj-fan`). Each exports a `states` object mapping state key → `{ layout, labels?, params?, pulse?, revealFrom?, entry?, overlay? }` (`revealFrom` scopes the layout's `delays` choreography to specific prior states — arriving from any other state is one plain tween) — everything about one state colocated in one object, instead of spread across parallel top-level maps.                                                         |
+| `src/components/scrolly/layouts/*.js`         | One module per story chapter (`intro`, `hop-bands`, `rank`, `race`, `scatters`, `prediction`, `career`, `sim-race`, `slj-fan`). Each exports a `states` object mapping state key → `{ layout, labels?, params?, pulse?, revealFrom?, entry?, overlay? }` (`revealFrom` scopes the layout's `delays` choreography to specific prior states — arriving from any other state is one plain tween) — everything about one state colocated in one object, instead of spread across parallel top-level maps.                                                         |
 | `src/components/scrolly/states.js`            | Thin aggregator: merges every chapter's `states` object into one registry and derives the public `STATES`/`STATE_LABELS`/`STATE_PARAMS`/`STATE_PULSE`/`OVERLAYS` exports from it, plus `STATE_TRACKED`, `INTERACTIVE_IDS`, and the `nodeName`/`nodeRank`/`nodeAvgDistance` lookups. This is still the only module other files import from.                                                                                                                                                                                                                    |
 | `src/components/scrolly/Step.svelte`          | One story step: prose in the slot, visual state declared on the tag (`<Step state="lone">…</Step>`). Registers `{ state, params, panel? }` in document order with the `"scrolly-steps"` context provided by `Index.svelte`; renders its prose only while active — no hand-numbered step indices anywhere. `panel` is an optional snippet rendered over the canvas while the step is active (see "Exception" under interaction patterns).                                                                                                                      |
 | `src/components/helpers/Wizard.svelte`        | The step driver: headless Previous/Next buttons + ArrowLeft/ArrowRight advancing a bindable 0-based `value`, which `Index.svelte` maps through `stepConfigs` to the active state/params.                                                                                                                                                                                                                                                                                                                                                                      |
@@ -159,11 +159,13 @@ coloured by which of the two named actors has worked with each — the one
 films-scatter state that fits its own x domain, see below) ·
 `concurrenceScatter` · `degScatter` · `predictionScatter`
 (toggleable predictors) · `scatterGenZ` · `careerTrio`/`careerMany`
-(films-by-career-age trails) · `winBars` (dot-waffle sim wins; each dot ≈ 25
-of 10k runs) · `sljFan` (SLJ trajectory vs projected winners).
+(films-by-career-age trails) · `simRace` (reader-run replay of the 10k
+recorded simulations, cumulative wins per contender) · `sljFan` (SLJ
+trajectory vs projected winners).
 
 **Trails.** `states.js` exports `TRAIL_META` (fixed slots, in order: one per
-race actor (`RACE_IDS`), the career trio, one per cohort career line, 1
+race actor (`RACE_IDS`), the career trio, one per cohort career line, one per
+simulation-race line (`SIM_SERIES`), 1
 prediction diagonal — every slot constant is derived from those lengths, so the
 race cast and the cohort can grow without touching an index) and a second
 tweener in ScrollyVisual morphs `TRAIL_POINTS`-vertex polylines between
@@ -277,6 +279,55 @@ Slider, both writing only `story.scrubYear`/`scrubbing`, with bounds read from
 `story.raceCam` (published by ScrollyVisual, the only component that knows the
 canvas width). It renders nothing when the whole extent already fits on screen.
 
+**The simulation race (`simRace`), a reader-driven animation.** The one
+choreography a reader starts rather than an arrival: `SimRunner` (a `panel`
+snippet) bumps `story.simRunNonce`, and `ScrollyVisual`'s `playSimRun` replays
+the 10,000 recorded simulation runs over `SIM_MS` (3s) on the shared `runPhase`
+rAF spine, writing `writeSimFrame` straight into the live tween buffers under
+the same single-writer discipline as `startScrub` (land each tweener's target
+first, `sweeping = true`, so a state change's `stopSweep` abandons the run for
+free — and clears `story.simRunning`, or the buttons would stay disabled for a
+reader who steps back).
+
+Unlike the race chapter there is no camera: `[0, nSims]` is mapped to the plot
+width, so the whole simulation fits any viewport with nothing to pan, and the y
+axis is fixed to the tallest line's final count for the whole step. That also
+means the lines GROW at their tip instead of sliding under a camera, so their
+vertices sit on a grid fixed in run-space (`GRID_RUNS`) and are written with
+`setTrailPoints`, not resampled per frame: a widening sample window puts every
+interior vertex on different runs each frame, which slides each line's real
+run-to-run wobble backwards through it and makes the whole field shimmer. With
+the grid fixed, only the tip segment moves — everything behind the playhead is
+already at its final position, which is directly testable (successive mid-run
+frames are pixel-identical left of the playhead). The frame
+writer is the settled layout's only path too, so a run's last frame IS the state
+it settles onto — the end of a run just publishes `story.simRuns`,
+with nothing left to move. The playhead is deliberately NOT published per frame:
+`simRuns` is a layout param, so a per-frame write would retarget the tweener
+mid-run. `simRunning` is a param as well, purely so the labels can come in for a
+replay whose playhead the layout never sees.
+
+The data behind it is the real per-run winner sequence (`story.genz.runs`), not a
+resample: `tasks/build-scrolly-nodes.js` recovers it from the analysis repo's
+simulated-MAD matrix and asserts it reproduces every published win count exactly.
+So pressing Start again replays the same race, and the lines land on the
+percentages the story quotes. Every contender gets a line (`SIM_SERIES` in
+`layout-shared.js`); `SIM_LABEL_N` of the leaders carry a name and their win
+share, arriving one at a time from 5,000 runs on (`SIM_NAMES_AT` +
+`SIM_NAME_STAGGER`, via `simNamesDue`) once the field has pulled apart. Names sit
+to the LEFT of their dots, so the plot needs no gutter and takes the canvas's
+full width; `story.simNames` (how many are due) is the one thing a run publishes
+while it is in flight, because the layout never sees the live playhead — and it
+is written only on the runs a name is actually due, not per frame.
+
+One control, `SimRunner`: Start, then Replay, which winds back to zero and
+re-runs. Nothing around it is conditional on the run, deliberately: a panel's
+`bottom` is measured from the step card's height, so a line of copy that
+disappears when the reader presses the button shortens the card, moves the
+panel's bottom edge down, and takes the button with it — mid-press. Content that
+must come and go belongs inside the panel, below a `justify-content: flex-end`
+anchor, where it cannot move the controls.
+
 **Chart furniture.** A layout can also return `axes` (`x`/`y` tick arrays +
 `xBase`), `notes` (positioned callouts, `nowrap` by default), and `legend`
 (color swatch + label pairs, pinned to the bottom of the chart) — all
@@ -285,8 +336,8 @@ renders top-centre in small caps. A layout can also return `hits` — rectangles
 over the chart, rendered as transparent `<button>`s (so a pick is keyboard- and
 screen-reader-reachable, no canvas hit-testing) whose value is handed to the
 state's `pick` handler (`STATE_PICK`) to write into `story`; that write feeds
-back through the state's `params` selector. `winBars` selects its bars this way,
-and `networkIntro` puts one over every actor in the intro constellation (armed
+back through the state's `params` selector. `networkIntro` puts one over every
+actor in the intro constellation (armed
 as soon as the step is reached — the path-walk reveal that grows the
 constellation plays earlier, on `lone`'s own entry pop-in).
 
@@ -304,7 +355,7 @@ key, which lands in its catch-all and snaps the very reveal the gate was
 waiting for.
 
 **Interactivity.** `story.svelte.js` holds shared `$state` (rankGuess,
-quizPicks, prediction toggles, winFocus, introFocus) written by the step-card components
+quizPicks, prediction toggles, simRuns, introFocus) written by the step-card components
 (`GuessRank`, `PairQuiz`, `PredictToggles`) and by on-chart picks. `STATE_PARAMS`
 selectors pluck the fields a state consumes and merge them with the step's
 static params; a change re-runs the _current_ layout with a short

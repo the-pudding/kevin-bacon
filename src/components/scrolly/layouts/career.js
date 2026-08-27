@@ -152,7 +152,7 @@ function careerLayout(showCohort) {
 				if (series) setTrail(trails, t, series, xS, yS, COHORT_ALPHA);
 				else collapseTrail(trails, t, forkX, forkY, 0);
 				// the draw-on choreography owns the forward reveal's stagger; this
-				// only paces the plain arrival (stepping back in from winBars)
+				// only paces the plain arrival (stepping back in from simRace)
 				trailDelays[t] = 150;
 			} else {
 				collapseTrail(trails, t, forkX, forkY, 0);
@@ -344,7 +344,7 @@ export const states = {
 		// the comparisons have demoted into the cohort — only the hero is named
 		labels: [SWEENEY],
 		// the fan is authored to branch off the endpoint careerTrio just drew;
-		// stepping back in from winBars gets a plain tween
+		// stepping back in from simRace gets a plain tween
 		revealFrom: ["careerTrio"],
 		entry: { phases: COHORT_ENTRY_MS, frames: cohortEntryFrames },
 		overlay: CAREER_OVERLAY

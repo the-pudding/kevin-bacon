@@ -16,6 +16,7 @@ import path from "node:path";
 import os from "node:os";
 import { fileURLToPath } from "node:url";
 import { DatabaseSync } from "node:sqlite";
+import { readNpz } from "./read-npy.js";
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -528,7 +529,7 @@ const genz = genzAll.map((c) => ({
 	projP90: round4(c.projected_mad_p90)
 }));
 // CGM is the Future chapter's protagonist — pulsed and labelled on
-// scatterGenZ, and the top bar on winBars — so her leading the field is
+// scatterGenZ, and the top line on simRace — so her leading the field is
 // load-bearing. Her *share* is not: it falls as the candidate pool grows
 // (24.65% over 32 candidates, 11.59% over 99), and no step cites a figure for
 // it, so asserting a magnitude would only pin this build to one pool size.
@@ -537,11 +538,56 @@ assert(
 		genz[0].winPct > genz[1].winPct,
 	`CGM should top the simulation, not ${nodes[genz[0].id][1]}`
 );
-// winBars' copy promises 10,000 runs
+// the simulation step's copy promises 10,000 runs
 assert(
 	genzSrc.n_sims === 10000,
 	`simulation ran ${genzSrc.n_sims} times, but the copy says 10,000`
 );
+// The per-run winner sequence, so the browser can replay the simulation run by
+// run rather than only draw its summary (see layouts/sim-race.js). It is not
+// persisted in the bootstrap JSON, but it is exactly recoverable: a run's winner
+// is whichever candidate had the lowest simulated average distance in that run,
+// and the matrix of those distances ships alongside. Exported as indices into
+// `genz` (already win-sorted), so the browser needs no pid lookup.
+const { mad_matrix: madMatrix, pids: madPids } = readNpz(
+	path.join(sub, "data/genz-mc-knn-mad-matrix.npz"),
+	["mad_matrix", "pids"]
+);
+const [madRuns, madCols] = madMatrix.shape;
+assert(
+	madRuns === genzSrc.n_sims && madCols === genzAll.length,
+	`MAD matrix is ${madRuns}×${madCols}, expected ${genzSrc.n_sims}×${genzAll.length}`
+);
+const seatOf = new Map(genzAll.map((c, i) => [c.pid, i]));
+const genzRuns = new Array(madRuns);
+for (let run = 0; run < madRuns; run++) {
+	const base = run * madCols;
+	let best = 0;
+	for (let col = 1; col < madCols; col++) {
+		if (madMatrix.data[base + col] < madMatrix.data[base + best]) best = col;
+	}
+	const seat = seatOf.get(Number(madPids.data[best]));
+	assert(seat !== undefined, `MAD matrix column ${best} is not a candidate`);
+	genzRuns[run] = seat;
+}
+// The recovered sequence has to reproduce the published win counts exactly. If it
+// doesn't, the matrix and the summary came from different runs of the simulation,
+// and shipping the sequence would put the animation at odds with the percentages
+// the story quotes.
+const runTally = new Array(genzAll.length).fill(0);
+for (const seat of genzRuns) runTally[seat]++;
+const offBy = genzAll.filter((c, i) => runTally[i] !== c.sim_win_count);
+assert(
+	offBy.length === 0,
+	`recovered win counts disagree with sim_win_count for ` +
+		offBy
+			.map(
+				(c) =>
+					`${c.name} (${runTally[seatOf.get(c.pid)]} vs ${c.sim_win_count})`
+			)
+			.join(", ")
+);
+
 const lowestMad = [...genz].sort((a, b) => a.mad - b.mad)[0];
 assert(
 	lowestMad.id === genz[0].id,
@@ -629,7 +675,12 @@ const storyOut = {
 	eras,
 	raceSeries,
 	careers: { ...trioAges, cohort },
-	genz: { nSims: genzSrc.n_sims, avgWinningMad, candidates: genz },
+	genz: {
+		nSims: genzSrc.n_sims,
+		avgWinningMad,
+		candidates: genz,
+		runs: genzRuns
+	},
 	slj
 };
 
@@ -648,7 +699,7 @@ for (const [dest, label] of [
 	],
 	[
 		storyDest,
-		`race ${Object.keys(raceSeries).length} anchors, ${cohort.length} cohort lines, ${genz.length} Gen-Z candidates`
+		`race ${Object.keys(raceSeries).length} anchors, ${cohort.length} cohort lines, ${genz.length} Gen-Z candidates, ${genzRuns.length} simulation runs`
 	]
 ]) {
 	console.log(

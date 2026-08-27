@@ -50,7 +50,7 @@ tweening between states (object constancy).
 
 These ship in this repo but have no counterpart story in the design sandbox:
 
-- `layouts/win-bars.js` → `winBars` — Gen Z win-simulation horizontal waffle bars (10k sims ≈ 1 dot / 25), selected on-chart via the layout's `hits`.
+- `layouts/sim-race.js` → `simRace` — Gen Z win-simulation race: the reader presses Start and the 10,000 recorded runs replay as cumulative win-count lines, one per contender (net-new to this repo; no prototype counterpart).
 - `layouts/slj-fan.js` → `sljFan` — Samuel L. Jackson trajectory + projected outcome fan (`sweeney-trajectory.json` / `story.slj`).
 - `layouts/scatters.js` → `scatterGenZ` — Gen Z highlight state on the shared scatter (extends `DistanceFilmsScatter`).
 

@@ -7,6 +7,7 @@
 	import GuessRank from "$components/scrolly/GuessRank.svelte";
 	import RankBars from "$components/scrolly/RankBars.svelte";
 	import RaceScrubber from "$components/scrolly/RaceScrubber.svelte";
+	import SimRunner from "$components/scrolly/SimRunner.svelte";
 	import PairQuiz from "$components/scrolly/PairQuiz.svelte";
 	import useWindowDimensions from "$runes/useWindowDimensions.svelte.js";
 	import urlParams from "$utils/urlParams.js";
@@ -157,6 +158,16 @@
 				{#snippet racePanel()}
 					<div class="race-scrubber-panel" style="bottom: {stepsHeight + 12}px">
 						<RaceScrubber />
+					</div>
+				{/snippet}
+				<!-- simulation race: the Start/Replay button over the plot. Keep this
+				     step's card unconditional — its height is what the panel's `bottom`
+				     is measured from, so anything that unmounts mid-run would move the
+				     button under the reader's finger. The chart rests at zero runs
+				     until Start; nothing here gates Next. -->
+				{#snippet simPanel()}
+					<div class="race-scrubber-panel" style="bottom: {stepsHeight + 12}px">
+						<SimRunner />
 					</div>
 				{/snippet}
 				<Wizard bind:value count={stepConfigs.length} onnavigate={navigate}>
@@ -381,7 +392,7 @@
 							well-connected when modelled into the future.
 						</p>
 					</Step>
-					<Step state="winBars">
+					<Step state="simRace" panel={simPanel}>
 						<p>
 							To achieve a stable result, we'll run the simulation 10,000 times
 							and see who comes out on top.

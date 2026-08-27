@@ -95,13 +95,16 @@ console errors).
       shows 11 films at age 15, not 16). Two sources on one chart — visually
       fine, definitionally inconsistent. Alternatives: draw cohort from the
       exhaustive trajectory file, or drop the named trio onto the same source.
-- [ ] **Step 25 `winBars`** — **[data]** sim results are
+- [ ] **Step 25 `simRace`** — **[data]** sim results are
       `genz-mc-knn-bootstrap.json` (10,000 runs) — the only version matching
       the storyboard podium (CGM 24.65%, Greenblatt 9.7%, Fanning 9.7%).
-      v6–v11 sims have different winners (v11: Awkwafina). **[design]**
-      dot-waffle bars **on the shared canvas** (1 dot ≈ 25 runs, top 6
-      candidates only) instead of the inline standalone component the
-      framework notes suggested — constancy won the argument; cheap to swap.
+      v6–v11 sims have different winners (v11: Awkwafina). The per-run winner
+      sequence the chart replays is recovered from that same run's
+      `genz-mc-knn-mad-matrix.npz` and asserted against its win counts, so the
+      two can't drift apart. **[design]** the reader presses Start and the 10,000
+      runs replay as cumulative win-count lines **on the shared canvas** (all 99
+      contenders, the top 5 named from 5,000 runs on) — replaced the dot-waffle
+      bars, which showed only the finished result.
       **[scope]** the storyboard's per-candidate narrative blurbs (Greenblatt
       "she's 14…", Fanning "projected to keep what she has") are reduced to a
       one-line stats note per pick.

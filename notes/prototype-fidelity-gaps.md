@@ -12,7 +12,7 @@ tween engine, object-constancy parking) are **expected and not flagged** —
 only design/behaviour divergences are.
 
 Coverage: `race*`, `scatter*` (distance family), `concurrenceScatter`,
-`degScatter`, `predictionScatter`, `careerTrio/Many`. `winBars` and `sljFan`
+`degScatter`, `predictionScatter`, `careerTrio/Many`. `simRace` and `sljFan`
 are also not-ready but have **no prototype** — see the last section.
 
 ---
@@ -141,7 +141,7 @@ upstream before treating it as a layout bug.
 
 ## Not-ready, but no prototype exists
 
-`winBars` (`win-bars.js`, Gen Z win-simulation waffle) and
+`simRace` (`sim-race.js`, the reader-run Gen Z win-simulation race) and
 `sljFan` (`slj-fan.js`, SLJ trajectory + outcome fan) are `ready={false}` but
 have **no prototype counterpart**, so there's nothing to spot-the-difference
 against. They are net-new visuals authored only in this repo. Options: (a) build
