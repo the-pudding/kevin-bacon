@@ -5,8 +5,11 @@
 // update, not a step change. Every interaction is skippable: the step after an
 // interaction reveals its answer unconditionally.
 export const story = $state({
-	/** rank ladder: corpus rank the reader guessed (null = not guessed) */
-	rankGuess: null,
+	/** rank ladder: every actor the reader has guessed, in the order they picked
+	 * them. The last one is the current guess (what the list focuses on); the
+	 * earlier ones stay named and un-faded, since the reader already knows who
+	 * they are */
+	rankGuesses: [],
 	/** rank ladder: reader gave up instead of guessing #1 */
 	rankGaveUp: false,
 	/** pair quiz: per-pair pick, keyed by pair index → picked pid */

@@ -107,7 +107,7 @@
 		// to it later starts the guessing game fresh instead of picking up
 		// where the reader left off (guessed, or already seeing the reveal)
 		if (value < prevValue && isRankState(prevState) && !isRankState(state)) {
-			story.rankGuess = null;
+			story.rankGuesses = [];
 			story.rankGaveUp = false;
 		}
 		prevValue = value;

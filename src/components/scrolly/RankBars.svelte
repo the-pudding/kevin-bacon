@@ -61,14 +61,22 @@
 
 	// pre-guess the list centers on Bacon (#175, the step copy's anchor) rather
 	// than opening on #1 and spoiling the guess
+	const guess = $derived(story.rankGuesses.at(-1) ?? null);
 	const focusId = $derived(
-		reveal || story.rankGaveUp ? SLJ : (story.rankGuess ?? ANCHOR_ID)
+		reveal || story.rankGaveUp ? SLJ : (guess ?? ANCHOR_ID)
 	);
 
 	// names stay hidden (bars/rank still shown) until the final reveal step
-	// or giving up — a guess only reveals the guessed row (see focusId below),
-	// not the whole list
+	// or giving up — a guess only reveals the guessed row, not the whole list
 	const namesRevealed = $derived(reveal || story.rankGaveUp);
+
+	// rows the reader already knows the identity of: Bacon (named by the step
+	// copy) plus every actor they have guessed, including earlier guesses the
+	// focus has since moved off. Those stay named and at full opacity — the fade
+	// is there to hide who's who, and there's nothing left to hide on them.
+	// On the reveal step every name is out, so every row is known.
+	const known = $derived(new Set([ANCHOR_ID, ...story.rankGuesses]));
+	const isKnown = (id) => namesRevealed || known.has(id);
 
 	/** @type {HTMLUListElement | undefined} */
 	let list = $state();
@@ -77,6 +85,11 @@
 	// so the fade would just blur the first row for no reason
 	let atTop = $state(true);
 	let scrolledByReader = false;
+	// the row the effect below last centered on, so it re-centers only when the
+	// focus actually moves. Without it, every reader scroll re-runs the effect
+	// (it republishes story.rankListRows, which it also reads) and snaps the
+	// list straight back to the focus row — leaving the list unscrollable.
+	let centeredId = null;
 	// the very first row-position measurement can land a few px off if it
 	// runs before the mono webfont has swapped in (font.css: font-display:
 	// swap) — re-measuring once fonts settle catches that without treating
@@ -104,15 +117,9 @@
 		const id = focusId;
 		const ready = fontsReady;
 		if (!list || !listHeight || id == null) return;
-		// clearing a guess ("guess again") reverts focus to Bacon, but the
-		// reader deliberately scrolled to their pick — don't yank them back
-		if (
-			scrolledByReader &&
-			story.rankGuess == null &&
-			!reveal &&
-			!story.rankGaveUp
-		)
-			return;
+		// the reader owns the scroll position once they've moved it: only take it
+		// back when the focus row itself changes (a new guess, or the reveal)
+		if (scrolledByReader && id === centeredId) return;
 		const row = list.querySelector(`[data-id="${id}"]`);
 		if (!(row instanceof HTMLElement)) return;
 		const bar = row.querySelector(".bar");
@@ -133,6 +140,7 @@
 			Math.min(target, list.scrollHeight - list.clientHeight)
 		);
 		list.scrollTo({ top: clampedTop, behavior });
+		centeredId = id;
 
 		// canvas handoff: `list`'s offsetParent is the rank-bars-panel div, which
 		// sits inside the same absolutely-positioned box as the canvas (see
@@ -226,11 +234,15 @@
 		     measured inside the scroller's padding so it needs no px assumptions -->
 		<div class="gauge" bind:clientWidth={barWidth} aria-hidden="true"></div>
 		{#each rows as row, i (row.id)}
-			<li data-id={row.id} class:focus={row.id === focusId}>
+			<li
+				data-id={row.id}
+				class:focus={row.id === focusId}
+				class:known={isKnown(row.id)}
+			>
 				<span class="label-row">
 					<span class="label"
 						>#{row.rank}
-						{namesRevealed || row.id === focusId ? row.name : "???"}</span
+						{isKnown(row.id) ? row.name : "???"}</span
 					>
 					<span class="avg">{row.avgDistance.toFixed(2)}</span>
 				</span>
@@ -315,17 +327,23 @@
 
 	/* everyone but Bacon starts invisible and fades in slowly, after the canvas
 	   bar has landed and the step text has had its moment (see Index.svelte's
-	   rank-focus-text) — Bacon's own row is exempted below so it's there from the
-	   start, matching the bar dissolving into it */
+	   rank-focus-text) — known rows (Bacon's included) are exempted below so his
+	   is there from the start, matching the bar dissolving into it */
 	.rows li {
 		animation: row-in 1.4s ease 1.75s both;
+	}
+
+	/* the fade exists to hide who's who: once a row's name is out — Bacon, a row
+	   the reader has guessed, or every row on the reveal step — there's nothing
+	   left to hide, so it reads at full strength */
+	.rows li.known {
+		opacity: 1;
+		animation: none;
 	}
 
 	.rows li.focus {
 		font-weight: bold;
 		color: var(--color-gray-900);
-		opacity: 1;
-		animation: none;
 	}
 
 	@keyframes row-in {
