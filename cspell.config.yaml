@@ -57,6 +57,7 @@ words:
   - reframing
   - igraph
   - onnavigate
+  - handoff
 ignorePaths:
   - node_modules
   - build

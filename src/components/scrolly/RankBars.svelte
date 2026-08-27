@@ -11,9 +11,15 @@
 		RANK_TOP_N,
 		RANK_BAR_H,
 		RANK_DOT_D,
+		RANK_COLLAPSE_MS,
 		hopDotSlots,
 		hopFractions
 	} from "./layout-shared.js";
+	import {
+		raceDotSpec,
+		RACE_RECENT_VISIBLE,
+		RACE_RECENT_SUBJECT
+	} from "./layouts/race.js";
 
 	// The rank chapter's "everyone else" list: plain HTML/SVG hop-band bars
 	// (per-actor counts from scrolly-story.json's rankHopBands), not canvas — a
@@ -21,8 +27,14 @@
 	// a canvas (see rank.js for the canvas handoff). Each bar is a hop-bands
 	// chart turned on its side, with the crowd drawn as individual dots rather
 	// than a solid block, so the canvas waffle dissolves into like for like.
-	/** @type {{ reveal?: boolean }} */
-	let { reveal = false } = $props();
+	//
+	// `collapse` is the chapter handoff: every bar folds into a single node that
+	// already IS its dot on the race chart (raceDotSpec — same radius, colour and
+	// alpha), the labels go, and once that has landed this overlay stands down
+	// (story.rankCollapsed) and the canvas takes the very same nodes over and
+	// flies them onto the chart. See ScrollyVisual's raceEntry branch.
+	/** @type {{ reveal?: boolean, collapse?: boolean }} */
+	let { reveal = false, collapse = false } = $props();
 
 	const top = BY_RANK.slice(0, RANK_TOP_N);
 
@@ -31,7 +43,14 @@
 		rank,
 		name: rawNodes.nodes[id][1],
 		avgDistance: Number(rawNodes.nodes[id][4]),
-		fractions: hopFractions(id)
+		fractions: hopFractions(id),
+		// null for a row the race chapter doesn't show — it has no dot to become,
+		// so its bar just goes with the rest of the list. (Can't happen at the
+		// reveal's own scroll position: every one of the top ~25 rows is a
+		// raceRecent contender. Only reachable if the reader scrolled away.)
+		dot: RACE_RECENT_VISIBLE.has(id)
+			? raceDotSpec(id, RACE_RECENT_SUBJECT)
+			: null
 	}));
 
 	// One <path> per hop over the band's shared dot lattice (hopDotSlots), each a
@@ -96,6 +115,29 @@
 	// it as a reader-driven scroll (see the guard below)
 	let fontsReady = $state(false);
 
+	// The collapse clock. This panel owns it — it is the one that knows when its
+	// own transitions have finished — and publishes the single moment the canvas
+	// waits for. Index.svelte unmounts the whole overlay off the same flag, so the
+	// canvas can never take over while any of this is still on screen.
+	//
+	// Stepping back out of the collapse (Prev before it lands) clears the flag and
+	// the class, so the bars simply expand again: this component outlives the step
+	// change, so it has to be able to un-collapse.
+	$effect(() => {
+		if (!collapse) {
+			story.rankCollapsed = false;
+			return;
+		}
+		if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+			story.rankCollapsed = true;
+			return;
+		}
+		const timer = setTimeout(() => {
+			story.rankCollapsed = true;
+		}, RANK_COLLAPSE_MS);
+		return () => clearTimeout(timer);
+	});
+
 	onMount(() => {
 		if (!document.fonts) {
 			fontsReady = true;
@@ -117,6 +159,10 @@
 		const id = focusId;
 		const ready = fontsReady;
 		if (!list || !listHeight || id == null) return;
+		// nothing may move once the bars are collapsing: the canvas has already
+		// been aimed at these rows, and a re-centre here would scroll the list out
+		// from under the nodes the reader is watching fold up
+		if (collapse) return;
 		// the reader owns the scroll position once they've moved it: only take it
 		// back when the focus row itself changes (a new guess, or the reveal)
 		if (scrolledByReader && id === centeredId) return;
@@ -163,12 +209,13 @@
 		}
 	});
 
-	// The race chapter's arrival flies its cast out of this list rather than
-	// fading them up out of nothing (ScrollyVisual's raceEntry branch), so it
-	// needs the geometry of the rows themselves, not just the focused one. Every
-	// row is the same height, so one row centre plus the row pitch places any
-	// rank — including the ranks scrolled off the bottom, which is where most of
-	// the race cast sits. Same coordinate space as the focus box above.
+	// The race chapter's arrival takes this list's collapsed nodes over on the
+	// canvas (ScrollyVisual's raceEntry branch), so it needs the geometry of the
+	// rows themselves, not just the focused one: `cx` is where a bar collapses to
+	// — its own horizontal centre — and every row is the same height, so one row
+	// centre plus the row pitch places any rank, including the ranks scrolled off
+	// the bottom, which is where most of the race cast sits. Same coordinate
+	// space as the focus box above.
 	//
 	// Nothing reads this during the rank chapter (rank.js's params selector takes
 	// only rankFocusBar), so unlike the focus box it is safe to republish as the
@@ -187,7 +234,7 @@
 		)
 			return;
 		const geom = {
-			x: panel.offsetLeft + bar.offsetLeft,
+			cx: panel.offsetLeft + bar.offsetLeft + bar.offsetWidth / 2,
 			top: Math.round(
 				panel.offsetTop + bar.offsetTop - scrollTop + bar.offsetHeight / 2
 			),
@@ -196,7 +243,7 @@
 		const prev = story.rankListRows;
 		if (
 			prev &&
-			prev.x === geom.x &&
+			prev.cx === geom.cx &&
 			prev.top === geom.top &&
 			prev.pitch === geom.pitch
 		)
@@ -219,7 +266,11 @@
 	}
 </script>
 
-<div class="rank-bars">
+<div
+	class="rank-bars"
+	class:collapsing={collapse}
+	style="--collapse-ms: {RANK_COLLAPSE_MS}ms"
+>
 	<ul
 		class="rows"
 		class:at-top={atTop}
@@ -267,6 +318,19 @@
 							/>
 						{/each}
 					</svg>
+					<!-- the actor's race-chart dot, waiting at the bar's centre for the
+					     collapse to grow it in. Its radius/colour/alpha come from the
+					     canvas's own definition (raceDotSpec), so when this overlay
+					     stands down the canvas copy underneath is indistinguishable. -->
+					{#if row.dot}
+						<span
+							class="node"
+							style="width: {row.dot.r * 2}px; height: {row.dot.r *
+								2}px; background: rgb({row.dot.rgb.join(',')}); opacity: {row
+								.dot.alpha}"
+							aria-hidden="true"
+						></span>
+					{/if}
 				</span>
 			</li>
 		{/each}
@@ -374,12 +438,68 @@
 	.bar {
 		display: block;
 		line-height: 0;
+		position: relative;
 	}
 
 	/* sized by its width/height attributes (px, measured), so the dots keep
 	   their aspect ratio instead of being scaled by the viewBox */
 	.dots {
 		display: block;
+		transform-origin: 50% 50%;
+		transition: transform var(--collapse-ms) ease;
+	}
+
+	/* the race-chart dot each bar folds into, pinned to the bar's centre */
+	.node {
+		position: absolute;
+		left: 50%;
+		top: 50%;
+		border-radius: 50%;
+		transform: translate(-50%, -50%) scale(0);
+		transition: transform var(--collapse-ms) ease;
+	}
+
+	/* The chapter handoff, all in one beat: the crowd of dots in every bar
+	   contracts to its centre while the node it becomes grows in there, and the
+	   text that named the row goes. The list's edge mask goes at once rather than
+	   fading — it would otherwise leave the top and bottom nodes dimmer than the
+	   canvas copies waiting underneath them, and the swap would show. */
+	.collapsing .dots {
+		transform: scale(0);
+	}
+
+	.collapsing .node {
+		transform: translate(-50%, -50%) scale(1);
+	}
+
+	.collapsing .rows {
+		mask-image: none;
+		-webkit-mask-image: none;
+		pointer-events: none;
+	}
+
+	.collapsing .rows li {
+		opacity: 1;
+		animation: none;
+	}
+
+	.collapsing .label-row,
+	.collapsing .footnote {
+		opacity: 0;
+	}
+
+	.label-row,
+	.footnote {
+		transition: opacity 0.2s ease;
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.dots,
+		.node,
+		.label-row,
+		.footnote {
+			transition: none;
+		}
 	}
 
 	.label {

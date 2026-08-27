@@ -9,9 +9,12 @@
 		raceVisibleSpan,
 		racePanBounds,
 		raceStepVisible,
+		raceDotSpec,
 		PX_PER_YEAR,
 		RACE_RECENT_EXTENT,
 		RACE_RECENT_STEP,
+		RACE_RECENT_VISIBLE,
+		RACE_RECENT_SUBJECT,
 		RACE_REWIND_WAYPOINT_YEAR,
 		RACE_TRADES_STEP,
 		RACE_FULL_STEP,
@@ -48,6 +51,7 @@
 	import {
 		MARGIN,
 		plotBottom,
+		set,
 		EDGE_GREY,
 		EDGE_HIGHLIGHT,
 		ORDER_OF
@@ -148,12 +152,9 @@
 	const panFrame = (step) => (playhead) => ({ ...step, playhead });
 	// the one state whose arrival plays the draw-on entry (scoped by revealFrom)
 	const RACE_ENTRY_STATE = "raceRecent";
-	// what raceRecent shows at its extent — the set the draw-on reveals from its
-	// first frame, so nobody who fails its yCap ever appears just to vanish
-	const RACE_ENTRY_VISIBLE = raceStepVisible(
-		RACE_RECENT_STEP,
-		STATE_YCAP[RACE_ENTRY_STATE]
-	);
+	// (RACE_RECENT_VISIBLE — what raceRecent shows at its extent, and so the set
+	// the draw-on reveals from its first frame — comes from race.js: the rank
+	// list's collapsed nodes need the same set, so there is one definition.)
 	// how far into a phase a departing actor is fully gone. Departures finish EARLY
 	// rather than riding the whole phase for the way it reads: the modern crowd drops
 	// away first, leaving the actors the step is about. (This used to be a
@@ -510,7 +511,7 @@
 		// single-writer discipline: stop the generic writers before the sweep owns
 		// the rAF; on completion pin the chart via raceView, which triggers one
 		// param-tween settle. The sweep shows only raceRecent's contenders
-		// (RACE_ENTRY_VISIBLE), so its frames always agree with the yCap-
+		// (RACE_RECENT_VISIBLE), so its frames always agree with the yCap-
 		// filtered static layouts and nobody pops out at the settle.
 		//
 		// alpha is a plain fade-in over SHOWN_ARRIVE_END, not shownAlpha's from/to
@@ -521,7 +522,7 @@
 		// have just landed, and dipping them back to nothing to re-fade would blink
 		// the whole cast off.
 		const arrive = (e) => (id) =>
-			RACE_ENTRY_VISIBLE.has(id)
+			RACE_RECENT_VISIBLE.has(id)
 				? flownIn
 					? 1
 					: Math.min(1, e / SHOWN_ARRIVE_END)
@@ -582,7 +583,7 @@
 		// both legs start from a frame showing raceRecent's set (leg 1 from the entry
 		// draw-on, leg 2 from raceRecent wherever its camera had reached)
 		const shown = {
-			from: RACE_ENTRY_VISIBLE,
+			from: RACE_RECENT_VISIBLE,
 			// raceStepVisible, not raceContenders: it is the single reader of a step's
 			// visible set, so anyone the landing step drops fades out across the leg
 			// like any other departure instead of popping at the settle
@@ -633,7 +634,7 @@
 		]);
 		const shown = {
 			from: raceStepVisible(RACE_TRADES_STEP, STATE_YCAP[RACE_REWIND_STATE]),
-			to: RACE_ENTRY_VISIBLE
+			to: RACE_RECENT_VISIBLE
 		};
 		sweeping = true;
 		camPanning = true;
@@ -1108,6 +1109,36 @@
 		untrack(playSimRun);
 	});
 
+	// The race chapter's flight, armed by the raceEntry branch and fired when the
+	// rank list has finished collapsing its bars into nodes and taken its overlay
+	// down (story.rankCollapsed — RankBars owns that clock, since it is the one
+	// that knows when its own transitions have landed). Until then the canvas is
+	// parked on the collapsed frame, holding a copy of exactly what the reader is
+	// looking at.
+	//
+	// Declared before the render effect for the same reason as the two triggers
+	// above: it has to win the flush. Cleared by every render pass, so a state
+	// change (Next/Prev mid-collapse) disarms it and the flag can only ever fire
+	// the flight it was armed for.
+	/** @type {{startAttrs: Float64Array, startTrails: Float64Array, stateDelays: Float64Array, flownIn: boolean} | null} */
+	let raceFlight = null;
+	$effect(() => {
+		const collapsed = story.rankCollapsed;
+		untrack(() => {
+			if (!collapsed || !raceFlight || stateName !== RACE_ENTRY_STATE) return;
+			const { startAttrs, startTrails, stateDelays, flownIn } = raceFlight;
+			raceFlight = null;
+			// jitter 0, not TWEEN_JITTER: the flight is the list re-spacing into the
+			// chart, and a hashed per-node start would scramble the top-to-bottom
+			// order that is the whole thing the reader is meant to read out of it
+			tweener.to(startAttrs, TWEEN_MS, 0, stateDelays, () => {
+				chartVeiled = false;
+				playRaceEntry(RACE_RECENT_STEP, flownIn);
+			});
+			trailTweener.to(startTrails, TWEEN_MS, 0);
+		});
+	});
+
 	// Records the state whose arrival has just landed. A layout can read this to
 	// hold an interaction back until its own authored reveal has finished.
 	//
@@ -1256,6 +1287,9 @@
 		// a stale gate would hide the new state's names for good. Re-armed below
 		// only if this arrival actually plays an entry.
 		entryLabels = null;
+		// likewise disarm any race flight a previous pass left waiting on the rank
+		// list's collapse — re-armed below only by the raceEntry branch itself
+		raceFlight = null;
 		// the names this arrival introduces, for the wait-for-your-dot hold (see
 		// heldLabels); armed below only on a plain state tween, so it never fights
 		// a choreography's own labelsAfter clock
@@ -1316,11 +1350,12 @@
 			);
 			// Where the rank list had each actor: RankBars publishes its row
 			// geometry (story.rankListRows) and ORDER_OF gives every actor its row,
-			// so the cast can fly out of the list the reader was just reading
-			// instead of appearing out of nothing on the chart. The previous step is
-			// HTML, but its rows have positions in the canvas's own coordinate space,
-			// which is all a departure point needs. Untracked: the list republishes
-			// this as the reader scrolls, and this effect must not re-run on it.
+			// so the canvas can take over the very node each bar collapsed into
+			// instead of the cast appearing out of nothing on the chart. The
+			// previous step is HTML, but its rows have positions in the canvas's own
+			// coordinate space, which is all a departure point needs. Untracked: the
+			// list republishes this as the reader scrolls, and this effect must not
+			// re-run on it.
 			//
 			// Ranks past the bottom of the panel — most of the cast; the list shows
 			// the top 250 and only ~20 rows fit — depart from just off the bottom
@@ -1341,36 +1376,48 @@
 			// settle (story.raceView, once the choreography lands) then retargets
 			// the hidden crowd onto its real scatter spot with nothing to see.
 			//
-			// Radius and colour freeze with the position, not just x/y: the chart
-			// treatment enlarges and recolours the highlighted pair, and leaving
-			// those slots on the seed frame swells SLJ and Hackman into emphasised
-			// dots while they sit in the dissolving rank bar.
+			// The cast itself is written as the node its bar collapsed into — the
+			// same spot (the bar's centre), the same radius, colour and alpha the
+			// chart gives it (raceDotSpec, the definition RankBars' HTML circle also
+			// reads). That is the whole point of the handoff: when the overlay
+			// stands down, the canvas underneath is holding the identical nodes, so
+			// the swap has nothing to show. It also means nothing about a dot
+			// changes on the flight that follows — only where it sits.
+			// a Float64 copy, not tweener.current.slice(): the live buffer is
+			// Float32, and this is handed straight back to to() as a target frame
+			const collapsedAttrs = new Float64Array(tweener.current);
 			for (let i = 0, id = 0; i < EDGE_BASE; i += STRIDE, id++) {
-				if (rows && RACE_ENTRY_VISIBLE.has(id)) {
-					// jump to the list row, so the tween that follows is the flight out
-					// of it; the dot keeps its list-sized radius and hop colour and
-					// grows into its chart mark on the way
-					tweener.current[i] = rows.x;
-					tweener.current[i + 1] = rowY(id);
+				if (rows && RACE_RECENT_VISIBLE.has(id)) {
+					const dot = raceDotSpec(id, RACE_RECENT_SUBJECT);
+					set(collapsedAttrs, id, rows.cx, rowY(id), dot.r, dot.rgb, dot.alpha);
 					startAttrs[i + 6] = litAttrs[i + 6];
 					continue;
 				}
-				for (let k = 0; k < 6; k++) startAttrs[i + k] = tweener.current[i + k];
+				for (let k = 0; k < 6; k++) startAttrs[i + k] = collapsedAttrs[i + k];
 				startAttrs[i + 6] = 0;
+				collapsedAttrs[i + 6] = 0;
 			}
-			// ...and hold the chart furniture back until that fade has finished, so
-			// the axes don't draw up behind a rank bar that is still on screen.
+			// ...and hold the chart furniture back until the overlay has gone, so
+			// the axes don't draw up behind a rank list that is still on screen.
 			chartVeiled = true;
 			// The race names ride their dots, so without a gate both spend the
-			// arrival travelling up the canvas with them, over a rank scene that is
-			// still dissolving. Blank them for the flight; playRaceEntry lifts the
-			// gate once the cast is on the chart.
+			// flight travelling up the canvas with them. Blank them for it;
+			// playRaceEntry lifts the gate once the cast is on the chart.
 			entryLabels = new Set();
-			tweener.to(startAttrs, TWEEN_MS, TWEEN_JITTER, stateDelays, () => {
-				chartVeiled = false;
-				playRaceEntry(RACE_RECENT_STEP, Boolean(rows));
-			});
-			trailTweener.to(startTrails, TWEEN_MS, 0);
+			// Stage 1 is not ours: the list is collapsing its bars into those nodes
+			// as HTML, over the top of this. Snap the canvas onto the collapsed frame
+			// — invisible, since the panel is opaque and covers this band — and wait
+			// for the overlay to stand down (story.rankCollapsed, which is also what
+			// unmounts it). The flight is armed here rather than run here so that the
+			// canvas can never be moving while the HTML the reader is watching isn't.
+			tweener.to(collapsedAttrs, 0);
+			trailTweener.to(startTrails, 0);
+			raceFlight = {
+				startAttrs,
+				startTrails,
+				stateDelays,
+				flownIn: Boolean(rows)
+			};
 		} else if (raceRewindArrival) {
 			// no seed frame needed — the rewind sweep recomputes attrs from scratch
 			// every frame via writeRaceSweepFrame, so it can start from raceRecent's

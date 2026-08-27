@@ -78,6 +78,30 @@
 
 	const currentState = $derived(stepConfigs[value ?? 0]?.state);
 
+	// The rank panel outlives the rank chapter by one step: raceRecent keeps it
+	// mounted so its bars can collapse into the race chart's own dots (see
+	// RankBars' `collapse`). Its box has to stop moving for that — the panel is
+	// sized off `stepsHeight`, and raceRecent's prose is shorter than
+	// rankReveal's, so without this every row would shift a few px away from what
+	// the reader was looking at (and away from where the canvas has been aimed) at
+	// the very moment it collapses. Hold the last height a rank step measured.
+	// set by navigate(): true only for the forward step out of the rank chapter
+	// into raceRecent, the one arrival the collapse belongs to
+	let rankHandoff = $state(false);
+	let rankStepsHeight = $state(0);
+	$effect(() => {
+		if (isRankState(currentState) && stepsHeight) rankStepsHeight = stepsHeight;
+	});
+	const rankPanelBottom = $derived(
+		(isRankState(currentState) ? stepsHeight : rankStepsHeight) + 12
+	);
+	// the overlay is up through the rank chapter, and for the collapse that opens
+	// raceRecent — until the nodes are the canvas's (see RankBars' `collapse`)
+	const showRankPanel = $derived(
+		isRankState(currentState) ||
+			(currentState === "raceRecent" && rankHandoff && !story.rankCollapsed)
+	);
+
 	// safety net for a stale/malformed URL (?step past the end of the story):
 	// value already starts at restoredStep, so this only ever corrects it back
 	// into range once stepConfigs.length is known
@@ -98,6 +122,13 @@
 		// it, so reveal every pair instead of re-asking (whether they answered or
 		// skipped — see story.svelte.js). Arriving forwards re-arms the question.
 		if (isQuizState(stepConfigs[to]?.state)) story.quizRevealed = to < value;
+		// the rank panel only carries over into raceRecent when the reader actually
+		// walks there out of the rank chapter — that is the one arrival whose bars
+		// collapse into the chart's dots. Reloading straight onto raceRecent, or
+		// stepping back to it from raceTrades, must not flash the list up over a
+		// chart that is already drawn.
+		rankHandoff =
+			stepConfigs[to]?.state === "raceRecent" && isRankState(currentState);
 	}
 
 	let prevValue = 0;
@@ -139,12 +170,25 @@
 				<!-- shared over-canvas panels live here, NOT inside <Wizard> — a
 				     snippet declared directly inside a component's tags becomes a
 				     prop of that component (that's how single-step panels nest
-				     inside <Step> directly). Both rank steps reference this one
-				     snippet so RankBars survives the step change without remounting. -->
+				     inside <Step> directly). Both rank steps AND raceRecent reference
+				     this one snippet so RankBars survives the step change without
+				     remounting — raceRecent is where its bars collapse into the race
+				     chart's own dots, and it stands the whole overlay down (background
+				     included) the moment the canvas has them (story.rankCollapsed). -->
 				{#snippet rankPanel()}
-					<div class="rank-bars-panel" style="bottom: {stepsHeight + 12}px">
-						<RankBars reveal={currentState === "rankReveal"} />
-					</div>
+					{#if showRankPanel}
+						<!-- `reveal` stays on through the handoff step: it is what puts SLJ
+						     in focus, so dropping it on raceRecent would send the focus row
+						     back to the reader's guess and re-hide every other name at the
+						     exact moment the bars collapse -->
+						<div class="rank-bars-panel" style="bottom: {rankPanelBottom}px">
+							<RankBars
+								reveal={currentState === "rankReveal" ||
+									currentState === "raceRecent"}
+								collapse={currentState === "raceRecent"}
+							/>
+						</div>
+					{/if}
 				{/snippet}
 				<!-- raceFull pan control: drag surface + year slider over the plot. Only
 				     raceFull gets it — the first two race steps are carried by their own
@@ -259,7 +303,9 @@
 					</Step>
 
 					<!-- PAST -->
-					<Step state="raceRecent">
+					<!-- keeps the rank panel mounted for one more step: its bars collapse
+					     into this chart's dots, then hand them to the canvas -->
+					<Step state="raceRecent" panel={rankPanel}>
 						<p>
 							Samuel L. Jackson has been the center of Hollywood since 2006,
 							taking over from Gene Hackman.

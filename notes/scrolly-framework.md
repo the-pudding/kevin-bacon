@@ -511,16 +511,53 @@ the frame the panel then fades over. The panel owns the geometry and the canvas
 follows it: RankBars measures its focused row live and publishes the box to
 `story.rankFocusBar`, which `layouts/rank.js` reads as a param.
 
-It publishes a second, coarser measurement for the chapter _after_ it:
-`story.rankListRows` (`{ x, top, pitch }` — row #1's bar centre at the current
-scroll, plus the row-to-row pitch). The race arrival reads it, with `ORDER_OF`,
-to fly its cast out of the row each actor occupied in the list instead of fading
-them up out of nothing; ranks below the panel depart from just off the bottom
-edge. The previous step being HTML costs nothing here — its rows have positions
-in the canvas's own coordinate space, which is all a departure point needs.
-Unlike the focus box, nothing reads this during the rank chapter (rank.js's
-selector takes only `rankFocusBar`), so it is safe to republish on scroll — and
-ScrollyVisual reads it `untrack`ed, so it can never retarget a tween.
+**The chapter handoff out of it (rankReveal → raceRecent)** is the reverse trick,
+and the panel outlives its own chapter for it: `raceRecent`'s `<Step>` passes the
+same `rankPanel` snippet, so RankBars is still mounted for one step past the rank
+chapter and runs the handoff in three beats.
+
+1. **Collapse** (HTML, `RANK_COLLAPSE_MS`, all bars at once). `collapse` goes true
+   and every row's dot lattice contracts to its own centre (`transform: scale(0)`
+   on the svg) while the single node it becomes grows in there; the names, avg
+   distances, footnote and the list's edge mask go with them. The node is not an
+   approximation of the chart's dot, it IS one: its radius, colour and alpha come
+   from `raceDotSpec` in `layouts/race.js` — the same function `writeRaceSweepFrame`
+   places canvas dots with — read against `RACE_RECENT_SUBJECT`, so SLJ and Hackman
+   already carry their emphasis and everyone else the grey field treatment.
+2. **Swap** (one frame). The timer sets `story.rankCollapsed`, which both unmounts
+   the whole overlay (`Index.svelte`'s `showRankPanel`) and releases the canvas.
+   Nothing moves: the canvas is already holding an identical copy of those nodes,
+   snapped there under the opaque panel when the step changed.
+3. **Flight** (canvas, `TWEEN_MS`). The nodes travel from their list rows to their
+   chart positions — same top-to-bottom order, new spacing — and hand over to the
+   4s draw-on and the rewind's first leg as before.
+
+`story.rankListRows` (`{ cx, top, pitch }` — the horizontal centre a bar collapses
+to, row #1's bar centre at the current scroll, and the row-to-row pitch) is what
+puts the canvas copy on the right row, with `ORDER_OF`; ranks below the panel
+(most of the 131-strong cast — the list shows 250 rows and ~20 fit) start just off
+the bottom edge and stream up. The previous step being HTML costs nothing — its
+rows have positions in the canvas's own coordinate space, which is all a departure
+point needs. Unlike the focus box, nothing reads this during the rank chapter
+(rank.js's selector takes only `rankFocusBar`), so it is safe to republish on
+scroll — and ScrollyVisual reads it `untrack`ed, so it can never retarget a tween.
+
+Three things the handoff depends on:
+
+- **The panel owns the clock.** It is the only party that knows when its own
+  transitions have landed, so it publishes the one moment (`story.rankCollapsed`)
+  and ScrollyVisual only waits — its flight is _armed_ by the arrival
+  (`raceFlight`) and fired by the flag, so the canvas can never be moving while
+  the HTML the reader is watching is not. Every render pass disarms it, so a
+  reader who steps on mid-collapse skips the flight like any other choreography.
+- **The panel's box is frozen for it.** `.rank-bars-panel` is sized off
+  `stepsHeight`, and raceRecent's prose is shorter than rankReveal's, so
+  `Index.svelte` holds the last height a rank step measured (`rankPanelBottom`).
+  Without it every row shifts a few px at the exact moment it collapses, away from
+  what the reader was looking at and away from where the canvas is aimed.
+- **Only the forward step out of the rank chapter gets it** (`rankHandoff`, set in
+  `navigate`). A reload straight onto raceRecent, or a step back to it from
+  raceTrades, must not flash the list up over a chart that is already drawn.
 
 Two rules come with a measured hand-off like that, both learned the hard way:
 publish from a **pre-effect**, so the box is set before ScrollyVisual's layout

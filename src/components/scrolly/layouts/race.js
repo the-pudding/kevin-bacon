@@ -445,6 +445,34 @@ function raceAxes(cam, yS, vMin, vMax, e1) {
  */
 
 /**
+ * Who a frame is ABOUT: exactly its `highlight` if it names one, otherwise
+ * everything it shows (see RaceFrame.highlight).
+ * @param {{highlight?: number[]}} frame
+ * @param {Set<number>} visible
+ */
+export const raceSubjectOf = (frame, visible) =>
+	frame.highlight ? new Set(frame.highlight) : visible;
+
+/**
+ * One actor's dot treatment on the race chart — the ONE definition of it, so
+ * anything drawing a race dot outside this module (the rank list's collapsed
+ * nodes, RankBars.svelte) is pixel-identical to what the canvas draws and the
+ * HTML→canvas swap at the chapter handoff has nothing to give away.
+ * `alpha` is the dot's settled alpha, before any per-frame multiplier.
+ * @param {number} id
+ * @param {Set<number>} subject who the frame is about (see raceSubjectOf)
+ * @returns {{r: number, rgb: [number, number, number], alpha: number}}
+ */
+export function raceDotSpec(id, subject) {
+	const major = subject.has(id);
+	return {
+		r: major ? 5 : 3,
+		rgb: major ? INK : CROWD,
+		alpha: major ? 1 : 0.55
+	};
+}
+
+/**
  * Writes ONLY the race cast's dot slots + trail slots (one each per RACE_IDS)
  * for one frame, directly into the live Float32 tweener buffers (no allocation,
  * crowd/other trails left untouched). Actors ride their curves; a dot whose
@@ -494,7 +522,7 @@ export function writeRaceSweepFrame(
 	// one that doesn't is about everything it shows (raceTrades — every line on
 	// it is one of its handover holders). Never the whole cast: on a step showing
 	// a wide field, the ones it isn't about have to stay background.
-	const subject = frame.highlight ? new Set(frame.highlight) : visible;
+	const subject = raceSubjectOf(frame, visible);
 	for (const id of RACE_IDS) {
 		// "foreground" = an actor this step is about. The chart carries no hue, so
 		// this is the ONLY thing separating a line the reader should follow from
@@ -502,7 +530,7 @@ export function writeRaceSweepFrame(
 		// alpha. Emphasis is per-step, not per-actor — the same actor is
 		// foreground on the step about them and background everywhere else.
 		const major = subject.has(id);
-		const rgb = major ? INK : CROWD;
+		const dot = raceDotSpec(id, subject);
 		const segs = RACE_SEGS.get(id);
 		const slot = RACE_SLOT.get(id);
 		const [ds, de] = RACE_RANGE.get(id);
@@ -529,7 +557,7 @@ export function writeRaceSweepFrame(
 		// above the plot, over the axis furniture), showing a value the chart isn't
 		// showing. Its line already ends at that edge (curveExit).
 		const dotM = dotV >= vMin && dotV <= vMax ? m : 0;
-		set(attrsBuf, id, dx, dy, major ? 5 : 3, rgb, (major ? 1 : 0.55) * dotM);
+		set(attrsBuf, id, dx, dy, dot.r, dot.rgb, dot.alpha * dotM);
 		// Fast path for an actor this ANIMATED frame can't show: keep the dot
 		// placement (it is what holds them on their own curve) and skip the line
 		// work below, which is the expensive part — curveEntry and curveExit each
@@ -785,6 +813,19 @@ export const RACE_TRADES_STEP = {
 // it shows the whole cast by design.
 const RACE_RECENT_YCAP = raceStepCap(RACE_RECENT_STEP);
 const RACE_TRADES_YCAP = raceStepCap(RACE_TRADES_STEP);
+
+// What raceRecent shows, and who it is about. Derived here, once, because three
+// places need to agree on them: the state's own layout, the arrival choreography
+// (ScrollyVisual's raceEntry) and the rank list's collapsed nodes
+// (RankBars.svelte), which are the same dots handed over as HTML.
+export const RACE_RECENT_VISIBLE = raceStepVisible(
+	RACE_RECENT_STEP,
+	RACE_RECENT_YCAP
+);
+export const RACE_RECENT_SUBJECT = raceSubjectOf(
+	RACE_RECENT_STEP,
+	RACE_RECENT_VISIBLE
+);
 
 // raceFull's resting camera: 1970 at the plot's left edge, or RACE_FULL_PAN_FLOOR
 // on its right edge where the viewport is too narrow to show both at once. Same
