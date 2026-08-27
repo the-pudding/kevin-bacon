@@ -10,7 +10,6 @@ import {
 	CROWD,
 	SLJ,
 	CAGE,
-	CGM,
 	idOf
 } from "../layout-shared.js";
 
@@ -418,7 +417,6 @@ export const states = {
 	},
 	scatterGenZ: {
 		layout: layoutScatterGenZ,
-		pulse: CGM,
 		overlay: AVG_OVERLAY
 	}
 };
