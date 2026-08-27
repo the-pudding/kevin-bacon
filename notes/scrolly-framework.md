@@ -460,6 +460,17 @@ the frame the panel then fades over. The panel owns the geometry and the canvas
 follows it: RankBars measures its focused row live and publishes the box to
 `story.rankFocusBar`, which `layouts/rank.js` reads as a param.
 
+It publishes a second, coarser measurement for the chapter _after_ it:
+`story.rankListRows` (`{ x, top, pitch }` — row #1's bar centre at the current
+scroll, plus the row-to-row pitch). The race arrival reads it, with `ORDER_OF`,
+to fly its cast out of the row each actor occupied in the list instead of fading
+them up out of nothing; ranks below the panel depart from just off the bottom
+edge. The previous step being HTML costs nothing here — its rows have positions
+in the canvas's own coordinate space, which is all a departure point needs.
+Unlike the focus box, nothing reads this during the rank chapter (rank.js's
+selector takes only `rankFocusBar`), so it is safe to republish on scroll — and
+ScrollyVisual reads it `untrack`ed, so it can never retarget a tween.
+
 Two rules come with a measured hand-off like that, both learned the hard way:
 publish from a **pre-effect**, so the box is set before ScrollyVisual's layout
 effect runs in the same flush and the arrival is one collapse rather than a

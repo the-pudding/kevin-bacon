@@ -44,7 +44,8 @@
 		MARGIN,
 		plotBottom,
 		EDGE_GREY,
-		EDGE_HIGHLIGHT
+		EDGE_HIGHLIGHT,
+		ORDER_OF
 	} from "./layout-shared.js";
 	import { story } from "./story.svelte.js";
 
@@ -482,8 +483,18 @@
 	// camera back from the present to RACE_REWIND_WAYPOINT_YEAR — so draw-on +
 	// first-leg rewind play as one continuous flourish while the reader is still
 	// on raceRecent's step.
-	function playRaceEntry(step) {
+	/**
+	 * @param {any} step
+	 * @param {boolean} flownIn whether the arrival tween already flew the cast in
+	 *   from the rank list (see the raceEntry branch of the render effect), so
+	 *   they are on screen at full strength before the draw-on starts
+	 */
+	function playRaceEntry(step, flownIn) {
 		if (!width || !height) return;
+		// the arrival's label gate is done: from here the cast fades in at its
+		// chart spot, so the names can ride those dots again (see the raceEntry
+		// branch of the render effect)
+		entryLabels = null;
 		const finalView = { playhead: step.extent[1] };
 		if (reducedMotion) {
 			// defensive: the effect's reduced-motion branch normally jumps before
@@ -499,11 +510,17 @@
 		//
 		// alpha is a plain fade-in over SHOWN_ARRIVE_END, not shownAlpha's from/to
 		// comparison — every contender here is arriving fresh (there is no prior
-		// membership to compare against; the rank crowd they were sitting among a
-		// moment ago has already faded to nothing), so they should tween in, not
-		// pop straight to full strength on this phase's first frame.
+		// membership to compare against), so they should tween in rather than pop
+		// straight to full strength on this phase's first frame. Unless the arrival
+		// already flew them here out of the rank list: they are visible dots that
+		// have just landed, and dipping them back to nothing to re-fade would blink
+		// the whole cast off.
 		const arrive = (e) => (id) =>
-			RACE_ENTRY_VISIBLE.has(id) ? Math.min(1, e / SHOWN_ARRIVE_END) : 0;
+			RACE_ENTRY_VISIBLE.has(id)
+				? flownIn
+					? 1
+					: Math.min(1, e / SHOWN_ARRIVE_END)
+				: 0;
 		tweener.stop();
 		trailTweener.stop();
 		sweeping = true;
@@ -1207,31 +1224,74 @@
 				STATE_YCAP[RACE_ENTRY_STATE],
 				() => 0
 			);
+			// The same seed frame written a second time, at full strength, purely so
+			// each cast dot's own settled alpha can be read out of it below — the
+			// write above zeroes them, which is what the trails need.
+			const litAttrs = new Float64Array(ATTR_SIZE);
+			writeRaceSweepFrame(
+				litAttrs,
+				new Float64Array(TRAIL_SIZE),
+				width,
+				height,
+				entryFrame(RACE_RECENT_STEP)(0),
+				STATE_YCAP[RACE_ENTRY_STATE],
+				() => 1
+			);
+			// Where the rank list had each actor: RankBars publishes its row
+			// geometry (story.rankListRows) and ORDER_OF gives every actor its row,
+			// so the cast can fly out of the list the reader was just reading
+			// instead of appearing out of nothing on the chart. The previous step is
+			// HTML, but its rows have positions in the canvas's own coordinate space,
+			// which is all a departure point needs. Untracked: the list republishes
+			// this as the reader scrolls, and this effect must not re-run on it.
+			//
+			// Ranks past the bottom of the panel — most of the cast; the list shows
+			// the top 250 and only ~20 rows fit — depart from just off the bottom
+			// edge rather than from hundreds of rows down, which would be a blur
+			// from nowhere. They read as streaming up out of the list.
+			const rows = untrack(() => story.rankListRows);
+			const rowY = (id) =>
+				Math.min(rows.top + ORDER_OF.get(id) * rows.pitch, height + 24);
 			// `attrs` parks the whole non-race corpus (the rank chapter's hop
 			// crowd) at its distance-scatter spot, alpha 0 — the position a later
 			// scatter chapter needs so ITS reveal doesn't teleport — and the write
-			// above places the race cast at their real chart spot, fully opaque.
-			// The crowd is still fully visible in the rank bar right now (for
-			// many of them, ~85% under 10 films, that scatter spot sits off the
-			// left edge), and gliding straight there drags a mass of opaque dots
-			// across the whole canvas while they fade. Freeze everyone where they
-			// stand instead and fade the whole rank scene out in place;
-			// playRaceEntry's own draw-on then fades the race cast in fresh at
-			// their real spot (see SHOWN_ARRIVE_END) with nothing to glide from,
-			// and the raceRecent settle (story.raceView, once the choreography
-			// lands) retargets the hidden crowd onto its real scatter spot with
-			// nothing to see.
-			for (let i = 0; i < EDGE_BASE; i += STRIDE) {
-				startAttrs[i] = tweener.current[i];
-				startAttrs[i + 1] = tweener.current[i + 1];
+			// above places the race cast at their real chart spot. The crowd is
+			// still fully visible in the rank bar right now (for many of them, ~85%
+			// under 10 films, that scatter spot sits off the left edge), and gliding
+			// straight there drags a mass of opaque dots across the whole canvas
+			// while they fade. Freeze everyone who isn't in the cast where they
+			// stand instead and fade the rank scene out in place; the raceRecent
+			// settle (story.raceView, once the choreography lands) then retargets
+			// the hidden crowd onto its real scatter spot with nothing to see.
+			//
+			// Radius and colour freeze with the position, not just x/y: the chart
+			// treatment enlarges and recolours the highlighted pair, and leaving
+			// those slots on the seed frame swells SLJ and Hackman into emphasised
+			// dots while they sit in the dissolving rank bar.
+			for (let i = 0, id = 0; i < EDGE_BASE; i += STRIDE, id++) {
+				if (rows && RACE_ENTRY_VISIBLE.has(id)) {
+					// jump to the list row, so the tween that follows is the flight out
+					// of it; the dot keeps its list-sized radius and hop colour and
+					// grows into its chart mark on the way
+					tweener.current[i] = rows.x;
+					tweener.current[i + 1] = rowY(id);
+					startAttrs[i + 6] = litAttrs[i + 6];
+					continue;
+				}
+				for (let k = 0; k < 6; k++) startAttrs[i + k] = tweener.current[i + k];
 				startAttrs[i + 6] = 0;
 			}
 			// ...and hold the chart furniture back until that fade has finished, so
 			// the axes don't draw up behind a rank bar that is still on screen.
 			chartVeiled = true;
+			// The race names ride their dots, so without a gate both spend the
+			// arrival travelling up the canvas with them, over a rank scene that is
+			// still dissolving. Blank them for the flight; playRaceEntry lifts the
+			// gate once the cast is on the chart.
+			entryLabels = new Set();
 			tweener.to(startAttrs, TWEEN_MS, TWEEN_JITTER, stateDelays, () => {
 				chartVeiled = false;
-				playRaceEntry(RACE_RECENT_STEP);
+				playRaceEntry(RACE_RECENT_STEP, Boolean(rows));
 			});
 			trailTweener.to(startTrails, TWEEN_MS, 0);
 		} else if (raceRewindArrival) {

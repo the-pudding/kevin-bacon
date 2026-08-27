@@ -34,6 +34,13 @@ export const story = $state({
 	 * it has mounted and reported a position. The canvas bar tweens to meet that
 	 * exact box, so the two are the same strip (see layouts/rank.js) */
 	rankFocusBar: null,
+	/** rank ladder: `{ x, top, pitch }` in canvas coordinate space of RankBars'
+	 * rows — the centre of row #1's bar at the list's current scroll, and the
+	 * px between consecutive rows. The race chapter's arrival reads it to fly its
+	 * cast out of the row each actor occupied in the list (see ScrollyVisual's
+	 * raceEntry branch); no layout consumes it, so republishing it as the reader
+	 * scrolls can't retarget a tween */
+	rankListRows: null,
 	/** race chart: optional `{ playhead }` camera override; null = the active race
 	 * state rests at the right-hand end of its content extent. It is the *hold*
 	 * target written once when the reader releases a pan (ScrollyVisual owns the

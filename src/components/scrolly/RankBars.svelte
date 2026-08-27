@@ -141,6 +141,8 @@
 		// Target the `.bar` element itself, not the row's overall center — the
 		// row also carries the label text above the bar, so centering on the
 		// whole row overshoots upward past the bar's real position.
+		publishRows(clampedTop);
+
 		const panel = list.offsetParent;
 		if (panel instanceof HTMLElement && bar instanceof HTMLElement) {
 			publish({
@@ -152,6 +154,47 @@
 			});
 		}
 	});
+
+	// The race chapter's arrival flies its cast out of this list rather than
+	// fading them up out of nothing (ScrollyVisual's raceEntry branch), so it
+	// needs the geometry of the rows themselves, not just the focused one. Every
+	// row is the same height, so one row centre plus the row pitch places any
+	// rank — including the ranks scrolled off the bottom, which is where most of
+	// the race cast sits. Same coordinate space as the focus box above.
+	//
+	// Nothing reads this during the rank chapter (rank.js's params selector takes
+	// only rankFocusBar), so unlike the focus box it is safe to republish as the
+	// reader scrolls — which is what keeps it true to what they are looking at
+	// when they step on.
+	/** @param {number} scrollTop */
+	function publishRows(scrollTop) {
+		if (!list) return;
+		const panel = list.offsetParent;
+		const rowEls = list.querySelectorAll("li");
+		const bar = rowEls[0]?.querySelector(".bar");
+		if (
+			!(panel instanceof HTMLElement) ||
+			!(bar instanceof HTMLElement) ||
+			rowEls.length < 2
+		)
+			return;
+		const geom = {
+			x: panel.offsetLeft + bar.offsetLeft,
+			top: Math.round(
+				panel.offsetTop + bar.offsetTop - scrollTop + bar.offsetHeight / 2
+			),
+			pitch: rowEls[1].offsetTop - rowEls[0].offsetTop
+		};
+		const prev = story.rankListRows;
+		if (
+			prev &&
+			prev.x === geom.x &&
+			prev.top === geom.top &&
+			prev.pitch === geom.pitch
+		)
+			return;
+		story.rankListRows = geom;
+	}
 
 	// Re-publishing the same box would re-run ScrollyVisual's layout effect with
 	// an unchanged params key, which lands in its catch-all and snaps the arrival
@@ -174,7 +217,10 @@
 		class:at-top={atTop}
 		bind:this={list}
 		bind:clientHeight={listHeight}
-		onscroll={() => (atTop = list.scrollTop <= 1)}
+		onscroll={() => {
+			atTop = list.scrollTop <= 1;
+			publishRows(list.scrollTop);
+		}}
 	>
 		<!-- zero-height gauge: the row width the dot grid is laid out against,
 		     measured inside the scroller's padding so it needs no px assumptions -->
