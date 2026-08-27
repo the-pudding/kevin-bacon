@@ -814,9 +814,9 @@ const raceStepCap = (step) => raceAnchorAt(step.extent[1]) + RACE_YCAP_REACH;
 // plays leg 2, continuing the same camera pan on from here to its own resting
 // year — so the "camera moving back in time" motion is split visibly across
 // both steps instead of raceTrades being a no-op. The year itself is chosen for
-// what leg 1 ENDS on: the camera parks a year after SLJ's 2006 takeover, so the
-// crossing the step's copy is about is the last thing it leaves on the right edge.
-export const RACE_REWIND_WAYPOINT_YEAR = 2007;
+// what leg 1 ENDS on: the camera parks on SLJ's 2006 takeover, so the crossing
+// the step's copy is about is sitting on the right edge when the pan stops.
+export const RACE_REWIND_WAYPOINT_YEAR = 2006;
 
 // The race descriptors each state exposes as `race` (STATE_RACE) — the frame
 // animators in ScrollyVisual build their frames from these, so an animated frame
