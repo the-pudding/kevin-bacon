@@ -203,9 +203,11 @@ per year, built at module load from `story.eras` × `story.raceSeries`. It is
 derived here rather than baked into `scrolly-story.json`, so changing it never
 needs an `ANALYSIS_REPO` rebuild. `buildRaceAnchor` throws on a gap.
 
-`raceWindowYFit(camLeft, camRight)` is the whole rule: the record's range over the
-years **on screen**, raised to at least `RACE_Y_FLOOR` (0.45) tall, padded 6%.
-`writeRaceSweepFrame` calls it with its own camera, so:
+`raceWindowYFit(camLeft, camRight)` is the whole rule. The **top** of the plot is
+the record's low point over the years on screen; the **bottom** is that same
+record at the camera's right edge plus the band `raceBandAt` gives that year;
+both ends are then padded by `RACE_Y_PAD` (12% of the plot's height, floored at
+`RACE_Y_PAD_MIN`). `writeRaceSweepFrame` calls it with its own camera, so:
 
 - **No step owns an axis and no animator carries one.** There is no `STATE_YFIT`,
   no `fixedYFit` parameter, and nothing to hand across a step transition. An
@@ -214,34 +216,56 @@ years **on screen**, raised to at least `RACE_Y_FLOOR` (0.45) tall, padded 6%.
   review property. This is what let `raceRewindYFit`, `lerpYFit`, `liveYFit` and
   `raceExit.yFit` all be deleted: leg 2's "axis pans with the camera" behaviour is
   now simply what the axis does everywhere.
-- **The y scale is near-fixed**, 0.504–0.635 tall anywhere in 1970–2025 (1.26×,
-  measured across viewports 360–700px), so a vertical distance means the same thing
-  on every step — the y counterpart of `PX_PER_YEAR`. Y ticks therefore sit on round
-  tenths and _slide_, exactly as the x ticks travel with their years; spacing them
-  evenly across the domain instead would pin them to fixed rows and roll their
-  digits on every frame of a pan.
+- **The band is a function of the playhead year and nothing else**, so the same
+  year fits the same axis on a phone and on a desktop. Fitting over the visible
+  window instead would give two viewports two different charts.
 - **Reader panning moves the axis**, and must: the settle it hands off to derives
   its own fit from the same playhead.
 
-Two properties of the record make it the right thing to hang the axis on. It is
-the chart's exact **floor** — no actor in the cast sits below the crown holder in
-any year (measured deficit 0.0000 across all 224 series) — so the low end needs no
-guesswork and nothing clips off the bottom. And it is read **interpolated**
-(`raceAnchorAt`), not sampled on whole years: sampled discretely the fit would be a
-step function of the camera and the axis would visibly tick every time a year
-crossed the plot edge mid-pan. That trades in one risk — a monotone cubic sagging
-below the straight line between two record points — which measures at most 0.021
-against the fit's ~0.030 of bottom padding.
+The record is the right thing to hang the top on because it is the chart's exact
+**ceiling** — no actor in the cast sits below the crown holder in any year
+(measured deficit 0.0000 across all 224 series) — so that end needs no guesswork
+and nothing clips off the top. It is read **interpolated** (`raceAnchorAt`), not
+sampled on whole years: sampled discretely the fit would be a step function of the
+camera and the axis would visibly tick every time a year crossed the plot edge
+mid-pan. That trades in one risk — a monotone cubic sagging below the straight line
+between two record points, at most 0.0019 over the reachable playheads — which is
+what `RACE_Y_PAD_MIN` sizes the padding to absorb.
 
-`RACE_Y_FLOOR` is the one dial, and it is derived: 0.411 is the measured minimum
-that keeps every labelled dot on the plot at every reachable playhead and viewport
-width, so 0.45 carries margin. Raising it flattens every step's lines; lowering it
-risks a clipped dot. Verified at 0 clipped of 2963 labelled-dot samples.
+**The band is a curve over the years**, held as eleven control points in
+`RACE_Y_BAND_POINTS` (1980–2025 — exactly the years a camera can rest on, since
+`raceFloorPlayhead` clamps every step and the band is read at the right edge only)
+and read through `raceBandAt`, which runs them through the same monotone cubic
+(`monotoneSegments`/`curveYAt`) the chart's own lines use. Two things follow from
+that shape. It is continuous in `year` for free, which the axis needs for exactly
+the reason `raceAnchorAt` is interpolated. And it is EDITABLE: a decade moves when
+one handle moves, which a value-per-year table isn't.
 
-The accepted cost of one shared scale: raceRecent's SLJ/Hackman handover occupies
-~42% of the plot height rather than filling it. Lines that run off the top are
-ended at the plot edge by `curveEntry`/`curveExit`, entering and leaving through it
-as in any line chart.
+A _count_ of lines cannot do this job, which is what the band used to be
+(`RACE_Y_LINES = 6`, guarded by a min and max): the field's density around the
+record changes completely across the chapter — 0.068 of avg-distance holds six
+lines in 2025, where SLJ has pulled clear, but fifty in the mid-2000s, where a
+dozen actors were trading hundredths. Fitting to a count therefore tracked the
+crowd's noise rather than the story, and made the plot breathe on every pan. The
+points are drawn by eye against the live chart instead.
+
+**Tuning it.** `RaceYBandDev.svelte` is a dev-only curve editor (dynamically
+imported in `Index.svelte` under `import.meta.env.DEV`, so a build drops the chunk
+entirely — a static import survives tree-shaking, which is why it isn't just an
+`{#if}`). It is a full-width strip hung under the plot: drag a control point to
+reshape the curve, click to add one, alt-click to drop one, with the shipped curve
+behind as a dashed ghost and the chart's live playhead year riding along as a
+marker. It hands the points to `race.js` through `setRaceDevBands` (a plain module
+variable, so nothing reactive lands in the per-frame draw path) and bumps
+`story.raceYBandsRev`, which is `ScrollyVisual`'s cue to drop its cached layouts
+and redraw. "copy" puts a replacement `RACE_Y_BAND_POINTS` on the clipboard; edits
+persist in `localStorage` between reloads, and "reset" goes back to the shipped
+curve.
+
+The accepted cost of a band this tight: the chart holds the leaders and lets the
+rest of the field run off the bottom edge. Lines that leave the plot are ended at
+its edge by `curveEntry`/`curveExit`, entering and leaving through it as in any
+line chart, and a dot whose value has left the scale is hidden outright.
 
 **Who a step shows** is a separate question from the axis, and still
 width-independent so it can be computed at module load. `raceStepCap(step)` is the

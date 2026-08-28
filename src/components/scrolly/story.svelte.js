@@ -82,5 +82,10 @@ export const story = $state({
 	 * pannable }` or null off the race chapter. One-way — ScrollyVisual is the
 	 * only component that knows the canvas width, so it writes this and
 	 * RaceScrubber only reads it. No layout consumes it, so there is no cycle. */
-	raceCam: null
+	raceCam: null,
+	/** race chart, DEV ONLY: bumped by RaceYBandDev.svelte after every edit to the
+	 * per-year y band table. The table itself lives in layouts/race.js (set through
+	 * setRaceDevBands) so nothing reactive lands in the per-frame path; this is only
+	 * the signal that tells ScrollyVisual to drop its cached layouts and redraw. */
+	raceYBandsRev: 0
 });

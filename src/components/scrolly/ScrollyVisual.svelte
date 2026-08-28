@@ -360,6 +360,9 @@
 	// step's static params with the interaction fields the state consumes
 	// (STATE_PARAMS selector), so an interaction re-runs the current layout.
 	const layoutCache = new Map();
+	// DEV only: last y-band revision the cache was valid for (see the render
+	// effect). Always 0 in a build, where the tuning panel doesn't exist.
+	let lastBandRev = 0;
 	function layoutFor(name, w, h, layoutParams) {
 		// a race camera hold is a fresh continuous value every time the reader
 		// releases a pan, and each entry is ~0.8MB of Float64Array — never a cache
@@ -1201,6 +1204,14 @@
 	}
 
 	$effect(() => {
+		// DEV: the y-band curve editor edits a table inside layouts/race.js, which
+		// the layout cache can't see. Read the revision counter FIRST, before any
+		// early return, so the dependency is registered on every run, and drop the
+		// cached layouts whenever it moves.
+		if (import.meta.env.DEV && story.raceYBandsRev !== lastBandRev) {
+			lastBandRev = story.raceYBandsRev;
+			layoutCache.clear();
+		}
 		if (!canvas || !width || !height || !stateName) return;
 		// while the path animator/scrub loop owns the rAF, step aside: a genuine
 		// state change (Next) abandons it — dots tween on from wherever they are, so

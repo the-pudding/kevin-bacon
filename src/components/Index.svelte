@@ -110,6 +110,17 @@
 		if (value >= stepConfigs.length) value = 0;
 	});
 
+	// The race chart's y-band tuner. Pulled in dynamically rather than imported at
+	// the top so a production build drops it entirely: `import.meta.env.DEV` is
+	// substituted with `false`, the branch goes dead, and nothing references the
+	// chunk. A static import survives tree-shaking (the compiled block and its CSS
+	// still land in the bundle), which is why this isn't just an {#if} in the markup.
+	let raceYBandDev = $state(null);
+	onMount(async () => {
+		if (!import.meta.env.DEV) return;
+		raceYBandDev = await import("$components/scrolly/RaceYBandDev.svelte");
+	});
+
 	$effect(() => {
 		urlParams.set(STEP_PARAM, value);
 	});
@@ -166,6 +177,13 @@
 				<!-- the active step's over-canvas panel, if it declared one — the
 				     markup lives next to the <Step> that owns it -->
 				{@render stepConfigs[value ?? 0]?.panel?.()}
+				<!-- dev-only y-band tuner. Mounted outside stepConfigs so it spans the
+				     whole race chapter (raceTrades declares no panel of its own) and
+				     keeps its table installed across step changes; it renders nothing
+				     until story.raceCam exists, i.e. off the race chapter. -->
+				{#if raceYBandDev}
+					<raceYBandDev.default />
+				{/if}
 			</div>
 			<div class="scrolly-steps" bind:clientHeight={stepsHeight}>
 				<!-- shared over-canvas panels live here, NOT inside <Wizard> — a

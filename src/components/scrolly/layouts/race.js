@@ -167,65 +167,94 @@ function raceAnchorAt(year) {
 	return RACE_ANCHOR[i] + (RACE_ANCHOR[i + 1] - RACE_ANCHOR[i]) * f;
 }
 
-// How many lines the plot holds. THE dial for the chart: the crown runs along the
-// top and this says how much of the chasing field comes with it — few enough that
-// every dot on the plot can carry a name (see raceLabelIds).
-//
-// A COUNT rather than a distance, because the field's density around the record
-// changes completely across the chapter: 8 lines is 0.069 of avg-distance in
-// 2025, where SLJ has pulled clear, but only 0.038 in 2007, where a dozen actors
-// were trading tenths of a hop. One fixed height therefore cannot hold the same
-// chart at both ends of a single step's rewind — it shows one line at 2025 or
-// fifty at 2007. Fitting to the count is what keeps the plot looking the same
-// while the camera moves.
-const RACE_Y_LINES = 6;
-
-// Guards on the fitted band, for cameras where the count alone misbehaves: a
-// dead heat near the record would collapse the axis onto the noise, and a year
-// where the field is strung out would open it onto the whole crowd.
-const RACE_Y_BAND_MIN = 0.015;
-const RACE_Y_BAND_MAX = 0.16;
-
 // The record's own sub-year wobble, which the top of the plot has to absorb:
 // raceAnchorAt interpolates between whole years, and an actor's monotone cubic
 // can sag under that chord — measured at most 0.0019 over the playheads a camera
-// can reach (1980 onwards). 6% of the old half-unit axis covered that with room
-// to spare; 12% of the tightest band this fit can pick does not, hence the
-// absolute floor under it. (The 0.021 sag at 1971.55 is a LINE, never a dot: the
-// pan floor keeps every playhead at 1980 or later, and a line above the plot is
-// trimmed at the edge by curveEntry.)
+// can reach (1980 onwards). 12% of the tightest band the curve below reaches
+// doesn't cover that, hence the absolute floor under it. (The 0.021 sag at
+// 1971.55 is a LINE, never a dot: the pan floor keeps every playhead at 1980 or
+// later, and a line above the plot is trimmed at the edge by curveEntry.)
 const RACE_Y_PAD = 0.12;
 const RACE_Y_PAD_MIN = 0.0025;
 
+// ---------------------------------------------------------------------------
+// The band: how much of the chasing field comes along with the crown.
+//
+// THE dial for the chart. The crown runs along the top of the plot and this says
+// how far below it the bottom edge sits — few enough lines that every dot on the
+// plot can carry a name (see raceLabelIds), enough that the step's story has
+// company on screen.
+//
+// It is a CURVE over the years rather than one constant, because the field's
+// density around the record changes completely across the chapter: 0.068 of
+// avg-distance holds six lines in 2025, where SLJ has pulled clear, but fifty in
+// the mid-2000s, where a dozen actors were trading hundredths. One fixed height
+// therefore cannot hold the same chart at both ends of a single step's rewind.
+// It is also not a per-year table: a handful of control points run through the
+// same monotone cubic the chart's own lines use is continuous in `year` for
+// free, which the axis needs — sampled per year, the band would be a step
+// function of the camera and the axis would tick every time a year crossed the
+// plot edge mid-pan.
+//
+// The points are drawn by eye against the live chart, not fitted: an earlier
+// rule fitted the band to a fixed COUNT of lines at the playhead, which tracked
+// the crowd's noise instead of the story and made the plot breathe on every pan.
+// RaceYBandDev.svelte is the editor they were drawn in; it seeds itself from
+// this table and hands an edited one back through setRaceDevBands.
+// ---------------------------------------------------------------------------
+
+// The first year a camera can put on its right edge: every step's playhead is
+// clamped to at least this by raceFloorPlayhead, and the band is read at the
+// right edge only, so nothing earlier is reachable. (RACE_FULL_PAN_FLOOR is
+// this same year, declared here because it is needed at module init.)
+export const RACE_BAND_FIRST = 1980;
+export const RACE_BAND_LAST = RACE_ANCHOR_LAST;
+
+/** the band's control points, [year, band], ascending in year */
+export const RACE_Y_BAND_POINTS = /** @type {[number, number][]} */ ([
+	[1980, 0.1121],
+	[1985, 0.0993],
+	[1990, 0.0913],
+	[1993, 0.0897],
+	[1996, 0.0825],
+	[2000, 0.0756],
+	[2005, 0.0685],
+	[2010, 0.0612],
+	[2015, 0.0616],
+	[2020, 0.0665],
+	[2025, 0.0676]
+]);
+const RACE_Y_BAND_SEGS = monotoneSegments(RACE_Y_BAND_POINTS);
+
 /**
- * Where the RACE_Y_LINES'th-closest line to the centre sits at one year — the
- * bottom of the plot, before the guards.
- *
- * Read at the camera's right edge only, so the band is a function of the
- * playhead and nothing else: the same year fits the same axis on a phone and a
- * desktop, where fitting over the visible window would give two different
- * charts. An actor whose series doesn't cover the year is skipped rather than
- * clamped — the chart isn't drawing them there either.
- *
- * Continuous in `year` (an order statistic of continuous curves), so the axis
- * eases rather than jumping when two actors swap places mid-pan.
+ * A curve the dev editor has installed in place of the table, as monotone
+ * segments. Null in every normal run; written ONLY by setRaceDevBands.
+ */
+let devBandSegs = null;
+
+/**
+ * Dev hook: install an edited band curve (or null to go back to the table).
+ * Called only from RaceYBandDev.svelte, which only mounts under `npm run dev`.
+ * @param {[number, number][] | null} points [year, band], ascending in year
+ */
+export function setRaceDevBands(points) {
+	devBandSegs = points && points.length > 1 ? monotoneSegments(points) : null;
+}
+
+/**
+ * The band at any year. `curveYAt` clamps past both ends of the control points,
+ * so the years outside the table hold its terminal value rather than
+ * extrapolating off the chart.
  * @param {number} year
  */
-function raceNthValue(year) {
-	const vals = [];
-	for (const id of RACE_IDS) {
-		const [ds, de] = RACE_RANGE.get(id);
-		if (year < ds || year > de) continue;
-		vals.push(curveYAt(RACE_SEGS.get(id), year));
-	}
-	vals.sort((a, b) => a - b);
-	return vals[Math.min(RACE_Y_LINES, vals.length) - 1];
+function raceBandAt(year) {
+	return curveYAt(devBandSegs ?? RACE_Y_BAND_SEGS, year);
 }
 
 /**
  * The axis for a camera window: the record over the years on screen at the top,
- * and enough room under it for RACE_Y_LINES of the chasing field, padded so a
- * dot riding an extreme doesn't touch the plot edge.
+ * and the right edge's band (raceBandAt) of the chasing field under it, padded
+ * so a dot riding an extreme doesn't touch the plot edge.
  *
  * The window is still scanned for the record's LOW point, which is what pins the
  * top of the plot and guarantees nothing clips off it. What it deliberately does
@@ -248,12 +277,15 @@ function raceWindowYFit(camLeft, camRight) {
 	for (let y = Math.ceil(camLeft); y <= Math.floor(camRight); y++) {
 		lo = Math.min(lo, raceAnchorAt(y));
 	}
-	const band = Math.min(
-		RACE_Y_BAND_MAX,
-		Math.max(RACE_Y_BAND_MIN, raceNthValue(camRight) - lo)
-	);
-	const pad = Math.max(band * RACE_Y_PAD, RACE_Y_PAD_MIN);
-	return [lo - pad, lo + band + pad];
+	// the bottom hangs off the RIGHT EDGE's own record, not off `lo`: the band is
+	// tabulated per year (raceBandAt), so it has to be measured from the same
+	// year's anchor for the table to mean one thing. The record mostly falls, so
+	// the two agree on most cameras; where it rises inside the window (1981-85,
+	// 1990-93) `lo` sits below the right edge and only the TOP opens up, which is
+	// exactly what keeps the earlier crown on the plot.
+	const bottom = raceAnchorAt(camRight) + raceBandAt(camRight);
+	const pad = Math.max((bottom - lo) * RACE_Y_PAD, RACE_Y_PAD_MIN);
+	return [lo - pad, bottom + pad];
 }
 
 /**
@@ -791,8 +823,9 @@ export const RACE_FULL_EXTENT = /** @type {[number, number]} */ ([1970, 2025]);
 // 1970 at its left edge and 1980-ish on the right. It's the narrow viewports
 // this exists for: a phone shows ~5.5 years, so without a floor the camera would
 // park on 1975 and the reader would open the step on the emptiest stretch of the
-// timeline.
-const RACE_FULL_PAN_FLOOR = 1980;
+// timeline. Shares its value with RACE_BAND_FIRST, which is what makes the band
+// table's range exactly the set of years a camera can rest on.
+const RACE_FULL_PAN_FLOOR = RACE_BAND_FIRST;
 
 // How close to the centre of Hollywood an actor has to come, somewhere in a
 // step's extent, for that step to SHOW them (see raceStepCap). Expressed as a
@@ -858,7 +891,7 @@ export function raceStepVisible(step, yCap) {
 
 // How many names one camera contributes, how many cameras a step samples across
 // its pan, and how many names the right-hand gutter holds in total. Only ~10 are
-// ever on the plot at once (RACE_Y_LINES) — the rest of the pool sits at alpha 0
+// ever on the plot at once (that's what the band buys) — the rest sits at alpha 0
 // waiting for the camera that puts its dot on scale.
 const RACE_LABEL_PER_CAMERA = 12;
 const RACE_LABEL_CAMERAS = 4;
