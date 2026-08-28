@@ -145,7 +145,7 @@ function buildNetworkAttrs(nodes, w, h, focus) {
 	// scatter instead, and stepping back out of hopSeed drags 600 visible dots
 	// left across the canvas toward their film counts rather than letting the
 	// camera zoom back in over them.
-	writeFieldCrowd(attrs, nodes, w, h, 1);
+	writeFieldCrowd(attrs, w, h, 1);
 	const pos = writeNetwork(attrs, nodes, w, h, focus);
 	return { attrs, pos };
 }
@@ -245,7 +245,7 @@ function layoutLone(nodes, w, h, edges) {
 }
 
 /** @type {import("../layout-shared.js").LayoutFn} */
-function layoutNetworkIntro(nodes, w, h, edges, params) {
+function layoutNetworkIntro(nodes, w, h, _edges, params) {
 	// The network is already fully grown by the time the reader lands here (see
 	// `lone`'s pop-in above), so this state is a static settle: same geometry,
 	// just picking out a route once the reader taps an actor.

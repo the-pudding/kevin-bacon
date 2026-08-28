@@ -102,7 +102,7 @@ function layoutHopSeed(nodes, w, h, edges) {
 	// no focus: whatever route the reader lit up on networkIntro releases as the
 	// camera pulls back, because the step is about the network as a whole again
 	writeNetwork(attrs, nodes, w, h, null, PULLBACK_ZOOM, HOP_SEED_EDGE_FADE);
-	writeFieldCrowd(attrs, nodes, w, h, PULLBACK_ZOOM);
+	writeFieldCrowd(attrs, w, h, PULLBACK_ZOOM);
 	// an all-zero clock, opting out of the default edge lag: that lag is for links
 	// fading IN behind travelling dots, and these are fading OUT over a frame
 	// where nothing moves — so they go with the names, not half a beat later. It
@@ -123,7 +123,7 @@ function zoomOutFrames(nodes, w, h) {
 	return (attrs, _trails, _phase, e) => {
 		const scale = 1 + (PULLBACK_ZOOM - 1) * e;
 		writeNetwork(attrs, nodes, w, h, null, scale, HOP_SEED_EDGE_FADE);
-		writeFieldCrowd(attrs, nodes, w, h, scale);
+		writeFieldCrowd(attrs, w, h, scale);
 	};
 }
 
