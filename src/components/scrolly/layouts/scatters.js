@@ -6,6 +6,7 @@ import {
 	lin,
 	set,
 	scatterPosition,
+	deLogFilms,
 	FILM_MIN_SHOWN,
 	CROWD,
 	SLJ,
@@ -191,10 +192,6 @@ const DEG_SCATTER_HIGHLIGHTS = new Map([
 	[PORTMAN, { rgb: CROWD, r: 5.5 }],
 	[KENDRICK, { rgb: CROWD, r: 5.5 }]
 ]);
-
-// inverts top50's log(films + 1) build transform back to a plain film count,
-// shared by the axis ticks and the node labels so both read the same number
-const deLogFilms = (t) => Math.round(Math.exp(t) - 1);
 
 // raises the axis floor to a ~27-film costar average (10% below the earlier
 // 30-film cut) — below that isn't a meaningful "big dog" costar anyway, and

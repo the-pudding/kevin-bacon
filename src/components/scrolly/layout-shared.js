@@ -65,6 +65,9 @@ export const edgeIndex = (e) => EDGE_BASE + e * STRIDE;
  *   omitted = tweener applies its default hashed jitter
  * @property {Float64Array} [trails] TRAIL_SIZE polyline vertices + alpha per trail;
  *   omitted = trails fade out in place
+ * @property {Set<number>} [trailSlots] the slots `trails` actually wrote; every
+ *   other slot fades out in place, as if `trails` had been omitted. For a state
+ *   that owns one line and wants the rest gone without retracting them.
  * @property {Float64Array} [trailDelays] per-trail start delays in ms
  * @property {{ x?: Tick[], y?: Tick[], xBase?: number, yBase?: number }} [axes]
  * @property {Note[]} [notes]
@@ -269,6 +272,12 @@ export const FILM_MIN_SHOWN = 5;
 const FILM_LOGS = rawNodes.nodes.map((n) => Math.log(Math.max(1, n[3])));
 export const FILM_LOG_MIN = Math.log(FILM_MIN_SHOWN);
 export const FILM_LOG_MAX = Math.max(...FILM_LOGS);
+// inverts top50's log(films + 1) build transform back to a plain film count.
+// The raw log value means nothing to a reader, so everything that surfaces
+// top50 — the degScatter axis and its labels, the Gen Z breakdown — shows the
+// de-logged count instead, and shares this so they all read the same number.
+export const deLogFilms = (t) => Math.round(Math.exp(t) - 1);
+
 export const AVG_MIN = Math.min(...rawNodes.nodes.map((n) => n[4]));
 export const AVG_MAX = Math.max(...rawNodes.nodes.map((n) => n[4]));
 
@@ -594,8 +603,9 @@ export function parkHidden(attrs, n, w, h) {
 // introPosition's `scale`) while a wider crowd of real actors fades in around
 // it. The geometry lives here because two chapters need it: hop-bands draws the
 // pulled-back frame, and the intro states have to park the same crowd where the
-// pull-back would have left it, or stepping backwards drags 600 dots across the
-// canvas to their scatter spots instead of letting the camera push them back out.
+// pull-back would have left it, or stepping backwards drags the whole field
+// across the canvas to their scatter spots instead of letting the camera push
+// them back out.
 // ---------------------------------------------------------------------------
 
 // how far the camera pulls back: far enough that the crowd dots land at the 2px
@@ -606,26 +616,20 @@ export const PULLBACK_DOT_R = 2;
 export const PULLBACK_ZOOM = PULLBACK_DOT_R / NETWORK_INTRO_RADIUS[1];
 
 /**
- * The crowd that arrives as the camera pulls back: a uniform stride over the
- * hop 1–4 ids, which preserves the sample's hop mix whatever order the corpus
- * happens to be in, and is identical on every render. Every one of them is a
- * real actor with a band of its own, so hopBands sorts the crowd the reader just
- * met rather than swapping it for a different one.
+ * The crowd that arrives as the camera pulls back: every actor the corpus can
+ * place at hop 1–4 — the exact set hopBands is about to sort into rows, so the
+ * bands sort the crowd the reader just met rather than swapping it for a bigger
+ * one. Unreachable actors (hop -1) stay out: they have no band to land in.
  *
  * The intro fifteen are excluded: they are drawn by the constellation writer,
- * and the ids are low enough that a stride starting at the top of the corpus
- * lands on one (it took De Niro, the lowest hop 1–4 id there is) and drags them
- * out of the graph into the field.
+ * and including them would drag them out of the graph into the field.
  */
-const FIELD_TARGET = 600;
 const INTRO_SET = new Set(INTRO_IDS);
-const HOP_1_4_IDS = rawNodes.nodes.reduce(
+export const FIELD_IDS = rawNodes.nodes.reduce(
 	(ids, n, id) =>
 		n[2] >= 1 && n[2] <= 4 && !INTRO_SET.has(id) ? (ids.push(id), ids) : ids,
 	/** @type {number[]} */ ([])
 );
-const FIELD_STRIDE = Math.max(1, Math.round(HOP_1_4_IDS.length / FIELD_TARGET));
-export const FIELD_IDS = HOP_1_4_IDS.filter((_, i) => i % FIELD_STRIDE === 0);
 
 // the constellation's own crowd alpha: by the end of the pull-back the fifteen
 // are meant to be indistinguishable members of the field, which is the whole
@@ -633,14 +637,47 @@ export const FIELD_IDS = HOP_1_4_IDS.filter((_, i) => i % FIELD_STRIDE === 0);
 const FIELD_ALPHA = 1;
 // ramp width, so a dot crossing the plot edge fades up rather than popping
 const FIELD_FADE_PX = 40;
-// share of the pull-back over which the field opens up. The edge ramp alone
-// cannot hold the opening frame clean: a dot has to be authored a third of the
-// canvas out from Bacon before full zoom pushes it off the edge, which leaves a
-// ring of white between the constellation and the nearest field dot. Gating on
-// the camera instead lets a dot be authored right up against the constellation
-// — the ones already in frame simply fade up where they stand while the outer
-// ones still cross in.
-const FIELD_OPEN_SHARE = 0.35;
+// How the field opens, all measured as shares of the camera's travel rather
+// than as clocks, so a scrubbed or interrupted pull-back stays consistent with
+// itself. The edge ramp alone cannot hold the opening frame clean: a dot has to
+// be authored a third of the canvas out from Bacon before full zoom pushes it
+// off the edge, which leaves a ring of white between the constellation and the
+// nearest field dot. Gating on the camera instead lets a dot be authored right
+// up against the constellation — the ones already in frame simply fade up where
+// they stand while the outer ones still cross in.
+//
+// The reader gets the constellation alone for a beat (HOLD) so the camera is
+// visibly pulling back off Bacon's network before anything else arrives; then
+// the crowd trickles in dot by dot over STAGGER rather than arriving as one
+// sheet, each fading up over SHARE. HOLD + STAGGER + SHARE stays under 1 so the
+// last dot lands before the camera stops.
+//
+// SKEW back-loads the trickle: a dot's slot is its hash raised to this power, so
+// spreading arrivals evenly over STAGGER is not what the eye reads as gradual.
+// A field this size looks full long before it is — the first two thousand dots
+// already read as a crowd — so an even rate spends its whole second half adding
+// dots nobody can see arriving, and the visible part of the build is over in a
+// blink. Below 1 the early arrivals are sparse and countable and the rate climbs
+// from there, which tracks how the crowd actually reads.
+const FIELD_OPEN_HOLD = 0.12;
+const FIELD_OPEN_STAGGER = 0.75;
+const FIELD_OPEN_SHARE = 0.08;
+const FIELD_OPEN_SKEW = 0.5;
+// Keep-out disc around Bacon. The field is authored blind across the whole plot
+// rect, and Bacon's fitted spot is the exact horizontal centre of it at every
+// viewport width (the baked intro layout puts the anchor at w/2), so a dot whose
+// x-hash is ~0.5 sits on his column on every screen — several of the field do,
+// and they land under the one dot the reader has been told to watch. Anything
+// authored inside the disc is moved out into the annulus just beyond it, on an
+// angle and a radius of its own: at this field size a whole handful gets moved,
+// and snapping them all to the disc edge would ring Bacon in evenly-spaced dots.
+// Sized in constellation units and scaled with the camera, so the gap the reader
+// sees is the same at every scale; enforcing it at the landing covers the whole
+// leg, since a dot's distance from Bacon only shrinks as the camera pulls back.
+const FIELD_KEEPOUT_GAP = 12;
+const FIELD_KEEPOUT =
+	(NETWORK_INTRO_RADIUS[0] + NETWORK_INTRO_RADIUS[1] + FIELD_KEEPOUT_GAP) *
+	PULLBACK_ZOOM;
 
 /**
  * Writes the field into `attrs` at the pull-back's live `scale` (1 = full zoom,
@@ -652,28 +689,41 @@ const FIELD_OPEN_SHARE = 0.35;
  * constellation does, and expands back out of it on the way back. Radius follows
  * the constellation's crowd rather than the landing size, so a dot arrives at
  * whatever the graph's dots are at that moment instead of popping in already
- * shrunk. Opacity is geometry and camera only: no per-dot choreography, no
- * clocks, and the same call serves the static frame and every animated one.
+ * shrunk. Opacity is geometry and camera only — the trickle-in is a per-dot
+ * offset into the camera's own travel, not a clock — so the same call serves the
+ * static frame and every animated one, and a scrub lands on the same frame the
+ * animation would have drawn at that scale.
  */
-export function writeFieldCrowd(attrs, nodes, w, h, scale) {
+export function writeFieldCrowd(attrs, w, h, scale) {
 	const [bx, by] = introPosition(ANCHOR_ID, w, h);
 	const x0 = MARGIN;
 	const x1 = w - MARGIN;
 	const y0 = MARGIN;
 	const y1 = plotBottom(h);
 	const k = scale / PULLBACK_ZOOM;
-	const opening = Math.min(
-		1,
-		(1 - scale) / ((1 - PULLBACK_ZOOM) * FIELD_OPEN_SHARE)
-	);
+	// how far through the pull-back the camera is: 0 at full zoom, 1 at landing
+	const travel = (1 - scale) / (1 - PULLBACK_ZOOM);
 	const r = NETWORK_INTRO_RADIUS[1] * scale;
 	for (const id of FIELD_IDS) {
-		const fx = x0 + hash01(id, 10) * (x1 - x0);
-		const fy = y0 + hash01(id, 11) * (y1 - y0);
+		let fx = x0 + hash01(id, 10) * (x1 - x0);
+		let fy = y0 + hash01(id, 11) * (y1 - y0);
+		if (Math.hypot(fx - bx, fy - by) < FIELD_KEEPOUT) {
+			const a = hash01(id, 12) * Math.PI * 2;
+			const d = FIELD_KEEPOUT * (1 + hash01(id, 13));
+			fx = bx + Math.cos(a) * d;
+			fy = by + Math.sin(a) * d;
+		}
 		const x = bx + (fx - bx) * k;
 		const y = by + (fy - by) * k;
 		const inset = Math.min(x - x0, x1 - x, y - y0, y1 - y);
 		const edge = Math.max(0, Math.min(1, inset / FIELD_FADE_PX));
-		set(attrs, id, x, y, r, CROWD, FIELD_ALPHA * edge * Math.max(0, opening));
+		// this dot's own slot in the trickle: the hold, plus its place in the stagger
+		const start =
+			FIELD_OPEN_HOLD + hash01(id, 14) ** FIELD_OPEN_SKEW * FIELD_OPEN_STAGGER;
+		const opening = Math.max(
+			0,
+			Math.min(1, (travel - start) / FIELD_OPEN_SHARE)
+		);
+		set(attrs, id, x, y, r, CROWD, FIELD_ALPHA * edge * opening);
 	}
 }

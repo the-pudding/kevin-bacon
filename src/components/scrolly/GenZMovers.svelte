@@ -1,7 +1,9 @@
 <script>
 	// @ts-check
+	import { tick } from "svelte";
 	import rawNodes from "$data/scrolly-nodes.json";
 	import story from "$data/scrolly-story.json";
+	import { deLogFilms } from "./layout-shared.js";
 
 	// The Future chapter's reshuffle: a dumbbell row per contender, showing where
 	// the 10,000-sim Monte Carlo moved them. Two dots on one rank axis — where the
@@ -11,7 +13,8 @@
 	// Plain HTML over the canvas, not a canvas layout: a native scrollable list
 	// beats reinventing scroll on a canvas, the same call RankBars.svelte and the
 	// rest of this chapter's panels make. Rows carry no numbers — both ranks are
-	// read off the axis, which the sticky header labels once for all 99 rows.
+	// read off the axis, which the sticky header labels once for all 99 rows —
+	// a row unfolds its own numbers when the reader clicks it.
 	//
 	// Rows run in the simulation's order, so the filled dot marches steadily down
 	// the axis while the hollow one scatters: the reshuffle is the shape of the
@@ -23,7 +26,7 @@
 	 * — so 20 of the 99 values are tied, six of them on a flat zero. Ranking them
 	 * by array position instead would invent movement out of tie-break order,
 	 * which is the one thing this chart must not do.
-	 * @param {"mad" | "winPct"} key
+	 * @param {"mad" | "winPct" | "films" | "top50"} key
 	 * @param {1 | -1} dir 1 = lower is better (avg distance), -1 = higher is better
 	 * @returns {Map<number, number>} candidate id -> rank
 	 */
@@ -42,7 +45,24 @@
 
 	const todayRank = rankBy("mad", 1);
 	const simRank = rankBy("winPct", -1);
+	// the two signals the Present chapter established, ranked across the field so
+	// a breakdown can say where its actor stands on each — 36 films means nothing
+	// on its own, "92nd percentile of the contenders" is the reading
+	const filmsRank = rankBy("films", -1);
+	const costarRank = rankBy("top50", -1);
 	const COUNT = story.genz.candidates.length;
+
+	/** share of the 99 contenders an actor is at or above on a metric, so the top
+	 * of the field reads 100th and the bottom 1st */
+	const percentile = (rank) => Math.round(((COUNT - rank + 1) / COUNT) * 100);
+
+	/** @param {number} n */
+	const ordinal = (n) => {
+		const t = n % 100;
+		const suffix =
+			t >= 11 && t <= 13 ? "th" : (["th", "st", "nd", "rd"][n % 10] ?? "th");
+		return `${n}${suffix}`;
+	};
 
 	/** rank -> position along the track, rank 1 at the left edge */
 	const pct = (rank) => ((rank - 1) / (COUNT - 1)) * 100;
@@ -69,7 +89,26 @@
 				// simulation left exactly where it found them gets neither colour
 				dir: after < today ? "up" : after > today ? "down" : "flat",
 				barLeft: pct(Math.min(today, after)),
-				barWidth: pct(Math.max(today, after)) - pct(Math.min(today, after))
+				barWidth: pct(Math.max(today, after)) - pct(Math.min(today, after)),
+				// the breakdown's numbers, carried on the row so the template needs no
+				// second lookup: the two dots and the bar spelled out (win share, where
+				// they stand today, where the simulation projects them), then the three
+				// levers the Present chapter established as what moves an actor. The
+				// two the story calls its signals carry their percentile across the
+				// field; career age is context for both, not a signal of its own, so it
+				// comes last and carries none. The costar average is de-logged back out
+				// of top50's build transform. The win COUNT is derived rather than
+				// exported: winPct is rounded to 4dp and there are 10,000 runs, so
+				// winPct × nSims recovers every contender's recorded count exactly — the raw log value means nothing here
+				wins: Math.round(c.winPct * story.genz.nSims),
+				winPct: c.winPct,
+				mad: c.mad,
+				projMedian: c.projMedian,
+				films: c.films,
+				filmsPct: percentile(filmsRank.get(c.id)),
+				costarFilms: deLogFilms(c.top50),
+				costarPct: percentile(costarRank.get(c.id)),
+				careerAge: c.careerAge
 			};
 		});
 
@@ -81,6 +120,28 @@
 	// no top fade while the list is at the top — nothing is cut off up there,
 	// so the fade would just blur the first row for no reason
 	let atTop = $state(true);
+
+	/** the row whose breakdown is unfolded, or null — one open at a time, so the
+	 * list never becomes a wall of numbers */
+	let openId = $state(null);
+
+	/**
+	 * @param {number} id
+	 * @param {MouseEvent & { currentTarget: HTMLButtonElement }} e
+	 */
+	async function toggle(id, e) {
+		const row = e.currentTarget.parentElement;
+		openId = openId === id ? null : id;
+		if (openId === null) return;
+		// the breakdown doesn't exist until the render lands, and a row low in the
+		// list unfolds below the fold without this. `nearest` so a row already
+		// fully visible doesn't move at all
+		await tick();
+		row?.scrollIntoView({ block: "nearest" });
+	}
+
+	/** avg distances at 3dp, the precision the data itself carries */
+	const dist = (v) => v.toFixed(3);
 </script>
 
 <div class="genz-movers">
@@ -100,13 +161,46 @@
 	>
 		{#each rows as row (row.id)}
 			<li class={row.dir}>
-				<span class="name">#{row.after} {row.name}</span>
-				<span class="track">
-					<span class="bar" style="left: {row.barLeft}%; width: {row.barWidth}%"
-					></span>
-					<span class="dot today" style="left: {pct(row.today)}%"></span>
-					<span class="dot after" style="left: {pct(row.after)}%"></span>
-				</span>
+				<button
+					class="row"
+					type="button"
+					aria-expanded={openId === row.id}
+					onclick={(e) => toggle(row.id, e)}
+				>
+					<span class="name">#{row.after} {row.name}</span>
+					<span class="track">
+						<span
+							class="bar"
+							style="left: {row.barLeft}%; width: {row.barWidth}%"
+						></span>
+						<span class="dot today" style="left: {pct(row.today)}%"></span>
+						<span class="dot after" style="left: {pct(row.after)}%"></span>
+					</span>
+				</button>
+				{#if openId === row.id}
+					<dl class="breakdown">
+						<dt>Wins</dt>
+						<dd>
+							{row.wins.toLocaleString()}
+							<span class="pct">({(row.winPct * 100).toFixed(1)}%)</span>
+						</dd>
+						<dt>Today</dt>
+						<dd>{dist(row.mad)} · #{row.today} of {COUNT}</dd>
+						<dt>Projected</dt>
+						<dd>{dist(row.projMedian)}</dd>
+						<dt>Films</dt>
+						<dd>
+							{row.films} <span class="pct">{ordinal(row.filmsPct)} pct</span>
+						</dd>
+						<dt>Costar film average</dt>
+						<dd>
+							{row.costarFilms}
+							<span class="pct">{ordinal(row.costarPct)} pct</span>
+						</dd>
+						<dt>Career</dt>
+						<dd>{row.careerAge} years</dd>
+					</dl>
+				{/if}
 			</li>
 		{/each}
 	</ul>
@@ -127,10 +221,12 @@
 		padding: 0;
 	}
 
-	/* the name column and the track share one grid across the header, the key and
-	   every row, so the ticks sit over the dots they label */
+	/* the name column and the track share one grid across the header and every
+	   row, so the ticks sit over the dots they label. On a row the grid is the
+	   button, not the li — the li also holds the unfolded breakdown, which spans
+	   the full width */
 	.axis,
-	.rows li {
+	.rows .row {
 		display: grid;
 		grid-template-columns: 45% 1fr;
 		align-items: center;
@@ -183,9 +279,26 @@
 		   once here — the same values layouts use for GREEN/RED on the canvas, so
 		   the panel reads as part of the same chart */
 		--move: var(--color-gray-400);
-		padding: 0.25rem 0;
 		font-size: 0.75rem;
 		color: var(--color-gray-700, #444);
+	}
+
+	/* the whole row is the hit target: a button so the pick is keyboard- and
+	   screen-reader-reachable for free, the same call the canvas's own hits make */
+	.row {
+		appearance: none;
+		width: 100%;
+		padding: 0.25rem 0;
+		border: 0;
+		background: none;
+		font: inherit;
+		color: inherit;
+		text-align: left;
+		cursor: pointer;
+	}
+
+	.row:hover .name {
+		text-decoration: underline;
 	}
 
 	.rows li.up {
@@ -234,5 +347,34 @@
 
 	.dot.after {
 		background: var(--move);
+	}
+
+	/* the open row's numbers: the two dots and the bar spelled out, then the three
+	   levers behind the move. Indented to the name column and hung off a rule in
+	   the row's own move colour, so an open block still reads as that row's */
+	.breakdown {
+		display: grid;
+		grid-template-columns: auto 1fr;
+		gap: 0.15rem 0.75rem;
+		margin: 0 0 0.5rem 0.5rem;
+		padding: 0.35rem 0 0.35rem 0.65rem;
+		border-left: 2px solid var(--move);
+		font-size: 0.7rem;
+		color: var(--color-fg-light);
+	}
+
+	.breakdown dt {
+		white-space: nowrap;
+	}
+
+	.breakdown dd {
+		margin: 0;
+		color: var(--color-gray-700, #444);
+	}
+
+	/* where the actor stands on that signal across the 99 contenders — context
+	   for the raw number beside it, so it reads a step back from it */
+	.pct {
+		color: var(--color-fg-light);
 	}
 </style>
