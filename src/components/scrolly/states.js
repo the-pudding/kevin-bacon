@@ -30,7 +30,6 @@ import {
 import { states as predictionStates } from "./layouts/prediction.js";
 import { states as careerStates } from "./layouts/career.js";
 import { states as simRaceStates } from "./layouts/sim-race.js";
-import { states as genzLineStates } from "./layouts/genz-line.js";
 
 // re-exported so ScrollyVisual.svelte can keep importing everything from
 // this one module; the actual definitions live in layout-shared.js
@@ -64,8 +63,7 @@ const REGISTRY = {
 	...scattersStates,
 	...predictionStates,
 	...careerStates,
-	...simRaceStates,
-	...genzLineStates
+	...simRaceStates
 };
 
 const pick = (field) => {

@@ -8,7 +8,7 @@
 	import RankBars from "$components/scrolly/RankBars.svelte";
 	import RaceScrubber from "$components/scrolly/RaceScrubber.svelte";
 	import SimRunner from "$components/scrolly/SimRunner.svelte";
-	import GenZOutlook from "$components/scrolly/GenZOutlook.svelte";
+	import GenZMovers from "$components/scrolly/GenZMovers.svelte";
 	import PairQuiz from "$components/scrolly/PairQuiz.svelte";
 	import useWindowDimensions from "$runes/useWindowDimensions.svelte.js";
 	import urlParams from "$utils/urlParams.js";
@@ -215,13 +215,12 @@
 						<SimRunner />
 					</div>
 				{/snippet}
-				<!-- Gen Z number line: the typical-sim/over-performing (P50/P10)
-				     percentile toggle. Both genzLine steps reference this one snippet,
-				     so the control (and the reader's pick) survives the step change
-				     between them. -->
-				{#snippet outlookPanel()}
-					<div class="race-scrubber-panel" style="bottom: {stepsHeight + 12}px">
-						<GenZOutlook />
+				<!-- the Monte Carlo reshuffle: a dumbbell row per contender, opaque over
+				     the simulation race it reads out. The whole close sits on that one
+				     chart, so this panel is the only thing that changes for its step. -->
+				{#snippet moversPanel()}
+					<div class="movers-panel" style="bottom: {stepsHeight + 12}px">
+						<GenZMovers />
 					</div>
 				{/snippet}
 				<Wizard bind:value count={stepConfigs.length} onnavigate={navigate}>
@@ -451,24 +450,47 @@
 					<Step state="simRace" panel={simPanel}>
 						<p>
 							To achieve a stable result, we'll run the simulation 10,000 times
-							and see who comes out on top.
+							and see who comes out on top. Press start to find out who wins.
 						</p>
 					</Step>
-					<Step state="genzLine" panel={outlookPanel}>
+					<!-- 
+          1. GCM is the winner
+          2. A typical sim doesn't get her close, only an over-performing sim gets her close
+          3. The sim doesn't just confirm today's leaderboard, it reshuffles it
+           -->
+					<Step state="simRace">
 						<p>
-							Here's what we think will happen to each Gen Z actor's average
-							distance. You'll notice that none of them overtake Samuel L.
-							Jackson. From our historical analysis you'll recall lines dropping
-							off as actors stop appearing in so many films. We're counting on
-							this happening to Samuel L. Jackson, or a Marvel-sized cinematic
+							Chloë Grace Moretz is the most likely to be Gen Z's Kevin Bacon,
+							winning just over 10% of the simulations. It's by no means a
+							landslide: her median average distance is 2.19 with a median
+							projected film count of 66, quite far away from Samuel L.
+							Jackson's stratospheric numbers.
+						</p>
+					</Step>
+					<Step state="simRace">
+						<p>
+							From our historical analysis you'll recall lines dropping off as
+							actors stop appearing in so many films. We're counting on this
+							happening to Samuel L. Jackson, or a Marvel-sized cinematic
 							universe being spawned again.
 						</p>
 					</Step>
-					<Step state="genzLine" panel={outlookPanel}>
+					<!-- the list is a reading of the race chart it covers: the canvas does
+					     not change for this step, the panel simply fades over it and back
+					     off again. simRace's replay is not re-armed by arriving here — it
+					     only ever runs off SimRunner's nonce. -->
+					<Step state="simRace" panel={moversPanel}>
 						<p>
-							What I can tell you is that our first female center of Hollywood
-							is very likely to happen next, with 65% of the wins going to
-							women, perhaps not for a few years yet though.
+							Here are the full results, including how much they've moved their
+							current position by average distance.
+						</p>
+						<p>Click on an actor to see their breakdown.</p>
+					</Step>
+					<Step state="simRace">
+						<p>
+							What is far more certain is that the first female center of
+							Hollywood is on the horizon, with 65% of the wins going to women,
+							perhaps not for a few years yet though.
 						</p>
 					</Step>
 				</Wizard>
@@ -523,6 +545,23 @@
 		}
 	}
 
+	/* the Monte Carlo movers list: opaque over the race chart, so the dumbbell
+	   rows are the only chart on screen for their step. Unlike the rank panel it
+	   starts at the very top of the canvas — it replaces the chart outright
+	   rather than sitting under something, so any gap would leak the axis ticks
+	   of the chart underneath. No delay on the fade, unlike the rank panel: that
+	   one waits for a canvas collapse to finish underneath it, and this step's
+	   canvas never changes (every step around it is simRace too), so a delay here
+	   would just be dead time on arrival. */
+	.movers-panel {
+		position: absolute;
+		top: 0;
+		left: 0;
+		right: 0;
+		background: var(--color-bg);
+		animation: panel-in 0.3s ease both;
+	}
+
 	/* raceFull scrubber: spans the plot region above the step card (inline
 	   `bottom`). Transparent — the drag surface sits over the live canvas; only
 	   the slider control at its bottom edge is opaque. */
@@ -543,6 +582,7 @@
 
 	@media (prefers-reduced-motion: reduce) {
 		.rank-bars-panel,
+		.movers-panel,
 		.rank-focus-text {
 			animation: none;
 		}
