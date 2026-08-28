@@ -18,6 +18,8 @@
 		RACE_REWIND_WAYPOINT_YEAR,
 		RACE_TRADES_STEP,
 		RACE_FULL_STEP,
+		RACE_CAST,
+		RACE_TRAIL_SLOTS,
 		raceFullRestPlayhead
 	} from "./layouts/race.js";
 	import {
@@ -243,6 +245,34 @@
 			onDone
 		);
 	}
+	// Single-writer handoff into a race leg. A sweep's frame writer stamps only
+	// the cast's dots and their trail slots (writeRaceSweepFrame), so a leg that
+	// takes the rAF off a tween still in flight strands every OTHER slot wherever
+	// that tween had got to, for the whole leg — for a reader stepping faster than
+	// the tweens run, that means the chapter they came from (and, from a fast
+	// enough start, the intro network's links) hanging over the chart. Land those
+	// slots on the arriving layout, which is where the settle puts them anyway —
+	// so an uninterrupted arrival moves nothing — and keep the live cast values,
+	// leaving the sweep's own first frame the only thing that changes.
+	function landOffChart(attrs, trails) {
+		const frame = attrs.slice();
+		for (const id of RACE_CAST) {
+			const i = id * STRIDE;
+			for (let k = 0; k < STRIDE; k++) frame[i + k] = tweener.current[i + k];
+		}
+		const trailFrame = trails.slice();
+		for (const slot of RACE_TRAIL_SLOTS) {
+			const i = slot * TRAIL_STRIDE;
+			for (let k = 0; k < TRAIL_STRIDE; k++) {
+				trailFrame[i + k] = trailTweener.current[i + k];
+			}
+		}
+		tweener.to(frame, 0);
+		trailTweener.to(trailFrame, 0);
+		tweener.stop();
+		trailTweener.stop();
+	}
+
 	// pan glide: one rAF loop that eases `renderPlayhead` toward the input target
 	// (story.scrubYear) and writes the panned frame each tick, so a year change
 	// glides instead of snapping. Runs while the reader is panning OR until the
@@ -1411,6 +1441,13 @@
 				startAttrs[i + 6] = 0;
 				collapsedAttrs[i + 6] = 0;
 			}
+			// The intro network's links go with them. The loop above hides everyone
+			// who isn't the cast, but it walks node slots only, so a reader who got
+			// here faster than those links could fade would keep them — drawn
+			// between two live dots — right through the flight.
+			for (let i = EDGE_BASE; i < ATTR_SIZE; i += STRIDE) {
+				collapsedAttrs[i + 1] = 0;
+			}
 			// ...and hold the chart furniture back until the overlay has gone, so
 			// the axes don't draw up behind a rank list that is still on screen.
 			chartVeiled = true;
@@ -1437,8 +1474,7 @@
 			// every frame via writeRaceSweepFrame, so it can start from raceRecent's
 			// live camera (raceExitPlayhead) rather than an assumed year, and the axis
 			// comes with it.
-			tweener.stop();
-			trailTweener.stop();
+			landOffChart(attrs, trailTarget);
 			playRaceRewind(
 				raceExitPlayhead ?? RACE_REWIND_WAYPOINT_YEAR,
 				RACE_TRADES_STEP.extent[1],
@@ -1447,21 +1483,18 @@
 			);
 		} else if (raceReverseArrival) {
 			// the same leg backwards, also picking its camera up from raceExitPlayhead
-			tweener.stop();
-			trailTweener.stop();
+			landOffChart(attrs, trailTarget);
 			playRaceReverse();
 		} else if (raceFullEntryArrival) {
 			// no seed frame needed, same reasoning as raceRewindArrival above — the
 			// sweep recomputes attrs from scratch every frame from raceTrades' live
 			// camera (raceExitPlayhead)
-			tweener.stop();
-			trailTweener.stop();
+			landOffChart(attrs, trailTarget);
 			playRaceFullEntry();
 		} else if (raceFullReverseArrival) {
 			// leg 3 backwards, picking its camera up from raceExitPlayhead the same
 			// way playRaceReverse does
-			tweener.stop();
-			trailTweener.stop();
+			landOffChart(attrs, trailTarget);
 			playRaceFullReverse();
 		} else if (entryAnim) {
 			// arrive onto the choreography's own frame 0 (its animated slots stamped

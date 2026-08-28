@@ -267,6 +267,13 @@ function raceWindowYFit(camLeft, camRight) {
  */
 export const RACE_CAST = new Set(RACE_IDS);
 
+/**
+ * The trail slots the chapter owns — one line per cast member. Everything a
+ * race frame writes lives in RACE_CAST (dots) and these (lines); every other
+ * slot on the canvas belongs to whatever chapter the reader came from.
+ */
+export const RACE_TRAIL_SLOTS = new Set(RACE_SLOT.values());
+
 // the race actors who count as contenders over [year0, year1]: their clipped
 // series must exist and dip to (or below) yCap. Reached through
 // raceStepVisible, never called directly by a state, and every caller passes a
@@ -731,11 +738,10 @@ function raceLayout(step, yCap = Infinity) {
 		// transition doesn't need the park either: raceFull shows the whole cast,
 		// so by the time the story leaves the chapter there is nobody hidden left
 		// to fly in from off the plot.
-		const raceSlots = new Set(RACE_SLOT.values());
 		TRAIL_META.forEach((meta, t) => {
 			// the writer owns every race slot; the rest (career trio, cohort lines,
 			// prediction diagonal) retract into the middle of the plot
-			if (raceSlots.has(t)) {
+			if (RACE_TRAIL_SLOTS.has(t)) {
 				if (meta.id !== null && visible.has(meta.id)) trailDelays[t] = 250;
 				return;
 			}

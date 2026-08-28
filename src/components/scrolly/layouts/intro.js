@@ -259,7 +259,15 @@ export const states = {
 	lone: {
 		layout: layoutLone,
 		labels: INTRO_IDS,
-		pulse: ANCHOR_ID
+		pulse: ANCHOR_ID,
+		// The walk above is this state's first-paint pop-in, and ScrollyVisual
+		// plays it from the seeded zero frame only on that first paint. Every
+		// other arrival is the reader stepping BACK here, with the network
+		// already grown — replaying the delays would hold each actor (and the
+		// name riding its dot's alpha) wherever the interrupted tween left it
+		// for up to ten seconds. No forward arrival exists to author for, so the
+		// list is empty: a return is one plain tween.
+		revealFrom: []
 	},
 	networkIntro: {
 		layout: layoutNetworkIntro,
