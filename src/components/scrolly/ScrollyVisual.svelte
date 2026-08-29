@@ -106,8 +106,26 @@
 	// trails (race/career lines) tween on their own array so polylines morph
 	// with the same interruption-safe semantics as dots
 	const trailTweener = createTweener(TRAIL_SIZE, drawScene, TRAIL_STRIDE);
-	// last trail target, kept so states without trails fade them out in place
-	let lastTrailTarget = null;
+	/**
+	 * The trail target for a state that draws none: every slot keeps the geometry
+	 * it is currently rendering and just loses its alpha, so an outgoing line
+	 * fades where it lies instead of retracting into a corner. Geometry comes
+	 * from the live tweener rather than the previous target because animated
+	 * states (the sim replay) write the canvas directly, so their lines only
+	 * exist there.
+	 */
+	function fadeOutTrails() {
+		const target = new Float64Array(TRAIL_SIZE);
+		const live = trailTweener.current;
+		for (let t = 0; t < TRAIL_META.length; t++) {
+			const base = t * TRAIL_STRIDE;
+			for (let k = 0; k < TRAIL_POINTS * 2; k++) {
+				target[base + k] = live[base + k];
+			}
+			target[base + TRAIL_POINTS * 2] = 0;
+		}
+		return target;
+	}
 
 	// -- Race path animator ("time machine") -------------------------------------
 	// A third rAF writer. Unlike the two tweeners it does NOT lerp between two
@@ -1296,16 +1314,7 @@
 		};
 		chartVeiled = false;
 		// states without trails fade the previous ones out where they lie
-		let trailTarget = layout.trails;
-		if (!trailTarget) {
-			trailTarget = lastTrailTarget
-				? lastTrailTarget.slice()
-				: new Float64Array(TRAIL_SIZE);
-			for (let t = 0; t < TRAIL_META.length; t++) {
-				trailTarget[t * TRAIL_STRIDE + TRAIL_POINTS * 2] = 0;
-			}
-		}
-		lastTrailTarget = trailTarget;
+		const trailTarget = layout.trails ?? fadeOutTrails();
 		const firstPaint = !entered;
 		entered = true;
 		if (firstPaint && coldStart) {

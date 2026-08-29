@@ -65,9 +65,6 @@ export const edgeIndex = (e) => EDGE_BASE + e * STRIDE;
  *   omitted = tweener applies its default hashed jitter
  * @property {Float64Array} [trails] TRAIL_SIZE polyline vertices + alpha per trail;
  *   omitted = trails fade out in place
- * @property {Set<number>} [trailSlots] the slots `trails` actually wrote; every
- *   other slot fades out in place, as if `trails` had been omitted. For a state
- *   that owns one line and wants the rest gone without retracting them.
  * @property {Float64Array} [trailDelays] per-trail start delays in ms
  * @property {{ x?: Tick[], y?: Tick[], xBase?: number, yBase?: number }} [axes]
  * @property {Note[]} [notes]
