@@ -504,7 +504,9 @@
 						</p>
 						<p>Click on an actor to see their breakdown.</p>
 					</Step>
-					<Step state="simRace">
+					<!-- closes on an empty canvas: the chart dissolves where it stands
+					     and the last words are left on their own. -->
+					<Step state="outro">
 						<p>
 							What is far more certain is that the first female center of
 							Hollywood is on the horizon, with 65% of the wins going to women,

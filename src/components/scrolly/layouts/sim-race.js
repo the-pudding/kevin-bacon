@@ -2,8 +2,11 @@ import story from "$data/scrolly-story.json";
 import rawNodes from "$data/scrolly-nodes.json";
 import {
 	ATTR_SIZE,
+	STRIDE,
+	EDGE_BASE,
 	TRAIL_SIZE,
 	TRAIL_POINTS,
+	TRAIL_STRIDE,
 	TRAIL_META,
 	MARGIN,
 	plotBottom,
@@ -201,6 +204,43 @@ function layoutSimRace(nodes, w, h, _edges, params) {
 	return { attrs, trails, axes };
 }
 
+/**
+ * The closing beat: an empty canvas, so the last words stand on their own.
+ *
+ * It is the sim chart with every alpha taken to zero, not a fresh empty buffer:
+ * the tween then dissolves whatever the reader was looking at where it lies,
+ * instead of sliding the field off to some other parking spot on its way out.
+ * The `runs` param comes through the same selector as simRace's, so a reader who
+ * never pressed Start fades out the origin they were shown rather than the
+ * finished race they weren't.
+ * @type {import("../layout-shared.js").LayoutFn}
+ */
+function layoutOutro(nodes, w, h, edges, params) {
+	const { attrs, trails } = layoutSimRace(nodes, w, h, edges, params);
+	for (let i = 0; i < EDGE_BASE; i += STRIDE) attrs[i + 6] = 0;
+	for (let i = EDGE_BASE; i < ATTR_SIZE; i += STRIDE) attrs[i + 1] = 0;
+	for (let t = 0; t < TRAIL_META.length; t++) {
+		trails[t * TRAIL_STRIDE + TRAIL_POINTS * 2] = 0;
+	}
+	return { attrs, trails };
+}
+
+const SIM_LABEL_DIRS = Object.fromEntries(
+	SIM_LABEL_IDS.map((id) => [id, "left"])
+);
+
+const simLabelText = () =>
+	Object.fromEntries(
+		story.genz.candidates
+			.slice(0, SIM_LABEL_N)
+			.map((c) => [
+				c.id,
+				`${rawNodes.nodes[c.id][1]} ${(c.winPct * 100).toFixed(1)}%`
+			])
+	);
+
+const simParams = (s) => ({ runs: s.simRuns ?? 0, names: s.simNames ?? 0 });
+
 export const states = {
 	simRace: {
 		layout: layoutSimRace,
@@ -218,23 +258,31 @@ export const states = {
 		// to the LEFT of the dot, not the right: the names then sit over the plot
 		// they belong to instead of a reserved gutter, and the chart gets the
 		// canvas's full width
-		labelDirs: Object.fromEntries(SIM_LABEL_IDS.map((id) => [id, "left"])),
+		labelDirs: SIM_LABEL_DIRS,
 		// a name carries its contender's win share: it is the number the whole step
 		// is about, and the line's own end position is the only other place the
 		// reader could read it off
-		labelText: () =>
-			Object.fromEntries(
-				story.genz.candidates
-					.slice(0, SIM_LABEL_N)
-					.map((c) => [
-						c.id,
-						`${rawNodes.nodes[c.id][1]} ${(c.winPct * 100).toFixed(1)}%`
-					])
-			),
-		params: (s) => ({ runs: s.simRuns ?? 0, names: s.simNames ?? 0 }),
+		labelText: simLabelText,
+		params: simParams,
 		overlay: {
 			xLabel: "Simulations run",
 			yLabel: "Wins"
 		}
+	},
+	outro: {
+		layout: layoutOutro,
+		// the same names the chart carries, so each one rides its dot's alpha down
+		// to nothing; dropping them from the state instead would unmount the labels
+		// the instant the step changed, leaving five names blinking off above a
+		// chart still fading
+		labels: (p) =>
+			SIM_LABEL_IDS.slice(
+				0,
+				p?.runs >= SIM_NAMES_AT ? SIM_LABEL_N : (p?.names ?? 0)
+			),
+		labelDirs: SIM_LABEL_DIRS,
+		labelText: simLabelText,
+		params: simParams
+		// no overlay: the axis titles are furniture on a chart that is leaving
 	}
 };
