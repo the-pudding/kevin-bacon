@@ -99,23 +99,39 @@
 	}
 
 	/**
-	 * Hand the curve to race.js, persist it, and tell ScrollyVisual to redraw.
+	 * Hand the curve to race.js and persist it, without asking for a redraw.
 	 * Snapshotted rather than passed by reference: race.js reads it on every frame
 	 * and has no business touching a reactive proxy.
+	 */
+	function install() {
+		const snap = $state.snapshot(points);
+		setRaceDevBands(snap);
+		localStorage.set(STORE_KEY, snap);
+		return snap;
+	}
+
+	/**
+	 * Install the curve and tell ScrollyVisual to drop its cached layouts and
+	 * redraw.
 	 *
 	 * Called explicitly by every mutator rather than from an $effect — an effect
 	 * that both reads and bumps raceYBandsRev would re-trigger itself forever.
 	 */
 	function commit() {
-		const snap = $state.snapshot(points);
-		setRaceDevBands(snap);
-		localStorage.set(STORE_KEY, snap);
+		install();
 		story.raceYBandsRev++;
 	}
-	// install whatever the editor opened with: with no saved edits that is the
-	// shipped table and this changes nothing, but a restored session has to reach
-	// the chart before the reader sees a frame drawn off the shipped curve
-	onMount(commit);
+	// Install whatever the editor opened with, so a restored session reaches the
+	// chart before the reader sees a frame drawn off the shipped curve. Only ask
+	// for the redraw when that is actually a different curve: a bump is a state
+	// change ScrollyVisual's render effect re-runs on, and one raised while no
+	// layout has changed lands in its catch-all, which snaps whatever arrival is
+	// in flight — on a cold load, the opening walk — straight to its end.
+	onMount(() => {
+		const snap = install();
+		if (JSON.stringify(snap) !== JSON.stringify(seedPoints()))
+			story.raceYBandsRev++;
+	});
 
 	// ---- the two curves the editor draws -------------------------------------
 
