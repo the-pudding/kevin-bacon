@@ -400,7 +400,10 @@
 							Natalie Portman has worked almost three times as many.
 						</p>
 					</Step>
-					<Step state="degScatter">
+					<Step
+						state="scatterCenters"
+						params={{ showPair: true, showCostars: true }}
+					>
 						<p>
 							It would be too circular to use costars with low average distance
 							as our measure. That's like saying "We think the most expensive

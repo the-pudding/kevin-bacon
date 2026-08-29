@@ -325,11 +325,9 @@ export const states = {
 	careerTrio: {
 		layout: careerLayout(false),
 		labels: [SWEENEY, DENIRO, CHASE],
-		// the draw-on is authored for the forward arrival out of the contender
-		// list, whose canvas still holds the Gen Z scatter frame underneath
-		// (see genzList in scatters.js); stepping back into it from careerMany
-		// gets a plain tween
-		revealFrom: ["genzList"],
+		// the draw-on is authored for the forward arrival out of the Gen Z scatter;
+		// stepping back into it from careerMany gets a plain tween
+		revealFrom: ["scatterGenZ"],
 		entry: {
 			phases: CAREER_ENTRY_MS,
 			frames: careerEntryFrames,
