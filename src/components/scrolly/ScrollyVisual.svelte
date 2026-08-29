@@ -1270,6 +1270,11 @@
 			trailTweener.to(trailTarget, 0);
 			prevState = stateName;
 			prevParamsKey = paramsKey;
+			// the names this paint puts up are on screen, so the next arrival has
+			// nothing to introduce. Leaving it behind makes that arrival read every
+			// carried-over name as new and hold it out for the lag (see heldLabels)
+			// — the whole cast blinks off and back on at the first step change.
+			prevLabelIds = labelIds;
 			settle(stateName);
 			return;
 		}
@@ -1287,6 +1292,8 @@
 			tweener.to(entry, 0);
 			prevState = stateName;
 			prevParamsKey = paramsKey;
+			// same reason as the cold-start branch above
+			prevLabelIds = labelIds;
 			tweener.to(attrs, ENTER_MS, TWEEN_JITTER, delays, () =>
 				settle(stateName)
 			);
