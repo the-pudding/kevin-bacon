@@ -20,6 +20,7 @@
 		RACE_FULL_STEP,
 		RACE_CAST,
 		RACE_TRAIL_SLOTS,
+		RACE_LABEL_TOP,
 		raceFullRestPlayhead
 	} from "./layouts/race.js";
 	import {
@@ -450,9 +451,14 @@
 	let prevLabelIds = new Set();
 
 	const overlay = $derived(OVERLAYS[stateName]);
-	// the active state's race camera descriptor ({ extent }), or undefined off the
-	// race chapter — its presence is what makes a step pannable
-	const raceStep = $derived(STATE_RACE[stateName]);
+	// the active state's race descriptor — its camera extent and the actors the
+	// step is about — or undefined off the race chapter, whose presence is what
+	// makes a step pannable
+	const raceStep = $derived(
+		/** @type {{extent: [number, number], minPlayhead?: number, highlight?: number[]} | undefined} */ (
+			STATE_RACE[stateName]
+		)
+	);
 	// what the active layout actually varies on: the state's selector plucks
 	// the interaction fields it consumes (reading the `story` $state proxy
 	// here makes the layout effect re-run when those fields change)
@@ -887,6 +893,38 @@
 		runLeg(0);
 	}
 
+	/**
+	 * The race labels one FRAME shows: the step's own subject, then the labelled
+	 * dots nearest the centre of Hollywood, up to RACE_LABEL_TOP in all.
+	 *
+	 * Ranks on screen-y rather than avg-distance because the two are the same
+	 * order — the axis is fitted with the record at the top — and y is already in
+	 * the buffer the frame just wrote, so no curve has to be re-read per frame.
+	 *
+	 * The subject is exempt from the cut: a step's ink dot must never be the
+	 * anonymous one, and raceFull rests on cameras where Hackman is outside the
+	 * ten nearest the centre.
+	 *
+	 * @param {Float32Array} attrs the frame's dot buffer
+	 */
+	function raceLabelCut(attrs) {
+		const keep = new Set(raceStep.highlight ?? []);
+		/** @type {[number, number][]} */
+		const rest = [];
+		for (const id of labelIds) {
+			// a name whose dot the frame has faded out isn't shown either way, and
+			// must not eat one of the ten slots on its way off the plot
+			if (keep.has(id) || attrs[id * STRIDE + 6] <= 0.004) continue;
+			rest.push([id, attrs[id * STRIDE + 1]]);
+		}
+		rest.sort((a, b) => a[1] - b[1]);
+		for (const [id] of rest) {
+			if (keep.size >= RACE_LABEL_TOP) break;
+			keep.add(id);
+		}
+		return keep;
+	}
+
 	function drawScene() {
 		if (!ctx) return;
 		const attrs = tweener.current;
@@ -979,6 +1017,15 @@
 		// runs every frame of the arrival tween, which always outlasts the hold, so
 		// this flips over mid-tween with no timer of its own
 		const holding = heldLabels && performance.now() < labelHoldUntil;
+		// On the race chart the step declares every name its camera RANGE can need
+		// (a superset — see raceLabelSpec), and the cut to the RACE_LABEL_TOP the
+		// current camera puts nearest the centre happens here, against the live dot
+		// positions. Doing it per frame rather than per step is what keeps the
+		// gutter at ten names on the crowded mid-2000s cameras without the declared
+		// set having to know which camera the reader is on; because it reads the
+		// dots the frame just wrote, it also slides continuously as the camera pans
+		// instead of resolving in one jump at the settle.
+		const shown = raceStep ? raceLabelCut(attrs) : labelIds;
 		const nextTracked = TRACKED_IDS.map((id) => ({
 			id,
 			name: labelTexts[id] ?? nodes[id].name,
@@ -990,7 +1037,7 @@
 			// holding it back until the leg that introduces the actor has finished,
 			// or while it is waiting out the arrival lag
 			labelAlpha:
-				labelIds.has(id) &&
+				shown.has(id) &&
 				(!entryLabels || entryLabels.has(id)) &&
 				!(holding && heldLabels.has(id))
 					? attrs[id * STRIDE + 6]

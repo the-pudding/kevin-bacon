@@ -889,84 +889,67 @@ export function raceStepVisible(step, yCap) {
 	return raceContenders(step.extent[0], step.extent[1], yCap);
 }
 
-// How many names one camera contributes, how many cameras a step samples across
-// its pan, and how many names the right-hand gutter holds in total. Only ~10 are
-// ever on the plot at once (that's what the band buys) — the rest sits at alpha 0
-// waiting for the camera that puts its dot on scale.
-const RACE_LABEL_PER_CAMERA = 12;
-const RACE_LABEL_CAMERAS = 4;
-const RACE_LABEL_MAX = 24;
+// ---------------------------------------------------------------------------
+// Names.
+//
+// One rule for the whole chapter: at every camera a step can reach, the ten
+// actors nearest the centre of Hollywood carry their name. A step's declared
+// set is therefore the union of that top ten over its own camera range —
+// nothing about a resting year, a per-camera budget or a total cap, all of
+// which this replaces.
+//
+// The rule holds itself up because the top ten are never off the plot: no actor
+// sits below the crown, so the ten closest to it are the ten closest to the top
+// of the band. Where the band holds fewer than ten dots (1980-91, 2020-23) the
+// surplus names ride their own off-scale dots at alpha 0 and simply don't
+// appear.
+//
+// Still a CONSTANT per step rather than a function of the live camera, for the
+// same reason as before: the camera moves during an arrival but story.raceView
+// is only published when that pan settles, so a camera-derived set would change
+// in one frame at the end of the animation — a dozen names appearing at once on
+// a chart that has just stopped moving. A fixed superset lets each name ride its
+// dot's alpha (see ScrollyVisual's labelAlpha) and fade up exactly when the pan
+// brings its dot onto the plot.
+//
+// The step's `highlight` needs no special case: every subject the chapter names
+// is in its own step's top ten somewhere in range.
+// ---------------------------------------------------------------------------
 
 /**
- * The names one race step carries, for the whole step.
- *
- * Every dot on the plot gets one, nearest the crown first: at this axis height
- * the chart holds only the actors near the centre, so naming the ones the step
- * is *about* and leaving the rest anonymous no longer says anything the weight
- * isn't already saying.
- *
- * Deliberately a CONSTANT per step rather than a function of the live camera.
- * The camera moves during an arrival (raceRecent rewinds to
- * RACE_REWIND_WAYPOINT_YEAR, raceFull to its pan floor) but story.raceView is
- * only published when that pan settles, so a camera-derived set changes in one
- * frame at the end of the animation — a dozen names appearing at once on a chart
- * that has just stopped moving. Fixing the set instead lets each name ride its
- * dot's alpha (see ScrollyVisual's labelAlpha): it fades up exactly when the pan
- * brings its dot onto the plot, and nothing happens at the settle.
- *
- * That is also why there is no scale test here, and why the set is sampled at
- * several cameras spread from the year the step rests on to its extent end,
- * round-robin so no one camera eats the budget: wherever the pan is, the names
- * for it are already declared, and the ones for the other cameras are sitting at
- * alpha 0 on their own dots. Sampling only the two ends left raceFull's
- * mid-1980s cameras with unnamed dots on the plot.
- *
- * The step's own subject is kept whatever the cap says — raceFull rests on a
- * camera where Hackman, the one line it is about, is not among the closest to
- * the centre.
- *
- * @param {{extent: [number, number], highlight?: number[]}} step
- * @param {Set<number>} visible who the step shows (raceStepVisible)
- * @param {number} restYear the year the step's camera comes to rest on
+ * How many of the leaders carry a name at any one camera. Read twice, and the
+ * two readings are what make the rule exact rather than approximate: here it
+ * decides what each step DECLARES (the union over its camera range, a superset),
+ * and in ScrollyVisual's drawScene it decides what the current camera SHOWS
+ * (that same top ten, live). The declaration guarantees the renderer always has
+ * the ten it needs; the renderer guarantees the gutter never holds more.
  */
-function raceLabelIds(step, visible, restYear) {
-	const end = step.extent[1];
-	const years = [
-		...new Set(
-			Array.from({ length: RACE_LABEL_CAMERAS }, (_v, k) =>
-				RACE_LABEL_CAMERAS === 1
-					? restYear
-					: restYear + ((end - restYear) * k) / (RACE_LABEL_CAMERAS - 1)
-			)
-		)
-	];
-	const ranked = years.map((year) => {
-		const valued = [];
-		for (const id of visible) {
-			const [ds, de] = RACE_RANGE.get(id);
-			const v = curveYAt(RACE_SEGS.get(id), Math.min(Math.max(year, ds), de));
-			valued.push([id, v]);
-		}
-		valued.sort((a, b) => a[1] - b[1]);
-		return valued.map(([id]) => id);
-	});
-	const ids = new Set(step.highlight ?? []);
-	// the resting camera first and in full — that is where the reader actually
-	// sits, so it gets named completely rather than sharing the budget with the
-	// years the pan only passes through
-	for (const id of ranked[0].slice(0, RACE_LABEL_PER_CAMERA)) ids.add(id);
-	for (let k = 0; k < RACE_LABEL_PER_CAMERA && ids.size < RACE_LABEL_MAX; k++) {
-		for (const rank of ranked.slice(1)) {
-			if (ids.size >= RACE_LABEL_MAX) break;
-			if (rank[k] !== undefined) ids.add(rank[k]);
-		}
-	}
-	return [...ids];
-}
+export const RACE_LABEL_TOP = 10;
+// how finely the range is walked. The camera is continuous, so the union has to
+// be sampled; a quarter of a year is ~9px at PX_PER_YEAR, far finer than the
+// rank order changes, so nothing can slip between two samples.
+const RACE_LABEL_SAMPLE = 0.25;
 
-/** the states' `labels`/`labelDirs` pair, so the two can't fall out of step */
-function raceLabelSpec(step, visible, restYear) {
-	const labels = raceLabelIds(step, visible, restYear);
+/**
+ * The states' `labels`/`labelDirs` pair for a step whose camera can rest
+ * anywhere in [from, to] — so the two can't fall out of step.
+ *
+ * @param {number} from earliest year the camera can put on the plot's right edge
+ * @param {number} to latest
+ */
+function raceLabelSpec(from, to) {
+	const ids = new Set();
+	for (let year = from; year <= to + 1e-9; year += RACE_LABEL_SAMPLE) {
+		const ranked = RACE_IDS.map((id) => {
+			const [ds, de] = RACE_RANGE.get(id);
+			return [
+				id,
+				curveYAt(RACE_SEGS.get(id), Math.min(Math.max(year, ds), de))
+			];
+		}).sort((a, b) => a[1] - b[1]);
+		for (const [id] of ranked.slice(0, RACE_LABEL_TOP)) ids.add(id);
+	}
+	const labels = [...ids];
 	return {
 		labels,
 		// names sit in the reserved right gutter, beside the right-edge dots;
@@ -1035,13 +1018,9 @@ export const states = {
 		layout: raceLayout(RACE_RECENT_STEP, RACE_RECENT_YCAP),
 		race: RACE_RECENT_STEP,
 		yCap: RACE_RECENT_YCAP,
-		// its arrival rewinds the camera to the waypoint, so that is the year its
-		// names are chosen for — they fade in as the pan reaches their dots
-		...raceLabelSpec(
-			RACE_RECENT_STEP,
-			RACE_RECENT_VISIBLE,
-			RACE_REWIND_WAYPOINT_YEAR
-		),
+		// its camera runs between its own extent's ends — the arrival rewind parks
+		// it on RACE_REWIND_WAYPOINT_YEAR, which sits inside that range
+		...raceLabelSpec(...RACE_RECENT_EXTENT),
 		overlay: OVERLAY,
 		params,
 		// entry choreography: draw the lines on when arriving from the rank chapter
@@ -1051,13 +1030,11 @@ export const states = {
 		layout: raceLayout(RACE_TRADES_STEP, RACE_TRADES_YCAP),
 		race: RACE_TRADES_STEP,
 		yCap: RACE_TRADES_YCAP,
-		// the step rests on its own extent end (1994, the handover), so one camera
-		// covers it
-		...raceLabelSpec(
-			RACE_TRADES_STEP,
-			raceStepVisible(RACE_TRADES_STEP, RACE_TRADES_YCAP),
-			RACE_TRADES_EXTENT[1]
-		),
+		// the only step whose camera range runs PAST its own extent: leg 2 of the
+		// rewind enters from RACE_REWIND_WAYPOINT_YEAR, where raceRecent parked,
+		// and pans back to the handover — so the years it travels through need
+		// names as much as the one it rests on
+		...raceLabelSpec(RACE_TRADES_EXTENT[0], RACE_REWIND_WAYPOINT_YEAR),
 		overlay: OVERLAY,
 		params,
 		// rewind choreography: continue the camera pan further back (from
@@ -1069,9 +1046,11 @@ export const states = {
 	raceFull: {
 		layout: raceLayout(RACE_FULL_STEP, Infinity),
 		race: RACE_FULL_STEP,
-		// its camera rests on the pan floor (later on a wide viewport, where the
-		// step's own extent end covers the modern years anyway)
-		...raceLabelSpec(RACE_FULL_STEP, RACE_CAST, RACE_FULL_PAN_FLOOR),
+		// the whole chapter's span: its camera floor is the pan floor on a narrow
+		// viewport and later on a wide one (raceFullRestPlayhead), and the reader
+		// can pan it forward to the present — so the range covers every width
+		// rather than a resting year that only one width actually lands on
+		...raceLabelSpec(RACE_FULL_PAN_FLOOR, RACE_FULL_EXTENT[1]),
 		overlay: OVERLAY,
 		params,
 		// rewind choreography: continue the camera pan further back (leg 3, from
