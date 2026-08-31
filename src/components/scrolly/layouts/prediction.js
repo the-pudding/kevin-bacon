@@ -116,12 +116,17 @@ export const states = {
 		labelDirs: QUIZ_LABEL_DIRS,
 		pulse: SLJ,
 		params: (s) => ({ mode: s.predictInsights ? "all" : "film" }),
-		// directional axis titles (matches scatters.js convention): both axes
-		// here run high → low, so each title carries an arrow pointing toward
-		// the lower/closer distance the story is guiding the reader to
+		// x stays directional (predicted distance isn't the y-axis remoteness
+		// metric); y's direction is conveyed by the pinned "lower"/"higher"
+		// mini-labels instead of an arrow in the title
 		overlay: {
 			xLabel: "Predicted distance →",
-			yLabel: "Actual distance →"
+			yLabel: "Remoteness",
+			// these render inside writing-mode: vertical-rl + rotate(180deg)
+			// (see ScrollyVisual's .y-hint), which visually rotates → to ↑
+			// and ← to ↓
+			yTopLabel: "lower →",
+			yBottomLabel: "← higher"
 		}
 	}
 };

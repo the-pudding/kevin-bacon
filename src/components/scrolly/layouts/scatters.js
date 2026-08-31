@@ -324,11 +324,15 @@ function layoutScatterGenZ(nodes, w, h) {
 	return result;
 }
 
-// directional y-axis titles (prototype): the y-axes are inverted/relative, so
-// the title carries the reading — the arrow points where "better" lives
+// the y-axis direction is conveyed by the pinned "lower"/"higher" mini-labels
+// (see ScrollyVisual's .y-hint), not by an arrow in the title
 const AVG_OVERLAY = {
 	xLabel: "Films (log scale)",
-	yLabel: "Closer to centre →"
+	yLabel: "Remoteness",
+	// these render inside writing-mode: vertical-rl + rotate(180deg) (see
+	// ScrollyVisual's .y-hint), which visually rotates → to ↑ and ← to ↓
+	yTopLabel: "lower →",
+	yBottomLabel: "← higher"
 };
 
 export const states = {
@@ -337,9 +341,17 @@ export const states = {
 		labels: (params) => (params?.showPair ? [PORTMAN, KENDRICK] : [SLJ, CAGE]),
 		// the pair labels carry their metric, so they're too wide to sit beside
 		// their dots at the right edge of the cloud — they hang below (clamped)
-		// on the pair step, and take QUIZ_LABEL_DIRS' right placement on the
-		// film-count one
-		labelDirs: (params) => (params?.showPair ? {} : QUIZ_LABEL_DIRS),
+		// on the pair step. On the film-count step, SLJ and Cage's dots sit close
+		// together at the crowded top-right corner, so the default below/clamped
+		// placement can shove one label onto the other dot. "right" clips off the
+		// canvas edge (their dots already sit at the far-right data extent, with
+		// no room left), so they go "left" instead — beside their dots but toward
+		// the open cloud, where the decollider keeps them vertically apart (same
+		// mechanism QUIZ_LABEL_DIRS uses for its pairs)
+		labelDirs: (params) =>
+			params?.showPair
+				? {}
+				: { ...QUIZ_LABEL_DIRS, [SLJ]: "left", [CAGE]: "left" },
 		// this state's three shapes are the film-count step, the avg-distance
 		// pair step, and the costar-count pair step — each puts its own metric
 		// in the names, since the number is the point being made

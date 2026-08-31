@@ -781,7 +781,11 @@ function raceLayout(step, yCap = Infinity) {
 
 const OVERLAY = {
 	xLabel: "Year",
-	yLabel: "Avg distance"
+	yLabel: "Remoteness",
+	// these render inside writing-mode: vertical-rl + rotate(180deg) (see
+	// ScrollyVisual's .y-hint), which visually rotates → to ↑ and ← to ↓
+	yTopLabel: "lower →",
+	yBottomLabel: "← higher"
 };
 
 // optional runtime override of the camera ({ playhead }); null while idle, so

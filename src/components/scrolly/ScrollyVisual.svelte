@@ -529,6 +529,10 @@
 	const xLabelTop = $derived(
 		height ? Math.min(plotBottom(height) + 32, height - stepsHeight - 24) : 0
 	);
+	// pinned homes for the "lower"/"higher" mini-labels — the same plot-rect
+	// top/bottom that yLabelTop above centres the axis title within
+	const yHintTop = $derived(height ? MARGIN + 8 : 0);
+	const yHintBottom = $derived(height ? plotBottom(height) : 0);
 	const labelIds = $derived.by(() => {
 		const spec = STATE_LABELS[stateName];
 		return new Set(
@@ -1712,6 +1716,20 @@
 				</p>
 			{/if}
 		{/key}
+		{#key overlay?.yTopLabel}
+			{#if overlay?.yTopLabel && !chartVeiled}
+				<p class="y-hint y-hint-top fade-in" style="top: {yHintTop}px">
+					{overlay.yTopLabel}
+				</p>
+			{/if}
+		{/key}
+		{#key overlay?.yBottomLabel}
+			{#if overlay?.yBottomLabel && !chartVeiled}
+				<p class="y-hint y-hint-bottom fade-in" style="top: {yHintBottom}px">
+					{overlay.yBottomLabel}
+				</p>
+			{/if}
+		{/key}
 		{#key stateName}
 			<!-- axes are recomputed every frame during the race sweep/scrub
 			     animations (see writeRaceSweepFrame), so they stay pixel-accurate
@@ -2015,6 +2033,26 @@
 		   translate stays in screen space. */
 		transform: translateY(-50%) rotate(180deg);
 		writing-mode: vertical-rl;
+	}
+
+	.y-hint {
+		left: 0;
+		font-size: 0.65rem;
+		font-style: italic;
+		color: var(--color-gray-500, #888);
+		text-shadow:
+			0 0 3px var(--color-bg, #fff),
+			0 0 6px var(--color-bg, #fff);
+		/* same rotated column as .y-label, so "lower"/"Remoteness"/"higher"
+		   read as one vertical line; rotate INSIDE transform (see .y-label) */
+		writing-mode: vertical-rl;
+		transform: rotate(180deg);
+	}
+
+	.y-hint-bottom {
+		/* anchors its bottom edge to the plot's bottom edge, growing upward,
+		   mirroring y-hint-top's default top-anchored growth */
+		transform: translateY(-100%) rotate(180deg);
 	}
 
 	.legend {
