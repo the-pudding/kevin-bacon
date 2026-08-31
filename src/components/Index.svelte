@@ -582,12 +582,8 @@
 						</p>
 					</Step>
 					<Step state="raceFull" panel={racePanel}>
-						<p>
-							Repeating this all the way back gives us a timeline of every
-							center since 1970. Note that no female actor has ever been the
-							center; the closest we've ever come was Susan Sarandon in at #9 in
-							2012.
-						</p>
+						<p>We can then view all centers of Hollywood since 1980.</p>
+						<p>Use the slider or drag to take a look around, or go next.</p>
 					</Step>
 
 					<Step state="raceFull" panel={racePanel}>
@@ -903,8 +899,8 @@
 	.chapter-card h2 {
 		margin: 0;
 		font-family: var(--font-serif);
-		font-size: var(--40px, 40px);
-		font-weight: 700;
+		font-size: var(--30px, 30px);
+		font-weight: 500;
 		line-height: 1.06;
 		/* uppercase serifs set tight look cramped; open them up a little */
 		letter-spacing: 0.03em;
