@@ -15,7 +15,9 @@
 	let {
 		children, // the underlined term, inline in the sentence
 		info, // snippet: the panel's body
-		title, // panel heading, and the panel's accessible name
+		title = undefined, // optional panel heading and accessible name. Omit it
+		// where the term itself already says what the panel is about — a heading
+		// that only restates the underlined words is noise above the close button
 		open = $bindable(false),
 		class: className = "",
 		...restProps
@@ -41,7 +43,9 @@
 			<Dialog.Overlay data-infoterm-scrim />
 			<Dialog.Content data-infoterm-panel data-infoterm-sheet>
 				<header data-infoterm-head>
-					<Dialog.Title data-infoterm-title>{title}</Dialog.Title>
+					{#if title}
+						<Dialog.Title data-infoterm-title>{title}</Dialog.Title>
+					{/if}
 					<Dialog.Close data-infoterm-close aria-label="Close">
 						<X />
 					</Dialog.Close>
@@ -64,7 +68,9 @@
 				aria-label={title}
 			>
 				<header data-infoterm-head>
-					<p data-infoterm-title>{title}</p>
+					{#if title}
+						<p data-infoterm-title>{title}</p>
+					{/if}
 					<Popover.Close data-infoterm-close aria-label="Close">
 						<X />
 					</Popover.Close>

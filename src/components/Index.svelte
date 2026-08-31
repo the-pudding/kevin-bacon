@@ -400,8 +400,22 @@
 					</Step>
 					<Step state="hopBands">
 						<p>
-							No doubt, he's well connected. You can get from any Hollywood
-							actor to Kevin Bacon in four movies or less.
+							No doubt, he's well connected. With
+							<InfoTerm>
+								our dataset
+								{#snippet info()}
+									<p>
+										The corpus is the IMDb top 10,000 English-language feature
+										films by user vote count.
+									</p>
+									<p>
+										We then enrich the data with cast information from the TMDB
+										API, and those casts are what link one actor to the next.
+										Data taken ~March 2026, .
+									</p>
+								{/snippet}
+							</InfoTerm>, you can get from any Hollywood actor to Kevin Bacon
+							in four movies or less.
 						</p>
 						<p>
 							The reality is that Kevin Bacon isn't special in this respect;
