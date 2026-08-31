@@ -901,13 +901,13 @@
 
 	/* Set in the piece's own serif rather than the sans: only three faces load
 	   (Atlas Grotesk, Tiempos, Atlas Typewriter) and a neo-grotesque at this size
-	   reads as a default rather than a decision. Tiempos Bold, uppercase and
+	   reads as a default rather than a decision. Tiempos regular, uppercase and
 	   tracked out, is the editorial register a chapter break wants. Uppercasing
 	   is presentational — the title string stays as written. */
 	.chapter-card h2 {
 		margin: 0;
 		font-family: var(--font-serif);
-		font-size: var(--30px, 30px);
+		font-size: var(--28px, 28px);
 		font-weight: 400;
 		line-height: 1.06;
 		/* uppercase serifs set tight look cramped; open them up a little */
