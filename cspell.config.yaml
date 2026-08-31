@@ -61,6 +61,7 @@ words:
   - igraph
   - onnavigate
   - handoff
+  - bestie
 ignorePaths:
   - node_modules
   - build

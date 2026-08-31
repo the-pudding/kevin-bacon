@@ -410,39 +410,59 @@
 									</p>
 									<p>
 										We then enrich the data with cast information from the TMDB
-										API, and those casts are what link one actor to the next.
-										Data taken ~March 2026, .
+										API so we can build the graph network. In total, there are
+										just over 169,000 actors in the dataset.
+									</p>
+									<p>The data for this was taken ~March 2026.</p>
+									<p>
+										Massive tangent: this dataset even includes <a
+											href="https://www.imdb.com/name/nm8509587/">my bestie</a
+										> who got a role in the 2018 film Tolkien, putting him two movies
+										away from Kevin Bacon!
 									</p>
 								{/snippet}
 							</InfoTerm>, you can get from any Hollywood actor to Kevin Bacon
-							in four movies or less.
+							in four movies or less A.K.A the <i>four</i> degrees of Kevin Bacon.
 						</p>
 						<p>
 							The reality is that Kevin Bacon isn't special in this respect;
 							there are 16,429 actors who can be reached by everyone within 4
-							movies. A more meaningful measure of Hollywood connectivity is how
-							many movies on average it takes to get to them i.e. <i
-								>average distance</i
-							>.
+							movies, and no one can be reached by everyone within 3.
+						</p>
+					</Step>
+					<Step state="hopBands">
+						<p>
+							We need a better way to measure Hollywood connectivity actors in
+							this highly-congested network. For this, we use how many movies on
+							average it takes to get to them from all other actors. In graph
+							theory, this is often referred to as <i>remoteness</i>.
+						</p>
+						<p>
+							For example, Kevin Bacon's remoteness is 2.28: an actor is 2.28
+							movies away on average. Smaller is better: the less remote you
+							are, the more likely you are to be the center of Hollywood.
 						</p>
 					</Step>
 					<Step state="rankFocus" panel={rankPanel}>
 						<div class="rank-focus-text">
 							<p>
-								As of 2026, I can tell you that Kevin Bacon ranks #175 of all
-								Hollywood actors based on average distance. Can you guess who #1
-								is?
+								As mentioned earlier, Kevin Bacon is not the center of
+								Hollywood. His remoteness of 2.28 puts him at #175 of all
+								Hollywood actors. Can you guess who #1 is?
 							</p>
 							<GuessRank />
 						</div>
 					</Step>
 					<Step state="rankReveal" panel={rankPanel}>
 						<p>
-							Yes, Samuel L. Jackson is the <i>center of Hollywood</i>. You can
-							get to him in an average distance of just 2.09. Willem Dafoe is
-							second, Robert De Niro third. Female actors are under-represented
-							here, occupying only 16 of the top 100 most connected actors.
-							Nicole Kidman is the first female in at #21.
+							Yes, Samuel L. Jackson is the <i>center of Hollywood</i>, with a
+							remoteness of just 2.09. Willem Dafoe is second with 2.13, Robert
+							De Niro third with 2.14.
+						</p>
+						<p>
+							Female actors are under-represented here, occupying only 16 of the
+							top 100 most connected actors. Nicole Kidman is the first female
+							in at #21 with 2.19.
 						</p>
 					</Step>
 
@@ -492,11 +512,11 @@
 					</Step>
 					<Step state="scatterCenters" params={{ showPair: true }}>
 						<p>
-							The relationship between film count and average distance is
-							strong, but it doesn't explain it fully. Two actors can have the
-							same film counts but very different average distances. For
-							example, Natalie Portman and Anna Kendrick are shown here at the
-							two extremes of the data.
+							The relationship between film count and remoteness is strong, but
+							it doesn't explain it fully. Two actors can have the same film
+							counts but very different average distances. For example, Natalie
+							Portman and Anna Kendrick are shown here at the two extremes of
+							the data.
 						</p>
 					</Step>
 					<Step state="scatterCenters" params={{ showPair: true }}>
@@ -504,8 +524,8 @@
 							So what's different about them? Put simply: better costars.
 							Natalie Portman stars with more "big dogs" than Anna Kendrick.
 							They say in Hollywood "It's not what you know, it's who you know",
-							and it seems this is also true when explaining an actor's average
-							distance.
+							and it seems this is also true when explaining an actor's
+							remoteness.
 						</p>
 					</Step>
 					<Step
@@ -522,9 +542,9 @@
 						params={{ showPair: true, showCostars: true }}
 					>
 						<p>
-							It would be too circular to use costars with low average distance
-							as our measure. That's like saying "We think the most expensive
-							houses will be the ones with the highest price".
+							It would be too circular to use costars with low remoteness as our
+							measure. That's like saying "We think the most expensive houses
+							will be the ones with the highest price".
 						</p>
 					</Step>
 					<Step state="degScatter">
@@ -552,11 +572,10 @@
 					</Step>
 					<Step state="scatterGenZ">
 						<p>
-							To predict future average distance we need to model their
-							trajectory by stating what we think their film count and costar
-							data will look like at a certain point in time. To do this, we
-							look at what has happened to actors with similar stats in the
-							past.
+							To predict future remoteness we need to model their trajectory by
+							stating what we think their film count and costar data will look
+							like at a certain point in time. To do this, we look at what has
+							happened to actors with similar stats in the past.
 						</p>
 					</Step>
 					<Step state="careerTrio">
@@ -599,9 +618,9 @@
 						<p>
 							Chloë Grace Moretz is the most likely to be Gen Z's Kevin Bacon,
 							winning just over 10% of the simulations. It's by no means a
-							landslide: her median average distance is 2.19 with a median
-							projected film count of 66, quite far away from Samuel L.
-							Jackson's stratospheric numbers.
+							landslide: her median remoteness is 2.19 with a median projected
+							film count of 66, quite far away from Samuel L. Jackson's
+							stratospheric numbers.
 						</p>
 					</Step>
 					<Step state="simRace">
@@ -619,7 +638,7 @@
 					<Step state="simRace" panel={moversPanel}>
 						<p>
 							Here are the full results, including how much they've moved their
-							current position by average distance.
+							current position by remoteness.
 						</p>
 						<p>Click on an actor to see their breakdown.</p>
 					</Step>
