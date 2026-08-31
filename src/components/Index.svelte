@@ -426,7 +426,8 @@
 						<p>
 							The "Six Degrees of Kevin Bacon" is a game where players try to
 							connect an actor to Kevin Bacon via movies they've starred in with
-							other Hollywood actors, aiming to reach him in six movies or less.
+							other Hollywood actors, aiming to reach him in six movies or
+							fewer.
 						</p>
 					</Step>
 					<Step state="networkIntro">
@@ -483,7 +484,7 @@
 						<p>
 							However, Kevin Bacon is <b>not</b> the center of Hollywood. Not
 							only that, he <b>never has been</b>, and almost certainly
-							<b>never will</b>.
+							<b>never will be</b>.
 						</p>
 					</Step>
 
@@ -512,16 +513,16 @@
 										API so we can build the graph network. In total, there are
 										just over 169,000 actors in the dataset.
 									</p>
-									<p>The data for this was taken ~March 2026.</p>
+									<p>The data for this was taken in ~March 2026.</p>
 									<p>
 										Massive tangent: this dataset even includes <a
 											href="https://www.imdb.com/name/nm8509587/">my bestie</a
-										> who got a role in the 2018 film Tolkien, putting him two movies
-										away from Kevin Bacon!
+										>, who got a role in the 2018 film Tolkien, putting him two
+										movies away from Kevin Bacon!
 									</p>
 								{/snippet}
 							</InfoTerm>, you can get from any Hollywood actor to Kevin Bacon
-							in four movies or less A.K.A the <i>four</i> degrees of Kevin Bacon.
+							in four movies or fewer, a.k.a. the <i>four</i> degrees of Kevin Bacon.
 						</p>
 						<p>
 							The reality is that Kevin Bacon isn't special in this respect;
@@ -531,8 +532,8 @@
 					</Step>
 					<Step state="hopBands">
 						<p>
-							We need a better way to measure Hollywood connectivity actors in
-							this highly-congested network. For this, we use how many movies on
+							We need a better way to measure the connectivity of actors in this
+							highly congested network. For this, we use how many movies on
 							average it takes to get to them from all other actors. In graph
 							theory, this is often referred to as <i>remoteness</i>.
 						</p>
@@ -559,9 +560,9 @@
 							De Niro third with 2.14.
 						</p>
 						<p>
-							Female actors are under-represented here, occupying only 16 of the
-							top 100 most connected actors. Nicole Kidman is the first female
-							in at #21 with 2.19.
+							Female actors are under-represented here, taking only 16 of the
+							top 100 places. Nicole Kidman is the first female in at #21 with
+							2.19.
 						</p>
 					</Step>
 
@@ -577,13 +578,15 @@
 					<Step state="raceRecent" panel={rankPanel}>
 						<p>
 							Let's go back to where Samuel L. Jackson took the crown in 2006.
-							Interestingly this was before any MCU movie took place, which only
-							made matters worse for his competitors.
+							Interestingly, this was before any MCU movie took place, which
+							only made matters worse for his competitors.
 						</p>
 					</Step>
 					<Step state="raceFull" panel={racePanel}>
-						<p>We can then view all centers of Hollywood since 1980.</p>
-						<p>Use the slider or drag to take a look around, or go next.</p>
+						<p>
+							We can then view all centers of Hollywood since 1980. Use the
+							slider or drag to take a look around, or go next.
+						</p>
 					</Step>
 
 					<Step state="raceFull" panel={racePanel}>
@@ -603,9 +606,9 @@
 					/>
 					<Step state="scatterCenters" params={{ showFilms: true }}>
 						<p>
-							The obvious one is film count. More films means closer to the
+							The obvious one is film count. More films mean closer to the
 							center. Indeed, Samuel L. Jackson has been in far more films than
-							anyone else, 20 more than Nicolas Cage who's next closest.
+							anyone else, 20 more than Nicolas Cage, who's next closest.
 						</p>
 					</Step>
 					<Step state="scatterCenters" params={{ showPair: true }}>
@@ -632,7 +635,7 @@
 					>
 						<p>
 							For example, of the 250 most-connected actors from earlier,
-							Natalie Portman has worked almost three times as many.
+							Natalie Portman has worked with almost three times as many.
 						</p>
 					</Step>
 					<Step
@@ -669,7 +672,7 @@
 						<p>
 							We now have everything we need to predict Gen Z's Kevin Bacon
 							using film count and costar data. Our contenders are actors born
-							since 1997 that have been in at least 5 films.
+							since 1997 who have been in at least 5 films.
 						</p>
 					</Step>
 					<Step state="scatterGenZ">
@@ -691,10 +694,10 @@
 					</Step>
 					<Step state="careerMany">
 						<p>
-							This means that whatever actor we use to model a Gen Z's film
-							trajectory can massively impact the results. For each actor, we
-							consider similar actors based on proximity to them, and randomly
-							select one weighted by how close they are.
+							This means that whatever actor we use to model a Gen Z actor's
+							film trajectory can massively impact the results. For each actor,
+							we consider similar actors based on proximity to them, and
+							randomly select one weighted by how close they are.
 						</p>
 					</Step>
 					<Step state="careerMany">
@@ -727,7 +730,7 @@
 					</Step>
 					<Step state="simRace">
 						<p>
-							From our historical analysis you'll recall lines dropping off as
+							From our historical analysis, you'll recall lines dropping off as
 							actors stop appearing in so many films. We're counting on this
 							happening to Samuel L. Jackson, or a Marvel-sized cinematic
 							universe being spawned again.
@@ -749,8 +752,8 @@
 					<Step state="outro">
 						<p>
 							What is far more certain is that the first female center of
-							Hollywood is on the horizon, with 65% of the wins going to women,
-							perhaps not for a few years yet though.
+							Hollywood is on the horizon, with 65% of the wins going to women —
+							though perhaps not for a few years yet.
 						</p>
 					</Step>
 				</Wizard>

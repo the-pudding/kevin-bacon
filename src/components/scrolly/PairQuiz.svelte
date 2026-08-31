@@ -18,7 +18,7 @@
 	 */
 	let { visual } = $props();
 
-	const PROMPT = "Who is closer to the centre of Hollywood?";
+	const PROMPT = "Who is closer to the center of Hollywood?";
 	const FLIGHT_MS = 900;
 	const EASE = "cubic-bezier(0.65, 0, 0.35, 1)";
 	const DOT_DIAMETER = 11; // landing dot is r 5.5; card squishes to this footprint
