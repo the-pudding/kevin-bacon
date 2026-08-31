@@ -577,11 +577,11 @@
 	// landing on the static race frame. The render effect first tweens the buffers
 	// onto the empty e=0 frame (dots pinned at the present edge, lines undrawn),
 	// so this owns the rAF straight from there — no pre-roll. Skippable (a state
-	// change abandons the sweep) and reduced-motion safe. Once the draw-on
-	// settles, immediately (no pause) starts the rewind's first leg, panning the
-	// camera back from the present to RACE_REWIND_WAYPOINT_YEAR — so draw-on +
-	// first-leg rewind play as one continuous flourish while the reader is still
-	// on raceRecent's step.
+	// change abandons the sweep) and reduced-motion safe. The draw-on settles on
+	// the present-day view and stops there — it does not remove any information,
+	// so it needs no reader consent. The rewind's first leg (panning the camera
+	// back from the present through time) only starts once the reader presses
+	// Start (see the raceRewindNonce effect below, and RaceRewindStart.svelte).
 	/**
 	 * @param {any} step
 	 * @param {boolean} flownIn whether the arrival tween already flew the cast in
@@ -630,14 +630,6 @@
 				sweeping = false;
 				story.raceView = finalView;
 				publishRaceCam();
-				if (!reducedMotion) {
-					playRaceRewind(
-						step.extent[1],
-						RACE_REWIND_WAYPOINT_YEAR,
-						step,
-						STATE_YCAP[RACE_ENTRY_STATE]
-					);
-				}
 			},
 			arrive
 		);
@@ -645,8 +637,9 @@
 
 	// Race-chapter rewind, played in two legs so the "camera moving back in time"
 	// motion is visible across both raceRecent and raceTrades instead of happening
-	// all at once during raceRecent: leg 1 (chained off playRaceEntry's onDone)
-	// pans from the present back to RACE_REWIND_WAYPOINT_YEAR and stops; leg 2
+	// all at once during raceRecent: leg 1 (fired by the raceRewindNonce effect
+	// below, once the reader presses Start) pans from the present back to
+	// RACE_REWIND_WAYPOINT_YEAR and stops; leg 2
 	// (played on arrival at raceTrades) continues the same pan on from wherever
 	// raceRecent's camera got to, down to raceTrades' own resting year. At a fixed
 	// px-per-year both legs are pure x-translation — the camera can never zoom.
@@ -666,6 +659,7 @@
 		const finalView = { playhead: toP };
 		if (reducedMotion) {
 			story.raceView = finalView;
+			story.raceRewinding = false;
 			return;
 		}
 		const span = raceVisibleSpan(width, height);
@@ -691,6 +685,7 @@
 				sweeping = false;
 				camPanning = false;
 				story.raceView = finalView;
+				story.raceRewinding = false;
 				publishRaceCam();
 			},
 			shown,
@@ -1260,6 +1255,40 @@
 		untrack(playSimRun);
 	});
 
+	// Race rewind: RaceRewindStart asks for the backwards pan by bumping this
+	// nonce, the same pattern as the sim trigger above. Gated on RACE_ENTRY_STATE
+	// so a stray press after the reader has moved on is a no-op; starts from
+	// wherever the chart currently rests (the entry draw-on's present-day view,
+	// unless a run is somehow already mid-flight) rather than assuming it is
+	// still exactly at the extent's edge.
+	//
+	// RaceRewindStart also advances the step (see its own comment), so this
+	// effect and the render effect below can land in the same flush. Single-
+	// writer discipline still applies here exactly as it does at every other
+	// playRaceRewind call site (playRaceEntry stops the tweener itself before
+	// its sweep; the render effect's branches go through landOffChart) — without
+	// stopping it first, the render effect's own default tween (same-state step
+	// change, nothing else matches) would keep writing the buffers this sweep is
+	// writing, corrupting the frame the reader sees for the rest of the chapter.
+	let raceRewindNonceSeen = 0;
+	$effect(() => {
+		const nonce = story.raceRewindNonce;
+		if (nonce === raceRewindNonceSeen) return;
+		raceRewindNonceSeen = nonce;
+		if (nonce === 0 || stateName !== RACE_ENTRY_STATE) return;
+		untrack(() => {
+			story.raceRewinding = true;
+			tweener.stop();
+			trailTweener.stop();
+			playRaceRewind(
+				story.raceView?.playhead ?? RACE_RECENT_STEP.extent[1],
+				RACE_REWIND_WAYPOINT_YEAR,
+				RACE_RECENT_STEP,
+				STATE_YCAP[RACE_ENTRY_STATE]
+			);
+		});
+	});
+
 	// The race chapter's flight, armed by the raceEntry branch and fired when the
 	// rank list has finished collapsing its bars into nodes and taken its overlay
 	// down (story.rankCollapsed — RankBars owns that clock, since it is the one
@@ -1335,6 +1364,7 @@
 			// a replay the reader stepped away from is over, however far it got —
 			// leave its controls usable if they step back
 			if (story.simRunning) untrack(() => (story.simRunning = false));
+			if (story.raceRewinding) untrack(() => (story.raceRewinding = false));
 		}
 		const resized = width !== prevW || height !== prevH;
 		if (resized) {
@@ -1847,9 +1877,14 @@
 		line-height: 1.2;
 		white-space: nowrap;
 		color: var(--color-gray-900, #222);
-		/* opaque, not a halo: a name sits over the dot cloud and its own links,
-		   and a glow leaves the marks behind it half-legible */
-		background: var(--color-bg, #fff);
+		/* halo, not opaque: a name sits over the dot cloud and its own links,
+		   and an opaque tag hides too much of the data underneath it */
+		text-shadow:
+			0 0 4px var(--color-bg, #fff),
+			0 0 4px var(--color-bg, #fff),
+			0 0 8px var(--color-bg, #fff),
+			0 0 8px var(--color-bg, #fff),
+			0 0 12px var(--color-bg, #fff);
 		transition: opacity 0.3s ease;
 	}
 

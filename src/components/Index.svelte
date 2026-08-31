@@ -9,6 +9,7 @@
 	import RaceScrubber from "$components/scrolly/RaceScrubber.svelte";
 	import SimRunner from "$components/scrolly/SimRunner.svelte";
 	import GenZMovers from "$components/scrolly/GenZMovers.svelte";
+	import RaceRewindStart from "$components/scrolly/RaceRewindStart.svelte";
 	import PairQuiz from "$components/scrolly/PairQuiz.svelte";
 	import useWindowDimensions from "$runes/useWindowDimensions.svelte.js";
 	import urlParams from "$utils/urlParams.js";
@@ -323,6 +324,17 @@
 						</div>
 					{/if}
 				{/snippet}
+				<!-- raceRecent's opening step: same rank panel handoff, plus the Start
+				     button that asks for the backwards rewind - consent for the "remove
+				     information" move, same reasoning as simPanel below. Only that one
+				     step gets it; raceRecent's second step (already rewinding by then)
+				     keeps the plain rankPanel. -->
+				{#snippet raceStartPanel()}
+					{@render rankPanel()}
+					<div class="race-scrubber-panel" style="bottom: {stepsHeight + 12}px">
+						<RaceRewindStart />
+					</div>
+				{/snippet}
 				<!-- raceFull pan control: drag surface + year slider over the plot. Only
 				     raceFull gets it — the first two race steps are carried by their own
 				     camera choreography, so they need no control of their own. Renders
@@ -492,11 +504,19 @@
 					<!-- PAST -->
 					<!-- keeps the rank panel mounted for one more step: its bars collapse
 					     into this chart's dots, then hand them to the canvas -->
+					<Step state="raceRecent" panel={raceStartPanel}>
+						<p>
+							We can repeat the process for calculating all actors' remoteness
+							and go backwards to create a time machine of centers. By using
+							completed calendar years, our time machine starts at the end of
+							2025.
+						</p>
+						<p>Remember, lower remoteness is better. Press 'Start' to begin.</p>
+					</Step>
 					<Step state="raceRecent" panel={rankPanel}>
 						<p>
 							Samuel L. Jackson has been the center of Hollywood since 2006,
-							taking over from Gene Hackman. By using completed calendar years,
-							our time machine starts at the end of 2025.
+							taking over from Gene Hackman.
 						</p>
 					</Step>
 					<Step state="raceTrades">
