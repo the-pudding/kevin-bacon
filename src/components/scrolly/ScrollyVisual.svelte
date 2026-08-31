@@ -59,6 +59,7 @@
 		ORDER_OF
 	} from "./layout-shared.js";
 	import { story } from "./story.svelte.js";
+	import InfoTerm from "$components/ui/InfoTerm.svelte";
 
 	// undefined until the <Step> registry has populated (first client render)
 	/** @type {{ state: import("./states.js").VisualState, params?: Object, stepsHeight?: number, coldStart?: boolean }} */
@@ -686,64 +687,17 @@
 		);
 	}
 
-	// Race-chapter rewind, leg 2 and final: played on arrival at raceFull from
-	// raceRecent, continuing the same back-through-time pan on from wherever leg 1
-	// parked the camera (RACE_REWIND_WAYPOINT_YEAR if the reader pressed Start, or
-	// the present if they didn't), all the way to raceFull's own resting playhead
-	// (1970 at the plot's left edge, or its 1980 pan floor on the right where the
-	// viewport is too narrow to show both — see raceFullRestPlayhead).
-	// The axis needs no handling of its own: it follows the camera, so it widens
-	// into the 1970s over the same frames the pan does.
-	//
-	// Explicitly nulls story.raceCam before the sweep starts: RaceScrubber
-	// renders nothing while it's null, which is what keeps the pan control
-	// hidden until the camera has actually finished arriving at its resting year
-	// instead of being usable (with stale raceRecent bounds) mid-flight. Safe by
-	// effect ordering — this only ever runs from the render effect, which runs
-	// after the raceStep-driven auto-publish effect within the same flush.
+	// Race-chapter arrival at raceFull from raceRecent: no scripted pan — the
+	// reader lands with the camera already resting on RACE_REWIND_WAYPOINT_YEAR
+	// (2006, SLJ's takeover) and RaceScrubber usable immediately, rather than
+	// watching a forced rewind before getting control. Kept as a function
+	// (rather than inlined at the call site) because publishRaceCam() has to be
+	// called after renderPlayhead is set, matching every other settle path.
 	function playRaceFullEntry() {
 		if (!width || !height) return;
-		const fromP = raceExitPlayhead ?? RACE_RECENT_STEP.extent[1];
-		const toP = raceFullRestPlayhead(width, height);
-		const finalView = { playhead: toP };
-		if (reducedMotion) {
-			story.raceView = finalView;
-			publishRaceCam();
-			return;
-		}
-		if (toP >= fromP) {
-			// the resting view sits at or ahead of where the camera already is
-			// (a viewport wide enough that the resting year is no further back
-			// than raceRecent left off, or wider still than the whole extent) —
-			// nothing to pan to
-			story.raceView = finalView;
-			publishRaceCam();
-			return;
-		}
-		story.raceCam = null;
-		const span = raceVisibleSpan(width, height);
-		const legExtent = /** @type {[number, number]} */ ([
-			Math.min(fromP, toP) - span,
-			Math.max(fromP, toP)
-		]);
-		const shown = {
-			from: RACE_RECENT_VISIBLE,
-			to: raceStepVisible(RACE_FULL_STEP, STATE_YCAP[RACE_FULL_STATE])
-		};
-		sweeping = true;
-		camPanning = true;
-		runSweepPhase(
-			rewindFrame(RACE_FULL_STEP, legExtent, fromP, toP),
-			STATE_YCAP[RACE_FULL_STATE],
-			() => {
-				sweeping = false;
-				camPanning = false;
-				story.raceView = finalView;
-				publishRaceCam();
-			},
-			shown,
-			rewindMs(fromP, toP)
-		);
+		renderPlayhead = RACE_REWIND_WAYPOINT_YEAR;
+		story.raceView = { playhead: RACE_REWIND_WAYPOINT_YEAR };
+		publishRaceCam();
 	}
 
 	// The rewind run backwards, played when the reader steps back from raceFull to
@@ -1106,13 +1060,11 @@
 			if (story.raceView !== null) story.raceView = null;
 			if (story.scrubYear !== null) story.scrubYear = null;
 			if (extent) renderPlayhead = extent[1];
-			// raceFull's true resting camera is 1970 at the left edge (or its pan
-			// floor on the right, where the viewport can't show both), not the
-			// extent's own end — every arrival path settles here, and
-			// playRaceFullEntry just animates getting there on the one path that
-			// deserves the flourish
+			// raceFull's true resting camera is RACE_REWIND_WAYPOINT_YEAR (2006) —
+			// every arrival path settles here, animated or not, so the reader
+			// always has the slider immediately usable from the same year
 			if (stateName === RACE_FULL_STATE && width && height) {
-				renderPlayhead = raceFullRestPlayhead(width, height);
+				renderPlayhead = RACE_REWIND_WAYPOINT_YEAR;
 			}
 		});
 	});
@@ -1133,7 +1085,7 @@
 			height &&
 			story.raceView === null
 		) {
-			story.raceView = { playhead: raceFullRestPlayhead(width, height) };
+			story.raceView = { playhead: RACE_REWIND_WAYPOINT_YEAR };
 		}
 	});
 
@@ -1688,14 +1640,33 @@
 			     so each one plays its own fade-in then rather than at the step change. -->
 			{#if !chartVeiled}
 				{#each decor?.axes?.x ?? [] as tick}
-					<p
-						class="tick tick-x fade-in"
-						style="left: {tick.pos}px; {decor.axes.xBase != null
-							? `top: ${decor.axes.xBase}px`
-							: ''}"
-					>
-						{tick.label}
-					</p>
+					{#if stateName === RACE_FULL_STATE && tick.label === "1980"}
+						<InfoTerm
+							class="tick tick-x tick-1980 fade-in"
+							style="left: {tick.pos}px; {decor.axes.xBase != null
+								? `top: ${decor.axes.xBase}px`
+								: ''}"
+							title="Why 1980?"
+						>
+							{tick.label}
+							{#snippet info()}
+								<!-- TODO(copy): explain why the chart is tracked back to
+								     1970 (the lines extend that far) but the interactive
+								     window only pans back to 1980. Owen to write final
+								     copy. -->
+								<p>PLACEHOLDER — copy pending.</p>
+							{/snippet}
+						</InfoTerm>
+					{:else}
+						<p
+							class="tick tick-x fade-in"
+							style="left: {tick.pos}px; {decor.axes.xBase != null
+								? `top: ${decor.axes.xBase}px`
+								: ''}"
+						>
+							{tick.label}
+						</p>
+					{/if}
 				{/each}
 				{#each decor?.axes?.y ?? [] as tick}
 					<p class="tick tick-y fade-in" style="top: {tick.pos}px">
@@ -1935,6 +1906,32 @@
 	.tick-x {
 		bottom: 1.6rem; /* fallback when the layout provides no xBase */
 		transform: translateX(-50%);
+	}
+
+	/* the 1980 tick is an InfoTerm trigger — its <button> is rendered inside
+	   InfoTerm.svelte's own template, so it never carries ScrollyVisual's
+	   scoped style hash: none of .overlay p/.tick/.tick-x/.fade-in (all scoped
+	   selectors) match it, so :global() is required, and every property those
+	   would have supplied has to be restated here instead of layered on top. */
+	:global(.tick-1980) {
+		position: absolute;
+		margin: 0;
+		pointer-events: auto;
+		/* RaceScrubber's own full-bleed .drag-surface sits later in the DOM
+		   (Index.svelte mounts the panel after ScrollyVisual) and would
+		   otherwise intercept the click before it reaches this trigger */
+		z-index: 1;
+		font-size: 0.65rem;
+		color: var(--color-gray-500, #888);
+		text-shadow:
+			0 0 3px var(--color-bg, #fff),
+			0 0 6px var(--color-bg, #fff);
+		bottom: 1.6rem; /* fallback when the layout provides no xBase */
+		transform: translateX(-50%);
+	}
+
+	:global(.tick-1980[style*="top:"]) {
+		bottom: auto;
 	}
 
 	.tick-x[style*="top:"] {
