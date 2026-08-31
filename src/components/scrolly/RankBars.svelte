@@ -15,11 +15,7 @@
 		hopDotSlots,
 		hopFractions
 	} from "./layout-shared.js";
-	import {
-		raceDotSpec,
-		RACE_RECENT_VISIBLE,
-		RACE_RECENT_SUBJECT
-	} from "./layouts/race.js";
+	import { raceDotSpec, RACE_RECENT_VISIBLE } from "./layouts/race.js";
 
 	// The rank chapter's "everyone else" list: plain HTML/SVG hop-band bars
 	// (per-actor counts from scrolly-story.json's rankHopBands), not canvas — a
@@ -48,9 +44,7 @@
 		// so its bar just goes with the rest of the list. (Can't happen at the
 		// reveal's own scroll position: every one of the top ~25 rows is a
 		// raceRecent contender. Only reachable if the reader scrolled away.)
-		dot: RACE_RECENT_VISIBLE.has(id)
-			? raceDotSpec(id, RACE_RECENT_SUBJECT)
-			: null
+		dot: RACE_RECENT_VISIBLE.has(id) ? raceDotSpec() : null
 	}));
 
 	// One <path> per hop over the band's shared dot lattice (hopDotSlots), each a

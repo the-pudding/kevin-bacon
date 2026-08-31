@@ -15,7 +15,6 @@
 		RACE_RECENT_EXTENT,
 		RACE_RECENT_STEP,
 		RACE_RECENT_VISIBLE,
-		RACE_RECENT_SUBJECT,
 		RACE_REWIND_WAYPOINT_YEAR,
 		RACE_TRADES_STEP,
 		RACE_FULL_STEP,
@@ -1547,7 +1546,7 @@
 			const collapsedAttrs = new Float64Array(tweener.current);
 			for (let i = 0, id = 0; i < EDGE_BASE; i += STRIDE, id++) {
 				if (rows && RACE_RECENT_VISIBLE.has(id)) {
-					const dot = raceDotSpec(id, RACE_RECENT_SUBJECT);
+					const dot = raceDotSpec();
 					set(collapsedAttrs, id, rows.cx, rowY(id), dot.r, dot.rgb, dot.alpha);
 					startAttrs[i + 6] = litAttrs[i + 6];
 					continue;

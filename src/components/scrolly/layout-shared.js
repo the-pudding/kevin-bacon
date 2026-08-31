@@ -327,12 +327,9 @@ export const RACE_IDS = Object.keys(story.raceSeries)
 /** @type {{ id: number|null, rgb: number[], width: number }[]} */
 export const TRAIL_META = [
 	// The race chart carries no hue at all: every line is the same grey at the
-	// same width, and emphasis is per-STEP rather than per-actor — the actors a
-	// step is about ride a darker dot and a stronger line alpha (see
-	// writeRaceSweepFrame's `major`). A per-actor palette can't express that,
-	// since a trail's colour and width here are baked once at module load while
-	// which actors matter changes step to step; and with a cast of hundreds a
-	// palette would in any case be a handful of hues against a grey field.
+	// same width, and no actor is emphasised over any other — the step's subject
+	// is conveyed only through the name labels in the right-hand gutter. A
+	// per-actor palette would in any case be unworkable with a cast of hundreds.
 	...RACE_IDS.map((id) => ({ id, rgb: CROWD, width: 1 })),
 	// career chapter: red hero trajectory, grey comparison lines (the dots are
 	// blue marks — see layouts/career.js)

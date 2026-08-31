@@ -6,7 +6,6 @@ import {
 	plotBottom,
 	lin,
 	CROWD,
-	INK,
 	SLJ,
 	HACKMAN,
 	set,
@@ -25,10 +24,8 @@ import {
 // Race chart (Past chapter): avg distance by year, one line per race actor.
 //
 // The chart is monochrome by design: no line carries a hue, and nothing is
-// identified by colour. What separates the actors a step is about from the field
-// behind them is weight — an ink dot and a stronger line alpha against grey —
-// plus the name labels in the right-hand gutter. Emphasis is therefore per STEP
-// (see `subject` in writeRaceSweepFrame), not a property of an actor.
+// identified by colour. Every dot and line renders identically — the field is
+// distinguished only by the name labels in the right-hand gutter.
 //
 // The x axis is FIXED-SCALE: PX_PER_YEAR pixels per year on every race step and
 // every viewport, so a year is always the same distance from its neighbour and
@@ -565,39 +562,24 @@ function raceAxes(cam, yS, vMin, vMax, e1) {
  * end); clamped to the camera's pan bounds
  * @property {number} [reveal] entry draw-on progress 0..1 across the VISIBLE
  * span (1 = fully drawn). Only the draw-on passes it.
- * @property {number[]} [highlight] the actors this step is *about*: they get the
- * ink dot and the stronger line, everyone else it shows drops to the grey
- * background treatment, so the step reads as being about two lines rather than
- * its whole field. Omitted → everything the step shows is foreground, which is
- * only right for a step whose entire field is its subject (raceTrades).
+ * @property {number[]} [highlight] the actors this step is *about*: they are
+ * guaranteed a name label even if they aren't among the nearest-to-centre cut
+ * (see ScrollyVisual's raceLabelCut). Every dot and line otherwise renders
+ * identically regardless of `highlight` — the chart carries no per-step
+ * visual emphasis.
  */
-
-/**
- * Who a frame is ABOUT: exactly its `highlight` if it names one, otherwise
- * everything it shows (see RaceFrame.highlight).
- * @param {{highlight?: number[]}} frame
- * @param {Set<number>} visible
- */
-export const raceSubjectOf = (frame, visible) =>
-	frame.highlight ? new Set(frame.highlight) : visible;
 
 /**
  * One actor's dot treatment on the race chart — the ONE definition of it, so
  * anything drawing a race dot outside this module (the rank list's collapsed
  * nodes, RankBars.svelte) is pixel-identical to what the canvas draws and the
- * HTML→canvas swap at the chapter handoff has nothing to give away.
+ * HTML→canvas swap at the chapter handoff has nothing to give away. Every dot
+ * gets the same treatment — the chart carries no per-step emphasis.
  * `alpha` is the dot's settled alpha, before any per-frame multiplier.
- * @param {number} id
- * @param {Set<number>} subject who the frame is about (see raceSubjectOf)
  * @returns {{r: number, rgb: [number, number, number], alpha: number}}
  */
-export function raceDotSpec(id, subject) {
-	const major = subject.has(id);
-	return {
-		r: major ? 5 : 3,
-		rgb: major ? INK : CROWD,
-		alpha: major ? 1 : 0.55
-	};
+export function raceDotSpec() {
+	return { r: 3, rgb: CROWD, alpha: 0.55 };
 }
 
 /**
@@ -646,19 +628,8 @@ export function writeRaceSweepFrame(
 	const revealRight = Math.min(cam.camRight, e1);
 	const revealFrom =
 		revealRight - (revealRight - cam.camLeft) * (frame.reveal ?? 1);
-	// who this step is ABOUT. A step that names a highlight gets exactly those;
-	// one that doesn't is about everything it shows (raceTrades — every line on
-	// it is one of its handover holders). Never the whole cast: on a step showing
-	// a wide field, the ones it isn't about have to stay background.
-	const subject = raceSubjectOf(frame, visible);
 	for (const id of RACE_IDS) {
-		// "foreground" = an actor this step is about. The chart carries no hue, so
-		// this is the ONLY thing separating a line the reader should follow from
-		// the field behind it: a darker dot, a bigger one, and a stronger line
-		// alpha. Emphasis is per-step, not per-actor — the same actor is
-		// foreground on the step about them and background everywhere else.
-		const major = subject.has(id);
-		const dot = raceDotSpec(id, subject);
+		const dot = raceDotSpec();
 		const segs = RACE_SEGS.get(id);
 		const slot = RACE_SLOT.get(id);
 		const [ds, de] = RACE_RANGE.get(id);
@@ -738,21 +709,12 @@ export function writeRaceSweepFrame(
 						curveEntry(segs, sx1, drawFloor, vMin, vMax)
 					);
 		if (sx1 !== null && sx1 > sx0) {
-			sampleTrail(
-				trailBuf,
-				slot,
-				segs,
-				sx0,
-				sx1,
-				cam.xS,
-				yS,
-				(major ? 0.8 : 0.35) * m
-			);
+			sampleTrail(trailBuf, slot, segs, sx0, sx1, cam.xS, yS, 0.35 * m);
 		} else {
 			// nothing of this actor is drawn yet (or at all) → park on the dot, and
 			// ride the dot's alpha so a collapsed trail doesn't sit off scale where
 			// the dot itself is hidden
-			collapseTrail(trailBuf, slot, dx, dy, (major ? 0.8 : 0.35) * dotM);
+			collapseTrail(trailBuf, slot, dx, dy, 0.35 * dotM);
 		}
 	}
 	return { axes: raceAxes(cam, yS, vMin, vMax, e1), cam, yS, visible };
@@ -1018,17 +980,13 @@ export const RACE_TRADES_STEP = {
 const RACE_RECENT_YCAP = raceStepCap(RACE_RECENT_STEP);
 const RACE_TRADES_YCAP = raceStepCap(RACE_TRADES_STEP);
 
-// What raceRecent shows, and who it is about. Derived here, once, because three
-// places need to agree on them: the state's own layout, the arrival choreography
+// What raceRecent shows. Derived here, once, because three places need to
+// agree on it: the state's own layout, the arrival choreography
 // (ScrollyVisual's raceEntry) and the rank list's collapsed nodes
 // (RankBars.svelte), which are the same dots handed over as HTML.
 export const RACE_RECENT_VISIBLE = raceStepVisible(
 	RACE_RECENT_STEP,
 	RACE_RECENT_YCAP
-);
-export const RACE_RECENT_SUBJECT = raceSubjectOf(
-	RACE_RECENT_STEP,
-	RACE_RECENT_VISIBLE
 );
 
 // raceFull's resting camera: 1970 at the plot's left edge, or RACE_FULL_PAN_FLOOR
