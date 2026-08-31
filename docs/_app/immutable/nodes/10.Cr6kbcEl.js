@@ -1,4 +1,4 @@
-import{A as e,G as t,O as n,X as r,v as i}from"../chunks/DmHGxNi-.js";import"../chunks/D9FQP20W.js";import"../chunks/CtXhhgmB.js";var a=e(`<section id="storyboard" class="svelte-phrd3c"><h1>Storyboard: Gen Z's Kevin Bacon</h1> <p class="intro svelte-phrd3c">A text-only outline of the story: each step's visualization described in
+import{$ as e,J as t,N as n,j as r,v as i}from"../chunks/CsKr0d7k.js";import"../chunks/D9FQP20W.js";import"../chunks/lpB4tn6B.js";var a=n(`<section id="storyboard" class="svelte-phrd3c"><h1>Storyboard: Gen Z's Kevin Bacon</h1> <p class="intro svelte-phrd3c">A text-only outline of the story: each step's visualization described in
 		brief, followed by its copy as it appears in the built piece.</p> <h2>Present</h2> <section class="step svelte-phrd3c"><p class="visual svelte-phrd3c">A node labelled "Kevin Bacon" appears alone. A network graph grows around
 			him.</p> <p>The "Six Degrees of Kevin Bacon" is a game where players try to connect an
 			actor to Kevin Bacon via movies they've starred in with other Hollywood
@@ -71,4 +71,4 @@ import{A as e,G as t,O as n,X as r,v as i}from"../chunks/DmHGxNi-.js";import"../
 			appearing in so many films. We're counting on this happening to Samuel L.
 			Jackson, or a Marvel-sized cinematic universe being spawned again.</p></section> <section class="step svelte-phrd3c"><p class="visual svelte-phrd3c">The same fan chart, framing the conclusion.</p> <p>What I can tell you is that our first female center of hollywood is very
 			likely to happen next, with 65% of the wins going to women, perhaps not
-			for a few years yet though.</p></section></section>`);function o(e){var o=a();i(`phrd3c`,e=>{t(()=>{r.title=`Storyboard — Gen Z's Kevin Bacon`})}),n(e,o)}export{o as component};
+			for a few years yet though.</p></section></section>`);function o(n){var o=a();i(`phrd3c`,n=>{t(()=>{e.title=`Storyboard — Gen Z's Kevin Bacon`})}),r(n,o)}export{o as component};

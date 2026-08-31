@@ -1,1 +1,0 @@
-import{O as e,Q as t,k as n,x as r}from"./DmHGxNi-.js";import"./D9FQP20W.js";function i(i,a){var o=n();r(t(o),()=>a.children),e(i,o)}export{i as t};
