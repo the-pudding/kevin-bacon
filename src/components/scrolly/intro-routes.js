@@ -2,18 +2,18 @@ import data from "$data/scrolly-nodes.json";
 import { ANCHOR_ID } from "./nodes.js";
 
 // Shortest routes to the anchor through the curated intro network (the 18 edges
-// in scrolly-nodes.json — every one a real co-star link carrying the corpus film
-// that made it). Step 1's "how far is this actor from Kevin Bacon?" interaction
-// reads these; the layout stays a renderer. See layouts/intro.js.
+// in scrolly-nodes.json — every one a real co-star link carrying every corpus
+// film that made it). Step 1's "how far is this actor from Kevin Bacon?"
+// interaction reads these; the layout stays a renderer. See layouts/intro.js.
 
-/** @typedef {{ edge: number, from: number, to: number, film: string, year: number|null }} Segment */
+/** @typedef {{ title: string, year: number|null }} Film */
+/** @typedef {{ edge: number, from: number, to: number, films: Film[] }} Segment */
 
-const EDGES = data.edges.map(([source, target, film, year], edge) => ({
+const EDGES = data.edges.map(([source, target, films], edge) => ({
 	edge,
 	source,
 	target,
-	film,
-	year
+	films: films.map(([title, year]) => ({ title, year }))
 }));
 
 // id → [{ edge, other }], in file order so route enumeration is deterministic
@@ -67,8 +67,8 @@ export function routesTo(id) {
 		}
 		for (const { edge, other } of ADJACENCY.get(at) ?? []) {
 			if (DIST.get(other) !== DIST.get(at) - 1) continue;
-			const { film, year } = EDGES[edge];
-			walk(other, [...sofar, { edge, from: at, to: other, film, year }]);
+			const { films } = EDGES[edge];
+			walk(other, [...sofar, { edge, from: at, to: other, films }]);
 		}
 	};
 	walk(id, []);
@@ -86,36 +86,32 @@ export function routeActors(id) {
 }
 
 /**
- * The caption under a focused actor's routes: a headline giving the distance, and
- * prose walking each route film by film. The chart draws the routes but names no
- * films, so this is where they are named — one sentence per route, since the
- * highlight shows all of them (Margot Robbie has three).
- * @returns {{ headline: string, detail: string }}
+ * A focused actor's distance to the anchor, broken into the pieces the step card
+ * and the route panel render. The card states the distance — `count` is the term
+ * the reader opens for the detail — and the panel walks `routes`, which names
+ * every actor and every film the highlight is drawn from. Names are resolved here
+ * so both consumers stay pure renderers.
+ * @typedef {{ from: string, to: string, films: Film[] }} Hop
+ * @typedef {{ hops: Hop[] }} Route
+ * @param {number} id
+ * @returns {{ name: string, anchor: string, count: string, routes: Route[] } | null}
  */
-export function routeSummary(id, routes) {
-	const name = NAMES[id];
-	const anchor = NAMES[ANCHOR_ID];
-	if (!routes.length) {
-		return { headline: `${name} — the center of this game`, detail: "" };
-	}
+export function routeSummary(id) {
+	const routes = routesTo(id);
+	// the anchor has no route to itself, and nothing else in the network is
+	// unreachable — the step never focuses either, so there is nothing to caption
+	if (!routes.length) return null;
 	const hops = routes[0].length;
-	const movies = `${COUNT_WORDS[hops]} movie${hops === 1 ? "" : "s"}`;
-	const detail = routes
-		.map((route, i) => {
-			// "They're" for the first route, "Or in" for the alternatives, so the
-			// sentences stack without repeating the actor's name each time
-			const lead = i === 0 ? "They're in" : "Or in";
-			const [first, ...rest] = route;
-			// one hop is the whole story: no one in between to hand off to
-			if (!rest.length) return `${lead} ${first.film} together.`;
-			const links = rest
-				.map((seg) => `who's in ${seg.film} with ${NAMES[seg.to]}`)
-				.join(", ");
-			return `${lead} ${first.film} with ${NAMES[first.to]}, ${links}.`;
-		})
-		.join(" ");
 	return {
-		headline: `${name} is ${movies} away from ${anchor}`,
-		detail
+		name: NAMES[id],
+		anchor: NAMES[ANCHOR_ID],
+		count: `${COUNT_WORDS[hops]} movie${hops === 1 ? "" : "s"}`,
+		routes: routes.map((route) => ({
+			hops: route.map((seg) => ({
+				from: NAMES[seg.from],
+				to: NAMES[seg.to],
+				films: seg.films
+			}))
+		}))
 	};
 }

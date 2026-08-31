@@ -5,7 +5,6 @@ import {
 	HOP_RGB,
 	CROWD,
 	INK,
-	EDGE_HIGHLIGHT,
 	set,
 	setEdge,
 	pairKey,
@@ -40,6 +39,28 @@ const INTRO_PATHS = [
 	[10, 5], // Jessie Buckley → Benedict Cumberbatch → Bacon
 	[11, 13] // Austin Butler → Emma Stone → Bacon
 ];
+// The order step 1's tour walks the network in (see Index.svelte). Authored, not
+// derived: it opens on a name the reader is likeliest to know, then alternates
+// two-hop and one-hop actors so the distance in the sentence keeps changing
+// rather than reading "two movies" ten times in a row. Eight of the fourteen are
+// two hops out, so the tail cannot keep alternating.
+export const CYCLE_ORDER = [
+	11, // Austin Butler
+	4, // Tom Hanks
+	14, // Zendaya
+	6, // Meryl Streep
+	12, // Margot Robbie — three routes
+	13, // Emma Stone
+	7, // Timothée Chalamet
+	1, // Robert De Niro
+	9, // Anya Taylor-Joy
+	3, // Ryan Gosling
+	8, // Saoirse Ronan — two routes
+	5, // Benedict Cumberbatch
+	2, // Cillian Murphy
+	10 // Jessie Buckley
+];
+
 // mirrors ScrollyVisual's TWEEN_MS so a node lands just as its line arrives
 const INTRO_LINE_MS = 700;
 const INTRO_START_DWELL_MS = 350; // beat after a new source appears before its line draws
@@ -51,12 +72,12 @@ const INTRO_PATH_STEP_MS = 500; // stagger between the free-for-all routes
 const INTRO_EDGE_LAG_MS = 400;
 
 // --- route focus (once the reveal has landed; see the `params` selector below) ---
-const FOCUS_RADIUS = 9; // the picked actor
+const FOCUS_RADIUS = 10; // the picked actor
 const ROUTE_RADIUS = 7; // the hub(s) their route passes through
 // Everyone off the route: recessed, not erased — the constellation is still the
-// point of the step, so the crowd keeps its dots and its names. Colour carries
-// the emphasis (the route goes ink/green against the crowd's grey), so this only
-// has to push them back, not hide them. Names ride this alpha.
+// point of the step, so the crowd keeps its dots. Weight carries the emphasis
+// (the route goes ink and thick against the crowd's grey), so this only has to
+// push them back, not hide them.
 const DIM_ALPHA = 0.6;
 const ROUTE_EDGE_ALPHA = 0.95;
 const DIM_EDGE_ALPHA = 0.2; // enough that the network still reads as connected
@@ -65,6 +86,23 @@ const DIM_EDGE_ALPHA = 0.2; // enough that the network still reads as connected
 const HIT_MIN = 26;
 const HIT_MAX = 44;
 const HIT_SHARE = 0.85;
+
+// A name hanging under a dot: the 4px gap ScrollyVisual leaves plus .node-label's
+// own line box (11px at 1.2).
+const NODE_LABEL_PX = 4 + Math.round(11 * 1.2);
+
+/**
+ * The y the constellation's drawing ends at in a `w × h` canvas — the lowest
+ * dot, plus the largest radius it can take and the name under it. Step 1's
+ * caption hangs off this, so it tracks the graph at every viewport instead of a
+ * guessed fraction of the canvas (which left a hole on a tall phone, where the
+ * fit is width-limited and the constellation stops well short of its band).
+ */
+export function introBottom(w, h) {
+	let y = 0;
+	for (const id of INTRO_IDS) y = Math.max(y, introPosition(id, w, h)[1]);
+	return y + FOCUS_RADIUS + NODE_LABEL_PX;
+}
 
 /**
  * Writes the constellation — the 15 intro actors and their 18 links — into
@@ -106,11 +144,10 @@ export function writeNetwork(
 		let rgb = id === ANCHOR_ID ? HOP_RGB[0] : CROWD;
 		let alpha = 1;
 		if (focus != null && id !== ANCHOR_ID) {
-			if (id === focus) {
-				r = FOCUS_RADIUS;
-				rgb = EDGE_HIGHLIGHT;
-			} else if (routeNodes.has(id)) {
-				r = ROUTE_RADIUS;
+			// routeActors includes the focused actor, so one branch covers both —
+			// they differ by size, the subject being the biggest dot on the route
+			if (routeNodes.has(id)) {
+				r = id === focus ? FOCUS_RADIUS : ROUTE_RADIUS;
 				rgb = INK;
 			} else {
 				// their name label rides this alpha, so the crowd's names dim too
@@ -171,7 +208,7 @@ function buildHits(nodes, pos, focus) {
 			h: side,
 			label:
 				id === ANCHOR_ID
-					? "Kevin Bacon, the center — clears the highlighted route"
+					? "Kevin Bacon, the center — resumes the tour of routes"
 					: `${nodes[id].name}, trace their route to Kevin Bacon`,
 			value: id,
 			selected: id === focus,
@@ -271,13 +308,28 @@ export const states = {
 	},
 	networkIntro: {
 		layout: layoutNetworkIntro,
-		labels: INTRO_IDS,
+		// Only the actor being talked about and the actors their route runs through
+		// keep their names: the sentence in the card names them, so the chart has to
+		// agree, and fourteen labels around one highlighted route is just noise. The
+		// rest keep their (dimmed) dots — the constellation is still the point.
+		// `lone` still declares INTRO_IDS as a plain array, which is what keeps all
+		// fifteen in ScrollyVisual's TRACKED_IDS.
+		labels: (p) => (p?.focus == null ? INTRO_IDS : [...routeActors(p.focus)]),
 		pulse: ANCHOR_ID,
 		params: (s) => ({ focus: s.introFocus }),
-		// a toggle: tapping the highlighted actor again clears it, as does tapping
-		// Bacon — a route from the anchor to itself says nothing
-		pick: (s, value) =>
-			(s.introFocus =
-				value === ANCHOR_ID || value === s.introFocus ? null : value)
+		// A tap takes the step off its automatic tour and leaves the highlight where
+		// the reader put it. Tapping the highlighted actor again, or Bacon (a route
+		// from the anchor to itself says nothing), clears the pick and hands the step
+		// back to the tour rather than leaving an empty caption behind.
+		// A plain toggle, so every tap does exactly one visible thing: tapping an
+		// actor picks them out and stops the tour; tapping the highlighted actor
+		// again — or Bacon, who has no route to himself — clears the highlight and
+		// leaves the constellation neutral.
+		pick: (s, value) => {
+			const release = value === ANCHOR_ID || value === s.introFocus;
+			s.introFocus = release ? null : value;
+			s.introPinned = !release;
+			if (release) s.introReleases += 1;
+		}
 	}
 };

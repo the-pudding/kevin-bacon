@@ -44,9 +44,24 @@ export const story = $state({
 	 * step change, so an interrupted reveal never arms. */
 	settled: null,
 	/** intro network: node id whose route(s) to Bacon are highlighted; null = the
-	 * plain constellation, which is where the step rests. Tapping the highlighted
-	 * actor again (or Bacon) clears it (see layouts/intro.js) */
+	 * plain constellation, which is where the step rests before the tour starts.
+	 * Written by the tour in Index.svelte and by taps (see layouts/intro.js) */
 	introFocus: null,
+	/** intro network: the reader picked an actor themselves, so step 1's automatic
+	 * tour stands down and leaves the highlight where they put it. Tapping the
+	 * highlighted actor again (or Bacon) clears both and the tour resumes */
+	introPinned: false,
+	/** intro network: bumped whenever a tap CLEARS the highlight. The tour watches
+	 * it to know the reader dismissed what was on screen, so it leaves the
+	 * constellation neutral and restarts its clock instead of carrying on mid-turn.
+	 * A counter rather than a flag because a release can leave every other field as
+	 * it was — tapping the actor the tour is already showing, or Bacon, clears a
+	 * focus off an `introPinned` that was false to begin with.
+	 *
+	 * It exists so the tour never has to READ `introFocus`, which it writes: an
+	 * effect that does both re-runs itself on its own write and skips an actor
+	 * every tick. */
+	introReleases: 0,
 	/** rank ladder: `{ x, y, w }` in canvas coordinate space of the hop bar on
 	 * RankBars' centered focus row, measured live by RankBars itself — null until
 	 * it has mounted and reported a position. The canvas bar tweens to meet that

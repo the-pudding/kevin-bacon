@@ -98,7 +98,11 @@ export const YELLOW = [204, 187, 68]; // --category-yellow
 export const PURPLE = [170, 51, 119]; // --category-purple
 export const CYAN = [102, 204, 238]; // --category-cyan
 export const EDGE_GREY = [120, 120, 120]; // network links at rest
-export const EDGE_HIGHLIGHT = GREEN; // a highlighted link (see setEdge's `highlight`)
+// A highlighted link, and the actor a highlight is about (see setEdge's
+// `highlight`). Ink, not a colour: step 1 is the only user, and the route it
+// picks out already reads against the crowd's grey through weight and
+// darkness alone — a hue there would be the story's only decorative colour.
+export const EDGE_HIGHLIGHT = INK;
 
 export const MARGIN = 32;
 // charts live in the top ~3/5 of the canvas — the step card owns the bottom,

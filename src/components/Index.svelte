@@ -13,7 +13,14 @@
 	import useWindowDimensions from "$runes/useWindowDimensions.svelte.js";
 	import urlParams from "$utils/urlParams.js";
 	import { story } from "$components/scrolly/story.svelte.js";
-	import { routesTo, routeSummary } from "$components/scrolly/intro-routes.js";
+	import { routeSummary } from "$components/scrolly/intro-routes.js";
+	import {
+		CYCLE_ORDER,
+		introBottom
+	} from "$components/scrolly/layouts/intro.js";
+	import RouteFilms from "$components/scrolly/RouteFilms.svelte";
+	import InfoTerm from "$components/ui/InfoTerm.svelte";
+	import { MediaQuery } from "svelte/reactivity";
 
 	const STEP_PARAM = "step";
 	const isRankState = (s) => s === "rankFocus" || s === "rankReveal";
@@ -54,6 +61,13 @@
 	// measured height of the step card + nav overlaying the canvas bottom, so
 	// panels sized against it (rank-bars) neither overlap it nor leave a gap
 	let stepsHeight = $state(0);
+	// the canvas box, measured here as well as inside ScrollyVisual, so step 1's
+	// caption can be placed off the constellation's own geometry (see introBottom)
+	let visualWidth = $state(0);
+	let visualHeight = $state(0);
+	// how tall the caption ended up — one line on a wide viewport, two on a phone —
+	// so the clamp that keeps it off the step card knows what it is clamping
+	let routeHeight = $state(0);
 
 	/**
 	 * Filled by each <Step> as it mounts, in document order — the single source
@@ -143,6 +157,79 @@
 			stepConfigs[to]?.state === "raceRecent" && isRankState(currentState);
 	}
 
+	// --- step 1's tour of the network ---
+	// The step demonstrates the game rather than waiting to be asked: it picks each
+	// actor out in turn and the card reads their distance to Bacon, so a reader who
+	// never taps still sees what "two movies away" means. A tap takes it over
+	// (story.introPinned, set by the state's `pick` — see layouts/intro.js).
+	const TOUR_MS = 3400; // ~3s to read, on top of the 450ms highlight tween
+	const reducedMotion = new MediaQuery(
+		"(prefers-reduced-motion: reduce)",
+		false
+	);
+	const introRoute = $derived(
+		story.introFocus == null ? null : routeSummary(story.introFocus)
+	);
+	// The caption hangs a short gap under the constellation's lowest name, then is
+	// clamped off the step card — which only binds on a viewport short enough that
+	// the two would otherwise meet.
+	const ROUTE_GAP = 12;
+	const routeTop = $derived.by(() => {
+		if (!visualWidth || !visualHeight) return 0;
+		const floor = visualHeight - stepsHeight - routeHeight - ROUTE_GAP;
+		return Math.min(introBottom(visualWidth, visualHeight) + ROUTE_GAP, floor);
+	});
+	// gated on `settled` for the same reason the caption always was: the network
+	// finishes growing on the previous step, and nothing should point at an actor
+	// whose arrival hasn't landed
+	const touring = $derived(
+		currentState === "networkIntro" &&
+			story.settled === "networkIntro" &&
+			!story.introPinned
+	);
+	// Where the tour has got to. A plain `let`, not $state: the tour effect reads
+	// it when it (re)starts and must not re-run because of it. Kept outside the
+	// effect so releasing a pick carries on from the actor the reader was looking
+	// at instead of snapping back to the top of the order.
+	// Index of the actor the tour will show next. A plain `let`, not $state: the
+	// tour effect reads it when it (re)starts and must not re-run because of it.
+	let tourNext = 0;
+	const showNext = () => {
+		story.introFocus = CYCLE_ORDER[tourNext];
+		tourNext = (tourNext + 1) % CYCLE_ORDER.length;
+	};
+	// Whoever is highlighted — by the tour or by the reader — is where the tour
+	// carries on from, so it never snaps back to the top of the order.
+	$effect(() => {
+		const i =
+			story.introFocus == null ? -1 : CYCLE_ORDER.indexOf(story.introFocus);
+		if (i >= 0) tourNext = (i + 1) % CYCLE_ORDER.length;
+	});
+	let seenReleases = 0;
+	$effect(() => {
+		// Read so a tap that clears the highlight restarts this effect, and with it
+		// the clock — `touring` alone doesn't change when the reader dismisses an
+		// actor the tour was showing, so without this the next one would arrive on
+		// the remainder of a turn they never saw start.
+		//
+		// This effect must NEVER read `story.introFocus`, which showNext writes: a
+		// tick would then invalidate the effect, re-run it, fire a second showNext
+		// and restart the interval — the tour would skip an actor on every tap.
+		const releases = story.introReleases;
+		const released = releases !== seenReleases;
+		seenReleases = releases;
+		if (!touring) return;
+		// A tap that cleared the highlight means the reader wants it cleared: leave
+		// the constellation neutral and let the tour pick up on its next beat,
+		// rather than reselecting an actor out from under them.
+		if (!released) showNext();
+		// text that changes on its own is motion the reader didn't ask for: under
+		// reduced motion the step rests where it is and waits for a tap
+		if (reducedMotion.current) return;
+		const timer = setInterval(showNext, TOUR_MS);
+		return () => clearInterval(timer);
+	});
+
 	let prevValue = 0;
 	$effect(() => {
 		const state = stepConfigs[value]?.state;
@@ -166,7 +253,11 @@
 				? `${dimensions.height}px`
 				: '100svh'}"
 		>
-			<div class="scrolly-visual">
+			<div
+				class="scrolly-visual"
+				bind:clientWidth={visualWidth}
+				bind:clientHeight={visualHeight}
+			>
 				<ScrollyVisual
 					bind:this={visual}
 					state={stepConfigs[value ?? 0]?.state}
@@ -251,32 +342,44 @@
 						</p>
 					</Step>
 					<Step state="networkIntro">
-						<!-- The tap affordance, and the picked actor's route once there is
-						     one: one slot, directly under the graph it belongs to and above
-						     the narrative. The network itself finishes growing back on the
-						     `lone` step, so actors are already tappable as soon as this step
-						     is reached (see layouts/intro.js).
+						<!-- The tour's caption, over the canvas rather than in the card: it is
+						     naming a dot, so it sits with the constellation and is typed like
+						     the names on it. Whoever the tour (or the reader's tap) has picked
+						     out is named here, and the chart labels the same actors, so
+						     sentence and constellation always agree.
 
-						     The route reads as prose in the card rather than as a caption on
-						     the canvas: it runs to several sentences for an actor with more
-						     than one route, and a canvas note can't know how tall this card
-						     is, so on a short viewport it landed on top of this text. Here it
-						     just makes the card taller, which the fixed-height canvas doesn't
-						     feel. -->
-						{#if story.settled === "networkIntro"}
-							{#if story.introFocus == null}
-								<p class="hint">Tap any actor to trace their route to Bacon.</p>
-							{:else}
-								{@const route = routeSummary(
-									story.introFocus,
-									routesTo(story.introFocus)
-								)}
-								<p class="route">
-									<strong>{route.headline}.</strong>
-									{route.detail}
+						     One line by design. The films behind each hop go in the panel
+						     behind "two movies" instead of into the card, because as prose
+						     they ran to several sentences — and a step card that grows covers
+						     the very dots it is inviting taps on at 360×640 (see
+						     notes/scrolly-framework.md). The network finishes growing back on
+						     the `lone` step, so actors are already tappable here.
+
+						     Placed off the constellation's own lowest name (introBottom), not a
+						     fraction of the canvas: the intro fit is width-limited on a tall
+						     phone, so the graph stops well short of its band and any fixed
+						     fraction leaves a hole under it. -->
+						{#snippet panel()}
+							{#if story.settled === "networkIntro" && introRoute}
+								<p
+									class="route"
+									bind:clientHeight={routeHeight}
+									style="top: {routeTop}px"
+								>
+									<strong>{introRoute.name}</strong>:
+									<InfoTerm
+										title="{introRoute.name} → {introRoute.anchor}"
+										onclick={() => (story.introPinned = true)}
+									>
+										{introRoute.count}
+										{#snippet info()}
+											<RouteFilms id={story.introFocus} />
+										{/snippet}
+									</InfoTerm>
+									away from {introRoute.anchor}.
 								</p>
 							{/if}
-						{/if}
+						{/snippet}
 						<p>
 							The intuition is that Kevin Bacon is so prolific and well-known
 							that the game is a lot easier than if it were called the "Six
@@ -416,15 +519,14 @@
 							Concretely, this is an actor's 50 most prolific costars by number
 							of films, taken as an average. If you work with more "big dog"
 							actors compared to someone with the same film count, you'll almost
-							definitely be closer to the center of Hollywood than them.
+							certainly be closer to the center of Hollywood than them.
 						</p>
 					</Step>
 					<Step state="scatterQuiz" panel={quizPanel}>
 						<p>
-							Now we've got our two signals, we can test our knowledge with a
-							few more examples. For these actors with very similar film counts,
-							who do you think works with more "big dogs" and is therefore
-							closer to the center?
+							Let's test our knowledge with a few more examples. For these
+							actors with similar film counts, who do you think works with more
+							"big dogs" and is therefore closer to the center?
 						</p>
 					</Step>
 					<Step state="scatterGenZ">
@@ -611,27 +713,35 @@
 		}
 	}
 
-	/* step-1 tap affordance, and the route it describes once one is picked: both
-	   appear with the interaction, so neither invites a tap the reveal hasn't
-	   armed yet. Mono, like the names on the chart it is reading out, so it reads
-	   as part of the graph rather than as narrative prose. */
-	.hint,
+	/* step-1's tour caption, floated over the canvas just under the constellation
+	   (`top` is set inline — see the step). Appears with the interaction, so it
+	   never points at an actor the reveal hasn't armed. Set in the same mono at the
+	   same size as the names on the chart, because it is one of them, read out in a
+	   sentence. Not keyed on the focused actor: the sentence swaps in place as the
+	   tour moves on, and re-running this animation every few seconds would flash. */
 	.route {
+		position: absolute;
+		left: 0;
+		right: 0;
+		margin: 0;
+		padding: 0 1rem;
+		text-align: center;
+		color: var(--color-fg);
 		font-family: var(--font-mono);
-		font-size: var(--14px, 14px);
+		/* matches .node-label in ScrollyVisual */
+		font-size: 11px;
+		line-height: 1.2;
+		/* the caption lies over the layout's tap regions; only the term inside it
+		   is meant to catch a click */
+		pointer-events: none;
 		animation: panel-in 0.4s ease both;
 	}
 
-	.hint {
-		color: var(--color-fg-light);
-	}
-
-	.route {
-		color: var(--color-fg);
+	.route :global(.bits-infoterm) {
+		pointer-events: auto;
 	}
 
 	@media (prefers-reduced-motion: reduce) {
-		.hint,
 		.route {
 			animation: none;
 		}

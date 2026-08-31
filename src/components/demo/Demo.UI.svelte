@@ -8,6 +8,7 @@
 	import Select from "$components/ui/Select.svelte";
 	import ToggleGroup from "$components/ui/ToggleGroup.svelte";
 	import Slider from "$components/ui/Slider.svelte";
+	import InfoTerm from "$components/ui/InfoTerm.svelte";
 	const variants = ["default", "secondary", "outline", "ghost", "link"];
 	const sizes = ["sm", "default", "lg", "icon"];
 	const selectItems = [
@@ -112,6 +113,27 @@
 		<h2>Slider</h2>
 		<div>
 			<Slider min={0} max={100} step={1} value={50} />
+		</div>
+	</section>
+
+	<section>
+		<h2>Info Term</h2>
+		<div>
+			<p>
+				The corpus is the
+				<InfoTerm title="What counts as a film here">
+					10,000 films
+					{#snippet info()}
+						<p>
+							The IMDb top 10,000 English-language feature films by user vote
+							count — the single canonical corpus behind every number in the
+							story.
+						</p>
+					{/snippet}
+				</InfoTerm>
+				most people have actually heard of. Narrow the window below 30rem and the
+				same term opens as a bottom sheet instead.
+			</p>
 		</div>
 	</section>
 </div>

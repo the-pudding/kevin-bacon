@@ -418,30 +418,40 @@ for (const rank of [2, 3]) {
 	);
 }
 
-// [sampleId, sampleId, film, year] — the film is the corpus title linking the
-// pair, so step 1 can name a route to Bacon without the analysis graph DB
-const edges = intro.edges.map(({ source, target, film, year }) => [
+// [sampleId, sampleId, [[title, year], …]] — every corpus film linking the pair,
+// newest first, so step 1 can name a whole route to Bacon (and the films behind
+// each hop of it) without the analysis graph DB
+const edges = intro.edges.map(({ source, target, films }) => [
 	idByPid.get(source),
 	idByPid.get(target),
-	film,
-	year
+	films.map(({ title, year }) => [title, year])
 ]);
 assert(
 	edges.every(([s, t]) => s !== undefined && t !== undefined),
 	"intro edge endpoint missing from sample"
 );
 assert(
-	edges.every(([, , film]) => typeof film === "string" && film.length > 0),
-	"intro edge missing its connecting film"
+	edges.every(
+		([, , films]) =>
+			films.length > 0 &&
+			films.every(([title]) => typeof title === "string" && title.length > 0)
+	),
+	"intro edge missing its connecting film(s)"
 );
 // the route step quotes this pair verbatim: Austin Butler → Emma Stone → Bacon
 assert(
 	edges.some(
-		([s, t, film]) =>
+		([s, t, films]) =>
 			[s, t].every((id) => [idOf(86654), idOf(54693)].includes(id)) &&
-			film === "Eddington"
+			films.some(([title]) => title === "Eddington")
 	),
 	"Austin Butler ↔ Emma Stone should be linked by Eddington"
+);
+// the two pairs with more than one corpus film — the reason the edge carries a
+// list rather than a single title (see the route panel at step 1)
+assert(
+	edges.filter(([, , films]) => films.length > 1).length === 2,
+	"expected exactly two intro edges with multiple connecting films"
 );
 
 const introXY = intro.nodes.map((n) => [n.x, n.y]);

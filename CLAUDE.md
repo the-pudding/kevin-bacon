@@ -34,7 +34,7 @@ This is The Pudding's `svelte-starter` template (SvelteKit 2 + Svelte 5 with run
   - `scrolly/` — the story's object-constancy visual framework (canvas dots tweening between per-step layout states, driven by the active step index from `helpers/Wizard.svelte`). Architecture and contracts documented in `notes/scrolly-framework.md` — read that before touching these files.
   - `helpers/` — interaction helpers; `Wizard.svelte` (the story's prev/next step driver) and the CMS helpers are in — most others live under `helpers/migrate/` and `layercake/migrate/` as unmigrated starter templates.
   - `layercake/` — LayerCake chart primitives (requires installing the `layercake` package before use).
-  - `ui/` — bits-ui-based headless UI wrappers (Button, Checkbox, Select, Slider, Switch, ToggleGroup).
+  - `ui/` — bits-ui-based headless UI wrappers (Button, Checkbox, InfoTerm, Select, Slider, Switch, ToggleGroup). Each is styled from a global `src/styles/ui.<name>.css` that must be `@import`ed by `src/styles/ui.css`, not from a scoped `<style>` block.
 - `src/runes/` — Svelte 5 rune-based state utilities (`useWindowDimensions`, `useClipboard`, `useFetcher`, `useWindowFocus`); the `runed` package is also preloaded for more.
 - `src/actions/` — Svelte actions (`canTab`, `checkOverlap`, `focusTrap`, `keepWithinBox`, `inView`, `resize`).
 - `src/utils/` — plain JS helpers (CSV/JSON/image loading, localStorage, URL params, transforms).

@@ -27,16 +27,16 @@ line's P50/P10 toggle) re-run the current layout via params — see
 
 ## Files
 
-| File                                          | Role                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
-| --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `src/components/scrolly/nodes.js`             | Real data: `makeNodes()` → `{ nodes, edges }` decoded from `src/data/scrolly-nodes.json` (built by `npm run scrolly-data`). 11,486 `ActorNode`s (`id, pid, name, hop, films, avgDistance, rank`); node 0 is the anchor (Kevin Bacon), ids 0–14 are the curated intro network in reveal order (`INTRO_IDS`), edges are the 18 intro edges. Also exports `ANCHOR_ID`, `INTRO_LAYOUT` (baked 860×680 planar intro coords) and `hash01(id, salt)` — deterministic per-node randomness used everywhere (never `Math.random`, which would flicker between renders). |
-| `src/components/scrolly/tween.js`             | `createTweener(size, draw, stride)` → `{ current, to, stop }`. One rAF loop lerping a flat `Float64Array` from the _currently rendered_ values to a target. `to(next, ms, jitter, nodeDelays?)`. Vanilla (hand-rolled `easeCubicInOut`), no d3.                                                                                                                                                                                                                                                                                                               |
-| `src/components/scrolly/layout-shared.js`     | Geometry/color constants, attr/trail helpers (`set`, `setEdge`, `setTrail`, `collapseTrail`, `clipSeries`), named-actor id lookups (`SLJ`, `HANKS`, …), and the `LayoutFn`/`LayoutResult`/`Note`/`Tick` JSDoc typedefs — everything shared across more than one chapter.                                                                                                                                                                                                                                                                                      |
-| `src/components/scrolly/layouts/*.js`         | One module per story chapter (`intro`, `hop-bands`, `rank`, `race`, `scatters`, `prediction`, `career`, `sim-race`, `genz-line`). Each exports a `states` object mapping state key → `{ layout, labels?, params?, pulse?, revealFrom?, entry?, overlay? }` (`revealFrom` scopes the layout's `delays` choreography to specific prior states — arriving from any other state is one plain tween) — everything about one state colocated in one object, instead of spread across parallel top-level maps.                                                       |
-| `src/components/scrolly/states.js`            | Thin aggregator: merges every chapter's `states` object into one registry and derives the public `STATES`/`STATE_LABELS`/`STATE_PARAMS`/`STATE_PULSE`/`OVERLAYS` exports from it, plus `STATE_TRACKED`, `INTERACTIVE_IDS`, and the `nodeName`/`nodeRank`/`nodeAvgDistance` lookups. This is still the only module other files import from.                                                                                                                                                                                                                    |
-| `src/components/scrolly/Step.svelte`          | One story step: prose in the slot, visual state declared on the tag (`<Step state="lone">…</Step>`). Registers `{ state, params, panel? }` in document order with the `"scrolly-steps"` context provided by `Index.svelte`; renders its prose only while active — no hand-numbered step indices anywhere. `panel` is an optional snippet rendered over the canvas while the step is active (see "Exception" under interaction patterns).                                                                                                                      |
-| `src/components/helpers/Wizard.svelte`        | The step driver: headless Previous/Next buttons + ArrowLeft/ArrowRight advancing a bindable 0-based `value`, which `Index.svelte` maps through `stepConfigs` to the active state/params.                                                                                                                                                                                                                                                                                                                                                                      |
-| `src/components/scrolly/ScrollyVisual.svelte` | Canvas host wired into `Index.svelte` as `<ScrollyVisual state={…} />` (a state name, not a step number). Owns dpr scaling, resize, reduced-motion, the HTML overlay, and the `$effect` that reacts to state changes.                                                                                                                                                                                                                                                                                                                                         |
+| File                                          | Role                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| --------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/components/scrolly/nodes.js`             | Real data: `makeNodes()` → `{ nodes, edges }` decoded from `src/data/scrolly-nodes.json` (built by `npm run scrolly-data`). 11,486 `ActorNode`s (`id, pid, name, hop, films, avgDistance, rank`); node 0 is the anchor (Kevin Bacon), ids 0–14 are the curated intro network in reveal order (`INTRO_IDS`), edges are the 18 intro edges (`[sourceId, targetId, [[title, year], …]]` — **every** corpus film linking the pair, newest first; two of the eighteen have more than one). Also exports `ANCHOR_ID`, `INTRO_LAYOUT` (baked 860×680 planar intro coords) and `hash01(id, salt)` — deterministic per-node randomness used everywhere (never `Math.random`, which would flicker between renders). |
+| `src/components/scrolly/tween.js`             | `createTweener(size, draw, stride)` → `{ current, to, stop }`. One rAF loop lerping a flat `Float64Array` from the _currently rendered_ values to a target. `to(next, ms, jitter, nodeDelays?)`. Vanilla (hand-rolled `easeCubicInOut`), no d3.                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| `src/components/scrolly/layout-shared.js`     | Geometry/color constants, attr/trail helpers (`set`, `setEdge`, `setTrail`, `collapseTrail`, `clipSeries`), named-actor id lookups (`SLJ`, `HANKS`, …), and the `LayoutFn`/`LayoutResult`/`Note`/`Tick` JSDoc typedefs — everything shared across more than one chapter.                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| `src/components/scrolly/layouts/*.js`         | One module per story chapter (`intro`, `hop-bands`, `rank`, `race`, `scatters`, `prediction`, `career`, `sim-race`, `genz-line`). Each exports a `states` object mapping state key → `{ layout, labels?, params?, pulse?, revealFrom?, entry?, overlay? }` (`revealFrom` scopes the layout's `delays` choreography to specific prior states — arriving from any other state is one plain tween) — everything about one state colocated in one object, instead of spread across parallel top-level maps.                                                                                                                                                                                                   |
+| `src/components/scrolly/states.js`            | Thin aggregator: merges every chapter's `states` object into one registry and derives the public `STATES`/`STATE_LABELS`/`STATE_PARAMS`/`STATE_PULSE`/`OVERLAYS` exports from it, plus `STATE_TRACKED`, `INTERACTIVE_IDS`, and the `nodeName`/`nodeRank`/`nodeAvgDistance` lookups. This is still the only module other files import from.                                                                                                                                                                                                                                                                                                                                                                |
+| `src/components/scrolly/Step.svelte`          | One story step: prose in the slot, visual state declared on the tag (`<Step state="lone">…</Step>`). Registers `{ state, params, panel? }` in document order with the `"scrolly-steps"` context provided by `Index.svelte`; renders its prose only while active — no hand-numbered step indices anywhere. `panel` is an optional snippet rendered over the canvas while the step is active (see "Exception" under interaction patterns).                                                                                                                                                                                                                                                                  |
+| `src/components/helpers/Wizard.svelte`        | The step driver: headless Previous/Next buttons + ArrowLeft/ArrowRight advancing a bindable 0-based `value`, which `Index.svelte` maps through `stepConfigs` to the active state/params.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| `src/components/scrolly/ScrollyVisual.svelte` | Canvas host wired into `Index.svelte` as `<ScrollyVisual state={…} />` (a state name, not a step number). Owns dpr scaling, resize, reduced-motion, the HTML overlay, and the `$effect` that reacts to state changes.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 
 JSDoc typedefs (`ActorNode`, `Edge`, `LayoutResult`, `LayoutFn`, `Tweener`) are in
 `nodes.js` / `layout-shared.js` / `tween.js` — VS Code type-checks them without any
@@ -392,7 +392,41 @@ may be functions of the current params (dynamic labels, e.g. answered quiz
 pairs); every id such a function can return **must** be listed in
 `STATE_TRACKED` — `TRACKED_IDS` is built from the static label arrays plus that
 list, so an id missing from it has no `<p>` to render into and its name silently
-never appears.
+never appears. (`networkIntro` labels dynamically — only the focused actor and
+their route — and needs no `STATE_TRACKED` entry because `lone` still declares
+the same `INTRO_IDS` as a static array.)
+
+**Step 1's tour and its route panel.** `networkIntro` does not wait to be tapped.
+Index.svelte walks `CYCLE_ORDER` (exported from `layouts/intro.js`) every
+`TOUR_MS`, writing `story.introFocus`, so the step demonstrates the game on its
+own; the card reads one line, "X is _two movies_ away from Kevin Bacon". A tap
+sets `story.introPinned` and the tour stands down. It is a plain toggle, so every
+tap does exactly one visible thing: tapping the highlighted actor again — or
+Bacon, who has no route to himself — clears the highlight and leaves the
+constellation neutral (no caption, all fifteen names back), and the tour picks up
+on its next beat, one past where the reader left it. A release bumps
+`story.introReleases`, which the tour effect watches to know the highlight was
+dismissed rather than carrying on mid-turn: `touring` alone doesn't change when a
+reader clears an actor the tour was already showing.
+
+**The tour effect must never read `story.introFocus`.** It writes it, so reading
+it too makes the effect invalidate itself on its own write — each tick re-runs
+it, fires a second `showNext` and restarts the interval, and the tour skips an
+actor on every tap. That is why the release signal is a counter in `story` rather
+than an `introFocus == null` test inside the effect. Auto-advancing text is motion the reader did not ask
+for, so under `prefers-reduced-motion` the tour seeds the first actor and stops
+there. The films behind each hop live in a `ui/InfoTerm` panel behind "two
+movies" (`RouteFilms.svelte`), not in the card — see the note in "Known gaps"
+about a growing card covering the layout's `hits`. The caption itself is the
+step's `panel` snippet, not card prose: it is naming a dot, so it is set in the
+same mono at the same size as `.node-label` and floated a fixed 12px under the
+constellation's lowest name. That y comes from `introBottom(w, h)` (exported from
+`layouts/intro.js`), off the layout's own geometry rather than a fraction of the
+canvas — the intro fit is width-limited on a tall phone, so the graph stops well
+short of its band and any fixed fraction leaves a hole under it. Index measures
+the canvas box and the caption's own height to clamp it off the step card, which
+only binds around 360×640. It is `pointer-events: none` apart from the term
+inside it, so it can lie over the layout's `hits` without swallowing taps.
 
 ## How to add a state
 
@@ -603,14 +637,13 @@ impossible to retrofit meaningfully after launch.
 - Step prose and the wizard nav overlay the bottom of the full-height canvas
   (`.scrolly-steps` in Index.svelte); layouts should keep essential marks out
   of the bottom quarter where they sit.
-- Known and accepted: a step card that grows can cover a layout's `hits`, and
-  the card wins the tap. `networkIntro`'s route caption is the one case — the
-  intro constellation's lowest dots sit at ~0.84 of its baked box, inside the
-  card's zone. Measured with the longest caption (Margot Robbie, three routes):
-  fine at 390×844 and up, covers the four lowest actors at 390×667, and seven
-  including Bacon at 360×640, where nothing is left to clear the selection with.
-  Deliberately left as is — the fixes all cost either the caption's detail or
-  the constellation's size. Revisit if small-phone traffic matters.
+- A step card that grows can cover a layout's `hits`, and the card wins the tap.
+  `networkIntro` used to be the one case: its caption walked every route in
+  prose, which ran to several sentences and covered the four lowest actors at
+  390×667 and seven including Bacon at 360×640. Closed by moving the films into
+  the route panel (see "Step 1's route panel" below) — the caption is now one
+  line and every dot clears the card at 360×640. Any future caption that can run
+  past two lines reopens it.
 - Overlay label swap uses `{#key}`: new label fades in, old one is removed
   instantly (no crossfade). Fine for PoC; use Svelte transitions later.
 - The dot-transition and color/alpha patterns were adapted from Storybook

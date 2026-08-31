@@ -160,6 +160,8 @@ _Need to migrate_
 
 [bits UI](https://www.bits-ui.com/docs/introduction) comes pre-installed. It is recommended to use these for any UI components.
 
+Wrappers live in `src/components/ui` (Button, Checkbox, InfoTerm, Select, Slider, Switch, ToggleGroup), each styled from a matching `src/styles/ui.<name>.css` imported by `src/styles/ui.css`. `InfoTerm` is a dotted-underlined term in running prose that opens its detail — a tethered popover on desktop, a bottom sheet on a phone. All of them are exercised at `/demo/ui`.
+
 ### Layercake Chart Components
 
 Starter templates for various chart types to be used with [LayerCake](https://layercake.graphics/). Located in `src/components/layercake`.

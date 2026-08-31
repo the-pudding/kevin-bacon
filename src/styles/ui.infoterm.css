@@ -1,0 +1,136 @@
+/* INFOTERM — a dotted-underlined term in prose that opens a panel of detail.
+   One rule set covers both presentations: a tethered popover at desktop widths,
+   a bottom sheet on a phone (see InfoTerm.svelte). */
+
+/* the term itself. reset.css gives a bare <button> the filled primary styling,
+   so this has to strip back to plain inline text before underlining it */
+.bits-infoterm {
+	background: none;
+	border: 0;
+	padding: 0;
+	margin: 0;
+	font: inherit;
+	color: inherit;
+	cursor: pointer;
+	text-decoration-line: underline;
+	text-decoration-style: dotted;
+	text-decoration-thickness: 1px;
+	text-underline-offset: 3px;
+	text-decoration-color: var(--color-fg-light);
+}
+
+/* reset.css paints every <button> with the filled primary style on hover, at
+   `button:hover` — the same specificity as this, so the background has to be
+   restated here (ui.css is imported after reset.css) or the term turns into a
+   black pill the moment the pointer touches it */
+.bits-infoterm:hover,
+.bits-infoterm:focus-visible,
+.bits-infoterm[data-state="open"] {
+	background: none;
+	color: inherit;
+	text-decoration-color: currentcolor;
+}
+
+[data-infoterm-panel] {
+	z-index: var(--z-modal);
+	box-sizing: border-box;
+	max-width: min(22rem, calc(100vw - 1.5rem));
+	padding: 0.875rem 1rem 1rem;
+	background: var(--color-bg);
+	color: var(--color-fg);
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-md);
+	box-shadow: 0 6px 24px rgb(0 0 0 / 15%);
+	font-family: var(--font-form);
+	font-size: var(--14px, 14px);
+	line-height: 1.4;
+	/* a long list of films still has to fit above the fold on a short viewport */
+	max-height: min(60vh, 30rem);
+	overflow-y: auto;
+	animation: infoterm-in calc(var(--1s) * 0.15) ease both;
+}
+
+/* header stays put while a long body scrolls under it, so the close never
+   drifts out of reach */
+[data-infoterm-head] {
+	position: sticky;
+	top: 0;
+	z-index: 1;
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 0.75rem;
+	margin-bottom: 0.625rem;
+	padding-bottom: 0.25rem;
+	background: var(--color-bg);
+}
+
+[data-infoterm-title] {
+	margin: 0;
+	font-size: var(--14px, 14px);
+	font-weight: 600;
+	line-height: 1.3;
+}
+
+[data-infoterm-close] {
+	flex: none;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 1.5rem;
+	height: 1.5rem;
+	margin: -0.25rem -0.25rem 0 0;
+	padding: 0;
+	background: none;
+	border: 0;
+	border-radius: var(--radius-sm);
+	color: var(--color-fg-light);
+	cursor: pointer;
+}
+
+[data-infoterm-close]:hover {
+	color: var(--color-fg);
+}
+
+[data-infoterm-close] svg {
+	width: 1rem;
+	height: 1rem;
+}
+
+/* --- phone: bottom sheet over a scrim --- */
+[data-infoterm-scrim] {
+	position: fixed;
+	inset: 0;
+	z-index: var(--z-overlay);
+	background: rgb(0 0 0 / 40%);
+	animation: infoterm-scrim-in calc(var(--1s) * 0.15) ease both;
+}
+
+[data-infoterm-sheet] {
+	position: fixed;
+	inset: auto 0 0 0;
+	max-width: none;
+	padding-bottom: max(1rem, env(safe-area-inset-bottom));
+	border-width: 1px 0 0;
+	border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+	animation-name: infoterm-sheet-in;
+}
+
+@keyframes infoterm-in {
+	from {
+		opacity: 0;
+		transform: translateY(4px);
+	}
+}
+
+@keyframes infoterm-sheet-in {
+	from {
+		transform: translateY(100%);
+	}
+}
+
+@keyframes infoterm-scrim-in {
+	from {
+		opacity: 0;
+	}
+}

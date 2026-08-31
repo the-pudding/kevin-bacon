@@ -43,6 +43,8 @@ words:
   - recentres
   - misposition
   - playhead
+  - playheads
+  - infoterm
   - gridlines
   - conc
   - decollider
