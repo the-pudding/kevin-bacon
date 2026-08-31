@@ -135,6 +135,23 @@
 		raceYBandDev = await import("$components/scrolly/RaceYBandDev.svelte");
 	});
 
+	// The race chart's x-axis density tuner. Same dynamic-import rationale as
+	// raceYBandDev above.
+	let racePxPerYearDev = $state(null);
+	onMount(async () => {
+		if (!import.meta.env.DEV) return;
+		racePxPerYearDev =
+			await import("$components/scrolly/RacePxPerYearDev.svelte");
+	});
+
+	// The race chart's animation speed tuner. Same dynamic-import rationale as
+	// raceYBandDev above.
+	let raceSpeedDev = $state(null);
+	onMount(async () => {
+		if (!import.meta.env.DEV) return;
+		raceSpeedDev = await import("$components/scrolly/RaceSpeedDev.svelte");
+	});
+
 	$effect(() => {
 		urlParams.set(STEP_PARAM, value);
 	});
@@ -274,6 +291,12 @@
 				     until story.raceCam exists, i.e. off the race chapter. -->
 				{#if raceYBandDev}
 					<raceYBandDev.default />
+				{/if}
+				{#if racePxPerYearDev}
+					<racePxPerYearDev.default />
+				{/if}
+				{#if raceSpeedDev}
+					<raceSpeedDev.default />
 				{/if}
 			</div>
 			<div class="scrolly-steps" bind:clientHeight={stepsHeight}>
@@ -472,7 +495,8 @@
 					<Step state="raceRecent" panel={rankPanel}>
 						<p>
 							Samuel L. Jackson has been the center of Hollywood since 2006,
-							taking over from Gene Hackman.
+							taking over from Gene Hackman. By using completed calendar years,
+							our time machine starts at the end of 2025.
 						</p>
 					</Step>
 					<Step state="raceTrades">

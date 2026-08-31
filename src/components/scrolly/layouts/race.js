@@ -59,11 +59,40 @@ import {
 // ---------------------------------------------------------------------------
 
 // px between consecutive years. The one dial for axis density: a horizontal
-// 4-digit `.tick` label (0.65rem) is ~24px, so this leaves ~14px of clear space
-// between neighbouring years. Paired with the name-gutter fraction in racePlot —
-// those two decide how many years a phone can show at once, so buying more
-// padding here costs visible years.
-export const PX_PER_YEAR = 38;
+// 4-digit `.tick` label (0.65rem) is ~24px, so this leaves clear space between
+// neighbouring years. Paired with the name-gutter fraction in racePlot — those
+// two decide how many years a phone can show at once, so buying more padding
+// here costs visible years.
+//
+// A plain module variable rather than a const: RacePxPerYearDev (DEV only)
+// tunes it live through setRacePxPerYear. Kept as a bare variable, not a rune,
+// so the per-frame draw loop below never touches reactive state — same
+// rationale as devBandSegs.
+let pxPerYear = 76;
+export function setRacePxPerYear(px) {
+	pxPerYear = px;
+}
+export function getRacePxPerYear() {
+	return pxPerYear;
+}
+
+// Multiplies every choreographed race animation's duration (the entry draw-on
+// and every rewind leg, in ScrollyVisual.svelte's runSweepPhase/rewindMs): 1 is
+// the originally-tuned pace, >1 slows it down, <1 speeds it up. 1.5 is the
+// shipped default — the widened x scale above (pxPerYear) made the rewind pans
+// read as noticeably faster, so this pulls the pace back down.
+//
+// Same plain-module-variable pattern as pxPerYear: RaceSpeedDev (DEV only)
+// tunes it live through setRaceSpeedScale. It never needs to bump a story
+// revision or clear the layout cache the way pxPerYear does — nothing here is
+// cached, each animation only reads the current scale once, when it starts.
+let speedScale = 1.5;
+export function setRaceSpeedScale(scale) {
+	speedScale = scale;
+}
+export function getRaceSpeedScale() {
+	return speedScale;
+}
 
 // full-series monotone-cubic segments per race actor, built once (the data is
 // static). Shared by the static layout and the per-frame sweep so both read the
@@ -417,7 +446,7 @@ function racePlot(w, h) {
 /** years that fit across the plot at the fixed scale — a function of width only */
 export function raceVisibleSpan(w, h) {
 	const plot = racePlot(w, h);
-	return (plot.right - plot.left) / PX_PER_YEAR;
+	return (plot.right - plot.left) / pxPerYear;
 }
 
 /**
@@ -442,7 +471,7 @@ export function raceVisibleSpan(w, h) {
  */
 function raceCamera(w, h, playhead) {
 	const plot = racePlot(w, h);
-	const visibleSpan = (plot.right - plot.left) / PX_PER_YEAR;
+	const visibleSpan = (plot.right - plot.left) / pxPerYear;
 	const camLeft = playhead - visibleSpan;
 	return {
 		...plot,
@@ -450,7 +479,7 @@ function raceCamera(w, h, playhead) {
 		camLeft,
 		camRight: playhead,
 		playhead,
-		xS: (yr) => plot.left + (yr - camLeft) * PX_PER_YEAR
+		xS: (yr) => plot.left + (yr - camLeft) * pxPerYear
 	};
 }
 

@@ -102,5 +102,11 @@ export const story = $state({
 	 * per-year y band table. The table itself lives in layouts/race.js (set through
 	 * setRaceDevBands) so nothing reactive lands in the per-frame path; this is only
 	 * the signal that tells ScrollyVisual to drop its cached layouts and redraw. */
-	raceYBandsRev: 0
+	raceYBandsRev: 0,
+	/** race chart, DEV ONLY: bumped by RacePxPerYearDev.svelte after every edit to
+	 * the x-axis year spacing. The value itself lives in layouts/race.js (set
+	 * through setRacePxPerYear) so nothing reactive lands in the per-frame path;
+	 * this is only the signal that tells ScrollyVisual to drop its cached layouts
+	 * and redraw. */
+	racePxPerYearRev: 0
 });

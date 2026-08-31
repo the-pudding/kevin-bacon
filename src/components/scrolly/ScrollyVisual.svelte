@@ -10,7 +10,8 @@
 		racePanBounds,
 		raceStepVisible,
 		raceDotSpec,
-		PX_PER_YEAR,
+		getRacePxPerYear,
+		getRaceSpeedScale,
 		RACE_RECENT_EXTENT,
 		RACE_RECENT_STEP,
 		RACE_RECENT_VISIBLE,
@@ -134,6 +135,30 @@
 	// buffers, then repaints. Entry choreography draws the actors' lines on from
 	// the present edge. See delivery-plan Stage 4.
 	const SWEEP_MS = 4000;
+	// px/sec the camera pans during a rewind leg (playRaceRewind/playRaceReverse/
+	// playRaceFullEntry/playRaceFullReverse) — one consistent on-screen speed for
+	// every leg, rather than the fixed SWEEP_MS duration those legs used to
+	// share regardless of how many years they cover (19yr and 12yr legs at the
+	// same duration read as two different speeds). Deriving the duration from
+	// distance also keeps that speed constant if pxPerYear is retuned live (see
+	// RacePxPerYearDev) — the pixel distance a leg travels is `years *
+	// getRacePxPerYear()`, so a wider x scale gets a proportionally longer pan
+	// instead of covering the same time in more pixels (which is what made the
+	// rewind look like it sped up when pxPerYear doubled).
+	const REWIND_PX_PER_SEC = 300;
+	const REWIND_MS_MIN = 1200;
+	const REWIND_MS_MAX = 6000;
+	// every duration below (this one and SWEEP_MS, via runSweepPhase's default
+	// `ms` param) is multiplied by getRaceSpeedScale() — see its definition in
+	// layouts/race.js for why a plain function call rather than a cached value.
+	function rewindMs(fromP, toP) {
+		const px = Math.abs(toP - fromP) * getRacePxPerYear();
+		const scale = getRaceSpeedScale();
+		return Math.min(
+			REWIND_MS_MAX * scale,
+			Math.max(REWIND_MS_MIN * scale, (px / REWIND_PX_PER_SEC) * 1000 * scale)
+		);
+	}
 	// trapezoidal speed profile (ported from the reference _animate): R = ramp
 	// fraction at each end, V = cruise speed so integrated progress is exactly 1.
 	// The phase ramps to zero velocity at each end so the draw-on lands softly.
@@ -243,11 +268,17 @@
 	// wherever this one actually got to. Nothing here says anything about the y
 	// axis: writeRaceSweepFrame fits it to the camera of the frame it is given, so
 	// a leg's axis follows its own pan and lands on its settle's by construction.
-	function runSweepPhase(map, yCap, onDone, shown = null) {
+	function runSweepPhase(
+		map,
+		yCap,
+		onDone,
+		shown = null,
+		ms = SWEEP_MS * getRaceSpeedScale()
+	) {
 		const alphaAt =
 			typeof shown === "function" ? shown : (e) => shownAlpha(shown, e);
 		runPhase(
-			SWEEP_MS,
+			ms,
 			(e) => {
 				const { axes, cam } = writeRaceSweepFrame(
 					tweener.current,
@@ -382,6 +413,7 @@
 	// DEV only: last y-band revision the cache was valid for (see the render
 	// effect). Always 0 in a build, where the tuning panel doesn't exist.
 	let lastBandRev = 0;
+	let lastPxRev = 0;
 	function layoutFor(name, w, h, layoutParams) {
 		// a race camera hold is a fresh continuous value every time the reader
 		// releases a pan, and each entry is ~0.8MB of Float64Array — never a cache
@@ -658,7 +690,8 @@
 				story.raceView = finalView;
 				publishRaceCam();
 			},
-			shown
+			shown,
+			rewindMs(fromP, toP)
 		);
 	}
 
@@ -705,7 +738,8 @@
 				story.raceView = finalView;
 				publishRaceCam();
 			},
-			shown
+			shown,
+			rewindMs(fromP, toP)
 		);
 	}
 
@@ -764,7 +798,8 @@
 				story.raceView = finalView;
 				publishRaceCam();
 			},
-			shown
+			shown,
+			rewindMs(fromP, toP)
 		);
 	}
 
@@ -817,7 +852,8 @@
 				story.raceView = finalView;
 				publishRaceCam();
 			},
-			shown
+			shown,
+			rewindMs(fromP, toP)
 		);
 	}
 
@@ -1185,7 +1221,7 @@
 			story.raceView = { playhead: renderPlayhead };
 		}
 		story.raceCam = {
-			pxPerYear: PX_PER_YEAR,
+			pxPerYear: getRacePxPerYear(),
 			playhead: renderPlayhead,
 			...bounds
 		};
@@ -1275,6 +1311,11 @@
 		// cached layouts whenever it moves.
 		if (import.meta.env.DEV && story.raceYBandsRev !== lastBandRev) {
 			lastBandRev = story.raceYBandsRev;
+			layoutCache.clear();
+		}
+		// DEV: same idea for RacePxPerYearDev's x-axis density slider.
+		if (import.meta.env.DEV && story.racePxPerYearRev !== lastPxRev) {
+			lastPxRev = story.racePxPerYearRev;
 			layoutCache.clear();
 		}
 		if (!canvas || !width || !height || !stateName) return;
