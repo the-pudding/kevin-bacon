@@ -169,7 +169,7 @@
 		// the rank panel only carries over into raceRecent when the reader actually
 		// walks there out of the rank chapter — that is the one arrival whose bars
 		// collapse into the chart's dots. Reloading straight onto raceRecent, or
-		// stepping back to it from raceTrades, must not flash the list up over a
+		// stepping back to it from raceFull, must not flash the list up over a
 		// chart that is already drawn.
 		rankHandoff =
 			stepConfigs[to]?.state === "raceRecent" && isRankState(currentState);
@@ -287,9 +287,9 @@
 				     markup lives next to the <Step> that owns it -->
 				{@render stepConfigs[value ?? 0]?.panel?.()}
 				<!-- dev-only y-band tuner. Mounted outside stepConfigs so it spans the
-				     whole race chapter (raceTrades declares no panel of its own) and
-				     keeps its table installed across step changes; it renders nothing
-				     until story.raceCam exists, i.e. off the race chapter. -->
+				     whole race chapter and keeps its table installed across step
+				     changes; it renders nothing until story.raceCam exists, i.e. off
+				     the race chapter. -->
 				{#if raceYBandDev}
 					<raceYBandDev.default />
 				{/if}
@@ -336,7 +336,7 @@
 					</div>
 				{/snippet}
 				<!-- raceFull pan control: drag surface + year slider over the plot. Only
-				     raceFull gets it — the first two race steps are carried by their own
+				     raceFull gets it — the raceRecent steps are carried by their own
 				     camera choreography, so they need no control of their own. Renders
 				     nothing on a viewport wide enough to show the whole range. -->
 				<!-- the pair quiz renders as a blurred overlay over the scatter; the
@@ -501,9 +501,6 @@
 						</p>
 					</Step>
 
-					<!-- PAST -->
-					<!-- keeps the rank panel mounted for one more step: its bars collapse
-					     into this chart's dots, then hand them to the canvas -->
 					<Step state="raceRecent" panel={raceStartPanel}>
 						<p>
 							We can repeat the process for calculating all actors' remoteness
@@ -515,15 +512,9 @@
 					</Step>
 					<Step state="raceRecent" panel={rankPanel}>
 						<p>
-							Samuel L. Jackson has been the center of Hollywood since 2006,
-							taking over from Gene Hackman.
-						</p>
-					</Step>
-					<Step state="raceTrades">
-						<p>
-							Before then, the crown changed heads frequently, with Frank
-							Welker, Robert De Niro and Gene Hackman fighting over top spot for
-							the previous decade.
+							Let's go back to where Samuel L. Jackson took the crown in 2006.
+							Interestingly this was before any MCU movie took place, which only
+							made matters worse for his competitors.
 						</p>
 					</Step>
 					<Step state="raceFull" panel={racePanel}>
@@ -535,7 +526,6 @@
 						</p>
 					</Step>
 
-					<!-- FUTURE -->
 					<Step state="raceFull" panel={racePanel}>
 						<p>
 							Now imagine us taking this into the future. How might we predict

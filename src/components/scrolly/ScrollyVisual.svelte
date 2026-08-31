@@ -16,7 +16,6 @@
 		RACE_RECENT_STEP,
 		RACE_RECENT_VISIBLE,
 		RACE_REWIND_WAYPOINT_YEAR,
-		RACE_TRADES_STEP,
 		RACE_FULL_STEP,
 		RACE_CAST,
 		RACE_TRAIL_SLOTS,
@@ -228,10 +227,7 @@
 				: shown.from.has(id)
 					? Math.max(0, 1 - e / SHOWN_DEPART_END)
 					: 0);
-	// the one state whose arrival plays the rewind's second leg (scoped by
-	// revealFrom) — see playRaceEntry/playRaceRewind for the two-leg split
-	const RACE_REWIND_STATE = "raceTrades";
-	// the one state whose arrival plays the rewind's third and final leg (scoped
+	// the one state whose arrival plays the rewind's second and final leg (scoped
 	// by revealFrom) — see playRaceFullEntry
 	const RACE_FULL_STATE = "raceFull";
 	// per-frame smoothing factor for the pan glide: renderPlayhead moves this
@@ -635,25 +631,23 @@
 		);
 	}
 
-	// Race-chapter rewind, played in two legs so the "camera moving back in time"
-	// motion is visible across both raceRecent and raceTrades instead of happening
-	// all at once during raceRecent: leg 1 (fired by the raceRewindNonce effect
-	// below, once the reader presses Start) pans from the present back to
-	// RACE_REWIND_WAYPOINT_YEAR and stops; leg 2
-	// (played on arrival at raceTrades) continues the same pan on from wherever
-	// raceRecent's camera got to, down to raceTrades' own resting year. At a fixed
-	// px-per-year both legs are pure x-translation — the camera can never zoom.
+	// Race-chapter rewind, leg 1: fired by the raceRewindNonce effect below, once
+	// the reader presses Start. Pans the camera back from the present to
+	// RACE_REWIND_WAYPOINT_YEAR and stops there, within raceRecent — the second
+	// leg (playRaceFullEntry) continues the same pan on from wherever this one
+	// got to when the reader arrives at raceFull, so the "camera moving back in
+	// time" motion is visible in two beats instead of happening all at once. At a
+	// fixed px-per-year the leg is pure x-translation — the camera can never zoom.
 	//
-	// `toExtent`/`toCap` describe the LANDING state: the leg fades out actors who
+	// `toStep`/`toCap` describe the LANDING state: the leg fades out actors who
 	// stop being contenders there (and fades in any who start), so its last frame
 	// matches the yCap-filtered static settle exactly instead of dropping them in
 	// one pop. The frame's own extent is the leg's camera travel instead, so the
 	// visible line always runs right up to the dot mid-pan; the visible set is
 	// passed in, so that wider extent never leaks into it.
 	//
-	// Neither leg says anything about the y axis: it is fitted to each frame's own
-	// camera, so it pans with the leg and arrives on the settle's axis by
-	// construction.
+	// Says nothing about the y axis: it is fitted to each frame's own camera, so
+	// it pans with the leg and arrives on the settle's axis by construction.
 	function playRaceRewind(fromP, toP, toStep, toCap) {
 		if (!width || !height) return;
 		const finalView = { playhead: toP };
@@ -667,8 +661,7 @@
 			Math.min(fromP, toP) - span,
 			Math.max(fromP, toP)
 		]);
-		// both legs start from a frame showing raceRecent's set (leg 1 from the entry
-		// draw-on, leg 2 from raceRecent wherever its camera had reached)
+		// starts from a frame showing raceRecent's set (the entry draw-on)
 		const shown = {
 			from: RACE_RECENT_VISIBLE,
 			// raceStepVisible, not raceContenders: it is the single reader of a step's
@@ -693,57 +686,10 @@
 		);
 	}
 
-	// The rewind's leg 2 run backwards, played when the reader steps back from
-	// raceTrades to raceRecent, so going back retraces the pan that brought them here
-	// instead of cutting to a tween. Exactly one leg: it lands on
-	// RACE_REWIND_WAYPOINT_YEAR, which is where raceRecent rests once its own
-	// choreography has run (leg 1 parks the camera there) — so stepping forward again
-	// replays leg 2 from the same place the first pass did.
-	//
-	// Starts from `raceExitPlayhead` — the camera of the step being left, snapshotted
-	// before the state-change effect reset it — so pressing Prev mid-pan reverses
-	// out of wherever the forward motion actually got to instead of jumping to
-	// raceTrades' resting year first.
-	//
-	// Nobody leaves the chart on the way back (raceRecent shows a superset of what
-	// raceTrades does), so the joining actors simply fade in and no departure can be left
-	// fading outside the axis it was fitted to.
-	function playRaceReverse() {
-		if (!width || !height) return;
-		const fromP = raceExitPlayhead ?? RACE_TRADES_STEP.extent[1];
-		const toP = RACE_REWIND_WAYPOINT_YEAR;
-		const finalView = { playhead: toP };
-		// no reducedMotion guard: that case never reaches here, the render effect's
-		// snap branch takes it — and it must, since under reduced motion the forward
-		// legs never run either, so raceRecent rests at the present rather than here
-		const span = raceVisibleSpan(width, height);
-		const legExtent = /** @type {[number, number]} */ ([
-			Math.min(fromP, toP) - span,
-			Math.max(fromP, toP)
-		]);
-		const shown = {
-			from: raceStepVisible(RACE_TRADES_STEP, STATE_YCAP[RACE_REWIND_STATE]),
-			to: RACE_RECENT_VISIBLE
-		};
-		sweeping = true;
-		camPanning = true;
-		runSweepPhase(
-			rewindFrame(RACE_RECENT_STEP, legExtent, fromP, toP),
-			STATE_YCAP[RACE_ENTRY_STATE],
-			() => {
-				sweeping = false;
-				camPanning = false;
-				story.raceView = finalView;
-				publishRaceCam();
-			},
-			shown,
-			rewindMs(fromP, toP)
-		);
-	}
-
-	// Race-chapter rewind, leg 3 and final: played on arrival at raceFull from
-	// raceTrades, continuing the same back-through-time pan on from wherever
-	// leg 2 parked the camera, all the way to raceFull's own resting playhead
+	// Race-chapter rewind, leg 2 and final: played on arrival at raceFull from
+	// raceRecent, continuing the same back-through-time pan on from wherever leg 1
+	// parked the camera (RACE_REWIND_WAYPOINT_YEAR if the reader pressed Start, or
+	// the present if they didn't), all the way to raceFull's own resting playhead
 	// (1970 at the plot's left edge, or its 1980 pan floor on the right where the
 	// viewport is too narrow to show both — see raceFullRestPlayhead).
 	// The axis needs no handling of its own: it follows the camera, so it widens
@@ -752,13 +698,12 @@
 	// Explicitly nulls story.raceCam before the sweep starts: RaceScrubber
 	// renders nothing while it's null, which is what keeps the pan control
 	// hidden until the camera has actually finished arriving at its resting year
-	// instead of
-	// being usable (with stale raceTrades bounds) mid-flight. Safe by effect
-	// ordering — this only ever runs from the render effect, which runs after
-	// the raceStep-driven auto-publish effect within the same flush.
+	// instead of being usable (with stale raceRecent bounds) mid-flight. Safe by
+	// effect ordering — this only ever runs from the render effect, which runs
+	// after the raceStep-driven auto-publish effect within the same flush.
 	function playRaceFullEntry() {
 		if (!width || !height) return;
-		const fromP = raceExitPlayhead ?? RACE_TRADES_STEP.extent[1];
+		const fromP = raceExitPlayhead ?? RACE_RECENT_STEP.extent[1];
 		const toP = raceFullRestPlayhead(width, height);
 		const finalView = { playhead: toP };
 		if (reducedMotion) {
@@ -769,7 +714,7 @@
 		if (toP >= fromP) {
 			// the resting view sits at or ahead of where the camera already is
 			// (a viewport wide enough that the resting year is no further back
-			// than raceTrades left off, or wider still than the whole extent) —
+			// than raceRecent left off, or wider still than the whole extent) —
 			// nothing to pan to
 			story.raceView = finalView;
 			publishRaceCam();
@@ -782,7 +727,7 @@
 			Math.max(fromP, toP)
 		]);
 		const shown = {
-			from: raceStepVisible(RACE_TRADES_STEP, STATE_YCAP[RACE_REWIND_STATE]),
+			from: RACE_RECENT_VISIBLE,
 			to: raceStepVisible(RACE_FULL_STEP, STATE_YCAP[RACE_FULL_STATE])
 		};
 		sweeping = true;
@@ -801,29 +746,27 @@
 		);
 	}
 
-	// The rewind's leg 3 run backwards, played when the reader steps back from
-	// raceFull to raceTrades — the counterpart of playRaceReverse one step later,
-	// so every step of the rewind is retraced rather than only its first half.
-	// It lands on raceTrades' own resting year, which is where a forward step
-	// replays leg 3 from, so stepping back and forward again is a closed loop.
+	// The rewind run backwards, played when the reader steps back from raceFull to
+	// raceRecent, so going back retraces the pan that brought them here instead of
+	// cutting to a tween. It lands on RACE_REWIND_WAYPOINT_YEAR, which is where
+	// raceRecent rests once its own leg-1 choreography has run — so stepping
+	// forward again replays leg 2 from the same place the first pass did.
 	//
 	// Starts from `raceExitPlayhead` — raceFull's camera, snapshotted before the
 	// state-change effect reset it — so Prev out of a reader's own pan (or out of
-	// leg 3 mid-flight) reverses from wherever the camera actually is.
-	//
-	// Nothing here needs to null story.raceCam the way leg 3 does: the pan control
-	// is mounted on raceFull only, so it unmounts with the step we're leaving.
-	function playRaceFullReverse() {
+	// leg 2 mid-flight) reverses from wherever the camera actually is, instead of
+	// jumping to raceFull's resting year first.
+	function playRaceReverse() {
 		if (!width || !height) return;
 		const fromP = raceExitPlayhead ?? raceFullRestPlayhead(width, height);
-		const toP = RACE_TRADES_STEP.extent[1];
+		const toP = RACE_REWIND_WAYPOINT_YEAR;
 		const finalView = { playhead: toP };
 		// no reducedMotion guard: the render effect's snap branch takes that case
 		// before any arrival branch runs
 		if (fromP >= toP) {
-			// the camera already sits at or ahead of raceTrades' resting year — on a
-			// viewport wide enough for that, playRaceFullEntry skipped leg 3 too, so
-			// there is no motion to retrace
+			// the camera already sits at or ahead of the waypoint — on a viewport
+			// wide enough for that, playRaceFullEntry skipped leg 2 too, so there is
+			// no motion to retrace
 			story.raceView = finalView;
 			publishRaceCam();
 			return;
@@ -833,17 +776,17 @@
 			Math.min(fromP, toP) - span,
 			Math.max(fromP, toP)
 		]);
-		// the mirror of leg 3's fade: the whole cast raceFull shows drops back to
-		// the field raceTrades does, over the same early departure window
+		// the mirror of leg 2's fade: the whole cast raceFull shows drops back to
+		// the field raceRecent does, over the same early departure window
 		const shown = {
 			from: raceStepVisible(RACE_FULL_STEP, STATE_YCAP[RACE_FULL_STATE]),
-			to: raceStepVisible(RACE_TRADES_STEP, STATE_YCAP[RACE_REWIND_STATE])
+			to: RACE_RECENT_VISIBLE
 		};
 		sweeping = true;
 		camPanning = true;
 		runSweepPhase(
-			rewindFrame(RACE_TRADES_STEP, legExtent, fromP, toP),
-			STATE_YCAP[RACE_REWIND_STATE],
+			rewindFrame(RACE_RECENT_STEP, legExtent, fromP, toP),
+			STATE_YCAP[RACE_ENTRY_STATE],
 			() => {
 				sweeping = false;
 				camPanning = false;
@@ -1175,7 +1118,7 @@
 	});
 
 	// A cold mount straight into raceFull skips playRaceFullEntry entirely
-	// (that only plays on a forward arrival from raceTrades, per the effect
+	// (that only plays on a forward arrival from raceRecent, per the effect
 	// above), so story.raceView is left null and raceLayout's own fallback
 	// (extent[1], i.e. 2025) settles the chart on the wrong camera. This effect
 	// seeds the real rest playhead as soon as width/height are known — unlike
@@ -1443,32 +1386,21 @@
 		// animation — reduced motion/resize are handled by the branch below.
 		const raceEntry =
 			stateChange && playReveal && stateName === RACE_ENTRY_STATE;
-		// race-chapter arrival at raceTrades (forward, from raceRecent): play the
-		// rewind's second leg instead of a plain state tween. Unconditional — the leg
-		// starts from `raceExitPlayhead`, so it continues the pan from wherever raceRecent's
-		// camera actually was, whether that is the waypoint its own leg 1 parked on,
-		// a point mid-flight if the reader read faster than the choreography, or the
-		// waypoint a backward step retraced to.
-		const raceRewindArrival =
-			stateChange && playReveal && stateName === RACE_REWIND_STATE;
-		// race-chapter arrival at raceRecent going BACKWARDS, from raceTrades: retrace
+		// race-chapter arrival at raceFull (forward, from raceRecent): play the
+		// rewind's second and final leg instead of a plain state tween. Unconditional
+		// — the leg starts from `raceExitPlayhead`, so it continues the pan from
+		// wherever raceRecent's camera actually was, whether that is the waypoint its
+		// own leg 1 parked on, a point mid-flight if the reader read faster than the
+		// choreography, the present if they never pressed Start, or the waypoint a
+		// backward step retraced to — see playRaceFullEntry
+		const raceFullEntryArrival =
+			stateChange && playReveal && stateName === RACE_FULL_STATE;
+		// race-chapter arrival at raceRecent going BACKWARDS, from raceFull: retrace
 		// the rewind instead of tweening. Distinct from raceEntry above, which needs
 		// prevState in revealFrom (rankReveal) and so can never also match here.
 		const raceReverseArrival =
 			stateChange &&
 			stateName === RACE_ENTRY_STATE &&
-			prevState === RACE_REWIND_STATE;
-		// race-chapter arrival at raceFull (forward, from raceTrades): play the
-		// rewind's third and final leg instead of a plain state tween — see
-		// playRaceFullEntry
-		const raceFullEntryArrival =
-			stateChange && playReveal && stateName === RACE_FULL_STATE;
-		// race-chapter arrival at raceTrades going BACKWARDS, from raceFull: retrace
-		// leg 3. Distinct from raceRewindArrival above, which needs prevState in
-		// revealFrom (raceRecent) and so can never also match here.
-		const raceFullReverseArrival =
-			stateChange &&
-			stateName === RACE_REWIND_STATE &&
 			prevState === RACE_FULL_STATE;
 		// any other state that declares an entry choreography (STATE_ENTRY),
 		// played on a forward arrival from a revealFrom origin
@@ -1617,33 +1549,17 @@
 				stateDelays,
 				flownIn: Boolean(rows)
 			};
-		} else if (raceRewindArrival) {
+		} else if (raceFullEntryArrival) {
 			// no seed frame needed — the rewind sweep recomputes attrs from scratch
 			// every frame via writeRaceSweepFrame, so it can start from raceRecent's
 			// live camera (raceExitPlayhead) rather than an assumed year, and the axis
 			// comes with it.
 			landOffChart(attrs, trailTarget);
-			playRaceRewind(
-				raceExitPlayhead ?? RACE_REWIND_WAYPOINT_YEAR,
-				RACE_TRADES_STEP.extent[1],
-				RACE_TRADES_STEP,
-				STATE_YCAP[RACE_REWIND_STATE]
-			);
+			playRaceFullEntry();
 		} else if (raceReverseArrival) {
 			// the same leg backwards, also picking its camera up from raceExitPlayhead
 			landOffChart(attrs, trailTarget);
 			playRaceReverse();
-		} else if (raceFullEntryArrival) {
-			// no seed frame needed, same reasoning as raceRewindArrival above — the
-			// sweep recomputes attrs from scratch every frame from raceTrades' live
-			// camera (raceExitPlayhead)
-			landOffChart(attrs, trailTarget);
-			playRaceFullEntry();
-		} else if (raceFullReverseArrival) {
-			// leg 3 backwards, picking its camera up from raceExitPlayhead the same
-			// way playRaceReverse does
-			landOffChart(attrs, trailTarget);
-			playRaceFullReverse();
 		} else if (entryAnim) {
 			// arrive onto the choreography's own frame 0 (its animated slots stamped
 			// over the static layout), then hand the rAF to playEntry. Like the race

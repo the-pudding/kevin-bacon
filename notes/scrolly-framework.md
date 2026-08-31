@@ -153,7 +153,7 @@ crowd parked invisible) · `hopBands`
 (degree rows, with a bottom legend keying each hop's color) ·
 `rankFocus` (Bacon's hop bar dissolves; the HTML `RankBars` panel + guess
 take over) · `rankReveal` (SLJ) · `raceRecent`/
-`raceTrades`/`raceFull` (avg-distance-by-year race, three fixed-scale cameras) ·
+`raceFull` (avg-distance-by-year race, two fixed-scale cameras) ·
 `scatterCenters`/`scatterWalters`/`scatterQuiz` (films-vs-distance scatter
 family) · `scatterCostars` (the same scatter framed on the top 250 by rank,
 coloured by which of the two named actors has worked with each — the one
@@ -272,12 +272,9 @@ width-independent so it can be computed at module load. `raceStepCap(step)` is t
 centre at the step's resting year plus one chapter-wide `RACE_YCAP_REACH` (0.213).
 Expressing the reach _from the centre_ rather than as an absolute avg-distance is
 load-bearing: the crown itself moves from ~2.82 in 1971 to ~2.09 in 2025, so a
-single absolute cap cannot mean the same thing on two steps a decade apart —
-raceRecent's old hand-picked 2.3 would have shown raceTrades just 16 of its 224
-lines, emptying out the field it is meant to sit behind. 0.213 is that same 2.3
-read against the 2025 centre, so raceRecent's field is unchanged at 131 lines and
-raceTrades' is now derived the same way (137) instead of falling out of a y-fit
-constant. raceFull has no cap; it shows the whole cast by design.
+single absolute cap cannot mean the same thing on two steps a decade apart. 0.213
+is raceRecent's old hand-picked 2.3 read against the 2025 centre, so its field is
+unchanged at 131 lines. raceFull has no cap; it shows the whole cast by design.
 
 Two consequences of the shared axis, both load-bearing:
 
@@ -285,7 +282,7 @@ Two consequences of the shared axis, both load-bearing:
   line dips to its `yCap` somewhere in its extent. Anything reading a visible set
   must go through it, never `raceContenders` directly, or an actor a step drops
   fades back in at the settle. Which actors a step _emphasises_ is separate again —
-  its `highlight` (raceTrades lists the centres of its window, from `story.eras`).
+  its `highlight`.
 - **`SHOWN_DEPART_END`** (ScrollyVisual) retires a departing actor over the first
   third of a phase rather than all of it. This is now purely how it reads — the
   modern crowd drops away first, leaving the actors the step is about. It used to be
@@ -618,7 +615,7 @@ Three things the handoff depends on:
   what the reader was looking at and away from where the canvas is aimed.
 - **Only the forward step out of the rank chapter gets it** (`rankHandoff`, set in
   `navigate`). A reload straight onto raceRecent, or a step back to it from
-  raceTrades, must not flash the list up over a chart that is already drawn.
+  raceFull, must not flash the list up over a chart that is already drawn.
 
 Two rules come with a measured hand-off like that, both learned the hard way:
 publish from a **pre-effect**, so the box is set before ScrollyVisual's layout

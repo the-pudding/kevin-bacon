@@ -82,8 +82,8 @@ export const story = $state({
 	 * reader steps back into the rank chapter. No layout's params selector reads
 	 * it, so writing it mid-transition can never retarget a tween */
 	rankCollapsed: false,
-	/** race chart: bumped by RaceRewindStart to ask for the raceRecent → raceTrades
-	 * rewind's first leg (the backwards camera pan). A counter, not a boolean, for
+	/** race chart: bumped by RaceRewindStart to ask for the raceRecent rewind's
+	 * first leg (the backwards camera pan). A counter, not a boolean, for
 	 * the same reason as simRunNonce — ScrollyVisual owns the animation, this only
 	 * requests it, gated to the raceRecent state */
 	raceRewindNonce: 0,

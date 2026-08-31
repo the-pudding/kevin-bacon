@@ -393,9 +393,9 @@ function curveEntry(segs, to, from, vMin, vMax) {
  * and null when nothing between `from` and `to` is on scale.
  *
  * The mirror of curveEntry, and the reason it exists: curveEntry assumes its `to`
- * is in range, so a step whose axis is fitted to a later window (raceTrades,
- * raceFull) needs the right-hand end trimmed first or the line — and the dot
- * riding it — would be drawn below the x axis.
+ * is in range, so a step whose axis is fitted to a later window (raceFull) needs
+ * the right-hand end trimmed first or the line — and the dot riding it — would
+ * be drawn below the x axis.
  *
  * @param {ReturnType<typeof monotoneSegments>} segs
  * @param {number} to right end of the drawn range
@@ -799,18 +799,6 @@ const params = (s) => s.raceView;
 export const RACE_RECENT_EXTENT = /** @type {[number, number]} */ ([
 	2004, 2025
 ]);
-// The decade whose centres raceTrades is about: everyone who held the crown across
-// these years is its cast (RACE_TRADES_HOLDERS) and its axis is fitted to them
-// here, so the swaps the camera pans through read against each other.
-const RACE_TRADES_DECADE = /** @type {[number, number]} */ ([1994, 2004]);
-// The step itself RESTS on 1994 — the rewind runs until the dots are sitting on
-// the handover year, which is the moment it exists for. The camera is
-// right-anchored, so the decade above ends up off-camera to the right and the
-// run-up to 1994 is what's on screen; the cast climbs out of the axis back there,
-// and those lines stop at the plot edge (curveEntry) instead of widening it.
-export const RACE_TRADES_EXTENT = /** @type {[number, number]} */ ([
-	1990, 1994
-]);
 export const RACE_FULL_EXTENT = /** @type {[number, number]} */ ([1970, 2025]);
 // The earliest year raceFull lets the reader put on the plot's right edge. The
 // extent — and so the x axis and the lines — still starts at
@@ -827,11 +815,8 @@ const RACE_FULL_PAN_FLOOR = RACE_BAND_FIRST;
 // distance FROM the centre rather than an absolute avg-distance because the whole
 // field drifts with the era: the crown itself moves from ~2.82 in 1971 to ~2.09
 // in 2025, so one absolute cap cannot mean the same thing on two steps a decade
-// apart — raceRecent's old hand-picked 2.3 would have shown raceTrades only 16 of
-// its 224 lines, emptying it out to the five holders it is meant to sit behind.
-// 0.213 is that same 2.3 read against the 2025 centre, so raceRecent's field is
-// unchanged and raceTrades' is now derived the same way instead of falling out of
-// a y-fit constant.
+// apart. 0.213 is raceRecent's old hand-picked 2.3 read against the 2025 centre,
+// so its field is unchanged from before this was derived as a reach.
 //
 // It deliberately reaches seven times FURTHER than the axis does (RACE_Y_BAND):
 // the field a step shows is not the field that fits on its plot. The lines in
@@ -843,13 +828,13 @@ const RACE_YCAP_REACH = 0.213;
 /** the yCap for a step: the centre at its resting year, plus the shared reach */
 const raceStepCap = (step) => raceAnchorAt(step.extent[1]) + RACE_YCAP_REACH;
 
-// waypoint year where raceRecent's own chained rewind (leg 1, played
-// automatically as part of its arrival) stops; raceTrades' own arrival then
-// plays leg 2, continuing the same camera pan on from here to its own resting
-// year — so the "camera moving back in time" motion is split visibly across
-// both steps instead of raceTrades being a no-op. The year itself is chosen for
-// what leg 1 ENDS on: the camera parks on SLJ's 2006 takeover, so the crossing
-// the step's copy is about is sitting on the right edge when the pan stops.
+// waypoint year where raceRecent's rewind leg (fired by the Start button) stops;
+// raceFull's own arrival then continues the same camera pan on from wherever it
+// parked, all the way to raceFull's resting year — so the "camera moving back in
+// time" motion is split visibly across the two steps instead of happening all at
+// once. The year itself is chosen for what the first leg ENDS on: the camera
+// parks on SLJ's 2006 takeover, so the crossing raceRecent's second copy is about
+// is sitting on the right edge when the pan stops.
 export const RACE_REWIND_WAYPOINT_YEAR = 2006;
 
 // The race descriptors each state exposes as `race` (STATE_RACE) — the frame
@@ -954,35 +939,9 @@ function raceLabelSpec(from, to) {
 	};
 }
 
-/** everyone who held the centre during [year0, year1], in first-reign order */
-function raceHolders(year0, year1) {
-	const ids = new Set();
-	for (const era of story.eras) {
-		const start = yearOf(era.start);
-		const end = era.end ? yearOf(era.end) : Infinity;
-		if (end > year0 && start < year1) ids.add(era.id);
-	}
-	return [...ids];
-}
-
-// Everyone who was the centre of Hollywood between 1994 and 2004 — Walsh handing
-// on in late 1994, then Starr, then Hackman, Welker and De Niro trading it. This
-// is raceTrades' whole point, so its cast is this list rather than a yCap
-// threshold that would both miss holders and admit non-holders.
-const RACE_TRADES_HOLDERS = raceHolders(...RACE_TRADES_DECADE);
-// The holders are what this step is ABOUT, not the only thing it draws: the
-// field carries over from raceRecent so the reader keeps the same chart rather
-// than watching it empty out to five lines and refill.
-export const RACE_TRADES_STEP = {
-	extent: RACE_TRADES_EXTENT,
-	highlight: RACE_TRADES_HOLDERS
-};
-
-// The two steps that pick their field by "who gets near the centre", derived
-// through the one shared reach so they can't drift apart. raceFull has no cap —
-// it shows the whole cast by design.
+// raceRecent picks its field by "who gets near the centre" — raceFull has no
+// cap, it shows the whole cast by design.
 const RACE_RECENT_YCAP = raceStepCap(RACE_RECENT_STEP);
-const RACE_TRADES_YCAP = raceStepCap(RACE_TRADES_STEP);
 
 // What raceRecent shows. Derived here, once, because three places need to
 // agree on it: the state's own layout, the arrival choreography
@@ -998,7 +957,7 @@ export const RACE_RECENT_VISIBLE = raceStepVisible(
 // rule as the pan floor by construction — resting anywhere the reader can't pan
 // back to would re-open that floor (racePanBounds widens it to the live
 // playhead) and undo the limit. This is the state's true resting playhead
-// regardless of arrival path — the rewind's third leg (see ScrollyVisual's
+// regardless of arrival path — the rewind's second leg (see ScrollyVisual's
 // playRaceFullEntry) just animates getting there instead of snapping.
 export function raceFullRestPlayhead(w, h) {
 	return Math.min(RACE_FULL_EXTENT[1], raceFloorPlayhead(w, h, RACE_FULL_STEP));
@@ -1017,23 +976,6 @@ export const states = {
 		// entry choreography: draw the lines on when arriving from the rank chapter
 		revealFrom: ["rankReveal"]
 	},
-	raceTrades: {
-		layout: raceLayout(RACE_TRADES_STEP, RACE_TRADES_YCAP),
-		race: RACE_TRADES_STEP,
-		yCap: RACE_TRADES_YCAP,
-		// the only step whose camera range runs PAST its own extent: leg 2 of the
-		// rewind enters from RACE_REWIND_WAYPOINT_YEAR, where raceRecent parked,
-		// and pans back to the handover — so the years it travels through need
-		// names as much as the one it rests on
-		...raceLabelSpec(RACE_TRADES_EXTENT[0], RACE_REWIND_WAYPOINT_YEAR),
-		overlay: OVERLAY,
-		params,
-		// rewind choreography: continue the camera pan further back (from
-		// RACE_REWIND_WAYPOINT_YEAR, where raceRecent's own leg-1 pan stopped)
-		// when arriving from it — leg 2 of one continuous back-through-time
-		// motion split across both steps
-		revealFrom: ["raceRecent"]
-	},
 	raceFull: {
 		layout: raceLayout(RACE_FULL_STEP, Infinity),
 		race: RACE_FULL_STEP,
@@ -1044,9 +986,10 @@ export const states = {
 		...raceLabelSpec(RACE_FULL_PAN_FLOOR, RACE_FULL_EXTENT[1]),
 		overlay: OVERLAY,
 		params,
-		// rewind choreography: continue the camera pan further back (leg 3, from
-		// wherever raceTrades' own leg-2 pan parked) when arriving from it, all
-		// the way to 1970 — see playRaceFullEntry
-		revealFrom: ["raceTrades"]
+		// rewind choreography: continue the camera pan further back (leg 2, from
+		// wherever raceRecent's leg-1 pan parked, or from the present if the
+		// reader never pressed Start) when arriving from it, all the way to 1970
+		// — see playRaceFullEntry
+		revealFrom: ["raceRecent"]
 	}
 };
