@@ -8,6 +8,7 @@ import {
 	NETWORK_HOP_DELAY_MS,
 	PULLBACK_ZOOM,
 	writeFieldCrowd,
+	fieldSpot,
 	set,
 	parkHidden
 } from "../layout-shared.js";
@@ -52,18 +53,28 @@ function layoutHopBands(nodes, w, h, _edges, params) {
 		set(
 			attrs,
 			n.id,
-			anchor ? w / 2 : MARGIN + hash01(n.id, 3) * (w - MARGIN * 2),
+			// Each dot keeps the COLUMN it stands in on the chapter card — the band
+			// only decides its row. Both are a uniform scatter across the same span,
+			// so the chart is unchanged from any other arrival; what changes is the
+			// arrival from the card, where an independent x would send twelve
+			// thousand dots off on twelve thousand unrelated diagonals and read as
+			// static. Sharing the x makes it fall: the universe rains straight down
+			// into rows, which is the only reading of this transition that says
+			// "sorted".
+			anchor ? w / 2 : fieldSpot(n.id, w, h)[0],
 			bandTops[n.hop] +
 				(anchor ? bandH / 2 : pad / 2 + hash01(n.id, 4) * bandH),
 			anchor ? 10 : 3,
 			HOP_RGB[n.hop],
 			// `seed` parks every node at its band position but invisible — what
-			// sits behind hopSeed's zoomed-out network — so hopBands always fades
-			// in from the same frame regardless of how you arrived (see revealFrom).
+			// sits behind hopSeed's zoomed-out network, so the fifteen the network
+			// draws are the only actors with any distance left to travel there.
 			seed ? 0 : anchor ? 1 : 0.5
 		);
-		// bands still cascade 1→4, but each node jitters within its hop so dots
-		// stagger in rather than snapping on together
+		// bands cascade 1→4, and each node jitters within its hop so the row fills
+		// in rather than snapping on all at once. Arriving from the chapter card
+		// this clock staggers TRAVEL, not a fade: the crowd is already on screen,
+		// spread across the plot, and falls into its rows a degree at a time.
 		delays[n.id] = n.hop * NETWORK_HOP_DELAY_MS + hash01(n.id, 5) * 400;
 	}
 	// the seed frame carries no reveal choreography or legend — it only
@@ -85,8 +96,11 @@ function layoutHopBands(nodes, w, h, _edges, params) {
 // centre of Hollywood. The links go out with the names on arrival, so what pulls
 // back is the cast rather than the diagram of who-knows-who — which is the
 // crowd the bands are about to sort. Behind it, every node is already parked
-// (invisible) at its hopBands position, so the bands still cascade in from one
-// consistent frame — only the 15 named actors have any distance left to travel.
+// (invisible) at its hopBands position, so only the 15 named actors have any
+// distance left to travel here.
+//
+// This step no longer hands straight to hopBands: the chapter card sits between
+// them and opens on this exact closing frame (see layouts/chapters.js).
 // ---------------------------------------------------------------------------
 
 // "slowly" — the whole pull-back is one long leg, long enough that the reader
@@ -143,8 +157,11 @@ export const states = {
 	hopBands: {
 		layout: (n, w, h, e) => layoutHopBands(n, w, h, e, {}),
 		labels: [ANCHOR_ID],
-		// the cascade fade-in is authored for arrival from the seed frame behind
-		// hopSeed's network; any other direction is one plain tween
-		revealFrom: ["hopSeed"]
+		// The cascade is authored for the forward arrival off the chapter card,
+		// where the crowd is spread across the plot and sorts itself into rows;
+		// any other direction (a step back from rankFocus) is one plain tween.
+		// It used to reveal from hopSeed's invisible seed park, before the card
+		// was inserted between them — see layouts/chapters.js.
+		revealFrom: ["chapterCenters"]
 	}
 };

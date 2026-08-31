@@ -44,6 +44,7 @@
 		STATE_PARAMS,
 		STATE_REVEAL_FROM,
 		STATE_ENTRY,
+		STATE_AMBIENT,
 		STATE_TRACKED,
 		TRAIL_SIZE,
 		TRAIL_STRIDE,
@@ -59,6 +60,7 @@
 		ORDER_OF
 	} from "./layout-shared.js";
 	import { story } from "./story.svelte.js";
+	import { MediaQuery } from "svelte/reactivity";
 	import InfoTerm from "$components/ui/InfoTerm.svelte";
 
 	// undefined until the <Step> registry has populated (first client render)
@@ -255,6 +257,20 @@
 		};
 		sweepRaf = requestAnimationFrame(step);
 	}
+	// The ambient counterpart of runPhase: no duration, no easing, no onDone — it
+	// runs until something stops it. `frame` is handed elapsed ms since the loop
+	// started, so a writer can be a pure function of time and reproduce itself
+	// exactly at t = 0. Owns sweepRaf like every other choreography, so a state
+	// change's stopSweep abandons it for free.
+	function runLoop(frame) {
+		const t0 = performance.now();
+		const step = (now) => {
+			frame(now - t0);
+			drawScene();
+			sweepRaf = requestAnimationFrame(step);
+		};
+		sweepRaf = requestAnimationFrame(step);
+	}
 	// run one eased race phase; map(e) → the frame; onDone chains the next; `shown`
 	// ({from, to} Sets of who each end of the leg shows) fades visibility changes
 	// over the phase (see shownAlpha) — or, for a phase with nothing prior to
@@ -431,10 +447,29 @@
 	let container = $state();
 	let width = $state(0);
 	let height = $state(0);
-	let reducedMotion = $state(false);
-	// true while the race path animator owns the rAF (see playRaceEntry); the
-	// render effect steps aside and the panning-domain axis furniture hides
-	let sweeping = $state(false);
+	// live, so DevTools' emulation (and a reader changing the OS setting mid-story)
+	// stands every animation down straight away
+	const motionQuery = new MediaQuery("(prefers-reduced-motion: reduce)", false);
+	const reducedMotion = $derived(motionQuery.current);
+	// True while a choreography owns the rAF instead of the tweeners — a race path
+	// animator (playRaceEntry), a generic entry (playEntry), or a state's ambient
+	// drift (playAmbient); the render effect steps aside and drawScene tracks live
+	// endpoints.
+	//
+	// Deliberately NOT $state. Only two things read it — drawScene, per frame off
+	// the rAF, and the render effect — and neither wants a re-render when it
+	// moves: the effect's job is to react to what the story is SHOWING (state,
+	// params, canvas size), never to who currently owns the rAF. As a $state it
+	// was a dependency of the very effect that clears it, so abandoning a
+	// choreography on a step change re-ran the effect a beat later — and by then
+	// prevState/prevParamsKey were already updated, so stateChange and paramChange
+	// were both false and it fell into the catch-all `to(attrs, 0)`, snapping the
+	// arrival tween it had started microseconds earlier. That is the same trap
+	// documented for story.settled in notes/scrolly-framework.md. It only showed
+	// up once a state rested in an ambient loop (leaving one, a sweep is ALWAYS in
+	// flight), because the race animators re-set it to true within the same run
+	// and so hit the early-return guard on the re-run instead.
+	let sweeping = false;
 	/** @type {{ id: number, name: string, x: number, y: number, r: number, alpha: number, labelAlpha: number, labelOffset: number }[]} */
 	let tracked = $state([]);
 	// static per-state chart furniture (ticks/callouts/legend) from the layout result
@@ -842,6 +877,29 @@
 		runLeg(0);
 	}
 
+	// A state's ambient drift (STATE_AMBIENT): unlike an entry choreography this
+	// never ends, so there is no final leg and no settle to land on — the arrival
+	// has already settled, and the writer's own t = 0 frame is what it landed on,
+	// so the first tick redraws that frame and the join moves nothing. Same
+	// single-writer discipline as playEntry (tweeners stopped, `sweeping` makes the
+	// render effect step aside) and the same skippability: a state change calls
+	// stopSweep, and the next arrival tween then snapshots `current`, so the dots
+	// fly on from wherever the drift had them rather than snapping back.
+	//
+	// Never runs under reduced motion — the static layout is the still frame.
+	function playAmbient(anim) {
+		if (!width || !height || reducedMotion) return;
+		// this loop never ends by itself, so it must never be started twice — a
+		// second runLoop would overwrite sweepRaf and leave the first one running
+		// and uncancellable, two writers fighting over the same buffer
+		stopSweep();
+		tweener.stop();
+		trailTweener.stop();
+		sweeping = true;
+		const write = anim.frames(nodes, width, height, layoutParams);
+		runLoop((t) => write(tweener.current, trailTweener.current, t));
+	}
+
 	/**
 	 * The race labels one FRAME shows: the step's own subject, then the labelled
 	 * dots nearest the centre of Hollywood, up to RACE_LABEL_TOP in all.
@@ -1035,14 +1093,6 @@
 		tracked = nextTracked;
 	}
 
-	$effect(() => {
-		const query = window.matchMedia("(prefers-reduced-motion: reduce)");
-		const update = () => (reducedMotion = query.matches);
-		update();
-		query.addEventListener("change", update);
-		return () => query.removeEventListener("change", update);
-	});
-
 	// The race sweep/pan owns story.raceView; drop it whenever the active state
 	// changes so a freshly-entered state rests at its own resting year, not a
 	// stale override. The playhead and the pan target go with it — otherwise a pan
@@ -1227,8 +1277,20 @@
 	// Guarded on the live state so a callback that outlives its step can't arm the
 	// wrong one; a superseded tween drops its callback (see tween.js), so a reader
 	// who steps on mid-reveal never arms at all.
+	//
+	// It is also where a state's ambient drift begins — the arrival is over, so the
+	// rAF is free. Hooking it here rather than at each arrival branch covers every
+	// path into a state at once (a plain state tween's onDone, the cold-start and
+	// first-paint branches, and the reduced-motion/resize snap), and expresses the
+	// rule: the ambient begins where the reveal ends.
 	function settle(name) {
-		if (name === stateName) story.settled = name;
+		if (name !== stateName) return;
+		story.settled = name;
+		// Safe to start from inside the render effect (which the snap branches do):
+		// `sweeping` is not reactive, so setting it invalidates nothing — see its
+		// declaration for why that matters.
+		const ambient = STATE_AMBIENT[name];
+		if (ambient) playAmbient(ambient);
 	}
 
 	$effect(() => {
@@ -1251,8 +1313,14 @@
 		// Next stays live and any in-progress scrub ends; a param/raceView change is
 		// the animator's own handoff, so ignore it. (Scrubbing implies sweeping, so
 		// this one guard covers both.) raceView is dropped by the stateName effect.
+		// A resize abandons a sweep too, and must: a frame writer closes over the
+		// canvas box it was built for, so a leg that keeps running after a rotate
+		// draws the old geometry for the rest of its life — and an ambient loop has
+		// no rest of its life, so it would never recover. The snap branch below
+		// re-fits, and settle() restarts the ambient at the new size.
+		const resized = width !== prevW || height !== prevH;
 		if (sweeping) {
-			if (stateName === prevState) return;
+			if (stateName === prevState && !resized) return;
 			stopSweep();
 			sweeping = false;
 			if (story.scrubbing) untrack(() => (story.scrubbing = false));
@@ -1261,7 +1329,6 @@
 			if (story.simRunning) untrack(() => (story.simRunning = false));
 			if (story.raceRewinding) untrack(() => (story.raceRewinding = false));
 		}
-		const resized = width !== prevW || height !== prevH;
 		if (resized) {
 			const dpr = Math.min(window.devicePixelRatio || 1, 2);
 			canvas.width = width * dpr;

@@ -632,7 +632,7 @@ export const FIELD_IDS = rawNodes.nodes.reduce(
 // the constellation's own crowd alpha: by the end of the pull-back the fifteen
 // are meant to be indistinguishable members of the field, which is the whole
 // point of the beat — only Bacon stays darker and larger
-const FIELD_ALPHA = 1;
+export const FIELD_ALPHA = 1;
 // ramp width, so a dot crossing the plot edge fades up rather than popping
 const FIELD_FADE_PX = 40;
 // How the field opens, all measured as shares of the camera's travel rather
@@ -692,29 +692,47 @@ const FIELD_KEEPOUT =
  * static frame and every animated one, and a scrub lands on the same frame the
  * animation would have drawn at that scale.
  */
+/** the field's rect: the plot area, which is the whole canvas above the step card */
+const fieldBox = (w, h) => [MARGIN, w - MARGIN, MARGIN, plotBottom(h)];
+
+/**
+ * Where one actor stands when the pull-back has landed — the single definition of
+ * a field dot's position, so anything else placing the same crowd (the chapter
+ * card's universe) lands on the identical frame rather than one that merely
+ * looks the same. A pixel of drift between the two would twitch the whole field
+ * on a step change.
+ *
+ * @returns {[number, number]}
+ */
+export function fieldSpot(id, w, h) {
+	const [x0, x1, y0, y1] = fieldBox(w, h);
+	const [bx, by] = introPosition(ANCHOR_ID, w, h);
+	const fx = x0 + hash01(id, 10) * (x1 - x0);
+	const fy = y0 + hash01(id, 11) * (y1 - y0);
+	if (Math.hypot(fx - bx, fy - by) >= FIELD_KEEPOUT) return [fx, fy];
+	const a = hash01(id, 12) * Math.PI * 2;
+	const d = FIELD_KEEPOUT * (1 + hash01(id, 13));
+	return [bx + Math.cos(a) * d, by + Math.sin(a) * d];
+}
+
+/** the ramp that fades a dot up as it crosses the plot edge rather than popping */
+export function fieldEdgeAlpha(x, y, w, h) {
+	const [x0, x1, y0, y1] = fieldBox(w, h);
+	const inset = Math.min(x - x0, x1 - x, y - y0, y1 - y);
+	return Math.max(0, Math.min(1, inset / FIELD_FADE_PX));
+}
+
 export function writeFieldCrowd(attrs, w, h, scale) {
 	const [bx, by] = introPosition(ANCHOR_ID, w, h);
-	const x0 = MARGIN;
-	const x1 = w - MARGIN;
-	const y0 = MARGIN;
-	const y1 = plotBottom(h);
 	const k = scale / PULLBACK_ZOOM;
 	// how far through the pull-back the camera is: 0 at full zoom, 1 at landing
 	const travel = (1 - scale) / (1 - PULLBACK_ZOOM);
 	const r = NETWORK_INTRO_RADIUS[1] * scale;
 	for (const id of FIELD_IDS) {
-		let fx = x0 + hash01(id, 10) * (x1 - x0);
-		let fy = y0 + hash01(id, 11) * (y1 - y0);
-		if (Math.hypot(fx - bx, fy - by) < FIELD_KEEPOUT) {
-			const a = hash01(id, 12) * Math.PI * 2;
-			const d = FIELD_KEEPOUT * (1 + hash01(id, 13));
-			fx = bx + Math.cos(a) * d;
-			fy = by + Math.sin(a) * d;
-		}
+		const [fx, fy] = fieldSpot(id, w, h);
 		const x = bx + (fx - bx) * k;
 		const y = by + (fy - by) * k;
-		const inset = Math.min(x - x0, x1 - x, y - y0, y1 - y);
-		const edge = Math.max(0, Math.min(1, inset / FIELD_FADE_PX));
+		const edge = fieldEdgeAlpha(x, y, w, h);
 		// this dot's own slot in the trickle: the hold, plus its place in the stagger
 		const start =
 			FIELD_OPEN_HOLD + hash01(id, 14) ** FIELD_OPEN_SKEW * FIELD_OPEN_STAGGER;

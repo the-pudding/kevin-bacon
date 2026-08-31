@@ -21,7 +21,7 @@
 	let { state: layoutState, params, panel, children } = $props();
 
 	const steps = getContext("scrolly-steps");
-	const index = steps.register(layoutState, params, panel);
+	const index = steps.register({ state: layoutState, params, panel });
 	const active = $derived(steps.current === index);
 </script>
 

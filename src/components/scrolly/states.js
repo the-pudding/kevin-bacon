@@ -30,6 +30,7 @@ import {
 import { states as predictionStates } from "./layouts/prediction.js";
 import { states as careerStates } from "./layouts/career.js";
 import { states as simRaceStates } from "./layouts/sim-race.js";
+import { states as chapterStates } from "./layouts/chapters.js";
 
 // re-exported so ScrollyVisual.svelte can keep importing everything from
 // this one module; the actual definitions live in layout-shared.js
@@ -63,7 +64,8 @@ const REGISTRY = {
 	...scattersStates,
 	...predictionStates,
 	...careerStates,
-	...simRaceStates
+	...simRaceStates,
+	...chapterStates
 };
 
 const pick = (field) => {
@@ -163,6 +165,32 @@ export const STATE_REVEAL_FROM = pick("revealFrom");
  * @type {Partial<Record<LayoutState, EntryAnim>>}
  */
 export const STATE_ENTRY = pick("entry");
+
+/**
+ * Per-state ambient loop: an unbounded per-frame writer that runs for as long as
+ * the state rests, started once its arrival has settled (see ScrollyVisual's
+ * playAmbient). What an entry choreography is to an arrival, this is to the
+ * pause after it.
+ *
+ * Unlike EntryAnim there is no last leg, so there is no settle to land on — and
+ * one contract in place of that pair: **at t = 0 the writer must reproduce the
+ * static layout call for call**, so the loop's first tick redraws exactly the
+ * frame the arrival tween landed on and the join moves nothing. Express the
+ * motion as an offset that is zero at t = 0 and it holds by construction.
+ *
+ * Like every choreography it writes its animated slots straight into the live
+ * tween buffers and must touch nothing else, and it is abandoned by a state
+ * change's stopSweep — the next arrival tween then snapshots `current`, so the
+ * marks travel on from wherever the drift had them.
+ *
+ * Never runs under prefers-reduced-motion: the static layout is the still frame.
+ *
+ * @typedef {Object} AmbientAnim
+ * @property {(nodes: import("./nodes.js").ActorNode[], w: number, h: number, params?: Object) =>
+ *   (attrs: Float32Array, trails: Float32Array, t: number) => void} frames
+ * @type {Partial<Record<LayoutState, AmbientAnim>>}
+ */
+export const STATE_AMBIENT = pick("ambient");
 
 export const OVERLAYS = pick("overlay");
 

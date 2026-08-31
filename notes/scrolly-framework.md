@@ -32,9 +32,10 @@ line's P50/P10 toggle) re-run the current layout via params — see
 | `src/components/scrolly/nodes.js`             | Real data: `makeNodes()` → `{ nodes, edges }` decoded from `src/data/scrolly-nodes.json` (built by `npm run scrolly-data`). 11,486 `ActorNode`s (`id, pid, name, hop, films, avgDistance, rank`); node 0 is the anchor (Kevin Bacon), ids 0–14 are the curated intro network in reveal order (`INTRO_IDS`), edges are the 18 intro edges (`[sourceId, targetId, [[title, year], …]]` — **every** corpus film linking the pair, newest first; two of the eighteen have more than one). Also exports `ANCHOR_ID`, `INTRO_LAYOUT` (baked 860×680 planar intro coords) and `hash01(id, salt)` — deterministic per-node randomness used everywhere (never `Math.random`, which would flicker between renders). |
 | `src/components/scrolly/tween.js`             | `createTweener(size, draw, stride)` → `{ current, to, stop }`. One rAF loop lerping a flat `Float64Array` from the _currently rendered_ values to a target. `to(next, ms, jitter, nodeDelays?)`. Vanilla (hand-rolled `easeCubicInOut`), no d3.                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
 | `src/components/scrolly/layout-shared.js`     | Geometry/color constants, attr/trail helpers (`set`, `setEdge`, `setTrail`, `collapseTrail`, `clipSeries`), named-actor id lookups (`SLJ`, `HANKS`, …), and the `LayoutFn`/`LayoutResult`/`Note`/`Tick` JSDoc typedefs — everything shared across more than one chapter.                                                                                                                                                                                                                                                                                                                                                                                                                                  |
-| `src/components/scrolly/layouts/*.js`         | One module per story chapter (`intro`, `hop-bands`, `rank`, `race`, `scatters`, `prediction`, `career`, `sim-race`, `genz-line`). Each exports a `states` object mapping state key → `{ layout, labels?, params?, pulse?, revealFrom?, entry?, overlay? }` (`revealFrom` scopes the layout's `delays` choreography to specific prior states — arriving from any other state is one plain tween) — everything about one state colocated in one object, instead of spread across parallel top-level maps.                                                                                                                                                                                                   |
+| `src/components/scrolly/layouts/*.js`         | One module per story chapter (`intro`, `hop-bands`, `chapters`, `rank`, `race`, `scatters`, `prediction`, `career`, `sim-race`, `genz-line`). Each exports a `states` object mapping state key → `{ layout, labels?, params?, pulse?, revealFrom?, entry?, overlay? }` (`revealFrom` scopes the layout's `delays` choreography to specific prior states — arriving from any other state is one plain tween) — everything about one state colocated in one object, instead of spread across parallel top-level maps.                                                                                                                                                                                       |
 | `src/components/scrolly/states.js`            | Thin aggregator: merges every chapter's `states` object into one registry and derives the public `STATES`/`STATE_LABELS`/`STATE_PARAMS`/`STATE_PULSE`/`OVERLAYS` exports from it, plus `STATE_TRACKED`, `INTERACTIVE_IDS`, and the `nodeName`/`nodeRank`/`nodeAvgDistance` lookups. This is still the only module other files import from.                                                                                                                                                                                                                                                                                                                                                                |
-| `src/components/scrolly/Step.svelte`          | One story step: prose in the slot, visual state declared on the tag (`<Step state="lone">…</Step>`). Registers `{ state, params, panel? }` in document order with the `"scrolly-steps"` context provided by `Index.svelte`; renders its prose only while active — no hand-numbered step indices anywhere. `panel` is an optional snippet rendered over the canvas while the step is active (see "Exception" under interaction patterns).                                                                                                                                                                                                                                                                  |
+| `src/components/scrolly/Step.svelte`          | One story step: prose in the slot, visual state declared on the tag (`<Step state="lone">…</Step>`). Calls `register({ state, params, panel })` in document order on the `"scrolly-steps"` context provided by `Index.svelte`; renders its prose only while active — no hand-numbered step indices anywhere. `panel` is an optional snippet rendered over the canvas while the step is active (see "Exception" under interaction patterns).                                                                                                                                                                                                                                                               |
+| `src/components/scrolly/Chapter.svelte`       | A chapter card: a step whose whole content is a title (`<Chapter state="chapterCenters" title="…" />`). Registers `{ state, chapter: { title } }` the same way, but renders **nothing** — see "Chapter cards" below.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 | `src/components/helpers/Wizard.svelte`        | The step driver: headless Previous/Next buttons + ArrowLeft/ArrowRight advancing a bindable 0-based `value`, which `Index.svelte` maps through `stepConfigs` to the active state/params.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | `src/components/scrolly/ScrollyVisual.svelte` | Canvas host wired into `Index.svelte` as `<ScrollyVisual state={…} />` (a state name, not a step number). Owns dpr scaling, resize, reduced-motion, the HTML overlay, and the `$effect` that reacts to state changes.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 
@@ -113,11 +114,20 @@ variation within one layout.
 **Seeding the next reveal.** A state can park the nodes a _later_ layout wants
 at exactly their eventual positions with alpha 0, so nothing of them renders and
 the following step reveals from that shared frame as a pure fade-in — no
-teleport and, crucially, the same animation however fast the reader steps. That
-is what `hopSeed` does with the ~11.5k crowd (paired with `hopBands`'s
-`revealFrom: ["hopSeed"]`) while its own visual, the intro network pulling back,
-holds the frame in front of them. Prefer seeding over letting a crowd fly in
-from wherever a previous chapter parked it.
+teleport and, crucially, the same animation however fast the reader steps.
+`hopSeed` still does this with the ~12k crowd while its own visual, the intro
+network pulling back, holds the frame in front of them. Prefer seeding over
+letting a crowd fly in from wherever a previous chapter parked it.
+
+The rule the seed is protecting is **a deterministic departure frame**, not the
+fade itself. `hopBands` no longer reveals from that park: the `chapterCenters`
+card sits between the two, and the card is an authored departure frame of its own
+— the crowd is visible and spread across the plot, so `hopBands`'s hop 1→4 clock
+staggers _travel_ instead of a fade, and the reader watches the universe sort
+itself into degrees of separation. The determinism still holds, because the card's
+static layout is where the crowd is (its ambient drift is bounded at a few px, far
+inside what the arrival tween absorbs). Letting a crowd fly in is only a problem
+when where it flies from is arbitrary.
 
 **Entry choreographies (`STATE_ENTRY`).** When a state's arrival needs an
 animation the tweener can't express — a draw-on, a fan opening, a slow camera
@@ -132,6 +142,45 @@ the arrival tween, whose `onDone` is then dropped, so the choreography never
 starts. Reduced motion and resize bypass it via the snap branch. Examples:
 `careerTrio`/`careerMany`'s line draw-ons (`layouts/career.js`) and `hopSeed`'s
 zoom-out (`layouts/hop-bands.js`).
+
+**Ambient loops (`STATE_AMBIENT`).** What an entry choreography is to an arrival,
+this is to the pause after it: a state declares `ambient: { frames }` and, once its
+arrival has settled, `ScrollyVisual`'s `playAmbient` runs the writer on `runLoop`
+— `runPhase`'s unbounded twin, no duration, no easing, no `onDone` — writing
+straight into the live tween buffers under the same single-writer discipline.
+
+`STATE_ENTRY`'s pair of contracts collapses to one here, because there is no last
+leg to land: **at t = 0 the writer must reproduce the static layout call for
+call**, so the loop's first tick redraws exactly the frame the arrival landed on
+and the join moves nothing. Express the motion as an offset that is zero at t = 0
+and that holds by construction rather than by review — `chapters.js` writes its
+drift as `cos(ωt + φ) − cos φ`, which is identically zero at t = 0.
+
+Two more things follow from it having no end. The offset must be measured from a
+**stored base**, never read back out of the buffer it is writing, or the motion
+accumulates and the field wanders off the canvas. And a **resize must interrupt
+it**: a frame writer closes over the canvas box it was built for, and unlike a
+finite leg an ambient loop never gets a chance to recover — which is why the
+render effect's `sweeping` guard lets a resize through (it used to swallow one,
+leaving any sweep drawing stale geometry for the rest of its life).
+
+**`sweeping` is not `$state`, and must not become it.** It says who owns the rAF,
+which is not something the story is showing — the render effect reacts to state,
+params and canvas size only. As a `$state` it was a dependency of the very effect
+that clears it, so abandoning a choreography on a step change re-ran the effect a
+beat later; `prevState`/`prevParamsKey` were already updated by then, so
+`stateChange` and `paramChange` were both false and it fell into the catch-all
+`to(attrs, 0)` — snapping the arrival tween it had started microseconds earlier.
+Same trap as the one documented for `story.settled` below. It stayed hidden while
+every sweep was finite and optional (the race animators re-set `sweeping` within
+the same run, so their re-run hits the early-return guard); an ambient loop is
+always in flight when you leave its step, so it surfaced on the first chapter card.
+
+It is hooked on `settle()` rather than at each arrival branch, which covers every
+path into a state at once — a plain state tween's `onDone`, the cold-start and
+first-paint branches, and the reduced-motion/resize snap. Under reduced motion
+`playAmbient` returns immediately and the static layout is the still frame.
+Example: `chapterCenters` in `layouts/chapters.js`.
 
 One renderer rule follows from this. `drawScene` draws a live edge's far endpoint
 at its **target** position, so a line points where its actor is going and the
@@ -425,6 +474,48 @@ the canvas box and the caption's own height to clamp it off the step card, which
 only binds around 360×640. It is `pointer-events: none` apart from the term
 inside it, so it can lie over the layout's `hits` without swallowing taps.
 
+## Chapter cards
+
+A chapter card is a step with no prose: a title over the canvas, declared as
+`<Chapter state="…" title="…" />` and registered in document order like any other
+step, so `Next` stays live and every later step's index shifts by itself. The
+first is `chapterCenters` ("The centers of Hollywood"), which follows the "never
+will" step; `feedback.md` has the four-chapter plan the rest will join.
+
+Three things about it are deliberate.
+
+**`Chapter.svelte` renders nothing.** The title has to play an _out_-transition as
+the reader moves on, and content rendered from the active step's registration —
+the way `panel` is, via `{@render stepConfigs[value]?.panel?.()}` — is destroyed
+the instant the index changes, with no chance to transition out. So `Index.svelte`
+renders the card from `stepConfigs[value].chapter` inside a stable `{#if}` block,
+which Svelte can transition both ways. That is the whole reason a chapter is not
+just a panel.
+
+**The card opens on the frame before it.** `chapterCenters` reuses
+`writeFieldCrowd` at `PULLBACK_ZOOM` — hopSeed's landed camera — so the field is
+byte-identical to the frame the reader was already looking at and nothing in it
+moves on arrival. The only actors that travel are the intro fifteen, dissolving
+out of the constellation into the crowd on the same `fieldSpot`, radius and grey
+as everyone else, Bacon included: the visual form of the line the reader has just
+read. Reusing the writer is what makes the identity true by construction; that is
+also why `fieldSpot`/`fieldEdgeAlpha` are extracted in `layout-shared.js` rather
+than the placement being written out twice.
+
+**The handoff out is vertical.** `hopBands` takes each dot's x from the same
+`fieldSpot` the card places it at, so the band decides only its row. Both are a
+uniform scatter over the same span — the chart is unchanged from any other
+arrival (deciles stay 9.7–10.4%) — but from the card an independent x would send
+twelve thousand dots off on twelve thousand unrelated diagonals, which reads as
+static rather than as sorting. Sharing the x makes it fall: measured max |dx| is
+0 across all 12,066 visible dots, mean |dy| 160px. If a future layout wants to
+receive that crowd the same way, share the x the same way.
+
+**The title is centred on the field's box, not the canvas's.** The crowd occupies
+the plot area (`plotBottom`), so a canvas-centred title would sit half over the
+empty ground below the universe it is meant to be inside. Same "position off the
+layout's own geometry" rule as step 1's caption and `introBottom`.
+
 ## How to add a state
 
 1. Pick the chapter module it belongs to under `layouts/` (or add a new one for
@@ -432,12 +523,14 @@ inside it, so it can lie over the layout's `hits` without swallowing taps.
    via the `set()` helper from `layout-shared.js`, return `{ attrs }` (plus
    `delays` if choreographed).
 2. Add one entry to that module's exported `states` object:
-   `foo: { layout: layoutFoo, labels?, params?, pulse?, revealFrom?, overlay? }` — everything
-   about the state lives in this one object (no need to touch `states.js`).
+   `foo: { layout: layoutFoo, labels?, params?, pulse?, revealFrom?, entry?, ambient?, overlay? }`
+   — everything about the state lives in this one object (no need to touch
+   `states.js`, unless the module itself is new: then spread it into `REGISTRY`).
 3. Use it from `Index.svelte`: `<Step state="foo"><p>…</p></Step>`.
 
 Use `hash01(n.id, <new salt>)` for any per-node scatter/jitter — pick an unused
-salt integer (used so far: 3–8 across layouts, 9 in tween.js).
+salt integer. Taken so far: 3–8 across layouts, 9 in `tween.js`, 10–14 in
+`writeFieldCrowd`, 15–19 in `layouts/chapters.js`.
 
 ## Data
 

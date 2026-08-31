@@ -62,6 +62,8 @@ words:
   - onnavigate
   - handoff
   - bestie
+  - tiempos
+  - pullback
 ignorePaths:
   - node_modules
   - build

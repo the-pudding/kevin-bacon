@@ -156,8 +156,13 @@ console errors).
 
 ## Not built (deliberately deferred)
 
-- Chapter title dividers (Present / Past / Future) — TODOs removed from
-  markup; decide treatment.
+- ~~Chapter title dividers (Present / Past / Future) — TODOs removed from
+  markup; decide treatment.~~ Treatment decided and the first one built: a
+  Tarantino-minimal title card over the drifting corpus (`<Chapter>` +
+  `layouts/chapters.js`; see notes/scrolly-framework.md, "Chapter cards"). The
+  chapters are not Present/Past/Future — `feedback.md` has the four-chapter plan,
+  of which `chapterCenters` ("The centers of Hollywood") is the first. The other
+  three still to place.
 - Canvas tap-to-inspect (nearest-node hit-test) for free-exploration steps —
   race timeline and rank exploration are static without it.
 - Step-visibility analytics beacon (framework notes: "required before

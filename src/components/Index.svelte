@@ -4,6 +4,7 @@
 	import Wizard from "$components/helpers/Wizard.svelte";
 	import ScrollyVisual from "$components/scrolly/ScrollyVisual.svelte";
 	import Step from "$components/scrolly/Step.svelte";
+	import Chapter from "$components/scrolly/Chapter.svelte";
 	import GuessRank from "$components/scrolly/GuessRank.svelte";
 	import RankBars from "$components/scrolly/RankBars.svelte";
 	import RaceScrubber from "$components/scrolly/RaceScrubber.svelte";
@@ -21,7 +22,10 @@
 	} from "$components/scrolly/layouts/intro.js";
 	import RouteFilms from "$components/scrolly/RouteFilms.svelte";
 	import InfoTerm from "$components/ui/InfoTerm.svelte";
+	import { plotBottom } from "$components/scrolly/layout-shared.js";
 	import { MediaQuery } from "svelte/reactivity";
+	import { fade } from "svelte/transition";
+	import { cubicInOut } from "svelte/easing";
 
 	const STEP_PARAM = "step";
 	const isRankState = (s) => s === "rankFocus" || s === "rankReveal";
@@ -71,18 +75,21 @@
 	let routeHeight = $state(0);
 
 	/**
-	 * Filled by each <Step> as it mounts, in document order — the single source
-	 * of truth mapping step index → visual state (+ per-step params, plus an
-	 * optional `panel` snippet rendered over the canvas while the step is
-	 * active).
-	 * @type {{ state: import("$components/scrolly/states.js").VisualState, params?: Object, panel?: import("svelte").Snippet }[]}
+	 * Filled by each <Step> / <Chapter> as it mounts, in document order — the
+	 * single source of truth mapping step index → visual state (+ per-step
+	 * params, plus an optional `panel` snippet rendered over the canvas while the
+	 * step is active, or `chapter` for a chapter card's title).
+	 * @typedef {{ state: import("$components/scrolly/states.js").VisualState, params?: Object, panel?: import("svelte").Snippet, chapter?: { title: string } }} StepConfig
+	 * @type {StepConfig[]}
 	 */
 	const stepConfigs = $state([]);
 
-	/** @type {{ register: (state: import("$components/scrolly/states.js").VisualState, params?: Object, panel?: import("svelte").Snippet) => number, current: number|undefined, advance: () => void }} */
+	/** @type {{ register: (config: StepConfig) => number, current: number|undefined, advance: () => void }} */
 	const scrollySteps = {
-		register: (state, params, panel) =>
-			stepConfigs.push({ state, params, panel }) - 1,
+		// one object rather than positional args: a step now has four optional
+		// kinds of registration and `register(s, undefined, undefined, c)` is a
+		// call nobody can read
+		register: (config) => stepConfigs.push(config) - 1,
 		get current() {
 			return value;
 		},
@@ -185,6 +192,38 @@
 		"(prefers-reduced-motion: reduce)",
 		false
 	);
+
+	// A chapter card's title, rendered from the registry rather than by <Chapter>
+	// so it sits in a stable {#if} and can transition OUT as the reader moves on
+	// (see Chapter.svelte). It fades in behind a beat, so the constellation
+	// dissolving into the crowd underneath reads first, and leaves briskly — it
+	// must be gone before the next step starts sorting the field into bands.
+	const activeChapter = $derived(stepConfigs[value ?? 0]?.chapter);
+	const CHAPTER_IN_MS = 600;
+	const CHAPTER_IN_DELAY_MS = 400;
+	const CHAPTER_OUT_MS = 300;
+	// cubicInOut is the same curve the dot tweener eases on (tween.js's
+	// easeCubicInOut), so the title arrives on the motion the canvas is already
+	// moving to
+	const chapterIn = $derived(
+		reducedMotion.current
+			? { duration: 0 }
+			: {
+					duration: CHAPTER_IN_MS,
+					delay: CHAPTER_IN_DELAY_MS,
+					easing: cubicInOut
+				}
+	);
+	const chapterOut = $derived(
+		reducedMotion.current
+			? { duration: 0 }
+			: { duration: CHAPTER_OUT_MS, easing: cubicInOut }
+	);
+	// centred on the FIELD's box, not the canvas's: the crowd occupies the plot
+	// area above the step card (plotBottom), so a canvas-centred title would sit
+	// half over empty ground below the universe it is meant to be inside
+	const chapterHeight = $derived(visualHeight ? plotBottom(visualHeight) : 0);
+
 	const introRoute = $derived(
 		story.introFocus == null ? null : routeSummary(story.introFocus)
 	);
@@ -286,6 +325,20 @@
 				<!-- the active step's over-canvas panel, if it declared one — the
 				     markup lives next to the <Step> that owns it -->
 				{@render stepConfigs[value ?? 0]?.panel?.()}
+				<!-- a chapter card's title. Rendered from the registry rather than by
+				     <Chapter> itself so this {#if} is stable and Svelte can play the
+				     out-transition; the panel render above cannot, which is the whole
+				     reason chapters aren't just a panel. -->
+				{#if activeChapter}
+					<div
+						class="chapter-card"
+						style="height: {chapterHeight}px"
+						in:fade={chapterIn}
+						out:fade={chapterOut}
+					>
+						<h2>{activeChapter.title}</h2>
+					</div>
+				{/if}
 				<!-- dev-only y-band tuner. Mounted outside stepConfigs so it spans the
 				     whole race chapter and keeps its table installed across step
 				     changes; it renders nothing until story.raceCam exists, i.e. off
@@ -433,6 +486,17 @@
 							<b>never will</b>.
 						</p>
 					</Step>
+
+					<!-- CHAPTER: THE CENTERS OF HOLLYWOOD -->
+					<!-- The card opens on hopSeed's own closing frame — the crowd is
+					     already spread across the plot, so nothing in the field moves and
+					     the picture simply holds while the title lands. Only the intro
+					     fifteen travel, dissolving out of the constellation into the crowd,
+					     which is the line the reader has just read. It rests there
+					     drifting (the framework's one ambient loop) until they step on,
+					     and the field then sorts itself into the hop bands. -->
+					<Chapter state="chapterCenters" title="The centers of Hollywood" />
+
 					<Step state="hopBands">
 						<p>
 							No doubt, he's well connected. With
@@ -811,6 +875,59 @@
 	@media (prefers-reduced-motion: reduce) {
 		.route {
 			animation: none;
+		}
+	}
+
+	/* A chapter card's title, centred in the field's own box (height set inline
+	   off plotBottom) rather than the canvas's, so it sits inside the universe
+	   drifting behind it rather than half below it. Nothing here is interactive
+	   and the canvas underneath may carry a layout's `hits`, so the whole layer
+	   stays out of the way of taps. */
+	.chapter-card {
+		position: absolute;
+		top: 0;
+		left: 0;
+		right: 0;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		padding: 0 1rem;
+		pointer-events: none;
+	}
+
+	/* Set in the piece's own serif rather than the sans: only three faces load
+	   (Atlas Grotesk, Tiempos, Atlas Typewriter) and a neo-grotesque at this size
+	   reads as a default rather than a decision. Tiempos Bold, uppercase and
+	   tracked out, is the editorial register a chapter break wants. Uppercasing
+	   is presentational — the title string stays as written. */
+	.chapter-card h2 {
+		margin: 0;
+		font-family: var(--font-serif);
+		font-size: var(--40px, 40px);
+		font-weight: 700;
+		line-height: 1.06;
+		/* uppercase serifs set tight look cramped; open them up a little */
+		letter-spacing: 0.03em;
+		text-transform: uppercase;
+		text-align: center;
+		text-wrap: balance;
+		color: var(--color-fg);
+		/* halo, not a plate: the title lies over the drifting crowd, and a solid
+		   background would punch a rectangle out of the universe it is meant to be
+		   inside. Sized up from .node-label's — display type over a dot field needs
+		   a wider hold-out than an 11px name does. */
+		text-shadow:
+			0 0 8px var(--color-bg, #fff),
+			0 0 8px var(--color-bg, #fff),
+			0 0 16px var(--color-bg, #fff),
+			0 0 16px var(--color-bg, #fff),
+			0 0 28px var(--color-bg, #fff),
+			0 0 28px var(--color-bg, #fff);
+	}
+
+	@media (min-width: 480px) {
+		.chapter-card h2 {
+			font-size: var(--64px, 64px);
 		}
 	}
 
