@@ -597,6 +597,10 @@
 							center.
 						</p>
 					</Step>
+					<Chapter
+						state="chapterCenters"
+						title="The makings of a center of Hollywood"
+					/>
 					<Step state="scatterCenters" params={{ showFilms: true }}>
 						<p>
 							The obvious one is film count. More films means closer to the
@@ -657,6 +661,10 @@
 							"big dogs" and is therefore closer to the center?
 						</p>
 					</Step>
+					<Chapter
+						state="chapterCenters"
+						title="Predicting the next center of Hollywood"
+					/>
 					<Step state="scatterGenZ">
 						<p>
 							We now have everything we need to predict Gen Z's Kevin Bacon
@@ -900,7 +908,7 @@
 		margin: 0;
 		font-family: var(--font-serif);
 		font-size: var(--30px, 30px);
-		font-weight: 500;
+		font-weight: 400;
 		line-height: 1.06;
 		/* uppercase serifs set tight look cramped; open them up a little */
 		letter-spacing: 0.03em;
@@ -919,12 +927,6 @@
 			0 0 16px var(--color-bg, #fff),
 			0 0 28px var(--color-bg, #fff),
 			0 0 28px var(--color-bg, #fff);
-	}
-
-	@media (min-width: 480px) {
-		.chapter-card h2 {
-			font-size: var(--64px, 64px);
-		}
 	}
 
 	.scrolly-steps {
