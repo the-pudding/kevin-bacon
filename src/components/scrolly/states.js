@@ -119,10 +119,12 @@ export const STATE_PULSE = pick("pulse");
 export const STATE_YCAP = pick("yCap");
 
 /**
- * Per-state race camera descriptor `{ extent: [y0, y1] }` — the content extent
- * the fixed-scale x axis pans over (see layouts/race.js). Its presence is what
- * marks a state as a pannable race step.
- * @type {Partial<Record<LayoutState, { extent: [number, number] }>>}
+ * Per-state race camera descriptor — the content extent the fixed-scale x axis
+ * pans over, plus the bounds on where its camera may rest (see layouts/race.js).
+ * Its presence is what marks a state as a race step; whether that step is
+ * *pannable* is a separate question, answered by racePanBounds (raceFuture pins
+ * its camera by declaring minPlayhead === maxPlayhead).
+ * @type {Partial<Record<LayoutState, { extent: [number, number], minPlayhead?: number, maxPlayhead?: number, highlight?: number[] }>>}
  */
 export const STATE_RACE = pick("race");
 

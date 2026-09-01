@@ -390,8 +390,12 @@
 				{/snippet}
 				<!-- raceFull pan control: drag surface + year slider over the plot. Only
 				     raceFull gets it — the raceRecent steps are carried by their own
-				     camera choreography, so they need no control of their own. Renders
-				     nothing on a viewport wide enough to show the whole range. -->
+				     camera choreography, so they need no control of their own, and
+				     raceFuture is a fixed camera by design (its copy asks the reader to
+				     look at the empty future, not to go rummaging in the past; it also
+				     reports its camera as fixed, so this would render nothing there
+				     anyway). Renders nothing on a viewport wide enough to show the
+				     whole range. -->
 				<!-- the pair quiz renders as a blurred overlay over the scatter; the
 				     step below it just sets up the question -->
 				{#snippet quizPanel()}
@@ -589,7 +593,7 @@
 						</p>
 					</Step>
 
-					<Step state="raceFull" panel={racePanel}>
+					<Step state="raceFuture">
 						<p>
 							Now imagine us taking this into the future. How might we predict
 							who will take the crown from Samuel L. Jackson?

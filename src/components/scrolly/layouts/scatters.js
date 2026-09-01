@@ -9,6 +9,7 @@ import {
 	deLogFilms,
 	FILM_MIN_SHOWN,
 	CROWD,
+	INK,
 	SLJ,
 	CAGE,
 	idOf
@@ -237,10 +238,56 @@ const GENZ_FILM_MAX = 40;
 const inGenzWindow = (n) =>
 	n.films >= GENZ_FILM_MIN && n.films <= GENZ_FILM_MAX;
 
+// The cloud is 99 dots packed within ~10px of each other, so naming all of
+// them is impossible and naming none of them leaves the reader with a contest
+// and no contestants. These seven are named instead: the five likeliest
+// winners, which the simulation chapter goes on to talk about, and two from the
+// remote end of the same cloud.
+//
+// Every one is placed beside its dot rather than left to the default
+// below-dot placement: below-dot labels sit outside the decollider's pool (see
+// ScrollyVisual's drawScene), so at this density two of these names would land
+// on top of each other. The side is hand-picked per dot from where the zoomed
+// frame leaves room, the same way QUIZ_LABEL_DIRS is tuned above. Moretz sits
+// at 36 films against the zoom's clamped ceiling of 40, so a name to her right
+// runs off canvas — the constraint SLJ and Cage hit on scatterCenters. At every
+// viewport width this leaves at least a line-height between the names on a
+// side, so the decollider never has to nudge one and no leader stubs are drawn;
+// it stays as insurance rather than the mechanism.
+//
+// Keyed by tmdb id like PORTMAN/KENDRICK above, not by position in the
+// win-sorted candidate list: a data rebuild that reorders the field would
+// otherwise leave seven hand-tuned sides attached to seven different actors,
+// silently. An id that drops out of the corpus throws from idOf instead.
+const GENZ_LABEL_DIRS = {
+	[idOf(56734)]: "left", // Chloë Grace Moretz
+	[idOf(1767250)]: "left", // Ariana Greenblatt
+	[idOf(1903874)]: "left", // Maya Hawke
+	[idOf(1428070)]: "right", // Isabela Merced
+	[idOf(2099497)]: "right", // Fred Hechinger
+	// Two from the far end of the same cloud. Every contender above is up in the
+	// well-connected band, which leaves the bottom of the frame reading as
+	// anonymous filler when it is the more surprising half: Sink and Elordi are
+	// as famous as anyone here and sit among the most remote actors in the pool.
+	// The band is sparse enough to take a name where the top is not.
+	[idOf(1590797)]: "left", // Sadie Sink
+	[idOf(2034418)]: "right" // Jacob Elordi
+};
+const GENZ_LABELS = Object.keys(GENZ_LABEL_DIRS).map(Number);
+
 // CGM is candidates[0], so she wears the same candidate mark
 const GENZ_MARK = { rgb: CROWD, r: 3.5, alpha: 0.9 };
+// A named dot is drawn darker and larger than the 92 it sits among, because a
+// name beside an identical grey dot in an identical grey column doesn't say
+// which dot it belongs to — the label reads as a caption on the whole cluster.
+// Size and ink rather than a hue, the same way scatterCenters marks its
+// subject: the piece spends colour on hop distance, not on emphasis.
+const GENZ_NAMED_MARK = { rgb: INK, r: 5, alpha: 1 };
 const GENZ_HIGHLIGHTS = new Map(
-	story.genz.candidates.map((c) => [c.id, GENZ_MARK])
+	story.genz.candidates.map((c) => [
+		c.id,
+		GENZ_LABEL_DIRS[c.id] ? GENZ_NAMED_MARK : GENZ_MARK
+	])
 );
 
 /**
@@ -426,6 +473,11 @@ export const states = {
 	},
 	scatterGenZ: {
 		layout: layoutScatterGenZ,
+		// plain names, no labelText: the win percentages that pick five of these
+		// seven are the simulation chapter's payoff, and printing them on the
+		// contenders' first appearance gives the ending away
+		labels: GENZ_LABELS,
+		labelDirs: GENZ_LABEL_DIRS,
 		overlay: AVG_OVERLAY
 	}
 };

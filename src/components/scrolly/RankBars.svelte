@@ -15,7 +15,11 @@
 		hopDotSlots,
 		hopFractions
 	} from "./layout-shared.js";
-	import { raceDotSpec, RACE_RECENT_VISIBLE } from "./layouts/race.js";
+	import {
+		raceDotSpec,
+		RACE_RECENT_VISIBLE,
+		RACE_RECENT_LEAD
+	} from "./layouts/race.js";
 
 	// The rank chapter's "everyone else" list: plain HTML/SVG hop-band bars
 	// (per-actor counts from scrolly-story.json's rankHopBands), not canvas — a
@@ -26,7 +30,8 @@
 	//
 	// `collapse` is the chapter handoff: every bar folds into a single node that
 	// already IS its dot on the race chart (raceDotSpec — same radius, colour and
-	// alpha), the labels go, and once that has landed this overlay stands down
+	// alpha, ink for the #1 the chart leads with), the labels go, and once that
+	// has landed this overlay stands down
 	// (story.rankCollapsed) and the canvas takes the very same nodes over and
 	// flies them onto the chart. See ScrollyVisual's raceEntry branch.
 	/** @type {{ reveal?: boolean, collapse?: boolean }} */
@@ -44,7 +49,9 @@
 		// so its bar just goes with the rest of the list. (Can't happen at the
 		// reveal's own scroll position: every one of the top ~25 rows is a
 		// raceRecent contender. Only reachable if the reader scrolled away.)
-		dot: RACE_RECENT_VISIBLE.has(id) ? raceDotSpec() : null
+		dot: RACE_RECENT_VISIBLE.has(id)
+			? raceDotSpec(id === RACE_RECENT_LEAD)
+			: null
 	}));
 
 	// One <path> per hop over the band's shared dot lattice (hopDotSlots), each a

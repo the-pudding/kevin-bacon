@@ -202,7 +202,8 @@ crowd parked invisible) · `hopBands`
 (degree rows, with a bottom legend keying each hop's color) ·
 `rankFocus` (Bacon's hop bar dissolves; the HTML `RankBars` panel + guess
 take over) · `rankReveal` (SLJ) · `raceRecent`/
-`raceFull` (avg-distance-by-year race, two fixed-scale cameras) ·
+`raceFull`/`raceFuture` (avg-distance-by-year race, three fixed-scale cameras;
+the last rests past the end of the data, see below) ·
 `scatterCenters`/`scatterWalters`/`scatterQuiz` (films-vs-distance scatter
 family) · `scatterCostars` (the same scatter framed on the top 250 by rank,
 coloured by which of the two named actors has worked with each — the one
@@ -316,6 +317,33 @@ rest of the field run off the bottom edge. Lines that leave the plot are ended a
 its edge by `curveEntry`/`curveExit`, entering and leaving through it as in any
 line chart, and a dot whose value has left the scale is hidden outright.
 
+**The leader's ink.** The field is monochrome, but the actor in FRONT at the
+camera's right edge is drawn in ink — `INK` dot at r 4 and alpha 1, their line
+blended to `INK` and thickened — so who holds the crown is visible without
+reading the gutter, and the crown visibly changes hands as the reader pans across
+the takeover. Nobody is identified BY a colour; one is identified as being in
+front, and it is a property of the CAMERA rather than of the actor or the step
+(`highlight` still buys a name and nothing else).
+
+`writeRaceSweepFrame` picks it: the lowest dot it is actually showing, reusing
+the `dotM` it already computed so "inked" and "on the plot" cannot disagree. That
+is the same order as the crown, because the axis hangs under the record and no
+actor sits below the crown holder. Reading it off the drawn dots rather than off
+`story.eras` is what puts the handover on the crossing the reader can see — the
+same ~0.9yr discrepancy `solveTakeover` exists for, so the ink changes hands
+exactly where the takeover ring sits, at the pixel where the two dots meet.
+`raceLeadAt` is the same rule with no frame, for the rank handoff's collapsed
+nodes (`RACE_RECENT_LEAD`, so the #1 row is already inked as HTML).
+
+The dot rides the attr buffer as any dot does. The LINE needs a channel, because
+a trail's colour and width otherwise come from the static `TRAIL_META`: hence
+`TRAIL_STRIDE = TRAIL_POINTS * 2 + 2`, the last slot a 0–1 highlight that
+`drawScene` blends toward `INK` — the same idiom edge slot 2 uses for a
+highlighted link. Being in the buffer is what makes it tween, so ink gained or
+lost between two states crossfades. Every other trail writer ZEROES it, so ink
+survives only while its writer keeps asserting it; inked lines are stroked in a
+second pass so the crown is never buried under a grey neighbour.
+
 **Who a step shows** is a separate question from the axis, and still
 width-independent so it can be computed at module load. `raceStepCap(step)` is the
 centre at the step's resting year plus one chapter-wide `RACE_YCAP_REACH` (0.213).
@@ -346,11 +374,43 @@ vertices land on screen (sampling 55 years would leave ~5 in a phone's ~6-year
 viewport and turn the curve into a polyline); actors whose data has scrolled off
 camera fade to alpha 0 over their last visible year, which is also what keeps
 every vertex inside the plot with no canvas clip region. Panning is
-`RaceScrubber`, mounted on `raceFull` only (the other two race steps are carried
-by their own camera choreography): a relative pointer drag plus a bits-ui year
+`RaceScrubber`, mounted on `raceFull` only (the `raceRecent` steps are carried by
+their own camera choreography, and `raceFuture` is a fixed camera by design): a
+relative pointer drag plus a bits-ui year
 Slider, both writing only `story.scrubYear`/`scrubbing`, with bounds read from
 `story.raceCam` (published by ScrollyVisual, the only component that knows the
 canvas width). It renders nothing when the whole extent already fits on screen.
+
+**The future strip (`raceFuture`).** The chapter's last step is raceFull's chart
+with the camera carried past the end of the data: the axis runs on to 2030 while
+every series still ends in 2025, so the right of the plot is empty ground — the
+future its copy asks the reader to imagine. It costs one field.
+`maxPlayhead` (the mirror of `minPlayhead`, read through `raceMaxPlayhead` and
+defaulting to the extent's end) is the last year a step's camera may rest on, and
+so is its resting playhead, its pan ceiling and its last x tick all at once. The
+content extent stays raceFull's, because who the step shows and how far its lines
+run are still questions about 1970–2025.
+
+Nothing caps the lines to keep them off the strip, and that is the point:
+`writeRaceSweepFrame` already ends every line at `Math.min(cam.playhead, de, e1)`
+and parks every dot at `de`, the actor's own last data year. Push the camera past
+the data and the lines simply stay where they ended. Only the ticks and the
+camera follow `maxPlayhead`.
+
+Declaring `minPlayhead === maxPlayhead` is how a step **fixes its camera**:
+`racePanBounds` is left with nothing between its two ends, so it reports the step
+as offering the reader no pan at all. That is the honest
+half of the step having no controls; the enforcing half is `Index.svelte` not
+mounting `RaceScrubber` on it. Arrival and departure are `playRaceFuture` /
+`playRaceFutureReverse` — the rewind legs run forwards, since `rewindFrame` only
+interpolates `fromP → toP` and a fixed px-per-year makes either direction a pure
+translation.
+
+One consequence to know before retuning `pxPerYear`: the strip is five years
+wide, so a plot narrower than 5 × `pxPerYear` has no room for data beside it. At
+the shipped 76px that is ~1050px, below which this step shows progressively less
+of the field and, on a phone, none of it. That is a deliberate, accepted
+trade-off for holding the axis to 2030 at every width, not an oversight.
 
 **The simulation race (`simRace`), a reader-driven animation.** The one
 choreography a reader starts rather than an arrival: `SimRunner` (a `panel`
@@ -413,6 +473,19 @@ back through the state's `params` selector. `networkIntro` puts one over every
 actor in the intro constellation (armed
 as soon as the step is reached — the path-walk reveal that grows the
 constellation plays earlier, on `lone`'s own entry pop-in).
+
+**The takeover ring.** The one piece of furniture that is a popover rather than
+a label: an 11px ring on the race chart at the point where SLJ's line crosses
+Hackman's and the crown changes hands, opening an `InfoTerm` (the same
+tethered-card/bottom-sheet primitive the 1980 tick and the prose terms use). The
+crossing is solved at module load by bisecting the two actors' curves against the
+same monotone segments the chart draws (`solveTakeover`, `layouts/race.js`) —
+**not** read off `story.eras`, because `raceSeries` is sampled on whole years, so
+the drawn lines cross at 2005.11 while the era record's handover date is
+2006-02-17, ~68px further right. Its pixel position rides `writeRaceSweepFrame`'s
+per-frame return next to `axes` rather than the layout result, which is what
+keeps it glued to the crossing through a scrub instead of freezing (see "Chart
+furniture" above), and it culls itself off-camera on the x ticks' own rule.
 
 **Waiting for a reveal.** `story.settled` names the state whose arrival tween has
 just landed (`ScrollyVisual`'s `settle()`, attached to the arrival's `onDone`,

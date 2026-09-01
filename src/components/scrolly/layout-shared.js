@@ -63,11 +63,13 @@ export const edgeIndex = (e) => EDGE_BASE + e * STRIDE;
  * @property {Float64Array} attrs ATTR_SIZE values, STRIDE per node + STRIDE per edge
  * @property {Float64Array} [delays] DELAY_SIZE per-node/per-edge start delays in ms;
  *   omitted = tweener applies its default hashed jitter
- * @property {Float64Array} [trails] TRAIL_SIZE polyline vertices + alpha per trail;
- *   omitted = trails fade out in place
+ * @property {Float64Array} [trails] TRAIL_SIZE polyline vertices + alpha +
+ *   highlight per trail; omitted = trails fade out in place
  * @property {Float64Array} [trailDelays] per-trail start delays in ms
  * @property {{ x?: Tick[], y?: Tick[], xBase?: number, yBase?: number }} [axes]
  * @property {Note[]} [notes]
+ * @property {{ x: number, y: number }|null} [takeover] px, the race chart's
+ *   takeover marker (the SLJ/Hackman crossing); null when it is off camera
  * @property {LegendItem[]} [legend]
  * @property {Hit[]} [hits] tappable regions over the chart (see STATE_PICK)
  * @property {number} [legendY] px, top of the legend row; omitted = pinned to bottom
@@ -320,16 +322,24 @@ export const SIM_LABEL_IDS = SIM_SERIES.slice(0, SIM_LABEL_N);
 // ---------------------------------------------------------------------------
 
 export const TRAIL_POINTS = 48;
-export const TRAIL_STRIDE = TRAIL_POINTS * 2 + 1; // vertices + alpha
+// vertices + alpha + highlight. The last channel (0-1) blends a line's stroke
+// from its TRAIL_META colour toward INK and thickens it, exactly as edge slot 2
+// does for links (see setEdge and ScrollyVisual's drawScene). It rides the
+// buffer rather than being decided at draw time so the trail tweener
+// interpolates it: a line that gains or loses the ink between two states
+// crossfades instead of flipping.
+export const TRAIL_STRIDE = TRAIL_POINTS * 2 + 2;
 export const RACE_IDS = Object.keys(story.raceSeries)
 	.map(Number)
 	.sort((a, b) => a - b);
 /** @type {{ id: number|null, rgb: number[], width: number }[]} */
 export const TRAIL_META = [
 	// The race chart carries no hue at all: every line is the same grey at the
-	// same width, and no actor is emphasised over any other — the step's subject
-	// is conveyed only through the name labels in the right-hand gutter. A
-	// per-actor palette would in any case be unworkable with a cast of hundreds.
+	// same width. The one actor set apart from the field is whoever LEADS at the
+	// camera's right edge, and they are set apart in ink (the trail highlight
+	// channel above, written per frame by writeRaceSweepFrame) — nobody is
+	// identified BY a colour, one is identified as being in front. A per-actor
+	// palette would in any case be unworkable with a cast of hundreds.
 	...RACE_IDS.map((id) => ({ id, rgb: CROWD, width: 1 })),
 	// career chapter: red hero trajectory, grey comparison lines (the dots are
 	// blue marks — see layouts/career.js)
@@ -454,6 +464,7 @@ export function sampleTrail(trails, t, segs, x0, x1, xScale, yScale, alpha) {
 		trails[base + k * 2 + 1] = yScale(curveYAt(segs, target));
 	}
 	trails[base + TRAIL_POINTS * 2] = alpha;
+	trails[base + TRAIL_POINTS * 2 + 1] = 0;
 }
 
 /**
@@ -501,6 +512,7 @@ export function setTrailPoints(trails, t, points, alpha) {
 		trails[base + k * 2 + 1] = y;
 	}
 	trails[base + TRAIL_POINTS * 2] = alpha;
+	trails[base + TRAIL_POINTS * 2 + 1] = 0;
 }
 
 /** collapses trail slot t onto a point (line unspools from/retracts into a dot) */
@@ -511,6 +523,17 @@ export function collapseTrail(trails, t, x, y, alpha = 0) {
 		trails[base + k * 2 + 1] = y;
 	}
 	trails[base + TRAIL_POINTS * 2] = alpha;
+	trails[base + TRAIL_POINTS * 2 + 1] = 0;
+}
+
+/**
+ * Sets trail slot t's ink (0-1). Every other trail writer ZEROES this channel,
+ * so a slot can only carry ink while the writer that owns it keeps saying so —
+ * which is what stops a chapter inheriting the previous one's emphasis in the
+ * live buffer, where nothing is re-allocated between frames.
+ */
+export function setTrailHighlight(trails, t, hi) {
+	trails[t * TRAIL_STRIDE + TRAIL_POINTS * 2 + 1] = hi;
 }
 
 /** clip a [x, y][] series to [x0, x1], interpolating the cut ends on the curve */

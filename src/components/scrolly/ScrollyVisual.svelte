@@ -15,8 +15,12 @@
 		RACE_RECENT_EXTENT,
 		RACE_RECENT_STEP,
 		RACE_RECENT_VISIBLE,
+		RACE_RECENT_LEAD,
 		RACE_REWIND_WAYPOINT_YEAR,
 		RACE_FULL_STEP,
+		RACE_FUTURE_STEP,
+		RACE_FUTURE_YEAR,
+		raceMaxPlayhead,
 		RACE_CAST,
 		RACE_TRAIL_SLOTS,
 		RACE_LABEL_TOP,
@@ -57,11 +61,13 @@
 		set,
 		EDGE_GREY,
 		EDGE_HIGHLIGHT,
+		INK,
 		ORDER_OF
 	} from "./layout-shared.js";
 	import { story } from "./story.svelte.js";
 	import { MediaQuery } from "svelte/reactivity";
 	import InfoTerm from "$components/ui/InfoTerm.svelte";
+	import TakeoverBars from "./TakeoverBars.svelte";
 
 	// undefined until the <Step> registry has populated (first client render)
 	/** @type {{ state: import("./states.js").VisualState, params?: Object, stepsHeight?: number, coldStart?: boolean }} */
@@ -125,6 +131,9 @@
 				target[base + k] = live[base + k];
 			}
 			target[base + TRAIL_POINTS * 2] = 0;
+			// the ink goes with the geometry: a departing leader fades out in the
+			// colour it had, rather than crossfading back to grey on its way off
+			target[base + TRAIL_POINTS * 2 + 1] = live[base + TRAIL_POINTS * 2 + 1];
 		}
 		return target;
 	}
@@ -195,6 +204,16 @@
 		extent: legExtent,
 		playhead: fromP + (toP - fromP) * e
 	});
+	// The content extent a leg runs under: every year the camera will put on the
+	// plot across the whole pan, whichever direction it travels. Held constant for
+	// the leg (rather than tracking the moving camera) so what the leg shows, its
+	// y fit and its tick range can't change under the reader mid-pan — the same
+	// reason every other frame builder above fixes its extent.
+	const raceLegExtent = (fromP, toP) =>
+		/** @type {[number, number]} */ ([
+			Math.min(fromP, toP) - raceVisibleSpan(width, height),
+			Math.max(fromP, toP)
+		]);
 	// reader-driven pan / settled hold: the camera at one playhead year
 	const panFrame = (step) => (playhead) => ({ ...step, playhead });
 	// the one state whose arrival plays the draw-on entry (scoped by revealFrom)
@@ -233,6 +252,9 @@
 	// the one state whose arrival plays the rewind's second and final leg (scoped
 	// by revealFrom) — see playRaceFullEntry
 	const RACE_FULL_STATE = "raceFull";
+	// the chapter's last step: the same chart with the camera carried forward past
+	// the end of the data — see playRaceFuture
+	const RACE_FUTURE_STATE = "raceFuture";
 	// per-frame smoothing factor for the pan glide: renderPlayhead moves this
 	// fraction of the remaining distance to the target each frame (exponential
 	// ease-out — feels like a weighted reel). Reduced motion uses 1 (snap).
@@ -292,7 +314,7 @@
 		runPhase(
 			ms,
 			(e) => {
-				const { axes, cam } = writeRaceSweepFrame(
+				const { axes, takeover, cam } = writeRaceSweepFrame(
 					tweener.current,
 					trailTweener.current,
 					width,
@@ -302,7 +324,7 @@
 					alphaAt(e)
 				);
 				renderPlayhead = cam.playhead;
-				decor = { ...decor, axes };
+				decor = { ...decor, axes, takeover };
 			},
 			onDone
 		);
@@ -364,7 +386,7 @@
 		const diff = target - renderPlayhead;
 		const caughtUp = Math.abs(diff) < 0.02;
 		renderPlayhead = caughtUp ? target : renderPlayhead + diff * k;
-		const { axes } = writeRaceSweepFrame(
+		const { axes, takeover } = writeRaceSweepFrame(
 			tweener.current,
 			trailTweener.current,
 			width,
@@ -372,7 +394,7 @@
 			panFrame(raceStep)(renderPlayhead),
 			STATE_YCAP[stateName]
 		);
-		decor = { ...decor, axes };
+		decor = { ...decor, axes, takeover };
 		drawScene();
 		if (story.scrubbing || !caughtUp) {
 			sweepRaf = requestAnimationFrame(scrubLoop);
@@ -473,7 +495,7 @@
 	/** @type {{ id: number, name: string, x: number, y: number, r: number, alpha: number, labelAlpha: number, labelOffset: number }[]} */
 	let tracked = $state([]);
 	// static per-state chart furniture (ticks/callouts/legend) from the layout result
-	/** @type {{ axes?: { x?: {pos:number,label:string}[], y?: {pos:number,label:string}[], xBase?: number, yBase?: number }, notes?: import("./states.js").Note[], legend?: import("./layout-shared.js").LegendItem[], legendY?: number, hits?: import("./layout-shared.js").Hit[] } | null} */
+	/** @type {{ axes?: { x?: {pos:number,label:string}[], y?: {pos:number,label:string}[], xBase?: number, yBase?: number }, notes?: import("./states.js").Note[], takeover?: {x:number,y:number}|null, legend?: import("./layout-shared.js").LegendItem[], legendY?: number, hits?: import("./layout-shared.js").Hit[] } | null} */
 	let decor = $state(null);
 	// true while an arrival is clearing the previous scene off the canvas before
 	// its own chart may appear: the axis furniture (ticks, callouts, legend, axis
@@ -536,7 +558,7 @@
 	// step is about — or undefined off the race chapter, whose presence is what
 	// makes a step pannable
 	const raceStep = $derived(
-		/** @type {{extent: [number, number], minPlayhead?: number, highlight?: number[]} | undefined} */ (
+		/** @type {{extent: [number, number], minPlayhead?: number, maxPlayhead?: number, highlight?: number[]} | undefined} */ (
 			STATE_RACE[stateName]
 		)
 	);
@@ -692,11 +714,6 @@
 			story.raceRewinding = false;
 			return;
 		}
-		const span = raceVisibleSpan(width, height);
-		const legExtent = /** @type {[number, number]} */ ([
-			Math.min(fromP, toP) - span,
-			Math.max(fromP, toP)
-		]);
 		// starts from a frame showing raceRecent's set (the entry draw-on)
 		const shown = {
 			from: RACE_RECENT_VISIBLE,
@@ -708,7 +725,7 @@
 		sweeping = true;
 		camPanning = true;
 		runSweepPhase(
-			rewindFrame(toStep, legExtent, fromP, toP),
+			rewindFrame(toStep, raceLegExtent(fromP, toP), fromP, toP),
 			STATE_YCAP[RACE_ENTRY_STATE],
 			() => {
 				sweeping = false;
@@ -760,11 +777,6 @@
 			publishRaceCam();
 			return;
 		}
-		const span = raceVisibleSpan(width, height);
-		const legExtent = /** @type {[number, number]} */ ([
-			Math.min(fromP, toP) - span,
-			Math.max(fromP, toP)
-		]);
 		// the mirror of leg 2's fade: the whole cast raceFull shows drops back to
 		// the field raceRecent does, over the same early departure window
 		const shown = {
@@ -774,7 +786,7 @@
 		sweeping = true;
 		camPanning = true;
 		runSweepPhase(
-			rewindFrame(RACE_RECENT_STEP, legExtent, fromP, toP),
+			rewindFrame(RACE_RECENT_STEP, raceLegExtent(fromP, toP), fromP, toP),
 			STATE_YCAP[RACE_ENTRY_STATE],
 			() => {
 				sweeping = false;
@@ -783,6 +795,85 @@
 				publishRaceCam();
 			},
 			shown,
+			rewindMs(fromP, toP)
+		);
+	}
+
+	// The rewind run FORWARDS, played on arrival at raceFuture: the camera leaves
+	// the past, crosses the present and carries on to rest with 2030 on the plot's
+	// right edge, so the step's copy ("now imagine us taking this into the future")
+	// lands on a chart that actually has a future on it.
+	//
+	// Nothing here caps the lines to 2025. At a fixed px-per-year the pan is a
+	// pure translation, and writeRaceSweepFrame already ends every line at the
+	// actor's own last data year — so the empty strip opens up on its own as the
+	// camera runs off the end of the data. What the leg does carry across is the
+	// x ticks, which keep being emitted up to the leg extent's end (2030).
+	//
+	// Starts from `raceExitPlayhead` for the same reason every other leg does: the
+	// reader may have panned raceFull anywhere before pressing Next.
+	function playRaceFuture() {
+		if (!width || !height) return;
+		const fromP = raceExitPlayhead ?? RACE_REWIND_WAYPOINT_YEAR;
+		const toP = RACE_FUTURE_YEAR;
+		const finalView = { playhead: toP };
+		// no reducedMotion guard: the render effect's snap branch takes that case
+		// before any arrival branch runs
+		if (fromP >= toP) {
+			story.raceView = finalView;
+			publishRaceCam();
+			return;
+		}
+		sweeping = true;
+		camPanning = true;
+		runSweepPhase(
+			rewindFrame(RACE_FUTURE_STEP, raceLegExtent(fromP, toP), fromP, toP),
+			STATE_YCAP[RACE_FUTURE_STATE],
+			() => {
+				sweeping = false;
+				camPanning = false;
+				story.raceView = finalView;
+				publishRaceCam();
+			},
+			// no `shown`: raceFull and raceFuture both show the whole cast, so
+			// there is nothing to fade in or out across the leg
+			null,
+			rewindMs(fromP, toP)
+		);
+	}
+
+	// The forward leg retraced, played when the reader steps back from raceFuture
+	// to raceFull — the same relationship playRaceReverse has to leg 2. Lands on
+	// RACE_REWIND_WAYPOINT_YEAR, which is where raceFull rests by every path, so
+	// stepping forward again replays the forward leg from where it first started.
+	function playRaceFutureReverse() {
+		if (!width || !height) return;
+		const fromP = raceExitPlayhead ?? RACE_FUTURE_YEAR;
+		const toP = RACE_REWIND_WAYPOINT_YEAR;
+		const finalView = { playhead: toP };
+		// mirrored guard: this leg travels backwards, so it is a camera already at
+		// or behind the waypoint that has nothing to retrace
+		if (fromP <= toP) {
+			story.raceView = finalView;
+			publishRaceCam();
+			return;
+		}
+		sweeping = true;
+		camPanning = true;
+		runSweepPhase(
+			// RACE_FULL_STEP, not RACE_FUTURE_STEP: the leg is landing on raceFull,
+			// so its highlight has to be the one the settle uses. The leg extent
+			// still ends at 2030, which is what keeps the future ticks drawn until
+			// the camera has actually left them behind.
+			rewindFrame(RACE_FULL_STEP, raceLegExtent(fromP, toP), fromP, toP),
+			STATE_YCAP[RACE_FULL_STATE],
+			() => {
+				sweeping = false;
+				camPanning = false;
+				story.raceView = finalView;
+				publishRaceCam();
+			},
+			null,
 			rewindMs(fromP, toP)
 		);
 	}
@@ -932,25 +1023,58 @@
 		return keep;
 	}
 
+	// slots drawn in drawScene's second trail pass, reused rather than allocated
+	// per frame (drawScene runs on every rAF tick of every tween)
+	/** @type {number[]} */
+	const inkedTrails = [];
+
+	/**
+	 * One trail polyline. `hi` (0-1) blends its TRAIL_META colour toward INK and
+	 * thickens it — the same treatment slot 2 gives a highlighted edge below, and
+	 * the whole of how the race chart marks whoever is leading at its camera.
+	 * @param {Float32Array} trailAttrs
+	 */
+	function strokeTrail(trailAttrs, t, alpha, hi) {
+		const base = t * TRAIL_STRIDE;
+		const { rgb, width: lw } = TRAIL_META[t];
+		ctx.strokeStyle = hi
+			? `rgba(${rgb.map((c, k) => Math.round(c + (INK[k] - c) * hi)).join(", ")}, ${alpha})`
+			: `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, ${alpha})`;
+		ctx.lineWidth = lw + hi * 0.5;
+		ctx.beginPath();
+		ctx.moveTo(trailAttrs[base], trailAttrs[base + 1]);
+		for (let k = 1; k < TRAIL_POINTS; k++) {
+			ctx.lineTo(trailAttrs[base + k * 2], trailAttrs[base + k * 2 + 1]);
+		}
+		ctx.stroke();
+	}
+
 	function drawScene() {
 		if (!ctx) return;
 		const attrs = tweener.current;
 		const trailAttrs = trailTweener.current;
 		ctx.clearRect(0, 0, width, height);
-		// trails under everything: race/career lines, prediction diagonal
+		// trails under everything: race/career lines, prediction diagonal. An INKED
+		// line (the race chart's leader — see setTrailHighlight) is held back to a
+		// second pass so the crown is drawn over the field rather than buried under
+		// whichever grey neighbour happens to own a later slot.
+		inkedTrails.length = 0;
 		for (let t = 0; t < TRAIL_META.length; t++) {
 			const base = t * TRAIL_STRIDE;
 			const alpha = trailAttrs[base + TRAIL_POINTS * 2];
 			if (alpha <= 0.008) continue;
-			const { rgb, width: lw } = TRAIL_META[t];
-			ctx.strokeStyle = `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, ${alpha})`;
-			ctx.lineWidth = lw;
-			ctx.beginPath();
-			ctx.moveTo(trailAttrs[base], trailAttrs[base + 1]);
-			for (let k = 1; k < TRAIL_POINTS; k++) {
-				ctx.lineTo(trailAttrs[base + k * 2], trailAttrs[base + k * 2 + 1]);
-			}
-			ctx.stroke();
+			const hi = trailAttrs[base + TRAIL_POINTS * 2 + 1];
+			if (hi > 0.004) inkedTrails.push(t);
+			else strokeTrail(trailAttrs, t, alpha, 0);
+		}
+		for (const t of inkedTrails) {
+			const base = t * TRAIL_STRIDE;
+			strokeTrail(
+				trailAttrs,
+				t,
+				trailAttrs[base + TRAIL_POINTS * 2],
+				trailAttrs[base + TRAIL_POINTS * 2 + 1]
+			);
 		}
 		ctx.lineWidth = 1;
 		// a live (target alpha > 0) line's endpoint is drawn at its final spot
@@ -1102,14 +1226,18 @@
 	// wins the flush when a step change dirties both.
 	$effect(() => {
 		stateName;
-		const extent = STATE_RACE[stateName]?.extent;
+		const step = STATE_RACE[stateName];
 		untrack(() => {
 			// snapshot the camera we're leaving before resetting it — a backward
 			// arrival replays the departing motion in reverse from exactly here
 			raceExitPlayhead = renderPlayhead;
 			if (story.raceView !== null) story.raceView = null;
 			if (story.scrubYear !== null) story.scrubYear = null;
-			if (extent) renderPlayhead = extent[1];
+			// a race step's default resting camera is the last year its camera may
+			// rest on — its extent's end for every step but raceFuture, which rests
+			// out on the future strip (raceMaxPlayhead). Reading it through that one
+			// function is what keeps this agreeing with raceLayout's own fallback.
+			if (step) renderPlayhead = raceMaxPlayhead(step);
 			// raceFull's true resting camera is RACE_REWIND_WAYPOINT_YEAR (2006) —
 			// every arrival path settles here, animated or not, so the reader
 			// always has the slider immediately usable from the same year
@@ -1344,6 +1472,7 @@
 		decor = {
 			axes: layout.axes,
 			notes: layout.notes,
+			takeover: layout.takeover,
 			legend: layout.legend,
 			legendY: layout.legendY,
 			hits: layout.hits
@@ -1421,6 +1550,18 @@
 			stateChange &&
 			stateName === RACE_ENTRY_STATE &&
 			prevState === RACE_FULL_STATE;
+		// race-chapter arrival at raceFuture (forward, from raceFull): run the same
+		// pan the other way, out past the end of the data — see playRaceFuture.
+		const raceFutureArrival =
+			stateChange && playReveal && stateName === RACE_FUTURE_STATE;
+		// ...and that leg retraced, stepping BACKWARDS from raceFuture to raceFull.
+		// Disjoint from raceFullEntryArrival above by construction: that one needs
+		// playReveal, and raceFull's revealFrom is ["raceRecent"], so an arrival
+		// from raceFuture can never satisfy it.
+		const raceFutureReverseArrival =
+			stateChange &&
+			stateName === RACE_FULL_STATE &&
+			prevState === RACE_FUTURE_STATE;
 		// any other state that declares an entry choreography (STATE_ENTRY),
 		// played on a forward arrival from a revealFrom origin
 		const entryAnim =
@@ -1531,7 +1672,7 @@
 			const collapsedAttrs = new Float64Array(tweener.current);
 			for (let i = 0, id = 0; i < EDGE_BASE; i += STRIDE, id++) {
 				if (rows && RACE_RECENT_VISIBLE.has(id)) {
-					const dot = raceDotSpec();
+					const dot = raceDotSpec(id === RACE_RECENT_LEAD);
 					set(collapsedAttrs, id, rows.cx, rowY(id), dot.r, dot.rgb, dot.alpha);
 					startAttrs[i + 6] = litAttrs[i + 6];
 					continue;
@@ -1579,6 +1720,14 @@
 			// the same leg backwards, also picking its camera up from raceExitPlayhead
 			landOffChart(attrs, trailTarget);
 			playRaceReverse();
+		} else if (raceFutureArrival) {
+			// the chapter's last pan, forwards past the end of the data — no seed
+			// frame for the same reason as raceFullEntryArrival above
+			landOffChart(attrs, trailTarget);
+			playRaceFuture();
+		} else if (raceFutureReverseArrival) {
+			landOffChart(attrs, trailTarget);
+			playRaceFutureReverse();
 		} else if (entryAnim) {
 			// arrive onto the choreography's own frame 0 (its animated slots stamped
 			// over the static layout), then hand the rAF to playEntry. Like the race
@@ -1696,18 +1845,24 @@
 			{/if}
 		{/key}
 		{#key stateName}
-			<!-- axes are recomputed every frame during the race sweep/scrub
-			     animations (see writeRaceSweepFrame), so they stay pixel-accurate
-			     throughout and don't need to hide. Notes (era-handover callouts) have
-			     no per-frame equivalent, so they still hide during a live scrub/pan
-			     and snap back in once it settles.
+			<!-- axes and the takeover ring are recomputed every frame during the race
+			     sweep/scrub animations (see writeRaceSweepFrame), so they stay
+			     pixel-accurate throughout and don't need to hide. Anything that comes
+			     off the layout result instead — `notes` — has no per-frame equivalent,
+			     so its coordinates freeze for the length of a live scrub/pan and jump
+			     on release. Nothing emits notes today; a new one on the race chart
+			     belongs in the frame writer's payload, next to `takeover`.
 
 			     `chartVeiled` holds the whole lot back while an arrival is still
 			     fading the previous scene off the canvas; dropping it mounts these,
 			     so each one plays its own fade-in then rather than at the step change. -->
 			{#if !chartVeiled}
 				{#each decor?.axes?.x ?? [] as tick}
-					{#if stateName === RACE_FULL_STATE && tick.label === "1980"}
+					<!-- raceFuture as well as raceFull: its arrival pan starts from
+					     raceFull's camera, so 1980 can be on the plot for the first
+					     frames of the leg, and gating this on raceFull alone would blink
+					     the term off the moment the reader pressed Next. -->
+					{#if (stateName === RACE_FULL_STATE || stateName === RACE_FUTURE_STATE) && tick.label === "1980"}
 						<InfoTerm
 							class="tick tick-x tick-1980 fade-in"
 							style="left: {tick.pos}px; {decor.axes.xBase != null
@@ -1740,6 +1895,32 @@
 						{tick.label}
 					</p>
 				{/each}
+				<!-- the takeover ring: the one moment the race chapter is about, marked
+				     on the crossing itself. Only the race layout emits `takeover`, and
+				     the wholesale decor write above clears it on every other state, so
+				     this needs no state gate. Its position rides the per-frame payload
+				     next to `axes` (see runSweepPhase/scrubLoop), so it stays glued to
+				     the crossing through a pan instead of freezing like a note would. -->
+				{#if decor?.takeover}
+					<InfoTerm
+						class="takeover-mark fade-in"
+						style="left: {decor.takeover.x}px; top: {decor.takeover.y}px"
+						title="Freedomland (2006)"
+						aria-label="Samuel L. Jackson takes the crown from Gene Hackman"
+					>
+						{#snippet info()}
+							<p>
+								Samuel L. Jackson stars with Julianne Moore in this crime drama
+								mystery, having the following effect on his network:
+							</p>
+							<TakeoverBars />
+							<p>
+								This gives him an average distance of 2.14, overtaking Gene
+								Hackman who's last film was Welcome to Mooseport (2004).
+							</p>
+						{/snippet}
+					</InfoTerm>
+				{/if}
 				{#each decor?.notes ?? [] as note}
 					<p
 						class="note fade-in {note.align ?? 'left'}"
@@ -1999,6 +2180,34 @@
 
 	:global(.tick-1980[style*="top:"]) {
 		bottom: auto;
+	}
+
+	/* the takeover ring. Same :global() rationale as .tick-1980 above — the
+	   trigger is a <button> rendered inside InfoTerm.svelte's own template, so it
+	   carries none of this component's scoped selectors and every property has to
+	   be stated here. It has no text: the ring IS the affordance, and the
+	   accessible name comes from the aria-label on the trigger. */
+	:global(.takeover-mark) {
+		position: absolute;
+		margin: 0;
+		padding: 0;
+		pointer-events: auto;
+		/* RaceScrubber's full-bleed .drag-surface sits later in the DOM
+		   (Index.svelte mounts the panel after ScrollyVisual) and would otherwise
+		   intercept the click before it reaches this trigger */
+		z-index: 1;
+		width: 11px;
+		height: 11px;
+		border: 1.5px solid var(--color-gray-700, #444);
+		border-radius: 50%;
+		background: transparent;
+		/* the halo the rest of the chart furniture uses, so the ring reads where it
+		   sits: over the two lines it is pointing at */
+		box-shadow:
+			0 0 0 1.5px var(--color-bg, #fff),
+			0 0 4px var(--color-bg, #fff);
+		transform: translate(-50%, -50%);
+		cursor: pointer;
 	}
 
 	.tick-x[style*="top:"] {

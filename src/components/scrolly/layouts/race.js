@@ -3,6 +3,7 @@ import {
 	ATTR_SIZE,
 	TRAIL_SIZE,
 	MARGIN,
+	INK,
 	plotBottom,
 	lin,
 	CROWD,
@@ -15,6 +16,7 @@ import {
 	RACE_SLOT,
 	sampleTrail,
 	collapseTrail,
+	setTrailHighlight,
 	clipSeries,
 	monotoneSegments,
 	curveYAt
@@ -23,9 +25,14 @@ import {
 // ---------------------------------------------------------------------------
 // Race chart (Past chapter): avg distance by year, one line per race actor.
 //
-// The chart is monochrome by design: no line carries a hue, and nothing is
-// identified by colour. Every dot and line renders identically — the field is
-// distinguished only by the name labels in the right-hand gutter.
+// The chart is monochrome by design: no line carries a hue, and no actor is
+// identified BY a colour — the field is distinguished only by the name labels in
+// the right-hand gutter. The one exception is not an exception to that rule: the
+// actor LEADING at the camera's right edge is drawn in ink (see raceLeadBy and
+// raceDotSpec), so being in front is visible without reading the gutter, and the
+// crown visibly changes hands as the reader pans across the takeover. It is a
+// property of the camera, not of the actor: pan back past 2005 and the ink is
+// Hackman's.
 //
 // The x axis is FIXED-SCALE: PX_PER_YEAR pixels per year on every race step and
 // every viewport, so a year is always the same distance from its neighbour and
@@ -191,6 +198,44 @@ function raceAnchorAt(year) {
 	const f = t - Math.floor(t);
 	if (f === 0 || i + 1 >= RACE_ANCHOR.length) return RACE_ANCHOR[i];
 	return RACE_ANCHOR[i] + (RACE_ANCHOR[i + 1] - RACE_ANCHOR[i]) * f;
+}
+
+// ---------------------------------------------------------------------------
+// The takeover: the point where SLJ's line crosses Hackman's and the crown
+// changes hands. The chapter's whole claim ("Samuel L. Jackson took the crown")
+// happens at one intersection, and the reader has to be pointed at it.
+//
+// Solved against the SAME monotone segments the chart draws, rather than read
+// off story.eras, and this is the load-bearing part: raceSeries is sampled on
+// whole years, so the drawn curves cross at 2005.11 while the era record puts
+// the real handover at 2006-02-17 (a whole ~0.9yr, ~68px, further right, by
+// which point the two lines have visibly separated). A marker on the era date
+// would not be on the crossing it points at. Derived rather than baked so it
+// can never drift from the lines: change the series and the marker follows.
+// ---------------------------------------------------------------------------
+const RACE_TAKEOVER = solveTakeover();
+
+/** the year SLJ's curve crosses Hackman's, and the value they cross at */
+function solveTakeover() {
+	const a = RACE_SEGS.get(SLJ);
+	const b = RACE_SEGS.get(HACKMAN);
+	// SLJ trails Hackman at the low end and leads at the high end, so the bracket
+	// holds exactly one crossing; f is monotone enough over it for a bisection
+	const f = (yr) => curveYAt(a, yr) - curveYAt(b, yr);
+	let lo = 2004;
+	let hi = 2007;
+	// a rebuild that moves the handover out of the bracket must fail loudly
+	// rather than park the marker on an arbitrary year, same as buildRaceAnchor
+	if (f(lo) <= 0 || f(hi) >= 0) {
+		throw new Error("scrolly race: no SLJ/Hackman crossing in 2004–2007");
+	}
+	for (let i = 0; i < 40; i++) {
+		const mid = (lo + hi) / 2;
+		if (f(mid) > 0) lo = mid;
+		else hi = mid;
+	}
+	const year = (lo + hi) / 2;
+	return { year, value: curveYAt(a, year) };
 }
 
 // The record's own sub-year wobble, which the top of the plot has to absorb:
@@ -481,20 +526,39 @@ function raceCamera(w, h, playhead) {
 }
 
 /**
- * How far a *reader* may pan a race step: never right of its content extent,
- * never so far left that the camera runs off the front of it, and never back
+ * The latest year a step lets the camera rest on, and so — since a race step's
+ * right edge is its playhead — its resting camera, its pan ceiling and its last
+ * x tick, all three. The mirror of `minPlayhead`, and the two together are the
+ * window of years this step's camera may sit on.
+ *
+ * Defaults to the content extent's end: every step but raceFuture stops where
+ * its data does. raceFuture is the one that doesn't, and separating the two is
+ * what lets its axis reach 2030 while its lines still end in 2025 — the lines
+ * are capped by each actor's own last data year, never by this.
+ *
+ * @param {{extent: [number, number], maxPlayhead?: number}} step
+ */
+export function raceMaxPlayhead(step) {
+	return step.maxPlayhead ?? step.extent[1];
+}
+
+/**
+ * How far a *reader* may pan a race step: never past its `maxPlayhead`, never so
+ * far left that the camera runs off the front of its extent, and never back
  * past the step's own `minPlayhead` (the earliest year it lets the reader put on
  * the right edge — raceFull stops at 1980 even though its lines run back to
  * 1970). `playhead` (the camera's current year) widens the floor, so a grab that
  * starts after a choreography has parked the camera further back doesn't jerk
- * forward. `pannable` is false when the whole extent already fits on screen.
+ * forward. `pannable` is false when the whole extent already fits on screen —
+ * which a step can also declare outright by setting min and max to the same
+ * year, as raceFuture does.
  *
  * @param {number} w @param {number} h
- * @param {{extent: [number, number], minPlayhead?: number}} step
+ * @param {{extent: [number, number], minPlayhead?: number, maxPlayhead?: number}} step
  * @param {number} playhead
  */
 export function racePanBounds(w, h, step, playhead) {
-	const panMax = step.extent[1];
+	const panMax = raceMaxPlayhead(step);
 	const panMin = Math.min(
 		panMax,
 		Math.min(raceFloorPlayhead(w, h, step), playhead)
@@ -518,15 +582,28 @@ function raceFloorPlayhead(w, h, step) {
 		: Math.max(front, step.minPlayhead);
 }
 
+// The takeover marker's pixel position for one frame, or null when the crossing
+// is off camera (the reader has panned past it, or raceRecent is still resting
+// on 2025 before the Start rewind brings it in). Culled on the same rule as the
+// x ticks below, so it leaves the plot rather than sliding over the y axis.
+function raceTakeoverMark(cam, yS) {
+	const x = cam.xS(RACE_TAKEOVER.year);
+	if (x < cam.left - 0.5 || x > cam.right + 0.5) return null;
+	return { x, y: yS(RACE_TAKEOVER.value) };
+}
+
 // x (year) + y (avg distance) tick furniture for one frame — shared by the
 // static layout and the per-frame sweep/pan writers so animated axes read off
 // the exact same rule as the static end-states.
-function raceAxes(cam, yS, vMin, vMax, e1) {
+// `axisEnd` is the last year the step's TIMELINE reaches (raceMaxPlayhead), not
+// the last year its data does — the two differ only on raceFuture, and that
+// difference is exactly the empty strip that step is about.
+function raceAxes(cam, yS, vMin, vMax, axisEnd) {
 	// every visible year gets its own horizontal 4-digit label — no thinning, no
 	// width branch: PX_PER_YEAR guarantees the gap. Ticks travel with their years
 	// during a pan, which is the whole point of a fixed scale.
 	const x = [];
-	const last = Math.floor(Math.min(cam.camRight, e1) + 1e-9);
+	const last = Math.floor(Math.min(cam.camRight, axisEnd) + 1e-9);
 	for (let yr = Math.ceil(cam.camLeft - 1e-9); yr <= last; yr++) {
 		const pos = cam.xS(yr);
 		// cull a label whose centre has left the plot (can happen for one frame
@@ -564,23 +641,99 @@ function raceAxes(cam, yS, vMin, vMax, e1) {
  * span (1 = fully drawn). Only the draw-on passes it.
  * @property {number[]} [highlight] the actors this step is *about*: they are
  * guaranteed a name label even if they aren't among the nearest-to-centre cut
- * (see ScrollyVisual's raceLabelCut). Every dot and line otherwise renders
- * identically regardless of `highlight` — the chart carries no per-step
- * visual emphasis.
+ * (see ScrollyVisual's raceLabelCut). It buys a NAME and nothing else — the only
+ * ink on the chart belongs to whoever leads at the camera, which is a property
+ * of the frame rather than of the step.
  */
 
 /**
  * One actor's dot treatment on the race chart — the ONE definition of it, so
  * anything drawing a race dot outside this module (the rank list's collapsed
  * nodes, RankBars.svelte) is pixel-identical to what the canvas draws and the
- * HTML→canvas swap at the chapter handoff has nothing to give away. Every dot
- * gets the same treatment — the chart carries no per-step emphasis.
+ * HTML→canvas swap at the chapter handoff has nothing to give away.
+ *
+ * Two treatments, not one per step: the actor leading at the camera's right edge
+ * carries the ink, everyone else the grey field treatment. `lead` is therefore a
+ * question about a FRAME (who is in front right now), never about a step — the
+ * chart still carries no per-step emphasis.
+ *
  * `alpha` is the dot's settled alpha, before any per-frame multiplier.
+ * @param {boolean} [lead] this actor is the crown holder at the frame's camera
  * @returns {{r: number, rgb: [number, number, number], alpha: number}}
  */
-export function raceDotSpec() {
-	return { r: 3, rgb: CROWD, alpha: 0.55 };
+export function raceDotSpec(lead = false) {
+	return lead
+		? { r: 4, rgb: INK, alpha: 1 }
+		: { r: 3, rgb: CROWD, alpha: 0.55 };
 }
+
+// ---------------------------------------------------------------------------
+// The lead: who is in front.
+//
+// Always the LOWEST dot on the plot, which is the same question as "who holds
+// the crown at the camera's right edge" — the axis is hung under the record
+// (raceWindowYFit), and no actor sits below the crown holder in any year, so
+// nearest-the-top and in-front are one order. Reading it as a minimum over the
+// dots the frame has already placed rather than off story.eras is what keeps the
+// ink on the line the reader can see is in front, including through the
+// crossing: the drawn curves change places at 2005.11, ~0.9yr before the era
+// record's handover date (the same discrepancy solveTakeover exists for).
+//
+// Because the two lines are coincident at that crossing, the swap has nothing to
+// show — the ink passes across at the one pixel where the dots meet.
+// ---------------------------------------------------------------------------
+
+/**
+ * The eligible actor with the lowest value. Split out so the per-frame writer
+ * and the static readers (RACE_RECENT_LEAD, for the rank handoff) share one
+ * definition of "in front" rather than two that can drift.
+ * @param {(id: number) => boolean} eligible
+ * @param {(id: number) => number} valueOf
+ * @returns {number} the actor's id, or -1 when nobody is eligible
+ */
+function raceLeadBy(eligible, valueOf) {
+	let lead = -1;
+	let best = Infinity;
+	for (const id of RACE_IDS) {
+		if (!eligible(id)) continue;
+		const v = valueOf(id);
+		if (v < best) {
+			best = v;
+			lead = id;
+		}
+	}
+	return lead;
+}
+
+/** an actor's dot value at `year` — their curve, clamped to their own data */
+function raceDotValueAt(id, year) {
+	const [ds, de] = RACE_RANGE.get(id);
+	return curveYAt(RACE_SEGS.get(id), Math.min(Math.max(year, ds), de));
+}
+
+/**
+ * Who leads at a resting camera, with no frame to read. The camera gates a
+ * frame applies (on scale, on camera) are left out deliberately: they can only
+ * ever remove an actor whose data has scrolled away behind the camera, and an
+ * actor stranded in the past cannot be under a crown that only falls with time.
+ *
+ * @param {number} year the camera's right edge
+ * @param {Set<number>} [visible] the step's visible set, when it caps its field
+ */
+export function raceLeadAt(year, visible) {
+	return raceLeadBy(
+		(id) => !visible || visible.has(id),
+		(id) => raceDotValueAt(id, year)
+	);
+}
+
+// Scratch for writeRaceSweepFrame's two passes, indexed by position in RACE_IDS
+// (which is RACE_SLOT's index). Module-scope and reused every frame for the same
+// reason pxPerYear is a plain variable: nothing in the per-frame path allocates.
+const dotYrs = new Float64Array(RACE_IDS.length);
+const dotVs = new Float64Array(RACE_IDS.length);
+const dotMs = new Float64Array(RACE_IDS.length);
+const lineMs = new Float64Array(RACE_IDS.length);
 
 /**
  * Writes ONLY the race cast's dot slots + trail slots (one each per RACE_IDS)
@@ -608,7 +761,7 @@ export function raceDotSpec() {
  * cast across a phase, so the final frame's visibility matches the static state
  * it settles onto instead of everyone popping at the settle. Omitted → the
  * frame's own visible set at full strength, everyone else hidden.
- * @returns {{axes: {x: {pos:number,label:string}[], xBase:number, y: {pos:number,label:string}[]}, cam: ReturnType<typeof raceCamera>, yS: (v:number)=>number, visible: Set<number>}}
+ * @returns {{axes: {x: {pos:number,label:string}[], xBase:number, y: {pos:number,label:string}[]}, takeover: {x:number,y:number}|null, cam: ReturnType<typeof raceCamera>, yS: (v:number)=>number, visible: Set<number>, lead: number}}
  */
 export function writeRaceSweepFrame(
 	attrsBuf,
@@ -620,18 +773,24 @@ export function writeRaceSweepFrame(
 	alphaOf = null
 ) {
 	const [, e1] = frame.extent;
+	// The last year the TIMELINE runs to, which is not always the last year the
+	// DATA runs to: raceFuture's camera and ticks reach 2030 while every series
+	// still ends in 2025. Only the camera and the ticks follow this — the lines
+	// are capped below by each actor's own `de`, which is what leaves the strip.
+	const axisEnd = raceMaxPlayhead(frame);
 	const visible = raceStepVisible(frame, yCap);
-	const cam = raceCamera(w, h, frame.playhead ?? e1);
+	const cam = raceCamera(w, h, frame.playhead ?? axisEnd);
 	const [vMin, vMax] = raceWindowYFit(cam.camLeft, cam.camRight);
 	const yS = (v) => lin(v, vMin, vMax, cam.top, cam.bottom);
 	// draw-on: the lines unspool leftward from the right-hand end of the data
 	const revealRight = Math.min(cam.camRight, e1);
 	const revealFrom =
 		revealRight - (revealRight - cam.camLeft) * (frame.reveal ?? 1);
-	for (const id of RACE_IDS) {
-		const dot = raceDotSpec();
-		const segs = RACE_SEGS.get(id);
-		const slot = RACE_SLOT.get(id);
+	// Pass one places every dot; pass two writes them. They are separate only so
+	// the LEAD can be picked in between: it is the lowest dot the frame shows, so
+	// nothing can be inked until every dot has been placed.
+	for (let i = 0; i < RACE_IDS.length; i++) {
+		const id = RACE_IDS[i];
 		const [ds, de] = RACE_RANGE.get(id);
 		// an actor whose data has scrolled off the camera fades out over its last
 		// visible year rather than popping — and once out, its dot must not be
@@ -639,7 +798,7 @@ export function writeRaceSweepFrame(
 		// collapsed 48-vertex trail with it).
 		const onCamera = de >= cam.camLeft && ds <= cam.playhead;
 		const edgeFade = Math.min(1, Math.max(0, de - cam.camLeft));
-		const m =
+		lineMs[i] =
 			(alphaOf ? alphaOf(id) : visible.has(id) ? 1 : 0) *
 			(onCamera ? edgeFade : 0);
 		// the dot rides the RIGHT END OF THE VISIBLE LINE, not the raw playhead:
@@ -647,15 +806,33 @@ export function writeRaceSweepFrame(
 		// to the plot's right edge), but once the playhead runs past the data the
 		// dot stays glued to the curve's endpoint instead of floating ahead of a
 		// shorter line.
-		const dotYr = Math.min(Math.max(cam.playhead, ds), de);
-		const dotV = curveYAt(segs, dotYr);
-		const dx = cam.xS(dotYr);
-		const dy = yS(dotV);
+		dotYrs[i] = Math.min(Math.max(cam.playhead, ds), de);
+		dotVs[i] = curveYAt(RACE_SEGS.get(id), dotYrs[i]);
 		// a dot whose value has left the fitted scale is hidden outright rather than
 		// pinned to the plot edge: it would otherwise be drawn below the x axis (or
 		// above the plot, over the axis furniture), showing a value the chart isn't
 		// showing. Its line already ends at that edge (curveExit).
-		const dotM = dotV >= vMin && dotV <= vMax ? m : 0;
+		dotMs[i] = dotVs[i] >= vMin && dotVs[i] <= vMax ? lineMs[i] : 0;
+	}
+	// The crown at this camera. Picked from the dots the frame is actually
+	// SHOWING — reusing dotM rather than testing the same gates again is what
+	// keeps "inked" and "on the plot" from ever disagreeing, so a frame can never
+	// ink a dot it is hiding.
+	const lead = raceLeadBy(
+		(id) => dotMs[RACE_SLOT.get(id)] > 0,
+		(id) => dotVs[RACE_SLOT.get(id)]
+	);
+	for (let i = 0; i < RACE_IDS.length; i++) {
+		const id = RACE_IDS[i];
+		const isLead = id === lead;
+		const dot = raceDotSpec(isLead);
+		const segs = RACE_SEGS.get(id);
+		const slot = RACE_SLOT.get(id);
+		const [ds, de] = RACE_RANGE.get(id);
+		const m = lineMs[i];
+		const dotM = dotMs[i];
+		const dx = cam.xS(dotYrs[i]);
+		const dy = yS(dotVs[i]);
 		set(attrsBuf, id, dx, dy, dot.r, dot.rgb, dot.alpha * dotM);
 		// Fast path for an actor this ANIMATED frame can't show: keep the dot
 		// placement (it is what holds them on their own curve) and skip the line
@@ -673,6 +850,8 @@ export function writeRaceSweepFrame(
 		// alpha above this floor takes the full path — so stale geometry for one
 		// invisible frame can't be seen. Static layouts run once per state change,
 		// so paying full price there costs nothing per frame.
+		// (no highlight to write on this path: a frame that can't show an actor
+		// can't have picked them as its lead, and collapseTrail zeroes the channel)
 		if (alphaOf && m <= 0.002) {
 			collapseTrail(trailBuf, slot, dx, dy, 0);
 			continue;
@@ -716,8 +895,19 @@ export function writeRaceSweepFrame(
 			// the dot itself is hidden
 			collapseTrail(trailBuf, slot, dx, dy, 0.35 * dotM);
 		}
+		// after the line is written, never before — every trail writer zeroes this
+		// channel. Written for the whole cast every frame (0 for the field), so the
+		// ink can only be on one line and can never linger on one it has left.
+		setTrailHighlight(trailBuf, slot, isLead ? 1 : 0);
 	}
-	return { axes: raceAxes(cam, yS, vMin, vMax, e1), cam, yS, visible };
+	return {
+		axes: raceAxes(cam, yS, vMin, vMax, axisEnd),
+		takeover: raceTakeoverMark(cam, yS),
+		cam,
+		yS,
+		visible,
+		lead
+	};
 }
 
 /**
@@ -727,7 +917,6 @@ export function writeRaceSweepFrame(
  * contenders it is about (see RaceFrame.highlight)
  */
 function raceLayout(step, yCap = Infinity) {
-	const { extent } = step;
 	/** @type {import("../layout-shared.js").LayoutFn} */
 	return function layoutRace(nodes, w, h, _edges, params) {
 		const attrs = new Float64Array(ATTR_SIZE);
@@ -741,14 +930,14 @@ function raceLayout(step, yCap = Infinity) {
 			const [x, y] = scatterPosition(n, w, h);
 			set(attrs, n.id, x, y, 2, CROWD, 0);
 		}
-		const { axes, cam, visible } = writeRaceSweepFrame(
+		const { axes, takeover, cam, visible } = writeRaceSweepFrame(
 			attrs,
 			trails,
 			w,
 			h,
 			{
 				...step,
-				playhead: params?.playhead ?? extent[1],
+				playhead: params?.playhead ?? raceMaxPlayhead(step),
 				reveal: 1
 			},
 			yCap
@@ -774,7 +963,8 @@ function raceLayout(step, yCap = Infinity) {
 			attrs,
 			trails,
 			trailDelays,
-			axes
+			axes,
+			takeover
 		};
 	};
 }
@@ -794,12 +984,18 @@ const params = (s) => s.raceView;
 
 // Content extents. Width-independent by construction, so the constants derived
 // from them (the per-state yCaps) can be computed at module load. The data ends
-// in 2025, and each step's resting playhead is its extent's end, so the dots land
-// on the plot's right edge with no dead strip.
+// in 2025, and a step's resting playhead defaults to its extent's end, so the
+// dots land on the plot's right edge with no dead strip — unless the step asks
+// for one, by declaring a maxPlayhead past its data (see RACE_FUTURE_YEAR).
 export const RACE_RECENT_EXTENT = /** @type {[number, number]} */ ([
 	2004, 2025
 ]);
 export const RACE_FULL_EXTENT = /** @type {[number, number]} */ ([1970, 2025]);
+// The year the "into the future" step's camera rests on — five years past the
+// last of the data, so the right of the plot is empty ground. It is a CAMERA
+// bound, not an extent: the content extent stays raceFull's, because who the
+// step shows and how far its lines run are still questions about 1970-2025.
+export const RACE_FUTURE_YEAR = 2030;
 // The earliest year raceFull lets the reader put on the plot's right edge. The
 // extent — and so the x axis and the lines — still starts at
 // 1970; this only stops the camera, which on a wide viewport already rests with
@@ -841,8 +1037,8 @@ export const RACE_REWIND_WAYPOINT_YEAR = 2006;
 // animators in ScrollyVisual build their frames from these, so an animated frame
 // and the static layout it settles onto agree on the extent, the highlight AND
 // the cast.
-// raceRecent is about SLJ taking over from Hackman, so only those two ride the
-// foreground treatment there; the rest of its field stays on the chart, dimmed.
+// raceRecent is about SLJ taking over from Hackman, so those two are the names
+// it guarantees; the ink is separate and belongs to whoever leads at the camera.
 export const RACE_RECENT_STEP = { extent: RACE_RECENT_EXTENT, highlight: [SLJ, HACKMAN] }; // prettier-ignore
 // raceFull shows the whole cast, so it has to name its subject: without a
 // highlight, `subject` falls back to everything visible and every line on the
@@ -852,6 +1048,28 @@ export const RACE_FULL_STEP = {
 	extent: RACE_FULL_EXTENT,
 	minPlayhead: RACE_FULL_PAN_FLOOR,
 	highlight: [HACKMAN]
+};
+// raceFuture: raceFull's chart with the camera carried past the end of the data.
+//
+// The DATA is raceFull's, unchanged — same extent, same cast, same lines, all
+// still ending in 2025. Only the camera differs, and it differs by one field:
+// `maxPlayhead` past the extent puts the resting playhead, the pan ceiling and
+// the last x tick out at 2030, leaving five years of empty plot on the right.
+// Nothing has to cap the lines to keep them out of it — writeRaceSweepFrame
+// already ends each one at that actor's own last data year.
+//
+// min === max is how a step declares itself NOT PANNABLE: racePanBounds is left
+// with nothing between its two ends. That is the honest half of "no
+// interactivity" (and what stops publishRaceCam clamping the camera back onto
+// the data); the enforcing half is Index.svelte not mounting RaceScrubber on it.
+//
+// Its subject is SLJ — the copy asks who takes the crown FROM him, and a step
+// without a highlight falls back to claiming the whole field as its subject.
+export const RACE_FUTURE_STEP = {
+	extent: RACE_FULL_EXTENT,
+	minPlayhead: RACE_FUTURE_YEAR,
+	maxPlayhead: RACE_FUTURE_YEAR,
+	highlight: [SLJ]
 };
 
 /**
@@ -952,6 +1170,16 @@ export const RACE_RECENT_VISIBLE = raceStepVisible(
 	RACE_RECENT_YCAP
 );
 
+// Who carries the ink on raceRecent at rest (2025) — SLJ, the chapter's whole
+// point. Exported because the rank chapter's collapsed nodes are these same dots
+// handed over as HTML (RankBars.svelte) and the flight that follows writes them
+// on the canvas: all three read raceDotSpec against this, so the #1 row is
+// already inked in the list and the swap has nothing to give away.
+export const RACE_RECENT_LEAD = raceLeadAt(
+	RACE_RECENT_EXTENT[1],
+	RACE_RECENT_VISIBLE
+);
+
 // raceFull's resting camera: 1970 at the plot's left edge, or RACE_FULL_PAN_FLOOR
 // on its right edge where the viewport is too narrow to show both at once. Same
 // rule as the pan floor by construction — resting anywhere the reader can't pan
@@ -991,5 +1219,22 @@ export const states = {
 		// reader never pressed Start) when arriving from it, all the way to 1970
 		// — see playRaceFullEntry
 		revealFrom: ["raceRecent"]
+	},
+	raceFuture: {
+		// no yCap, same as raceFull: the whole cast, on a chart whose axis now runs
+		// five years past the last of their data
+		layout: raceLayout(RACE_FUTURE_STEP, Infinity),
+		race: RACE_FUTURE_STEP,
+		// the union over the ARRIVAL PAN's range, not just the resting camera: the
+		// forward leg crosses every year from raceFull's camera out to 2030, and a
+		// name this set leaves out can never render at any of them. Sampling past
+		// 2025 is safe — raceLabelSpec clamps each sample into the actor's own
+		// [ds, de] before reading the curve, so the future years rank on 2025.
+		...raceLabelSpec(RACE_FULL_PAN_FLOOR, RACE_FUTURE_YEAR),
+		overlay: OVERLAY,
+		params,
+		// the rewind run FORWARDS: the camera leaves the past and carries on past
+		// the end of the data — see playRaceFuture
+		revealFrom: ["raceFull"]
 	}
 };
