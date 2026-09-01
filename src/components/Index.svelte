@@ -703,13 +703,9 @@
 							we consider similar actors based on proximity to them, and
 							randomly select one weighted by how close they are.
 						</p>
-					</Step>
-					<Step state="careerMany">
 						<p>
-							Costar data is a lot simpler, since it stabilises for actors once
-							they reach career age ~10. For this, we add an adjustment so that
-							well-connected Gen Z actors continue being relatively
-							well-connected when modelled into the future.
+							By applying the same approach for costar film counts, we can start
+							predicting.
 						</p>
 					</Step>
 					<Step state="simRace" panel={simPanel}>
