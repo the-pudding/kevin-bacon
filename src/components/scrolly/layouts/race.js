@@ -582,14 +582,120 @@ function raceFloorPlayhead(w, h, step) {
 		: Math.max(front, step.minPlayhead);
 }
 
-// The takeover marker's pixel position for one frame, or null when the crossing
-// is off camera (the reader has panned past it, or raceRecent is still resting
-// on 2025 before the Start rewind brings it in). Culled on the same rule as the
-// x ticks below, so it leaves the plot rather than sliding over the y axis.
-function raceTakeoverMark(cam, yS) {
-	const x = cam.xS(RACE_TAKEOVER.year);
-	if (x < cam.left - 0.5 || x > cam.right + 0.5) return null;
-	return { x, y: yS(RACE_TAKEOVER.value) };
+// ---------------------------------------------------------------------------
+// The takeover callout: the ring on the crossing, a note that says what
+// happened, and a leader tying the two together. The chapter's whole claim is
+// this one intersection, so the claim is set on the plot rather than behind a
+// click.
+//
+// The note sits BELOW the ring, never beside it, and that is the load-bearing
+// choice. Beside reads better on a wide canvas — but the ring is not parked, it
+// travels: it enters at the plot's LEFT edge as the rewind pans back and slides
+// right until it rests at ~68px from the right edge, so a note held left of it
+// is behind it for most of the pan and the leader points backwards. And on a
+// narrow canvas beside is unreachable at any playhead: plot.left + a legible
+// box + a leader's worth of gap already overshoots where the ring rests. Below
+// is one rule at every width and every playhead, and it keeps the leader
+// vertical-dominated, which is what stops it ever reading as reversed.
+// ---------------------------------------------------------------------------
+
+const RING_R = 5.5; // half the ring's 11px box (see .takeover-mark)
+const NOTE_MAX_W = 220; // px, the widest the note box gets
+const NOTE_EDGE = 4; // clearance from the plot's left edge
+// clearance from the right edge. Wider than NOTE_EDGE on purpose, not for
+// symmetry's sake: every actor's dot is pinned to the plot's right edge at the
+// playhead, so that column occupies [cam.right, cam.right + r] with r up to 4,
+// and a 4px gap puts the note's last characters under the dots.
+const DOT_CLEAR = 10;
+const NOTE_DROP = 48; // ring centre -> note top, where there is room for it
+const NOTE_MIN_DROP = 24; // ...and the least it may shrink to
+// The tallest the note is assumed to render: five lines of its 16px line box.
+// An assumption rather than a measurement because this runs in the frame
+// writer, which has no DOM — it only has to be generous enough that the drop
+// clamp below keeps the last line off the x-axis row.
+const NOTE_MAX_H = 80;
+const ARROW_INSET = 12; // how far in from the note's corners the leader may start
+const ARROW_LIFT = 6; // gap between the note's top edge and the leader
+const ARROW_HEAD = 7; // head length, px
+const ARROW_HEAD_W = 3; // head half-width, px
+// The last px of travel at each plot edge, over which the callout fades. The
+// ring alone could pop — an 11px circle blinking off reads as a cull. A 220px
+// block of prose doing it reads as a bug, and there is no CSS out-transition
+// here to lean on ({#if} unmounts it).
+const CALLOUT_FADE = 24;
+
+const clamp = (v, lo, hi) => Math.min(Math.max(v, lo), hi);
+
+/**
+ * The takeover callout's pixel geometry for one frame, or null when the crossing
+ * is off camera (the reader has panned past it, or raceRecent is still resting
+ * on 2025 before the Start rewind brings it in). Culled on the same rule as the
+ * x ticks below, so it leaves the plot rather than sliding over the y axis.
+ *
+ * Everything comes off `cam` (which carries the plot rect) and `yS`, so it
+ * tracks both the camera and the per-camera y fit without being told about
+ * either.
+ */
+function raceTakeoverCallout(cam, yS) {
+	const rx = cam.xS(RACE_TAKEOVER.year);
+	if (rx < cam.left - 0.5 || rx > cam.right + 0.5) return null;
+	const ry = yS(RACE_TAKEOVER.value);
+
+	const width = Math.min(
+		NOTE_MAX_W,
+		cam.right - cam.left - NOTE_EDGE - DOT_CLEAR
+	);
+	// centred under the ring, then held inside the plot. The two bounds meet
+	// exactly when the plot is too narrow for NOTE_MAX_W (the width above is what
+	// makes them meet rather than cross), so the note pins to the left edge
+	// instead of inverting.
+	const nx = clamp(
+		rx - width / 2,
+		cam.left + NOTE_EDGE,
+		cam.right - DOT_CLEAR - width
+	);
+	// The drop shortens rather than letting the note run onto the x-axis row —
+	// the one thing that bites on a landscape phone, where the plot is only ~170px
+	// tall and the scrubber's year slider sits just under it.
+	const drop = clamp(
+		cam.bottom - 8 - NOTE_MAX_H - ry,
+		NOTE_MIN_DROP,
+		NOTE_DROP
+	);
+	const ny = ry + drop;
+
+	// The leader leaves the note's top edge at the point nearest the ring, which
+	// is what lets one rule serve every case: the ring far to the right of the box
+	// (wide canvas, at rest), directly above it (narrow canvas), or a little to
+	// its left (a reader scrubbing raceFull toward the plot's left edge).
+	const ax = clamp(rx, nx + ARROW_INSET, nx + width - ARROW_INSET);
+	const ay = ny - ARROW_LIFT;
+	const dx = rx - ax;
+	const dy = ry - ay;
+	const len = Math.hypot(dx, dy) || 1;
+	const ux = dx / len;
+	const uy = dy / len;
+	// stop short of the ring so the head touches the circle, not its centre
+	const back = RING_R + 3;
+	const bx = rx - ux * back;
+	const by = ry - uy * back;
+
+	return {
+		ring: { x: rx, y: ry },
+		note: { x: nx, y: ny, width },
+		arrow: {
+			ax,
+			ay,
+			bx,
+			by,
+			// the head's two trailing corners; the tip is (bx, by)
+			h1x: bx - ux * ARROW_HEAD - uy * ARROW_HEAD_W,
+			h1y: by - uy * ARROW_HEAD + ux * ARROW_HEAD_W,
+			h2x: bx - ux * ARROW_HEAD + uy * ARROW_HEAD_W,
+			h2y: by - uy * ARROW_HEAD - ux * ARROW_HEAD_W
+		},
+		alpha: clamp(Math.min(rx - cam.left, cam.right - rx) / CALLOUT_FADE, 0, 1)
+	};
 }
 
 // x (year) + y (avg distance) tick furniture for one frame — shared by the
@@ -761,7 +867,7 @@ const lineMs = new Float64Array(RACE_IDS.length);
  * cast across a phase, so the final frame's visibility matches the static state
  * it settles onto instead of everyone popping at the settle. Omitted → the
  * frame's own visible set at full strength, everyone else hidden.
- * @returns {{axes: {x: {pos:number,label:string}[], xBase:number, y: {pos:number,label:string}[]}, takeover: {x:number,y:number}|null, cam: ReturnType<typeof raceCamera>, yS: (v:number)=>number, visible: Set<number>, lead: number}}
+ * @returns {{axes: {x: {pos:number,label:string}[], xBase:number, y: {pos:number,label:string}[]}, takeover: import("../layout-shared.js").TakeoverCallout|null, cam: ReturnType<typeof raceCamera>, yS: (v:number)=>number, visible: Set<number>, lead: number}}
  */
 export function writeRaceSweepFrame(
 	attrsBuf,
@@ -902,7 +1008,7 @@ export function writeRaceSweepFrame(
 	}
 	return {
 		axes: raceAxes(cam, yS, vMin, vMax, axisEnd),
-		takeover: raceTakeoverMark(cam, yS),
+		takeover: raceTakeoverCallout(cam, yS),
 		cam,
 		yS,
 		visible,

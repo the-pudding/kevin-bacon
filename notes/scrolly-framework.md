@@ -462,7 +462,9 @@ must come and go belongs inside the panel, below a `justify-content: flex-end`
 anchor, where it cannot move the controls.
 
 **Chart furniture.** A layout can also return `axes` (`x`/`y` tick arrays +
-`xBase`), `notes` (positioned callouts, `nowrap` by default), and `legend`
+`xBase`), `notes` (positioned callouts, `nowrap` by default — nothing emits
+them; see the takeover callout below for why prose on the race chart goes
+through the frame writer instead), and `legend`
 (color swatch + label pairs, pinned to the bottom of the chart) — all
 rendered as HTML in the overlay and crossfaded per state. `OVERLAYS[state].caption`
 renders top-centre in small caps. A layout can also return `hits` — rectangles
@@ -474,18 +476,39 @@ actor in the intro constellation (armed
 as soon as the step is reached — the path-walk reveal that grows the
 constellation plays earlier, on `lone`'s own entry pop-in).
 
-**The takeover ring.** The one piece of furniture that is a popover rather than
-a label: an 11px ring on the race chart at the point where SLJ's line crosses
-Hackman's and the crown changes hands, opening an `InfoTerm` (the same
-tethered-card/bottom-sheet primitive the 1980 tick and the prose terms use). The
-crossing is solved at module load by bisecting the two actors' curves against the
-same monotone segments the chart draws (`solveTakeover`, `layouts/race.js`) —
-**not** read off `story.eras`, because `raceSeries` is sampled on whole years, so
-the drawn lines cross at 2005.11 while the era record's handover date is
-2006-02-17, ~68px further right. Its pixel position rides `writeRaceSweepFrame`'s
-per-frame return next to `axes` rather than the layout result, which is what
-keeps it glued to the crossing through a scrub instead of freezing (see "Chart
+**The takeover callout.** The chapter's whole claim happens at one intersection,
+so the claim is set on the plot: an 11px ring where SLJ's line crosses
+Hackman's, a sentence of prose, and a curved leader tying the two together
+(`raceTakeoverCallout`, `layouts/race.js`; `TakeoverCallout` in
+`layout-shared.js`). It was a click-to-open `InfoTerm` — with a diverging bar
+spark inside it — until review feedback that the insight should not be behind a
+click; the popover and the spark are both gone, and the ring is now plain
+decoration with the note carrying the crossing to AT.
+
+The crossing is solved at module load by bisecting the two actors' curves
+against the same monotone segments the chart draws (`solveTakeover`) — **not**
+read off `story.eras`, because `raceSeries` is sampled on whole years, so the
+drawn lines cross at 2005.11 while the era record's handover date is 2006-02-17,
+~68px further right. The whole payload rides `writeRaceSweepFrame`'s per-frame
+return next to `axes` rather than the layout result, which is what keeps the
+note glued to the crossing through a scrub instead of freezing (see "Chart
 furniture" above), and it culls itself off-camera on the x ticks' own rule.
+
+The note sits BELOW the ring, never beside it, and that is a rule rather than a
+default. The ring is not parked — it enters at the plot's LEFT edge as the
+rewind pans back and slides right until it rests ~68px from the right edge, so a
+note held left of it is behind it for most of the pan and the leader points
+backwards. On a narrow canvas beside is unreachable at any playhead: the plot's
+left margin plus a legible box plus a leader's worth of gap already overshoots
+where the ring rests. Below is one rule at every width and every playhead, and
+it keeps the leader vertical-dominated, which is what stops it ever reading as
+reversed. Two clamps carry the variation instead: the box is held inside the
+plot (backing off the right edge by the dot column's radius, since every dot is
+pinned there at the playhead), and the drop shortens so the last line clears the
+x-axis row on a landscape phone. The payload also carries an `alpha`, ramped
+over the last px of travel at each plot edge — a 220px block of prose blinking
+off at the cull reads as a bug where an 11px ring merely reads as culled, and
+`{#if}` gives no out-transition to lean on.
 
 **Waiting for a reveal.** `story.settled` names the state whose arrival tween has
 just landed (`ScrollyVisual`'s `settle()`, attached to the arrival's `onDone`,

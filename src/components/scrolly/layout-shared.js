@@ -41,6 +41,20 @@ export const edgeIndex = (e) => EDGE_BASE + e * STRIDE;
  *   shrink-to-fit within `containing block - left`, so a centred note at x = w/2
  *   would otherwise never wrap wider than half the canvas.
  *
+ * @typedef {Object} TakeoverCallout
+ * @property {{x: number, y: number}} ring px, centre of the ring on the crossing
+ * @property {{x: number, y: number, width: number}} note px, the note box's
+ *   top-left and its line width. A real `width`, not a max — an absolutely
+ *   positioned box is shrink-to-fit, so a max would let the rendered box run
+ *   wider than the geometry that placed it (same trap as Note.wrapWidth)
+ * @property {{ax: number, ay: number, bx: number, by: number, h1x: number,
+ *   h1y: number, h2x: number, h2y: number}} arrow the leader — a straight
+ *   segment: start, tip, and the head's two trailing corners. Numbers, not path
+ *   strings — this is built in the per-frame writer, which documents itself as
+ *   allocating nothing per frame
+ * @property {number} alpha 0-1, ramped down over the last px of travel at each
+ *   plot edge so the callout fades out instead of popping on the cull
+ *
  * @typedef {Object} LegendItem
  * @property {number[]} color rgb triple
  * @property {string} label
@@ -68,8 +82,8 @@ export const edgeIndex = (e) => EDGE_BASE + e * STRIDE;
  * @property {Float64Array} [trailDelays] per-trail start delays in ms
  * @property {{ x?: Tick[], y?: Tick[], xBase?: number, yBase?: number }} [axes]
  * @property {Note[]} [notes]
- * @property {{ x: number, y: number }|null} [takeover] px, the race chart's
- *   takeover marker (the SLJ/Hackman crossing); null when it is off camera
+ * @property {TakeoverCallout|null} [takeover] the race chart's takeover callout
+ *   (the SLJ/Hackman crossing); null when it is off camera
  * @property {LegendItem[]} [legend]
  * @property {Hit[]} [hits] tappable regions over the chart (see STATE_PICK)
  * @property {number} [legendY] px, top of the legend row; omitted = pinned to bottom

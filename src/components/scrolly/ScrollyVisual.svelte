@@ -67,7 +67,6 @@
 	import { story } from "./story.svelte.js";
 	import { MediaQuery } from "svelte/reactivity";
 	import InfoTerm from "$components/ui/InfoTerm.svelte";
-	import TakeoverBars from "./TakeoverBars.svelte";
 
 	// undefined until the <Step> registry has populated (first client render)
 	/** @type {{ state: import("./states.js").VisualState, params?: Object, stepsHeight?: number, coldStart?: boolean }} */
@@ -77,6 +76,26 @@
 		stepsHeight = 0,
 		coldStart = false
 	} = $props();
+
+	// The takeover callout's prose (layouts/race.js places it; see
+	// raceTakeoverCallout). It replaced a click-to-open popover, on the note that
+	// you should not have to click for the one thing the chapter is about.
+	//
+	// TODO(copy): Owen. Keep it to one sentence. Numbers from the popover this
+	// replaced: Freedomland (2006), with Julianne Moore; it moved Jackson's hop
+	// bands by +14 (1 hop), +63 (2 hops), -72 (3 hops), 0 (4 hops) — i.e. it
+	// pulled 72 actors from three hops away to two — putting him on an average
+	// distance of 2.14, past Gene Hackman, whose last film was Welcome to
+	// Mooseport (2004).
+	//
+	// Budget: the box is 220px wide on a wide canvas and ~169px at the narrowest,
+	// which is ~36 and ~28 characters a line at this size. Keep it under ~110
+	// characters and it stays within four lines everywhere; past ~140 the note
+	// starts crowding the x axis on a landscape phone (NOTE_MAX_H in race.js is
+	// what the drop clamp assumes).
+	const TAKEOVER_NOTE =
+		"PLACEHOLDER — copy pending. This sentence is the length of the budget " +
+		"above, so the box reads true until it is replaced.";
 
 	const TWEEN_MS = 700;
 	const ENTER_MS = 900;
@@ -495,7 +514,7 @@
 	/** @type {{ id: number, name: string, x: number, y: number, r: number, alpha: number, labelAlpha: number, labelOffset: number }[]} */
 	let tracked = $state([]);
 	// static per-state chart furniture (ticks/callouts/legend) from the layout result
-	/** @type {{ axes?: { x?: {pos:number,label:string}[], y?: {pos:number,label:string}[], xBase?: number, yBase?: number }, notes?: import("./states.js").Note[], takeover?: {x:number,y:number}|null, legend?: import("./layout-shared.js").LegendItem[], legendY?: number, hits?: import("./layout-shared.js").Hit[] } | null} */
+	/** @type {{ axes?: { x?: {pos:number,label:string}[], y?: {pos:number,label:string}[], xBase?: number, yBase?: number }, notes?: import("./states.js").Note[], takeover?: import("./layout-shared.js").TakeoverCallout|null, legend?: import("./layout-shared.js").LegendItem[], legendY?: number, hits?: import("./layout-shared.js").Hit[] } | null} */
 	let decor = $state(null);
 	// true while an arrival is clearing the previous scene off the canvas before
 	// its own chart may appear: the axis furniture (ticks, callouts, legend, axis
@@ -1850,8 +1869,11 @@
 			     pixel-accurate throughout and don't need to hide. Anything that comes
 			     off the layout result instead — `notes` — has no per-frame equivalent,
 			     so its coordinates freeze for the length of a live scrub/pan and jump
-			     on release. Nothing emits notes today; a new one on the race chart
-			     belongs in the frame writer's payload, next to `takeover`.
+			     on release. Nothing emits notes, and the takeover callout below is why
+			     the slot is still empty: it is prose positioned on the plot, i.e.
+			     exactly what `notes` is for, but it rides `takeover` in the frame
+			     writer's payload instead so that it pans. Anything else on the race
+			     chart belongs there too.
 
 			     `chartVeiled` holds the whole lot back while an arrival is still
 			     fading the previous scene off the canvas; dropping it mounts these,
@@ -1895,31 +1917,66 @@
 						{tick.label}
 					</p>
 				{/each}
-				<!-- the takeover ring: the one moment the race chapter is about, marked
-				     on the crossing itself. Only the race layout emits `takeover`, and
-				     the wholesale decor write above clears it on every other state, so
-				     this needs no state gate. Its position rides the per-frame payload
-				     next to `axes` (see runSweepPhase/scrubLoop), so it stays glued to
-				     the crossing through a pan instead of freezing like a note would. -->
-				{#if decor?.takeover}
-					<InfoTerm
-						class="takeover-mark fade-in"
-						style="left: {decor.takeover.x}px; top: {decor.takeover.y}px"
-						title="Freedomland (2006)"
-						aria-label="Samuel L. Jackson takes the crown from Gene Hackman"
-					>
-						{#snippet info()}
-							<p>
-								Samuel L. Jackson stars with Julianne Moore in this crime drama
-								mystery, having the following effect on his network:
-							</p>
-							<TakeoverBars />
-							<p>
-								This gives him an average distance of 2.14, overtaking Gene
-								Hackman who's last film was Welcome to Mooseport (2004).
-							</p>
-						{/snippet}
-					</InfoTerm>
+				<!-- the takeover callout: the one moment the race chapter is about,
+				     stated on the crossing itself rather than behind a click. Only the
+				     race layout emits `takeover`, and the wholesale decor write above
+				     clears it on every other state, so this needs no state gate. Its
+				     geometry rides the per-frame payload next to `axes` (see
+				     runSweepPhase/scrubLoop), so the note stays glued to the crossing
+				     through a pan instead of freezing the way a `notes` entry would.
+				     The wrapper carries the mount fade and the payload's own `alpha`
+				     rides each child, because the two must MULTIPLY: an animation with
+				     fill-mode `both` outranks an inline opacity for good, so putting
+				     both on one element would leave the cull ramp with no effect.
+
+				     `story.raceRewinding` is what holds it back until the Start rewind
+				     has landed. The pan brings the crossing on camera with about a
+				     third of its travel still to go, and without this the note mounted
+				     there and then rode ~270px across the plot to its resting spot:
+				     fine for an 11px ring, seasick for a block of prose. So it waits,
+				     and the wrapper's fade-in is then the only motion it makes.
+				     `raceRewinding` and not `story.settled`, which is the usual
+				     wait-for-the-reveal gate: both race steps share one state, so
+				     `settled` is already open when Start fires, and raceFull's arrival
+				     never sets it at all (playRaceFullEntry snaps rather than tweens).
+				     Not `camPanning`/`sweeping` either — a reader's scrub raises both,
+				     and the note should track the crossing through a drag, not blink on
+				     every grab. This flag names exactly the one animation in question. -->
+				{#if decor?.takeover && !story.raceRewinding}
+					{@const t = decor.takeover}
+					{@const arrowD = `M ${t.arrow.ax} ${t.arrow.ay} L ${t.arrow.bx} ${t.arrow.by}`}
+					<div class="callout fade-in">
+						<!-- decoration: the ring marks where, the note says what, and the
+						     note is real text, so it is the note that carries this to AT -->
+						<svg
+							class="callout-arrow"
+							viewBox="0 0 {width} {height}"
+							aria-hidden="true"
+							style="opacity: {t.alpha}"
+						>
+							<!-- the halo pass, under the stroke: the leader crosses live
+							     chart lines, and SVG has no text-shadow to lean on -->
+							<path class="arrow-halo" d={arrowD} />
+							<path class="arrow-line" d={arrowD} />
+							<path
+								class="arrow-head"
+								d="M {t.arrow.bx} {t.arrow.by} L {t.arrow.h1x} {t.arrow
+									.h1y} L {t.arrow.h2x} {t.arrow.h2y} Z"
+							/>
+						</svg>
+						<span
+							class="takeover-mark"
+							aria-hidden="true"
+							style="left: {t.ring.x}px; top: {t.ring.y}px; opacity: {t.alpha}"
+						></span>
+						<p
+							class="takeover-note"
+							style="left: {t.note.x}px; top: {t.note.y}px; width: {t.note
+								.width}px; opacity: {t.alpha}"
+						>
+							{TAKEOVER_NOTE}
+						</p>
+					</div>
 				{/if}
 				{#each decor?.notes ?? [] as note}
 					<p
@@ -2182,32 +2239,100 @@
 		bottom: auto;
 	}
 
-	/* the takeover ring. Same :global() rationale as .tick-1980 above — the
-	   trigger is a <button> rendered inside InfoTerm.svelte's own template, so it
-	   carries none of this component's scoped selectors and every property has to
-	   be stated here. It has no text: the ring IS the affordance, and the
-	   accessible name comes from the aria-label on the trigger. */
-	:global(.takeover-mark) {
+	/* The takeover callout: ring, leader, note. Ordinary scoped selectors — the
+	   ring was an InfoTerm trigger until the callout replaced the popover, and a
+	   trigger's <button> is rendered inside InfoTerm's own template, so it carried
+	   none of this component's style hash and its rule had to be :global() with
+	   every inherited property restated (see .tick-1980 above, which still does).
+	   As plain elements these inherit .overlay's furniture styling and pick up
+	   .fade-in, and they no longer need `pointer-events: auto` or the z-index that
+	   only existed to win the click back from RaceScrubber's full-bleed
+	   .drag-surface. */
+	.callout {
 		position: absolute;
-		margin: 0;
-		padding: 0;
-		pointer-events: auto;
-		/* RaceScrubber's full-bleed .drag-surface sits later in the DOM
-		   (Index.svelte mounts the panel after ScrollyVisual) and would otherwise
-		   intercept the click before it reaches this trigger */
-		z-index: 1;
+		inset: 0;
+	}
+
+	/* the ring has no text: it IS the mark, and the note beside it is what carries
+	   the crossing to a screen reader */
+	.takeover-mark {
+		position: absolute;
 		width: 11px;
 		height: 11px;
 		border: 1.5px solid var(--color-gray-700, #444);
 		border-radius: 50%;
-		background: transparent;
 		/* the halo the rest of the chart furniture uses, so the ring reads where it
 		   sits: over the two lines it is pointing at */
 		box-shadow:
 			0 0 0 1.5px var(--color-bg, #fff),
 			0 0 4px var(--color-bg, #fff);
 		transform: translate(-50%, -50%);
-		cursor: pointer;
+	}
+
+	/* app.css has a global `svg { display: block; width: 100%; height: auto }`.
+	   `height: auto` against a viewBox is aspect-ratio sizing, which would scale
+	   every coordinate the frame writer emitted — so both axes are stated here,
+	   where the scoped hash and the extra specificity both win. The box is the
+	   canvas, so with `viewBox="0 0 width height"` one user unit is one px. */
+	.callout-arrow {
+		position: absolute;
+		inset: 0;
+		width: 100%;
+		height: 100%;
+		/* the head can sit a hair outside the box on the frames before a cull */
+		overflow: visible;
+	}
+
+	.arrow-line,
+	.arrow-halo {
+		fill: none;
+	}
+
+	.arrow-line {
+		stroke: var(--color-gray-600, #666);
+		stroke-width: 1;
+	}
+
+	/* the leader crosses live chart lines and SVG has no text-shadow to lean on,
+	   so the halo is a fatter pass of the same path underneath it */
+	.arrow-halo {
+		stroke: var(--color-bg, #fff);
+		stroke-width: 3.5;
+	}
+
+	.arrow-head {
+		fill: var(--color-gray-600, #666);
+		/* its own halo, same reason as the line's — and paint-order keeps the
+		   stroke behind the fill so it haloes the head instead of thinning it */
+		stroke: var(--color-bg, #fff);
+		stroke-width: 1.5;
+		paint-order: stroke fill;
+	}
+
+	/* Prose, not tick furniture: .overlay p's --font-mono at 0.75rem is right for
+	   a 4-digit year and wrong for a sentence, so this takes the sans face and a
+	   size that reads at three or four lines. `width` arrives inline from the
+	   payload and is load-bearing — an absolutely positioned box is shrink-to-fit,
+	   so a max-width would let the rendered box run wider than the geometry that
+	   placed it (the same trap Note.wrapWidth documents).
+
+	   Selected as `.overlay p` + a class, not the class alone: `.overlay p` is a
+	   class plus a type, so it out-specifies a lone class and its --font-mono
+	   silently wins. */
+	.overlay p.takeover-note {
+		font-family: var(--font-form);
+		font-size: var(--12px, 12px);
+		line-height: 1.35;
+		color: var(--color-gray-900, #222);
+		/* the node-label halo, not .note's lighter one: this is three or four lines
+		   sitting over the chasing field, where two shadow layers leave the lines
+		   showing through the counters */
+		text-shadow:
+			0 0 4px var(--color-bg, #fff),
+			0 0 4px var(--color-bg, #fff),
+			0 0 8px var(--color-bg, #fff),
+			0 0 8px var(--color-bg, #fff),
+			0 0 12px var(--color-bg, #fff);
 	}
 
 	.tick-x[style*="top:"] {
