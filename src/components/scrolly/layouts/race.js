@@ -475,7 +475,11 @@ function curveExit(segs, to, from, vMin, vMax) {
 // The plot rectangle. The plot spans only the left 2/3 of the inner width — the
 // right third is a gutter reserved for the actor name labels (which sit beside
 // the right-edge dots), so names never clip off the canvas.
-function racePlot(w, h) {
+//
+// Exported because the DRAW pass needs it too: the frame writer below keeps
+// every dot it places inside this rectangle, but the tweener that carries the
+// reader between two race steps does not (see ScrollyVisual's drawScene).
+export function racePlot(w, h) {
 	const left = MARGIN + 14;
 	return {
 		top: MARGIN + 10,

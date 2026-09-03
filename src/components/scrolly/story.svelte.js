@@ -67,13 +67,14 @@ export const story = $state({
 	 * it has mounted and reported a position. The canvas bar tweens to meet that
 	 * exact box, so the two are the same strip (see layouts/rank.js) */
 	rankFocusBar: null,
-	/** rank ladder: `{ cx, top, pitch }` in canvas coordinate space of RankBars'
-	 * rows — the CENTRE of row #1's bar at the list's current scroll (where the
-	 * bar collapses to), and the px between consecutive rows. The race chapter's
-	 * arrival reads it to place the canvas copy of each collapsed node on the row
-	 * its actor occupied in the list (see ScrollyVisual's raceEntry branch); no
-	 * layout consumes it, so republishing it as the reader scrolls can't retarget
-	 * a tween */
+	/** rank ladder: `{ cx, top, pitch, bottom }` in canvas coordinate space of
+	 * RankBars' rows — the CENTRE of row #1's bar at the list's current scroll
+	 * (where the bar collapses to), the px between consecutive rows, and the last
+	 * y the opaque panel covers. The race chapter's arrival reads it to place the
+	 * canvas copy of each collapsed node on the row its actor occupied in the list,
+	 * and to hide the ones sitting past `bottom`, which the reader never saw as
+	 * HTML (see ScrollyVisual's raceEntry branch); no layout consumes it, so
+	 * republishing it as the reader scrolls can't retarget a tween */
 	rankListRows: null,
 	/** rank ladder: true once RankBars' bars have finished collapsing into single
 	 * nodes and the HTML overlay has stood down, so the canvas can take the same

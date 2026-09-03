@@ -108,8 +108,9 @@
 	// rankReveal's, so without this every row would shift a few px away from what
 	// the reader was looking at (and away from where the canvas has been aimed) at
 	// the very moment it collapses. Hold the last height a rank step measured.
-	// set by navigate(): true only for the forward step out of the rank chapter
-	// into raceRecent, the one arrival the collapse belongs to
+	// set by navigate(): true from the forward step out of the rank chapter into
+	// raceRecent — the one arrival the collapse belongs to — and held for as long
+	// as the reader stays on raceRecent
 	let rankHandoff = $state(false);
 	let rankStepsHeight = $state(0);
 	$effect(() => {
@@ -178,8 +179,15 @@
 		// collapse into the chart's dots. Reloading straight onto raceRecent, or
 		// stepping back to it from raceFull, must not flash the list up over a
 		// chart that is already drawn.
+		//
+		// It then STAYS up for as long as the reader is on raceRecent (both its
+		// steps): the collapse is a 500ms clock the canvas is waiting on, and a step
+		// taken inside that window used to pull the overlay out from over a canvas
+		// parked on the collapsed frame — leaving the bare nodes on screen with the
+		// chart never drawn. Only leaving the state hands it back.
 		rankHandoff =
-			stepConfigs[to]?.state === "raceRecent" && isRankState(currentState);
+			stepConfigs[to]?.state === "raceRecent" &&
+			(isRankState(currentState) || rankHandoff);
 	}
 
 	// --- step 1's tour of the network ---
@@ -322,8 +330,34 @@
 					{coldStart}
 					{stepsHeight}
 				/>
+				<!-- The rank ladder, mounted here rather than as a step's panel (the
+				     way the dev tuners below are) because it has to OUTLIVE the step
+				     change into raceRecent: that arrival is the handoff, where its bars
+				     collapse into the race chart's own dots while the canvas underneath
+				     is parked on a copy of them. A per-step panel is torn down and
+				     rebuilt whenever the snippet changes, which remounted this whole
+				     box on that very step — restarting its fade-in (700ms at opacity 0,
+				     leaving the parked canvas bare) and mounting the bars already
+				     collapsed, so the fold never played. `showRankPanel` is what stands
+				     it down, once the canvas holds the nodes (story.rankCollapsed).
+
+				     `reveal` stays on through the handoff step: it is what puts SLJ in
+				     focus, so dropping it on raceRecent would send the focus row back to
+				     the reader's guess and re-hide every other name at the exact moment
+				     the bars collapse. -->
+				{#if showRankPanel}
+					<div class="rank-bars-panel" style="bottom: {rankPanelBottom}px">
+						<RankBars
+							reveal={currentState === "rankReveal" ||
+								currentState === "raceRecent"}
+							collapse={currentState === "raceRecent"}
+						/>
+					</div>
+				{/if}
 				<!-- the active step's over-canvas panel, if it declared one — the
-				     markup lives next to the <Step> that owns it -->
+				     markup lives next to the <Step> that owns it. After the ladder
+				     above, so a step's own controls (raceRecent's Start button) sit
+				     over it rather than under it -->
 				{@render stepConfigs[value ?? 0]?.panel?.()}
 				<!-- a chapter card's title. Rendered from the registry rather than by
 				     <Chapter> itself so this {#if} is stable and Svelte can play the
@@ -357,33 +391,14 @@
 				<!-- shared over-canvas panels live here, NOT inside <Wizard> — a
 				     snippet declared directly inside a component's tags becomes a
 				     prop of that component (that's how single-step panels nest
-				     inside <Step> directly). Both rank steps AND raceRecent reference
-				     this one snippet so RankBars survives the step change without
-				     remounting — raceRecent is where its bars collapse into the race
-				     chart's own dots, and it stands the whole overlay down (background
-				     included) the moment the canvas has them (story.rankCollapsed). -->
-				{#snippet rankPanel()}
-					{#if showRankPanel}
-						<!-- `reveal` stays on through the handoff step: it is what puts SLJ
-						     in focus, so dropping it on raceRecent would send the focus row
-						     back to the reader's guess and re-hide every other name at the
-						     exact moment the bars collapse -->
-						<div class="rank-bars-panel" style="bottom: {rankPanelBottom}px">
-							<RankBars
-								reveal={currentState === "rankReveal" ||
-									currentState === "raceRecent"}
-								collapse={currentState === "raceRecent"}
-							/>
-						</div>
-					{/if}
-				{/snippet}
-				<!-- raceRecent's opening step: same rank panel handoff, plus the Start
-				     button that asks for the backwards rewind - consent for the "remove
-				     information" move, same reasoning as simPanel below. Only that one
-				     step gets it; raceRecent's second step (already rewinding by then)
-				     keeps the plain rankPanel. -->
+				     inside <Step> directly). The rank ladder is NOT one of them: it
+				     spans the step change into raceRecent, so it is mounted up beside
+				     the canvas instead (see the note there). -->
+				<!-- raceRecent's opening step: the Start button that asks for the
+				     backwards rewind - consent for the "remove information" move, same
+				     reasoning as simPanel below. Only that one step gets it; raceRecent's
+				     second step is already rewinding by then. -->
 				{#snippet raceStartPanel()}
-					{@render rankPanel()}
 					<div class="race-scrubber-panel" style="bottom: {stepsHeight + 12}px">
 						<RaceRewindStart />
 					</div>
@@ -547,7 +562,7 @@
 							are, the more likely you are to be the center of Hollywood.
 						</p>
 					</Step>
-					<Step state="rankFocus" panel={rankPanel}>
+					<Step state="rankFocus">
 						<div class="rank-focus-text">
 							<p>
 								As mentioned earlier, Kevin Bacon is not the center of
@@ -557,7 +572,7 @@
 							<GuessRank />
 						</div>
 					</Step>
-					<Step state="rankReveal" panel={rankPanel}>
+					<Step state="rankReveal">
 						<p>
 							Yes, Samuel L. Jackson is the <i>center of Hollywood</i>, with a
 							remoteness of just 2.09. Willem Dafoe is second with 2.13, Robert
@@ -579,7 +594,7 @@
 						</p>
 						<p>Remember, lower remoteness is better. Press 'Start' to begin.</p>
 					</Step>
-					<Step state="raceRecent" panel={rankPanel}>
+					<Step state="raceRecent">
 						<p>
 							Let's go back to where Samuel L. Jackson took the crown in 2006.
 							Interestingly, this was before any MCU movie took place, which

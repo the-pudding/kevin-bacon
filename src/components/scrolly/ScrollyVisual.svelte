@@ -8,6 +8,7 @@
 		writeRaceSweepFrame,
 		raceVisibleSpan,
 		racePanBounds,
+		racePlot,
 		raceStepVisible,
 		raceDotSpec,
 		getRacePxPerYear,
@@ -564,6 +565,19 @@
 			STATE_RACE[stateName]
 		)
 	);
+	// The plot rectangle of the active race step, or null off the chapter. The
+	// draw pass culls the race cast against it (see drawScene), so it has to be
+	// the live one — same (w, h) the frame writer fits its camera to.
+	const racePlotRect = $derived(
+		raceStep && width && height ? racePlot(width, height) : null
+	);
+	// Whether that cull is armed: only for a move WITHIN the race chapter, where
+	// both frames are the chart's own (see onRacePlot). An arrival from outside it
+	// has to cross the canvas — above all the flight out of the rank list, which
+	// departs from row centres far below the plot and would otherwise be culled
+	// away to nothing. Written by the render effect, which knows the state the
+	// buffers are coming from; not $state, since only the draw pass reads it.
+	let racePlotCulling = false;
 	// what the active layout actually varies on: the state's selector plucks
 	// the interaction fields it consumes (reading the `story` $state proxy
 	// here makes the layout effect re-run when those fields change)
@@ -994,6 +1008,38 @@
 	}
 
 	/**
+	 * Is a dot's centre on the active race step's plot?
+	 *
+	 * The frame writer never puts one off it — writeRaceSweepFrame hides any cast
+	 * dot whose value has left the fitted band — but the tweener that carries the
+	 * reader between two race steps does: it eases alpha and position together, so
+	 * an actor the arriving step drops is drawn out on its own curve, above or
+	 * below the plot, for the whole of the tween. Testing the CENTRE rather than
+	 * clipping the canvas is what keeps the dots that legitimately ride the plot's
+	 * right edge whole instead of sliced in half.
+	 *
+	 * Both the draw pass and the label cut go through here, so a name can never
+	 * outlive the dot it belongs to.
+	 *
+	 * Answers yes unconditionally unless the cull is armed (racePlotCulling): a
+	 * dot on its way in from another chapter is off the plot for good reason.
+	 *
+	 * @param {Float32Array} attrs the frame's dot buffer
+	 * @param {number} i the dot's base index into `attrs`
+	 */
+	function onRacePlot(attrs, i) {
+		if (!racePlotRect || !racePlotCulling) return true;
+		const x = attrs[i];
+		const y = attrs[i + 1];
+		return (
+			x >= racePlotRect.left - 0.5 &&
+			x <= racePlotRect.right + 0.5 &&
+			y >= racePlotRect.top - 0.5 &&
+			y <= racePlotRect.bottom + 0.5
+		);
+	}
+
+	/**
 	 * The race labels one FRAME shows: the step's own subject, then the labelled
 	 * dots nearest the centre of Hollywood, up to RACE_LABEL_TOP in all.
 	 *
@@ -1001,20 +1047,29 @@
 	 * order — the axis is fitted with the record at the top — and y is already in
 	 * the buffer the frame just wrote, so no curve has to be re-read per frame.
 	 *
-	 * The subject is exempt from the cut: a step's ink dot must never be the
+	 * The subject is exempt from the cut — a step's ink dot must never be the
 	 * anonymous one, and raceFull rests on cameras where Hackman is outside the
-	 * ten nearest the centre.
+	 * ten nearest the centre — but not from the plot test: a name the draw pass
+	 * has culled has nothing left to label.
 	 *
 	 * @param {Float32Array} attrs the frame's dot buffer
 	 */
 	function raceLabelCut(attrs) {
-		const keep = new Set(raceStep.highlight ?? []);
+		const keep = new Set(
+			(raceStep.highlight ?? []).filter((id) => onRacePlot(attrs, id * STRIDE))
+		);
 		/** @type {[number, number][]} */
 		const rest = [];
 		for (const id of labelIds) {
-			// a name whose dot the frame has faded out isn't shown either way, and
-			// must not eat one of the ten slots on its way off the plot
-			if (keep.has(id) || attrs[id * STRIDE + 6] <= 0.004) continue;
+			// a name whose dot the frame has faded out — or whose dot the draw pass
+			// is culling off the plot — isn't shown either way, and must not eat one
+			// of the ten slots on its way off the plot
+			if (
+				keep.has(id) ||
+				attrs[id * STRIDE + 6] <= 0.004 ||
+				!onRacePlot(attrs, id * STRIDE)
+			)
+				continue;
 			rest.push([id, attrs[id * STRIDE + 1]]);
 		}
 		rest.sort((a, b) => a[1] - b[1]);
@@ -1122,6 +1177,11 @@
 		for (let i = 0; i < EDGE_BASE; i += STRIDE) {
 			const alpha = attrs[i + 6];
 			if (alpha <= 0.004) continue;
+			// mid-chapter, the race cast is drawn only where the chart is (see
+			// onRacePlot). Scoped to the cast, so a crowd arriving from — or leaving
+			// for — a neighbouring chapter still crosses the whole canvas.
+			if (racePlotCulling && RACE_CAST.has(i / STRIDE) && !onRacePlot(attrs, i))
+				continue;
 			const rB = attrs[i + 3] >> 4;
 			const gB = attrs[i + 4] >> 4;
 			const bB = attrs[i + 5] >> 4;
@@ -1375,13 +1435,20 @@
 	// above: it has to win the flush. Cleared by every render pass, so a state
 	// change (Next/Prev mid-collapse) disarms it and the flag can only ever fire
 	// the flight it was armed for.
+	//
+	// The arm is itself reactive ($state.raw — raw because the payload is buffers,
+	// which must not be proxied), so this fires on whichever of the two lands last:
+	// the flag going up, or the arrival arming. Waiting only on the flag would
+	// strand the canvas on the collapsed frame for good on any arrival that finds
+	// the list already collapsed, with no overlay left to hide it.
 	/** @type {{startAttrs: Float64Array, startTrails: Float64Array, stateDelays: Float64Array, flownIn: boolean} | null} */
-	let raceFlight = null;
+	let raceFlight = $state.raw(null);
 	$effect(() => {
 		const collapsed = story.rankCollapsed;
+		const flight = raceFlight;
 		untrack(() => {
-			if (!collapsed || !raceFlight || stateName !== RACE_ENTRY_STATE) return;
-			const { startAttrs, startTrails, stateDelays, flownIn } = raceFlight;
+			if (!collapsed || !flight || stateName !== RACE_ENTRY_STATE) return;
+			const { startAttrs, startTrails, stateDelays, flownIn } = flight;
 			raceFlight = null;
 			// jitter 0, not TWEEN_JITTER: the flight is the list re-spacing into the
 			// chart, and a hashed per-node start would scramble the top-to-bottom
@@ -1583,6 +1650,12 @@
 		for (const id of labelIds) if (!prevLabelIds.has(id)) introduced.add(id);
 		heldLabels = null;
 		prevLabelIds = labelIds;
+		// Arm the draw pass's plot cull only for a move that starts and ends on the
+		// chart — a step change or a param settle within the chapter, where a dot
+		// off the plot is a tween artefact. Crossing INTO the chapter (the rank
+		// list's flight, or a backwards step out of the next one) legitimately
+		// carries the cast across the canvas, so the cull stays down for it.
+		racePlotCulling = !!STATE_RACE[prevState] && !!STATE_RACE[stateName];
 		prevState = stateName;
 		prevParamsKey = paramsKey;
 		if (resized || reducedMotion) {
@@ -1644,12 +1717,14 @@
 			// re-run on it.
 			//
 			// Ranks past the bottom of the panel — most of the cast; the list shows
-			// the top 250 and only ~20 rows fit — depart from just off the bottom
-			// edge rather than from hundreds of rows down, which would be a blur
-			// from nowhere. They read as streaming up out of the list.
+			// the top 250 and only ~20 rows fit — depart from its bottom edge, at
+			// alpha 0, rather than from hundreds of rows down. Two reasons, and they
+			// are the same reason: the reader never saw those rows, so there is no
+			// node to hand over, and the panel isn't covering that band, so anything
+			// parked down there is drawn straight over the step's prose. They fade in
+			// off the edge instead, reading as a stream up out of the list.
 			const rows = untrack(() => story.rankListRows);
-			const rowY = (id) =>
-				Math.min(rows.top + ORDER_OF.get(id) * rows.pitch, height + 24);
+			const rowY = (id) => rows.top + ORDER_OF.get(id) * rows.pitch;
 			// `attrs` parks the whole non-race corpus (the rank chapter's hop
 			// crowd) at its distance-scatter spot, alpha 0 — the position a later
 			// scatter chapter needs so ITS reveal doesn't teleport — and the write
@@ -1675,7 +1750,17 @@
 			for (let i = 0, id = 0; i < EDGE_BASE; i += STRIDE, id++) {
 				if (rows && RACE_RECENT_VISIBLE.has(id)) {
 					const dot = raceDotSpec(id === RACE_RECENT_LEAD);
-					set(collapsedAttrs, id, rows.cx, rowY(id), dot.r, dot.rgb, dot.alpha);
+					const y = rowY(id);
+					const offList = y > rows.bottom;
+					set(
+						collapsedAttrs,
+						id,
+						rows.cx,
+						offList ? rows.bottom : y,
+						dot.r,
+						dot.rgb,
+						offList ? 0 : dot.alpha
+					);
 					startAttrs[i + 6] = litAttrs[i + 6];
 					continue;
 				}

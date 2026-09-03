@@ -218,6 +218,11 @@
 	// the bottom, which is where most of the race cast sits. Same coordinate
 	// space as the focus box above.
 	//
+	// `bottom` is the last y this overlay covers — the panel's own opaque box, not
+	// the scroller's content, which runs on for another 200-odd rows. The handoff
+	// only works where the reader can't see the canvas underneath, so that edge is
+	// where it stops: the arrival hides every node below it (see ScrollyVisual).
+	//
 	// Nothing reads this during the rank chapter (rank.js's params selector takes
 	// only rankFocusBar), so unlike the focus box it is safe to republish as the
 	// reader scrolls — which is what keeps it true to what they are looking at
@@ -239,14 +244,16 @@
 			top: Math.round(
 				panel.offsetTop + bar.offsetTop - scrollTop + bar.offsetHeight / 2
 			),
-			pitch: rowEls[1].offsetTop - rowEls[0].offsetTop
+			pitch: rowEls[1].offsetTop - rowEls[0].offsetTop,
+			bottom: panel.offsetTop + panel.offsetHeight
 		};
 		const prev = story.rankListRows;
 		if (
 			prev &&
 			prev.cx === geom.cx &&
 			prev.top === geom.top &&
-			prev.pitch === geom.pitch
+			prev.pitch === geom.pitch &&
+			prev.bottom === geom.bottom
 		)
 			return;
 		story.rankListRows = geom;
