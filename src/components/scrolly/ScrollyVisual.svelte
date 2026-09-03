@@ -77,25 +77,8 @@
 		coldStart = false
 	} = $props();
 
-	// The takeover callout's prose (layouts/race.js places it; see
-	// raceTakeoverCallout). It replaced a click-to-open popover, on the note that
-	// you should not have to click for the one thing the chapter is about.
-	//
-	// TODO(copy): Owen. Keep it to one sentence. Numbers from the popover this
-	// replaced: Freedomland (2006), with Julianne Moore; it moved Jackson's hop
-	// bands by +14 (1 hop), +63 (2 hops), -72 (3 hops), 0 (4 hops) — i.e. it
-	// pulled 72 actors from three hops away to two — putting him on an average
-	// distance of 2.14, past Gene Hackman, whose last film was Welcome to
-	// Mooseport (2004).
-	//
-	// Budget: the box is 220px wide on a wide canvas and ~169px at the narrowest,
-	// which is ~36 and ~28 characters a line at this size. Keep it under ~110
-	// characters and it stays within four lines everywhere; past ~140 the note
-	// starts crowding the x axis on a landscape phone (NOTE_MAX_H in race.js is
-	// what the drop clamp assumes).
 	const TAKEOVER_NOTE =
-		"PLACEHOLDER — copy pending. This sentence is the length of the budget " +
-		"above, so the box reads true until it is replaced.";
+		"Freedomland (2006) - Samuel L. Jackson stars in this crime drama mystery with Julianne Moore. This gives him an average distance of 2.14, overtaking Gene Hackman who's last film was in 2004";
 
 	const TWEEN_MS = 700;
 	const ENTER_MS = 900;
