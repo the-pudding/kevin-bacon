@@ -9,6 +9,7 @@ import {
 	PULLBACK_ZOOM,
 	writeFieldCrowd,
 	fieldSpot,
+	hopFractions,
 	set,
 	parkHidden
 } from "../layout-shared.js";
@@ -18,6 +19,21 @@ import { writeNetwork } from "./intro.js";
 // Hop bands (Present chapter): row per degree of separation. Band thickness
 // follows the on-screen sample.
 // ---------------------------------------------------------------------------
+
+// Whitespace between adjacent rows. Without it the bands tile edge to edge and
+// neighbouring degrees read as one gradient rather than four rows — hop 2's
+// blue and hop 3's cyan are the pair that blend.
+const BAND_GAP = 12;
+// hop 4 is a handful of pixels at every viewport; this is what keeps it drawn
+const MIN_BAND_H = 4;
+
+// Each degree's share of the corpus, for the band labels. Deliberately NOT the
+// on-screen `counts` the bands are sized by: those oversample hop 1 and hop 4
+// so the sparse rows stay legible. So thickness follows the sample while the
+// number cites the corpus — the same split the right-edge notes used to make.
+const HOP_SHARE = hopFractions(ANCHOR_ID).map((share) =>
+	share < 0.001 ? "<0.1%" : `${Math.round(share * 100)}%`
+);
 
 /** @type {import("../layout-shared.js").LayoutFn} */
 function layoutHopBands(nodes, w, h, _edges, params) {
@@ -33,22 +49,26 @@ function layoutHopBands(nodes, w, h, _edges, params) {
 	const bandsTop = top + HEADER_H;
 	const innerH = plotBottom(h) - bandsTop;
 	// hops 1–4 are sized purely by their sample share so dot density matches
-	// across bands (no floor — the sparse hop-1/hop-4 bands stay thin)
+	// across bands, out of whatever the three gaps between them leave behind.
+	// The gap is reserved BEFORE the shares are struck rather than taken back
+	// out of each band, so it is real whitespace and every band still gets its
+	// honest share of what's left.
 	const dataTotal = counts[1] + counts[2] + counts[3] + counts[4];
-	const bandTops = [top, bandsTop];
+	const bandsH = innerH - BAND_GAP * 3;
+	const bandTop = [top];
+	const bandH = [HEADER_H];
 	let y = bandsTop;
 	for (let hop = 1; hop <= 4; hop++) {
-		y += (counts[hop] / dataTotal) * innerH;
-		bandTops.push(y);
+		const share = (counts[hop] / dataTotal) * bandsH;
+		bandTop[hop] = y;
+		bandH[hop] = Math.max(share, MIN_BAND_H);
+		y += share + BAND_GAP;
 	}
-	bandTops[5] = plotBottom(h);
 	for (const n of nodes) {
 		if (n.hop < 0) {
 			parkHidden(attrs, n, w, h);
 			continue;
 		}
-		const pad = 4;
-		const bandH = Math.max(bandTops[n.hop + 1] - bandTops[n.hop] - pad, 4);
 		const anchor = n.hop === 0;
 		set(
 			attrs,
@@ -62,8 +82,7 @@ function layoutHopBands(nodes, w, h, _edges, params) {
 			// into rows, which is the only reading of this transition that says
 			// "sorted".
 			anchor ? w / 2 : fieldSpot(n.id, w, h)[0],
-			bandTops[n.hop] +
-				(anchor ? bandH / 2 : pad / 2 + hash01(n.id, 4) * bandH),
+			bandTop[n.hop] + (anchor ? bandH[0] / 2 : hash01(n.id, 4) * bandH[n.hop]),
 			anchor ? 10 : 3,
 			HOP_RGB[n.hop],
 			// `seed` parks every node at its band position but invisible — what
@@ -82,9 +101,9 @@ function layoutHopBands(nodes, w, h, _edges, params) {
 	if (seed) return { attrs };
 	const legend = [1, 2, 3, 4].map((hop) => ({
 		color: HOP_RGB[hop],
-		label: `${hop} movie${hop > 1 ? "s" : ""}${hop === 1 ? " away" : ""}`,
+		label: `${hop} movie${hop > 1 ? "s" : ""} away — ${HOP_SHARE[hop - 1]} of actors`,
 		x: MARGIN,
-		y: (bandTops[hop] + bandTops[hop + 1]) / 2
+		y: bandTop[hop] + bandH[hop] / 2
 	}));
 	return { attrs, delays, legend };
 }
