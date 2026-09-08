@@ -37,6 +37,12 @@
 	/** @type {{ reveal?: boolean, collapse?: boolean }} */
 	let { reveal = false, collapse = false } = $props();
 
+	// row-in's own timing (delay, then duration), shared with the CSS keyframe
+	// via --row-in-delay/--row-in-ms below so the `entered` timer (see there)
+	// can't drift out of step with the animation it's timing itself against.
+	const ROW_IN_DELAY_MS = 1750;
+	const ROW_IN_MS = 1400;
+
 	const top = BY_RANK.slice(0, RANK_TOP_N);
 
 	const rows = top.map(({ id, rank }) => ({
@@ -116,6 +122,17 @@
 	// it as a reader-driven scroll (see the guard below)
 	let fontsReady = $state(false);
 
+	// Marks the staged entrance (`row-in`, below) as played out. A row's
+	// `animation` property is `none` while `.known` and `row-in …` while not —
+	// stepping rankReveal back to rankFocus drops `.known` from every row that
+	// isn't Bacon or a guess, which flips that property from `none` back to
+	// `row-in` and, per spec, restarts it: the whole list holds at opacity 0 for
+	// the animation's 1.75s delay before fading back in, reading as the rank
+	// list vanishing and reappearing. Once this is true the `:not(.entered)`
+	// selector below no longer matches, so a later `known` change is the plain
+	// opacity transition `.rows li` already carries, not a fresh animation.
+	let entered = $state(false);
+
 	// The collapse clock. This panel owns it — it is the one that knows when its
 	// own transitions have finished — and publishes the single moment the canvas
 	// waits for. Index.svelte unmounts the whole overlay off the same flag, so the
@@ -147,6 +164,18 @@
 		document.fonts.ready.then(() => {
 			fontsReady = true;
 		});
+	});
+
+	onMount(() => {
+		if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+			entered = true;
+			return;
+		}
+		const timer = setTimeout(
+			() => (entered = true),
+			ROW_IN_DELAY_MS + ROW_IN_MS
+		);
+		return () => clearTimeout(timer);
 	});
 
 	// keep the focused row centered: instant on first paint (no spoiler pan
@@ -277,11 +306,12 @@
 <div
 	class="rank-bars"
 	class:collapsing={collapse}
-	style="--collapse-ms: {RANK_COLLAPSE_MS}ms"
+	style="--collapse-ms: {RANK_COLLAPSE_MS}ms; --row-in-delay: {ROW_IN_DELAY_MS}ms; --row-in-ms: {ROW_IN_MS}ms"
 >
 	<ul
 		class="rows"
 		class:at-top={atTop}
+		class:entered
 		bind:this={list}
 		bind:clientHeight={listHeight}
 		onscroll={() => {
@@ -400,9 +430,19 @@
 	/* everyone but Bacon starts invisible and fades in slowly, after the canvas
 	   bar has landed and the step text has had its moment (see Index.svelte's
 	   rank-focus-text) — known rows (Bacon's included) are exempted below so his
-	   is there from the start, matching the bar dissolving into it */
-	.rows li {
-		animation: row-in 1.4s ease 1.75s both;
+	   is there from the start, matching the bar dissolving into it.
+
+	   Scoped to `.rows:not(.entered)` — once `entered` (set once, after the
+	   animation's own delay + duration have genuinely elapsed; see the script)
+	   this no longer matches any row. Without that gate this rule and `.known`
+	   below fight over the `animation` property every time a row's `known`
+	   class flips: `animation` reverting from `none` to `row-in …` restarts a
+	   CSS animation, so stepping rankReveal back to rankFocus (which drops
+	   `.known` from every row but Bacon's/a guess's) replayed the whole
+	   1.75s-invisible-then-1.4s-fade entrance on rows already on screen — read
+	   as the list vanishing and reappearing. */
+	.rows:not(.entered) li {
+		animation: row-in var(--row-in-ms) ease var(--row-in-delay) both;
 	}
 
 	/* the fade exists to hide who's who: once a row's name is out — Bacon, a row
