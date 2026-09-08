@@ -43,6 +43,21 @@
 	const ROW_IN_DELAY_MS = 1750;
 	const ROW_IN_MS = 1400;
 
+	// the reveal cascade: paced to feel like a fast countdown landing, not a
+	// progress bar. Only the top of the list cascades one row at a time — the
+	// list runs 250 rows deep and nobody is sitting through all of them
+	// revealing individually, so the tail beyond REVEAL_BATCH appears at once
+	// right after the cascade finishes.
+	const REVEAL_SETTLE_MS = 500; // pause once the scroll-to-#1 has actually landed, before the cascade starts
+	const REVEAL_BATCH = 25; // ranks that cascade in one at a time
+	const REVEAL_STAGGER_MS = 100; // per-row delay inside the cascade
+	// safety net for the scroll-landed wait below: a smooth scroll's own
+	// duration isn't authored (the browser picks it, longer for a longer
+	// distance), so this caps how long the cascade waits on a `scrollend` that
+	// — on a browser without it, or a scroll too short to fire one at all —
+	// might never come.
+	const SCROLL_SETTLE_TIMEOUT_MS = 1200;
+
 	const top = BY_RANK.slice(0, RANK_TOP_N);
 
 	const rows = top.map(({ id, rank }) => ({
@@ -92,17 +107,20 @@
 		reveal || story.rankGaveUp ? SLJ : (guess ?? ANCHOR_ID)
 	);
 
-	// names stay hidden (bars/rank still shown) until the final reveal step
-	// or giving up — a guess only reveals the guessed row, not the whole list
-	const namesRevealed = $derived(reveal || story.rankGaveUp);
-
 	// rows the reader already knows the identity of: Bacon (named by the step
 	// copy) plus every actor they have guessed, including earlier guesses the
 	// focus has since moved off. Those stay named and at full opacity — the fade
 	// is there to hide who's who, and there's nothing left to hide on them.
-	// On the reveal step every name is out, so every row is known.
 	const known = $derived(new Set([ANCHOR_ID, ...story.rankGuesses]));
-	const isKnown = (id) => namesRevealed || known.has(id);
+
+	// the rank the cascade below has revealed up to (0 = nothing beyond
+	// `known`). `rows` is already in rank order, so "revealed up to rank N" and
+	// "the first N rows" are the same thing — no per-id bookkeeping needed.
+	// Giving up advances into rankReveal exactly like a correct guess does
+	// (see GuessRank's giveUp), so it drives the very same cascade below —
+	// there's no separate instant path for it.
+	let revealUpTo = $state(0);
+	const isKnown = (id, rank) => known.has(id) || rank <= revealUpTo;
 
 	/** @type {HTMLUListElement | undefined} */
 	let list = $state();
@@ -146,6 +164,10 @@
 			story.rankCollapsed = false;
 			return;
 		}
+		// don't leave a row mid-cascade once the bars start folding into the
+		// race chart's dots — a fast clicker can reach this before the cascade
+		// below has finished
+		revealUpTo = rows.length;
 		if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
 			story.rankCollapsed = true;
 			return;
@@ -164,6 +186,89 @@
 		document.fonts.ready.then(() => {
 			fontsReady = true;
 		});
+	});
+
+	// distinguishes a genuine forward arrival at the reveal from a cold mount
+	// already past it (e.g. ?step=7, or a reload on raceRecent) — the cascade
+	// effect's first run happens before this flips true, so that case reads as
+	// "nothing to animate into" and reveals everything at once instead.
+	let mounted = $state(false);
+	onMount(() => {
+		mounted = true;
+	});
+
+	// Cascades revealUpTo from 0 to rows.length in rank order once the reader
+	// actually arrives at the reveal AND the scroll-to-#1 (the $effect.pre
+	// below) has actually landed — waiting on a flat timer in parallel with
+	// that scroll started the cascade mid-scroll, since a smooth scroll's
+	// duration isn't authored (the browser picks it, longer the further #1
+	// is from where the reader's guess had the list scrolled to). `scrollend`
+	// is the browser's own signal that it's actually stopped moving the list;
+	// SCROLL_SETTLE_TIMEOUT_MS is the fallback for a browser without it, or a
+	// scroll too short to ever fire one. Stepping back to rankFocus resets
+	// this, so stepping forward again replays the cascade.
+	//
+	// Deliberately NOT $state: this effect both reads it (the re-entry guard
+	// below) and writes it, and a $state read+written inside the same effect
+	// makes the write retrigger the effect on the next flush — which runs the
+	// cleanup below and clears the very timers/listener this run just set up,
+	// before they ever fire. Plain, like scrolledByReader/centeredId above,
+	// for the same reason.
+	let revealStarted = false;
+	/** @type {ReturnType<typeof setTimeout> | undefined} */
+	let scrollFallbackTimer;
+	/** @type {ReturnType<typeof setTimeout> | undefined} */
+	let cascadeSettleTimer;
+	/** @type {ReturnType<typeof setInterval> | undefined} */
+	let cascadeInterval;
+	$effect(() => {
+		if (!reveal) {
+			revealUpTo = 0;
+			revealStarted = false;
+			return;
+		}
+		if (revealStarted) return; // already ran (or running) for this arrival
+		revealStarted = true;
+
+		if (
+			!mounted ||
+			!list ||
+			window.matchMedia("(prefers-reduced-motion: reduce)").matches
+		) {
+			revealUpTo = rows.length;
+			return;
+		}
+
+		let landed = false;
+		const onLanded = () => {
+			if (landed) return;
+			landed = true;
+			clearTimeout(scrollFallbackTimer);
+			list?.removeEventListener("scrollend", onLanded);
+			cascadeSettleTimer = setTimeout(() => {
+				let rank = 0;
+				const target = Math.min(REVEAL_BATCH, rows.length);
+				const cascade = setInterval(() => {
+					rank += 1;
+					revealUpTo = rank;
+					if (rank >= target) {
+						clearInterval(cascade);
+						revealUpTo = rows.length; // the tail below the batch, all at once
+					}
+				}, REVEAL_STAGGER_MS);
+				cascadeInterval = cascade;
+			}, REVEAL_SETTLE_MS);
+		};
+
+		if ("onscrollend" in window) list.addEventListener("scrollend", onLanded);
+		scrollFallbackTimer = setTimeout(onLanded, SCROLL_SETTLE_TIMEOUT_MS);
+
+		return () => {
+			list?.removeEventListener("scrollend", onLanded);
+			clearTimeout(scrollFallbackTimer);
+			clearTimeout(cascadeSettleTimer);
+			clearInterval(cascadeInterval);
+		};
 	});
 
 	onMount(() => {
@@ -326,12 +431,12 @@
 			<li
 				data-id={row.id}
 				class:focus={row.id === focusId}
-				class:known={isKnown(row.id)}
+				class:known={isKnown(row.id, row.rank)}
 			>
 				<span class="label-row">
 					<span class="label"
 						>#{row.rank}
-						{isKnown(row.id) ? row.name : "???"}</span
+						{isKnown(row.id, row.rank) ? row.name : "???"}</span
 					>
 					<span class="avg">{row.avgDistance.toFixed(2)}</span>
 				</span>
