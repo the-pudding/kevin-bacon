@@ -117,5 +117,11 @@ export const story = $state({
 	 * through setRacePxPerYear) so nothing reactive lands in the per-frame path;
 	 * this is only the signal that tells ScrollyVisual to drop its cached layouts
 	 * and redraw. */
-	racePxPerYearRev: 0
+	racePxPerYearRev: 0,
+	/** race chart, DEV ONLY: bumped by RaceFixedYDev.svelte after every change to
+	 * the fixed y-axis bounds. The bounds themselves live in layouts/race.js (set
+	 * through setRaceDevFixedYFit) so nothing reactive lands in the per-frame path;
+	 * this is only the signal that tells ScrollyVisual to drop its cached layouts
+	 * and redraw. */
+	raceFixedYRev: 0
 });

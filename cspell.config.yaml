@@ -64,6 +64,7 @@ words:
   - bestie
   - tiempos
   - pullback
+  - graying
 ignorePaths:
   - node_modules
   - build

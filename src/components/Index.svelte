@@ -161,6 +161,14 @@
 		raceSpeedDev = await import("$components/scrolly/RaceSpeedDev.svelte");
 	});
 
+	// The race chart's fixed y-axis switch (PRD P-08-1). Same dynamic-import
+	// rationale as raceYBandDev above.
+	let raceFixedYDev = $state(null);
+	onMount(async () => {
+		if (!import.meta.env.DEV) return;
+		raceFixedYDev = await import("$components/scrolly/RaceFixedYDev.svelte");
+	});
+
 	$effect(() => {
 		urlParams.set(STEP_PARAM, value);
 	});
@@ -385,6 +393,9 @@
 				{/if}
 				{#if raceSpeedDev}
 					<raceSpeedDev.default />
+				{/if}
+				{#if raceFixedYDev}
+					<raceFixedYDev.default />
 				{/if}
 			</div>
 			<div class="scrolly-steps" bind:clientHeight={stepsHeight}>

@@ -323,6 +323,23 @@ function raceBandAt(year) {
 }
 
 /**
+ * Constant bounds the dev panel has pinned the axis to, in place of the camera
+ * fit below. Null in every normal run; written ONLY by setRaceDevFixedYFit.
+ */
+let devFixedYFit = null;
+
+/**
+ * Dev hook: pin the axis to constant bounds (or null to go back to the camera
+ * fit). Called only from RaceFixedYDev.svelte, which only mounts under
+ * `npm run dev` — it exists to settle PRD item P-08-1, which asks whether a
+ * static y range reads better than the one that rides the record.
+ * @param {[number, number] | null} fit [vMin, vMax], the literal scale domain
+ */
+export function setRaceDevFixedYFit(fit) {
+	devFixedYFit = fit;
+}
+
+/**
  * The axis for a camera window: the record over the years on screen at the top,
  * and the right edge's band (raceBandAt) of the chasing field under it, padded
  * so a dot riding an extreme doesn't touch the plot edge.
@@ -342,6 +359,9 @@ function raceBandAt(year) {
  * @returns {[number, number]} the padded scale domain [vMin, vMax]
  */
 function raceWindowYFit(camLeft, camRight) {
+	// DEV: the fixed-axis panel's bounds ARE the domain — taken before the pad, so
+	// what its two sliders read is exactly what the plot's edges mean.
+	if (devFixedYFit) return devFixedYFit;
 	// both fractional edges, then every whole year between them (<= 11 of them at
 	// any viewport width, so this is nothing per frame)
 	let lo = Math.min(raceAnchorAt(camLeft), raceAnchorAt(camRight));

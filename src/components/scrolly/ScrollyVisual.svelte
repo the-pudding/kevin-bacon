@@ -436,6 +436,13 @@
 	// each other instead of snapping. Ported from the pudding-post race-chart.
 	const decollideLabelsLeft = createLabelDecollider();
 	const decollideLabelsRight = createLabelDecollider();
+	// The label de-collider relaxes toward its target a little per DRAWN frame,
+	// and the things that drive frames stop once the dots are in place — so the
+	// labels need a few frames of their own after that to finish arriving. One
+	// pending rAF at a time, cancelled by whoever draws next; it stops on its own
+	// as soon as decollide.settled() goes true. Not $state: it is only ever read
+	// and written inside drawScene.
+	let labelRelaxRaf = null;
 	const LABEL_LINE_GAP_PX = 16; // ~11px label line-height * 1.15, matches reference
 	// how close a below-dot name may sit to the canvas edge before it stops
 	// sliding outward (see the .node-label transform)
@@ -451,6 +458,7 @@
 	// effect). Always 0 in a build, where the tuning panel doesn't exist.
 	let lastBandRev = 0;
 	let lastPxRev = 0;
+	let lastFixedYRev = 0;
 	function layoutFor(name, w, h, layoutParams) {
 		// a race camera hold is a fresh continuous value every time the reader
 		// releases a pan, and each entry is ~0.8MB of Float64Array — never a cache
@@ -1257,6 +1265,14 @@
 					LABEL_LINE_GAP_PX
 				)
 			]);
+			if (labelRelaxRaf != null) cancelAnimationFrame(labelRelaxRaf);
+			labelRelaxRaf =
+				decollideLabelsLeft.settled() && decollideLabelsRight.settled()
+					? null
+					: requestAnimationFrame(() => {
+							labelRelaxRaf = null;
+							drawScene();
+						});
 			ctx.lineWidth = 1;
 			for (const t of besideDot) {
 				const offset = shownOffset.get(t.id) ?? 0;
@@ -1502,6 +1518,11 @@
 		// DEV: same idea for RacePxPerYearDev's x-axis density slider.
 		if (import.meta.env.DEV && story.racePxPerYearRev !== lastPxRev) {
 			lastPxRev = story.racePxPerYearRev;
+			layoutCache.clear();
+		}
+		// DEV: same idea for RaceFixedYDev's fixed y-axis bounds.
+		if (import.meta.env.DEV && story.raceFixedYRev !== lastFixedYRev) {
+			lastFixedYRev = story.raceFixedYRev;
 			layoutCache.clear();
 		}
 		if (!canvas || !width || !height || !stateName) return;
