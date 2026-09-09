@@ -40,12 +40,29 @@ Related backlogs, deliberately **not** merged in here:
 
 - [ ] **P-06-1 · Chart title.** e.g. "ranking of actors by average distance,
       2025".
-- [ ] **P-06-2 · Legend for the colour sections.** Currently unexplained.
+- [x] **P-06-2 · Legend for the colour sections.** Currently unexplained.
+      **Shipped:** not a legend — every row prints its own four shares of the
+      corpus under the bands themselves. A standing key could not have carried
+      the numbers anyway (each actor has a different split), and per row they
+      earn their place twice over: read down the ladder and they are the story,
+      hop 2 giving way to hop 3 as the actors get more remote, and they correct
+      for `RANK_SEG_MIN` painting hop 1 and hop 4 several times wider than they
+      are. The canvas bar underneath still carries no key (`layouts/rank.js`) —
+      it is only on screen for the arrival tween. Wording is placeholder, for
+      Owen.
+- [x] **P-06-5 · Degree separation, and density.** The horizontal twin of P-04-4:
+      `RANK_BAND_GAP` reserved between the bands inside `hopBandBoxes`, so both
+      the panel and the canvas inherit it. The strip is also ~3× denser (5 dot
+      rows on a 3px pitch) with the jitter re-based on the lattice cell rather
+      than the slack around a dot — the old nudge was ±0.08px vertically, which
+      is what made the bars read as a stamped grid.
 - [ ] **P-06-3 · Stacked bar instead of dots.** The ladder condenses the corpus,
       so one dot ≠ one actor — Matt suggests a stacked bar chart instead.
-      Depends on P-06-4.
+      Depends on P-06-4. **Parked:** Owen chose to keep the dots and invest in
+      the strip's density instead (P-06-5), so this would now throw that away.
 - [ ] **P-06-4 · Make the preceding step a stacked bar too**, to ease the
-      transition into P-06-3. Only worth doing if P-06-3 goes ahead.
+      transition into P-06-3. Only worth doing if P-06-3 goes ahead. **Parked**
+      with it.
 
 ## 3. Race chart — steps 8–9 (`raceRecent`)
 

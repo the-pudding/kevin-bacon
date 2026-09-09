@@ -97,6 +97,14 @@ export const edgeIndex = (e) => EDGE_BASE + e * STRIDE;
  * @returns {LayoutResult}
  */
 
+// What a hop crowd's dots are drawn at wherever they are packed tightly enough
+// to overlap — the hopBands rows and the rank ladder's strips both. At this
+// alpha the overlap is the point: two dots on the same spot read darker, so a
+// dense band shows its own density instead of flattening into a solid block.
+// Shared so the ladder inherits the chart it dissolves out of; the anchor and
+// anything drawn as a single node stay opaque.
+export const HOP_DOT_ALPHA = 0.5;
+
 // rgb values of the tokens in src/styles/variables.css (canvas can't read CSS custom properties)
 export const HOP_RGB = [
 	[34, 34, 34], // hop 0 — --color-gray-900
@@ -202,13 +210,21 @@ export const RANK_BAR_H = 10; // px, the dotted strip's height
 // so the floor that keeps a sparse hop (hop 4 is ~0.1% of a row) visible is
 // what keeps a handful of its dots on screen.
 export const RANK_SEG_MIN = 10;
-export const RANK_DOT_D = 3; // px dot diameter
-export const RANK_DOT_ROWS = 3; // dot rows stacked within RANK_BAR_H
-export const RANK_DOT_PITCH = 5; // px between dot columns
-// how much of the free space around a dot it may wander into: enough that the
-// strip reads as a crowd rather than a stamped lattice, not so much that
-// neighbours merge into a solid line at list widths
-export const RANK_DOT_JITTER = 0.5;
+// Whitespace between adjacent hop bands — the horizontal twin of hop-bands.js's
+// BAND_GAP. Reserved out of the width BEFORE the shares are struck, so it is
+// real whitespace and every band still gets its honest share of what is left.
+// Small where that one is 12px: this strip is only RANK_BAR_H tall, so 12px of
+// hole in it reads as four missing dot columns rather than a seam.
+export const RANK_BAND_GAP = 5;
+export const RANK_DOT_D = 2.4; // px dot diameter
+export const RANK_DOT_ROWS = 5; // dot rows stacked within RANK_BAR_H
+export const RANK_DOT_PITCH = 3; // px between dot columns
+// How much of its own lattice cell a dot may wander over — 1 is the whole cell,
+// so past about half of one neighbours start to overlap and the strip reads as
+// a crowd rather than a stamped grid. Deliberately NOT a fraction of the slack
+// left around the dot: at this pitch that slack is half a pixel, so a
+// slack-based nudge is no nudge at all and the lattice shows straight through.
+export const RANK_DOT_JITTER = 0.9;
 // How long the list's bars take to collapse into single nodes when the story
 // steps on into the race chapter (RankBars' `collapse`). Shared vocabulary: the
 // panel owns the clock and the canvas waits for it (story.rankCollapsed), so
@@ -216,20 +232,24 @@ export const RANK_DOT_JITTER = 0.5;
 export const RANK_COLLAPSE_MS = 500;
 
 /**
- * Cumulative left edges (length 5) of hop bands 1–4 across `width`: each band
- * gets `minPx` plus its share of what's left, so the proportions still read
- * while no band disappears.
+ * The boxes of hop bands 1–4 across `width`: each gets RANK_SEG_MIN plus its
+ * share of whatever those floors and the three gaps between the bands leave
+ * behind, so the proportions still read while no band disappears. Widths plus
+ * gaps sum to exactly `width`.
  * @param {number[]} fractions four shares summing to 1
  * @param {number} width px
- * @param {number} [minPx]
+ * @returns {{x: number, w: number}[]} one box per hop band
  */
-export function hopSegmentBounds(fractions, width, minPx = 0) {
-	const free = width - minPx * fractions.length;
-	const bounds = [0];
+export function hopBandBoxes(fractions, width) {
+	const free = width - RANK_SEG_MIN * fractions.length - RANK_BAND_GAP * 3;
+	const boxes = [];
+	let x = 0;
 	for (const fraction of fractions) {
-		bounds.push(bounds[bounds.length - 1] + minPx + free * fraction);
+		const w = RANK_SEG_MIN + free * fraction;
+		boxes.push({ x, w });
+		x += w + RANK_BAND_GAP;
 	}
-	return bounds;
+	return boxes;
 }
 
 /** an actor's hop 1–4 shares of the corpus, from the rankHopBands export */
@@ -237,6 +257,65 @@ export function hopFractions(id) {
 	const counts = story.rankHopBands[id];
 	const total = counts.reduce((sum, count) => sum + count, 0);
 	return counts.map((count) => count / total);
+}
+
+/**
+ * The four hop shares as reader-facing percentages, shared by every chart that
+ * prints them so the story states the same split the same way everywhere.
+ *
+ * Hops 1–3 are apportioned by largest remainder rather than rounded one by one:
+ * independent rounding lands on 99 or 101 for 58 of the ladder's 250 rows, and
+ * a reader adding up four numbers on one bar notices. Hop 4 is deliberately
+ * outside that arithmetic — it is under 0.25% of every actor's corpus, so it
+ * can only ever be the rounding dust, and it takes a bound (`<0.1%`) instead of
+ * an integer because "0%" would write off a whole degree of separation that
+ * genuinely has people in it. That leaves the three printed integers summing to
+ * exactly 100 on every row.
+ * @param {number[]} fractions four hop shares (see hopFractions)
+ * @returns {string[]} four display strings
+ */
+export function hopShareLabels(fractions) {
+	const pct = fractions.map((share) => share * 100);
+	const counted = pct.slice(0, 3);
+	const whole = counted.map(Math.floor);
+	// at most one unit per band is ever lost to the floors, so a single pass
+	// down the remainders always spends the shortfall
+	let short = 100 - whole.reduce((sum, n) => sum + n, 0);
+	const byRemainder = counted
+		.map((p, band) => ({ band, rem: p - whole[band] }))
+		.sort((a, b) => b.rem - a.rem);
+	for (const { band } of byRemainder) {
+		if (short <= 0) break;
+		whole[band] += 1;
+		short -= 1;
+	}
+	const hop4 = Math.ceil(pct[3] * 10) / 10;
+	return [...whole.map((n) => `${n}%`), `<${hop4.toFixed(1)}%`];
+}
+
+const clamp = (v, lo, hi) => Math.min(Math.max(v, lo), hi);
+
+// Keeps one band's jitter keys clear of the next band's. Must exceed the widest
+// band's own key range, `cols * RANK_DOT_ROWS` — about 3300 at the widest
+// viewport this list is read at.
+const DOT_KEY_STRIDE = 4096;
+
+/**
+ * The dot lattice's own nudge, in place of `hash01`. hash01 is a sine hash, so
+ * stepping its input by a constant — which walking the lattice column by column
+ * does — steps the sine's phase by a constant too. At the jitter width the
+ * strip needs that period is plainly visible: the dots comb into a repeating
+ * wave every few columns. An integer bit-mix (the lowbias32 finaliser) has no
+ * such period, and nothing else in the story jitters hard enough to care.
+ * @param {number} key
+ * @param {number} salt
+ * @returns {number} 0–1
+ */
+function dotHash(key, salt) {
+	let h = (key ^ Math.imul(salt, 0x9e3779b1)) >>> 0;
+	h = Math.imul(h ^ (h >>> 16), 0x21f0aaad) >>> 0;
+	h = Math.imul(h ^ (h >>> 15), 0x735a2d97) >>> 0;
+	return ((h ^ (h >>> 15)) >>> 0) / 4294967296;
 }
 
 /**
@@ -253,24 +332,34 @@ export function hopFractions(id) {
  * @returns {{x: number, y: number}[][]} one array of dots per hop band
  */
 export function hopDotSlots(fractions, width, id) {
-	const bounds = hopSegmentBounds(fractions, width, RANK_SEG_MIN);
 	const rowH = RANK_BAR_H / RANK_DOT_ROWS;
-	const jitterY = Math.max(0, (rowH - RANK_DOT_D) / 2) * RANK_DOT_JITTER;
-	return fractions.map((_, band) => {
-		const x0 = bounds[band];
-		const segW = bounds[band + 1] - x0;
+	const r = RANK_DOT_D / 2;
+	const jitterY = rowH * RANK_DOT_JITTER;
+	return hopBandBoxes(fractions, width).map(({ x: x0, w: segW }, band) => {
 		// at least one column: a band this narrow is one the min-width floor is
 		// carrying, and it still owes the reader its colour
 		const cols = Math.max(1, Math.round(segW / RANK_DOT_PITCH));
 		const pitch = segW / cols;
-		const jitterX = Math.max(0, (pitch - RANK_DOT_D) / 2) * RANK_DOT_JITTER;
+		const jitterX = pitch * RANK_DOT_JITTER;
 		const dots = [];
 		for (let col = 0; col < cols; col++) {
 			for (let row = 0; row < RANK_DOT_ROWS; row++) {
-				const key = (id * 4 + band) * 512 + col * RANK_DOT_ROWS + row;
+				const key =
+					(id * 4 + band) * DOT_KEY_STRIDE + col * RANK_DOT_ROWS + row;
+				// clamped to the band's own box: a jitter this wide is meant to spill
+				// across cells, but spilling past the band would eat the gap that
+				// separates the colours and clip against the strip's top and bottom
 				dots.push({
-					x: x0 + (col + 0.5) * pitch + (hash01(key, 8) - 0.5) * jitterX * 2,
-					y: (row + 0.5) * rowH + (hash01(key, 9) - 0.5) * jitterY * 2
+					x: clamp(
+						x0 + (col + 0.5) * pitch + (dotHash(key, 8) - 0.5) * jitterX,
+						x0 + r,
+						x0 + segW - r
+					),
+					y: clamp(
+						(row + 0.5) * rowH + (dotHash(key, 9) - 0.5) * jitterY,
+						r,
+						RANK_BAR_H - r
+					)
 				});
 			}
 		}

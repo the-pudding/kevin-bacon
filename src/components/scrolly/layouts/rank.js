@@ -5,6 +5,7 @@ import {
 	set,
 	parkHidden,
 	HOP_RGB,
+	HOP_DOT_ALPHA,
 	INK,
 	RANK_BAR_H,
 	RANK_DOT_D,
@@ -64,7 +65,9 @@ function layoutRank(nodes, w, h, _edges, params) {
 			baconY - RANK_BAR_H / 2 + dot.y,
 			RANK_DOT_D / 2,
 			HOP_RGB[n.hop],
-			1
+			// the same alpha the hopBands crowd arrives wearing: these dots pack
+			// several hundred actors onto each other, so the overlap has to read
+			HOP_DOT_ALPHA
 		);
 	}
 	// Bacon himself sits in the gutter to the left of the bar (the row's own
@@ -79,8 +82,12 @@ function layoutRank(nodes, w, h, _edges, params) {
 		parkHidden(attrs, n, w, h);
 	}
 
-	// no hop key here: the hop-bands step just before this one establishes the
-	// colours, so repeating the key over the rank list only adds furniture
+	// no hop key on the canvas: this bar is only ever on screen for the length of
+	// the arrival tween before the panel covers it, and the hop-bands step just
+	// before it establishes the colours. The key the rank chapter does owe the
+	// reader is on the panel instead, where every row prints its own four shares
+	// of the corpus under its bands (RankBars.svelte) — something this bar, drawn
+	// from one actor's shares, could never do for the other 249.
 	return { attrs };
 }
 

@@ -5,11 +5,13 @@ import {
 	MARGIN,
 	plotBottom,
 	HOP_RGB,
+	HOP_DOT_ALPHA,
 	NETWORK_HOP_DELAY_MS,
 	PULLBACK_ZOOM,
 	writeFieldCrowd,
 	fieldSpot,
 	hopFractions,
+	hopShareLabels,
 	set,
 	parkHidden
 } from "../layout-shared.js";
@@ -31,9 +33,7 @@ const MIN_BAND_H = 4;
 // on-screen `counts` the bands are sized by: those oversample hop 1 and hop 4
 // so the sparse rows stay legible. So thickness follows the sample while the
 // number cites the corpus — the same split the right-edge notes used to make.
-const HOP_SHARE = hopFractions(ANCHOR_ID).map((share) =>
-	share < 0.001 ? "<0.1%" : `${Math.round(share * 100)}%`
-);
+const HOP_SHARE = hopShareLabels(hopFractions(ANCHOR_ID));
 
 /** @type {import("../layout-shared.js").LayoutFn} */
 function layoutHopBands(nodes, w, h, _edges, params) {
@@ -88,7 +88,7 @@ function layoutHopBands(nodes, w, h, _edges, params) {
 			// `seed` parks every node at its band position but invisible — what
 			// sits behind hopSeed's zoomed-out network, so the fifteen the network
 			// draws are the only actors with any distance left to travel there.
-			seed ? 0 : anchor ? 1 : 0.5
+			seed ? 0 : anchor ? 1 : HOP_DOT_ALPHA
 		);
 		// bands cascade 1→4, and each node jitters within its hop so the row fills
 		// in rather than snapping on all at once. Arriving from the chapter card

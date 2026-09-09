@@ -12,8 +12,12 @@
 		RANK_BAR_H,
 		RANK_DOT_D,
 		RANK_COLLAPSE_MS,
+		RANK_BAND_GAP,
+		HOP_DOT_ALPHA,
+		hopBandBoxes,
 		hopDotSlots,
-		hopFractions
+		hopFractions,
+		hopShareLabels
 	} from "./layout-shared.js";
 	import {
 		raceDotSpec,
@@ -60,34 +64,50 @@
 
 	const top = BY_RANK.slice(0, RANK_TOP_N);
 
-	const rows = top.map(({ id, rank }) => ({
-		id,
-		rank,
-		name: rawNodes.nodes[id][1],
-		avgDistance: Number(rawNodes.nodes[id][4]),
-		fractions: hopFractions(id),
-		// null for a row the race chapter doesn't show — it has no dot to become,
-		// so its bar just goes with the rest of the list. (Can't happen at the
-		// reveal's own scroll position: every one of the top ~25 rows is a
-		// raceRecent contender. Only reachable if the reader scrolled away.)
-		dot: RACE_RECENT_VISIBLE.has(id)
-			? raceDotSpec(id === RACE_RECENT_LEAD)
-			: null
-	}));
+	const rows = top.map(({ id, rank }) => {
+		const fractions = hopFractions(id);
+		return {
+			id,
+			rank,
+			name: rawNodes.nodes[id][1],
+			avgDistance: Number(rawNodes.nodes[id][4]),
+			fractions,
+			// the same formatter the hopBands step one step earlier prints, so the
+			// two charts state the split identically. Unlike that one, the number
+			// here is not correcting a sampled thickness — this bar IS the corpus
+			// share — it corrects for RANK_SEG_MIN, the floor that keeps the sparse
+			// hops drawable and so paints hop 1 and hop 4 wider than they are.
+			shares: hopShareLabels(fractions),
+			// null for a row the race chapter doesn't show — it has no dot to become,
+			// so its bar just goes with the rest of the list. (Can't happen at the
+			// reveal's own scroll position: every one of the top ~25 rows is a
+			// raceRecent contender. Only reachable if the reader scrolled away.)
+			dot: RACE_RECENT_VISIBLE.has(id)
+				? raceDotSpec(id === RACE_RECENT_LEAD)
+				: null
+		};
+	});
 
 	// One <path> per hop over the band's shared dot lattice (hopDotSlots), each a
 	// run of near-zero-length subpaths that stroke-linecap: round renders as dots
 	// — four elements per row instead of one per dot, which is what makes 250
-	// dotted rows affordable in the DOM.
+	// dotted rows affordable in the DOM. Coordinates go out at 0.1px: there are
+	// a couple of thousand of these per row, and the dots are RANK_DOT_D across,
+	// so the extra digit is path string nobody can see.
 	/**
 	 * @param {number} id node id, so the jitter is stable per actor
 	 * @param {number[]} fractions hop 1–4 shares
 	 * @param {number} width px
 	 */
 	function barPaths(id, fractions, width) {
+		// the band's own width comes back with its path: the share label under it
+		// is laid out against it (see `.share`), so both sides of the row are
+		// struck from one lattice rather than two that could drift apart
+		const boxes = hopBandBoxes(fractions, width);
 		return hopDotSlots(fractions, width, id).map((dots, band) => ({
 			color: HOP_RGB[band + 1],
-			d: dots.map((p) => `M${p.x.toFixed(2)} ${p.y.toFixed(2)}h0.01`).join("")
+			w: boxes[band].w,
+			d: dots.map((p) => `M${p.x.toFixed(1)} ${p.y.toFixed(1)}h0.01`).join("")
 		}));
 	}
 
@@ -455,12 +475,29 @@
 							<path
 								d={band.d}
 								stroke="rgb({band.color.join(',')})"
+								stroke-opacity={HOP_DOT_ALPHA}
 								stroke-width={RANK_DOT_D}
 								stroke-linecap="round"
 								fill="none"
 							/>
 						{/each}
 					</svg>
+					<!-- the hop key, and it is per row rather than a standing legend
+					     because every actor has their own `fractions`: read down the
+					     ladder and the numbers are the story, hop 2 giving way to hop 3
+					     as the actors get more remote. Absolutely positioned so the
+					     labels cost the row no height — `publishRows` places all 250 of
+					     the race arrival's canvas copies off one measured row pitch, so
+					     the strip has to stay where the bar alone would put it. -->
+					<span class="shares" style="gap: {RANK_BAND_GAP}px">
+						{#each row.shares as share, band}
+							<span
+								class="share"
+								style="flex-basis: {(bars?.[i]?.[band]?.w ?? 0).toFixed(1)}px"
+								>{share}</span
+							>
+						{/each}
+					</span>
 					<!-- the actor's race-chart dot, waiting at the bar's centre for the
 					     collapse to grow it in. Its radius/colour/alpha come from the
 					     canvas's own definition (raceDotSpec), so when this overlay
@@ -524,7 +561,12 @@
 		display: flex;
 		flex-direction: column;
 		gap: 0.2rem;
-		padding: 0.3rem 0;
+		/* the deeper bottom padding is the lane the focused row's share labels sit
+		   in (see `.shares`), with enough left under them to keep the numbers off
+		   the next actor's name. Every row carries it, not just the focused one:
+		   the race arrival places all 250 canvas copies off a single measured row
+		   pitch, so rows of two different heights would scatter them. */
+		padding: 0.3rem 0 1rem;
 		font-family: var(--font-mono);
 		font-size: 0.75rem;
 		color: var(--color-gray-700, #444);
@@ -602,6 +644,44 @@
 		transition: transform var(--collapse-ms) ease;
 	}
 
+	/* The focused row's hop key, laid over the strip's own box so it costs the
+	   row no height (see the markup for why that matters) — the lane it sits in
+	   is the bottom padding every row carries. `.bar` zeroes line-height for the
+	   svg's sake, hence the reset. */
+	.shares {
+		position: absolute;
+		top: calc(100% + 2px);
+		left: 0;
+		right: 0;
+		display: flex;
+		line-height: 1;
+	}
+
+	/* Each label is as wide as the band it names, so the four land under their
+	   own sections without measuring any text — and `min-width: max-content` is
+	   what stops a band narrower than its own number (hop 4 is ten pixels at any
+	   viewport) from sliding its label under its neighbour's. The widest band is
+	   the only one carrying slack over its text, so it is the one that gives the
+	   room back. */
+	.share {
+		flex: 0 1 auto;
+		min-width: max-content;
+		font-family: var(--font-mono);
+		font-size: 0.6rem;
+		text-align: center;
+		white-space: nowrap;
+	}
+
+	/* the outer bands sit against the ends of the bar, so their labels do too —
+	   centring a number on a 10px band floats it in the gap beside it instead */
+	.share:first-child {
+		text-align: left;
+	}
+
+	.share:last-child {
+		text-align: right;
+	}
+
 	/* the race-chart dot each bar folds into, pinned to the bar's centre */
 	.node {
 		position: absolute;
@@ -637,11 +717,13 @@
 	}
 
 	.collapsing .label-row,
+	.collapsing .shares,
 	.collapsing .footnote {
 		opacity: 0;
 	}
 
 	.label-row,
+	.shares,
 	.footnote {
 		transition: opacity 0.2s ease;
 	}
@@ -650,6 +732,7 @@
 		.dots,
 		.node,
 		.label-row,
+		.shares,
 		.footnote {
 			transition: none;
 		}

@@ -758,6 +758,18 @@ the frame the panel then fades over. The panel owns the geometry and the canvas
 follows it: RankBars measures its focused row live and publishes the box to
 `story.rankFocusBar`, which `layouts/rank.js` reads as a param.
 
+Everything about a row's strip therefore lives in `layout-shared.js`, not in the
+panel — including the whitespace between the hop bands (`RANK_BAND_GAP`, reserved
+inside `hopBandBoxes` before the shares are struck, the horizontal twin of
+`hop-bands.js`'s `BAND_GAP`). Gap the panel's `<path>`s alone and the two sides
+disagree about where a dot is, which breaks both the `hopBands → rankFocus`
+convergence and the collapse below. A second, less obvious rule: **every row must
+keep the same height.** The handoff places all 250 canvas copies from one measured
+`pitch` (see `story.rankListRows` below), so a row that is taller than its
+neighbours scatters every copy below it. That is why the per-band share labels
+under each bar are absolutely positioned into a lane the row's own bottom padding
+reserves, rather than laid out beneath the strip.
+
 **The chapter handoff out of it (rankReveal → raceRecent)** is the reverse trick,
 and the panel outlives its own chapter for it: `raceRecent`'s `<Step>` passes the
 same `rankPanel` snippet, so RankBars is still mounted for one step past the rank
