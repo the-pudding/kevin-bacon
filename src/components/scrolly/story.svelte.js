@@ -2,8 +2,10 @@
 // "Interactive steps"). Step-card UI components write here; ScrollyVisual's
 // layout effect reads the fields relevant to the active state, so a change
 // re-runs the current layout with a short tween — an interaction is a param
-// update, not a step change. Every interaction is skippable: the step after an
-// interaction reveals its answer unconditionally.
+// update, not a step change. Every question is skippable: the step after an
+// interaction reveals its answer unconditionally. The two Start buttons are not
+// questions — the step's own Next presses them (see the request functions at the
+// bottom of this file, and Index.svelte's `beforenext` gates).
 export const story = $state({
 	/** rank ladder: every actor the reader has guessed, in the order they picked
 	 * them. The last one is the current guess (what the list focuses on); the
@@ -125,3 +127,23 @@ export const story = $state({
 	 * and redraw. */
 	raceFixedYRev: 0
 });
+
+// -- Asking for the two reader-triggered animations --------------------------
+// Both have two callers now: the Start button in the step's panel, and the same
+// step's Next gate, which presses it for a reader who reached for Next instead
+// (see Index.svelte's `beforenext` gates). The nonce protocol is written down
+// once, here, rather than retyped either side.
+
+/** Ask ScrollyVisual for the race chapter's backwards pan (see raceRewindNonce).
+ * ScrollyVisual decides whether there is any pan left to play. */
+export function requestRaceRewind() {
+	story.raceRewindNonce += 1;
+}
+
+/** Ask ScrollyVisual to play the 10,000 recorded simulation runs from zero — the
+ * playhead reset and the nonce together are the request (see simRuns /
+ * simRunNonce for why both writes land in one flush). */
+export function requestSimRun() {
+	story.simRuns = 0;
+	story.simRunNonce += 1;
+}

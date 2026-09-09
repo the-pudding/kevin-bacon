@@ -9,6 +9,9 @@
 	 * a caller can compare it against the current `value` to know the direction
 	 * and prepare state the destination step reads on its first render (a
 	 * post-render $effect is too late for anything that mounts with the step).
+	 * Returning `false` from it holds the story where it is — for a step that
+	 * answers the press by playing the visual the reader hasn't seen yet and
+	 * moves them on itself once it has.
 	 *
 	 * <Wizard bind:value count={stepCount}>
 	 * 	**steps here**
@@ -19,7 +22,7 @@
 
 	function go(to) {
 		if (to < 0 || to > count - 1) return;
-		onnavigate?.(to);
+		if (onnavigate?.(to) === false) return;
 		value = to;
 	}
 

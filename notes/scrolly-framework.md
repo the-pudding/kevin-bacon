@@ -713,7 +713,7 @@ alone is 86, not the storyboard's 82.
   one `Path2D` per quantised (rgb, alpha) pair — a handful of fills, not a
   fillStyle per dot.
 
-## Required: interaction / drop-off points (agreed 2026-07-05; both patterns now built — see "Interactivity")
+## Required: interaction / drop-off points (agreed 2026-07-05; all built — see "Interactivity")
 
 The story has moments where the reader pauses on a step and interacts (guessing
 the #1 actor on the rank ladder, exploring the race-chart timeline, the
@@ -723,7 +723,7 @@ framework's premise, and every canvas unmount is a seam where the entry
 animation re-runs and dot identity is lost — chapter transitions (e.g. Present→
 Past: rank line → race chart) are exactly where constancy pays off most.
 
-Two patterns:
+Three rules:
 
 1. **Interactive steps.** The step card hosts the UI (buttons/input); the result
    writes into shared state consumed by the layout function. Implementation
@@ -732,14 +732,38 @@ Two patterns:
    short tween, so e.g. panning the rank ladder to the reader's guess is a param
    update, not a step change. The interruption-safe `to()` already covers a
    reader who interacts then immediately steps away.
-2. **Every interaction is skippable.** The step _after_ an interaction reveals
-   the answer unconditionally (SLJ is revealed whether or not the reader
-   guessed; quiz answers get highlighted regardless). No interaction may gate
-   the Next button — Next must always be clickable. An interaction _may_
-   auto-advance on completion (e.g. guessing SLJ or giving up on the rank
-   ladder calls the `scrolly-steps` context's `advance()`, the same step-index
-   bump Next performs) as long as that never removes the reader's own ability
-   to skip via Next/ArrowRight.
+2. **Every question is skippable.** The step _after_ an interaction that asks the
+   reader something reveals the answer unconditionally (SLJ is revealed whether
+   or not the reader guessed; quiz answers get highlighted regardless). No
+   question may gate the Next button — Next must always be clickable. An
+   interaction _may_ auto-advance on completion (e.g. guessing SLJ or giving up
+   on the rank ladder calls the `scrolly-steps` context's `advance()`, the same
+   step-index bump Next performs) as long as that never removes the reader's own
+   ability to skip via Next/ArrowRight.
+3. **A Start button is not a question, and Next presses it.** Two steps sit on a
+   chart that only moves when asked — `raceRecent`'s backwards pan
+   (`RaceRewindStart`) and the simulation replay (`SimRunner`) — and the step
+   after each one reads out what the animation showed. Skipping those is not
+   skipping a question, it is arriving at an answer with nothing behind it, so
+   the step registers a `beforenext` gate (`Step.svelte` → `stepConfigs` →
+   `Index.svelte`'s `navigate()`, which Wizard lets return `false` to hold the
+   story where it is):
+   - **`rewindBeforeNext`** asks for the pan and lets the move through. The
+     rewind is choreographed to play _across_ the step change — that is what its
+     own button does too — and ScrollyVisual drops the ask when the camera has
+     no travel left (a reader stepping back and forth), so a re-press can't
+     replay a zero-length pan.
+   - **`simBeforeNext`** asks for the run and returns `false`. The run _is_ the
+     payoff and the next step names the winner, so the move waits: an effect in
+     `Index.svelte` advances once `story.simRuns` is published (the run's single
+     end-of-run write, and the reduced-motion path's only one). A reader who has
+     already seen the run — or is watching it — gets a plain Next; the rule is
+     that nobody is carried past it unseen, not that they must sit through it
+     twice. Any reader-driven navigation disarms the pending advance, so a Next
+     pressed mid-run moves them once, not twice.
+
+   Next stays clickable throughout both, which is what item 2 is protecting; what
+   changes is what the press _does_.
 
 Exception: a visual that abandons the dot metaphor entirely gains nothing from
 the shared canvas — layer a plain HTML component over (or beside) the canvas

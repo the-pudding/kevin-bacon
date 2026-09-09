@@ -18,10 +18,14 @@
 	 * the reader has asked to see the answer, so the step that reveals it
 	 * (raceRecent's second, SLJ-since-2006 step) should come forward with it
 	 * instead of leaving the reader to scroll there themselves.
+	 *
+	 * Reaching for Next instead of this button does the same thing — the step
+	 * registers a gate that asks for the rewind on the reader's behalf, so the
+	 * pan can never be skipped past (see Index.svelte's `beforenext`).
 	 */
 	import { getContext } from "svelte";
 	import Button from "$components/ui/Button.svelte";
-	import { story as state } from "./story.svelte.js";
+	import { story as state, requestRaceRewind } from "./story.svelte.js";
 
 	const steps = getContext("scrolly-steps");
 </script>
@@ -32,7 +36,7 @@
 			variant="primary"
 			disabled={state.raceRewinding}
 			onclick={() => {
-				state.raceRewindNonce += 1;
+				requestRaceRewind();
 				steps.advance();
 			}}
 		>

@@ -14,7 +14,11 @@
 	import PairQuiz from "$components/scrolly/PairQuiz.svelte";
 	import useWindowDimensions from "$runes/useWindowDimensions.svelte.js";
 	import urlParams from "$utils/urlParams.js";
-	import { story } from "$components/scrolly/story.svelte.js";
+	import {
+		story,
+		requestRaceRewind,
+		requestSimRun
+	} from "$components/scrolly/story.svelte.js";
 	import { routeSummary } from "$components/scrolly/intro-routes.js";
 	import {
 		CYCLE_ORDER,
@@ -78,15 +82,16 @@
 	 * Filled by each <Step> / <Chapter> as it mounts, in document order — the
 	 * single source of truth mapping step index → visual state (+ per-step
 	 * params, plus an optional `panel` snippet rendered over the canvas while the
-	 * step is active, or `chapter` for a chapter card's title).
-	 * @typedef {{ state: import("$components/scrolly/states.js").VisualState, params?: Object, panel?: import("svelte").Snippet, chapter?: { title: string } }} StepConfig
+	 * step is active, a `beforenext` gate the reader's Next press goes through,
+	 * or `chapter` for a chapter card's title).
+	 * @typedef {{ state: import("$components/scrolly/states.js").VisualState, params?: Object, panel?: import("svelte").Snippet, beforenext?: () => boolean|void, chapter?: { title: string } }} StepConfig
 	 * @type {StepConfig[]}
 	 */
 	const stepConfigs = $state([]);
 
 	/** @type {{ register: (config: StepConfig) => number, current: number|undefined, advance: () => void }} */
 	const scrollySteps = {
-		// one object rather than positional args: a step now has four optional
+		// one object rather than positional args: a step now has five optional
 		// kinds of registration and `register(s, undefined, undefined, c)` is a
 		// call nobody can read
 		register: (config) => stepConfigs.push(config) - 1,
@@ -173,11 +178,64 @@
 		urlParams.set(STEP_PARAM, value);
 	});
 
+	// --- the two steps whose visual only plays when asked ---
+	// raceRecent's backwards pan and the simulation replay both sit behind a Start
+	// button in the step's panel, and the step after each one reads out what the
+	// animation shows: SLJ taking the crown in 2006, and who won the 10,000 runs.
+	// A reader who reaches for Next instead of Start used to be carried straight
+	// past it, left reading the answer off a chart that never moved — and with the
+	// Start button behind them, no way back to it but the Previous arrow (PRD
+	// P-09-1). So Next presses Start for them.
+	//
+	// The rewind plays ACROSS the step change, which is what its own button does
+	// too (see RaceRewindStart) — the pan lands on the very view the next step
+	// describes, so the press only has to ask for it and let the move through.
+	// Nothing to ask for while it is already running: the button is disabled at
+	// that point, so Next doesn't re-press it either.
+	function rewindBeforeNext() {
+		if (!story.raceRewinding) requestRaceRewind();
+	}
+
+	// The simulation is the other way round — the run IS the payoff, and the next
+	// step names the winner — so the move waits for the race to play out. Armed
+	// here, fired by the effect below. A reader who has already watched it (or is
+	// watching it now) gets a plain Next: the point is that nobody is carried past
+	// the run unseen, not that they must sit through it twice.
+	let simAdvancePending = $state(false);
+	function simBeforeNext() {
+		if (story.simRuns > 0 || story.simRunning) return;
+		requestSimRun();
+		simAdvancePending = true;
+		return false;
+	}
+
+	// Carries the reader on once the Next-triggered run has played out. `simRuns`
+	// is published in one write as the run ends, and is also the only write the
+	// reduced-motion path makes (there is no run to watch there — see
+	// ScrollyVisual's playSimRun), so this covers the snap case for free.
+	// `advance()` rather than a bare `value += 1` for the same reason GuessRank
+	// uses it: it is the one place that knows where the story ends.
+	$effect(() => {
+		if (!simAdvancePending || story.simRunning || story.simRuns === 0) return;
+		simAdvancePending = false;
+		scrollySteps.advance();
+	});
+
 	// Runs before `value` changes, so state the destination step's own components
 	// read at mount is already correct — PairQuiz decides whether to ask from
 	// story.quizRevealed as it mounts, and a post-render $effect would leave it
 	// painting the blurred question for a frame before being told not to.
+	//
+	// Returns false to hold the story where it is (see Wizard's `onnavigate`).
 	function navigate(to) {
+		// a step that answers Next by playing its own visual gets first refusal on
+		// the move, before any of the arrival state below is prepared for a step
+		// the reader may not be going to
+		if (to > value && stepConfigs[value]?.beforenext?.() === false)
+			return false;
+		// the reader is driving, so an auto-advance still waiting on the simulation
+		// stands down — they have moved themselves, forwards or back
+		simAdvancePending = false;
 		// arriving at the quiz backwards means the reader has already been through
 		// it, so reveal every pair instead of re-asking (whether they answered or
 		// skipped — see story.svelte.js). Arriving forwards re-arms the question.
@@ -408,7 +466,8 @@
 				<!-- raceRecent's opening step: the Start button that asks for the
 				     backwards rewind - consent for the "remove information" move, same
 				     reasoning as simPanel below. Only that one step gets it; raceRecent's
-				     second step is already rewinding by then. -->
+				     second step is already rewinding by then — because pressing Next
+				     here asks for the pan too (see rewindBeforeNext). -->
 				{#snippet raceStartPanel()}
 					<div class="race-scrubber-panel" style="bottom: {stepsHeight + 12}px">
 						<RaceRewindStart />
@@ -435,8 +494,9 @@
 				<!-- simulation race: the Start/Replay button over the plot. Keep this
 				     step's card unconditional — its height is what the panel's `bottom`
 				     is measured from, so anything that unmounts mid-run would move the
-				     button under the reader's finger. The chart rests at zero runs
-				     until Start; nothing here gates Next. -->
+				     button under the reader's finger. The chart rests at zero runs until
+				     Start — or until Next asks for the run itself and waits for it (see
+				     simBeforeNext). -->
 				{#snippet simPanel()}
 					<div class="race-scrubber-panel" style="bottom: {stepsHeight + 12}px">
 						<SimRunner />
@@ -596,7 +656,11 @@
 						</p>
 					</Step>
 
-					<Step state="raceRecent" panel={raceStartPanel}>
+					<Step
+						state="raceRecent"
+						panel={raceStartPanel}
+						beforenext={rewindBeforeNext}
+					>
 						<p>
 							We can repeat the process for calculating all actors' remoteness
 							and go backwards to create a time machine of centers. By using
@@ -734,7 +798,7 @@
 							predicting.
 						</p>
 					</Step>
-					<Step state="simRace" panel={simPanel}>
+					<Step state="simRace" panel={simPanel} beforenext={simBeforeNext}>
 						<p>
 							To achieve a stable result, we'll run the simulation 10,000 times
 							and see who comes out on top. Press start to find out who wins.

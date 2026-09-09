@@ -1406,21 +1406,32 @@
 		untrack(playSimRun);
 	});
 
-	// Race rewind: RaceRewindStart asks for the backwards pan by bumping this
-	// nonce, the same pattern as the sim trigger above. Gated on RACE_ENTRY_STATE
-	// so a stray press after the reader has moved on is a no-op; starts from
-	// wherever the chart currently rests (the entry draw-on's present-day view,
-	// unless a run is somehow already mid-flight) rather than assuming it is
-	// still exactly at the extent's edge.
+	// Race rewind: RaceRewindStart (and the step's own Next — see Index's
+	// rewindBeforeNext) asks for the backwards pan by bumping this nonce, the same
+	// pattern as the sim trigger above. Gated on RACE_ENTRY_STATE so a stray press
+	// after the reader has moved on is a no-op.
 	//
-	// RaceRewindStart also advances the step (see its own comment), so this
-	// effect and the render effect below can land in the same flush. Single-
-	// writer discipline still applies here exactly as it does at every other
-	// playRaceRewind call site (playRaceEntry stops the tweener itself before
-	// its sweep; the render effect's branches go through landOffChart) — without
-	// stopping it first, the render effect's own default tween (same-state step
-	// change, nothing else matches) would keep writing the buffers this sweep is
-	// writing, corrupting the frame the reader sees for the rest of the chapter.
+	// It starts from the LIVE camera, not the resting view: `renderPlayhead` is
+	// reset to the step's resting year on every arrival and then written by every
+	// sweep frame, so an ask that lands mid-pan (a Next pressed during the entry
+	// draw-on, or during the retrace back from raceFull) continues from where the
+	// reader can see the camera, instead of snapping it back to the present first.
+	// It also means a chart already parked at the waypoint has no pan left to
+	// play: asking again would otherwise run a full REWIND_MS_MIN of zero travel
+	// and blink the takeover callout off for the duration (it hides on
+	// `raceRewinding`). So the second ask a step back and forth produces is
+	// dropped here rather than guarded at each caller.
+	//
+	// Both askers advance the step (see RaceRewindStart's comment), so this effect
+	// and the render effect below can land in the same flush. Single-writer
+	// discipline still applies here exactly as it does at every other
+	// playRaceRewind call site: stopSweep() so the arrival choreography this
+	// interrupts hands the rAF over instead of driving frames alongside the pan
+	// (playRaceEntry, and playRaceReverse on the way back, both own sweepRaf), and
+	// stop the tweeners — without that, the render effect's own default tween
+	// (same-state step change, nothing else matches) would keep writing the buffers
+	// this sweep is writing, corrupting the frame the reader sees for the rest of
+	// the chapter.
 	let raceRewindNonceSeen = 0;
 	$effect(() => {
 		const nonce = story.raceRewindNonce;
@@ -1428,11 +1439,24 @@
 		raceRewindNonceSeen = nonce;
 		if (nonce === 0 || stateName !== RACE_ENTRY_STATE) return;
 		untrack(() => {
+			const fromP = renderPlayhead;
+			if (fromP <= RACE_REWIND_WAYPOINT_YEAR) return;
 			story.raceRewinding = true;
+			stopSweep();
 			tweener.stop();
 			trailTweener.stop();
+			// An ask that lands before the chapter's own arrival has finished
+			// supersedes it, and the tweener.stop() above has just dropped the
+			// flight's completion callback (see tween.js) — so lift the two gates
+			// that callback would have lifted, and disarm a flight still waiting on
+			// the rank list's collapse. Without this the rest of the chapter draws
+			// with no axis furniture and no names: the render effect resets both, but
+			// nothing re-runs it while the reader stays inside raceRecent.
+			raceFlight = null;
+			chartVeiled = false;
+			entryLabels = null;
 			playRaceRewind(
-				story.raceView?.playhead ?? RACE_RECENT_STEP.extent[1],
+				fromP,
 				RACE_REWIND_WAYPOINT_YEAR,
 				RACE_RECENT_STEP,
 				STATE_YCAP[RACE_ENTRY_STATE]

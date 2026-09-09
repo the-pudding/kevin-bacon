@@ -14,9 +14,14 @@
 	 * card's prose is unconditional too — the card's height feeds this panel's
 	 * `bottom` (see Index.svelte), so anything that unmounts on click resizes the
 	 * panel and shoves the button down under the reader's finger.
+	 *
+	 * Reaching for Next instead of this button starts the run too — the step
+	 * registers a gate that holds the story here until the race has played, then
+	 * carries the reader on (see Index.svelte's `beforenext`). Pressing this
+	 * button leaves them where they are, to watch it again if they want.
 	 */
 	import Button from "$components/ui/Button.svelte";
-	import { story as state } from "./story.svelte.js";
+	import { story as state, requestSimRun } from "./story.svelte.js";
 </script>
 
 <div class="sim-runner">
@@ -24,10 +29,7 @@
 		<Button
 			variant="primary"
 			disabled={state.simRunning}
-			onclick={() => {
-				state.simRuns = 0;
-				state.simRunNonce += 1;
-			}}
+			onclick={requestSimRun}
 		>
 			{state.simRuns > 0 ? "Replay" : "Start"}
 		</Button>
