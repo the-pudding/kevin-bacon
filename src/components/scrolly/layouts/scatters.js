@@ -194,14 +194,13 @@ const DEG_SCATTER_HIGHLIGHTS = new Map([
 	[KENDRICK, { rgb: CROWD, r: 5.5 }]
 ]);
 
-// raises the axis floor to a ~27-film costar average (10% below the earlier
-// 30-film cut) — below that isn't a meaningful "big dog" costar anyway, and
-// the true data minimum (~16) left most of the range spent on actors nobody
-// in the prose is pointing at. Kendrick (47) still clears it comfortably, so
-// she isn't pinned to the floor. The ceiling gets the same ~10% widening
-// above the true data max (~61), so the top of the range isn't crowded right
-// up against Portman's dot either.
-const DEG_SCATTER_FLOOR = Math.log(28);
+// raises the axis floor to a ~19-film costar average — below that isn't a
+// meaningful "big dog" costar anyway, and the true data minimum (~16) left
+// most of the range spent on actors nobody in the prose is pointing at.
+// Kendrick (47) still clears it comfortably, so she isn't pinned to the
+// floor. The ceiling gets a ~10% widening above the true data max (~61), so
+// the top of the range isn't crowded right up against Portman's dot either.
+const DEG_SCATTER_FLOOR = Math.log(20);
 const DEG_SCATTER_CEIL = Math.log(68);
 
 /** @type {import("../layout-shared.js").LayoutFn} */
