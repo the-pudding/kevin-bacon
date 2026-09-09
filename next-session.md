@@ -1,31 +1,81 @@
-# Handoff: Build on raceRecent's animation, on top of the new label de-collider
+# Handoff: gap and key the rank ladder's horizontal hop bars
 
 ## Starting Prompt
 
-The race chart (`src/components/scrolly/layouts/race.js` + `ScrollyVisual.svelte`) just got a label de-collision/easing system ported from the design sandbox (`src/components/scrolly/label-decollide.js`), and `raceRecent`/`raceTrades` now name all four contenders (Samuel L. Jackson, Gene Hackman, Robert De Niro, Frank Welker) instead of one or three. Landed in commit `a766b00` (bundled with an unrelated repo-hook refactor — ignore that part).
+Apply the hop-bands treatment to the rank ladder's horizontal bars — the
+per-actor hop-breakdown strips in `RankBars.svelte` (states `rankFocus` /
+`rankReveal`), which are hop-band charts turned on their side. Two halves,
+mirroring what just shipped for the vertical bands one step earlier:
 
-I want to keep building on `raceRecent`'s animation now that labels can handle four names at once without colliding. Before proposing specific next steps, read `notes/scrolly-framework.md` in full (especially "Known gaps / next steps" and "Annotations (labels + pulse)"), and re-read `layouts/race.js` plus `drawScene()`/`playRaceEntry()`/`scrubLoop()` in `ScrollyVisual.svelte` to understand the entry-sweep choreography (`revealFrom: ["rankReveal"]` on `raceRecent`, driven by `runSweepPhase`/`writeRaceSweepFrame`).
+1. **Whitespace between the hop segments**, so the four colours stop butting
+   together (the horizontal twin of P-04-4).
+2. **Key the colour sections** — this is the open backlog item **P-06-2** in
+   `notes/prd.md` ("Legend for the colour sections. Currently unexplained.").
 
-Then help me figure out where to take the animation next — candidates to evaluate (discuss trade-offs first, don't just build all of them):
+**Read `notes/scrolly-framework.md` before touching these files**, and mind one
+hard constraint: `hopDotSlots` in `layout-shared.js` is drawn by _both_ sides of
+the rank handoff — the HTML row as one `<path>` per band, and the canvas in
+`layouts/rank.js:42` as the exact spot each converging actor tweens onto. Add a
+gap in `RankBars.svelte` alone and the two disagree, breaking both the
+`hopBands → rankFocus` convergence and the `rankReveal → raceRecent` collapse.
+**The gap belongs in `hopSegmentBounds` / `hopDotSlots`, where both sides
+inherit it.**
 
-1. **Leader-line polish**: the de-collider draws a plain canvas stroke from dot to displaced label at fixed 0.4 alpha — no fade-in/out, so it can pop in/out abruptly as offsets cross the 0.5px threshold. Consider easing the leader's own alpha alongside the offset.
-2. **Entry-sweep choreography for 4 labels**: check whether 4 simultaneously-arriving labels read clearly during the `raceRecent` draw-on sweep, or whether they should stagger in (similar to the existing `trailDelays` "dots land first, lines unspool after" pattern).
-3. **Reduced-motion path**: confirm the de-collider's easing is skipped/instant under `prefers-reduced-motion` — it currently isn't wired to `reducedMotion` at all, unlike the sweep/scrub loops.
-4. Anything else `notes/scrolly-framework.md`'s "Known gaps" flags that's now unblocked by a working de-collider (e.g. it mentions overlay label swaps not crossfading — the same easing idea could apply there).
+Start by reading `hopSegmentBounds` (`layout-shared.js:226`) — it already
+reserves `RANK_SEG_MIN` out of the width before striking the shares, which is
+the identical shape the vertical `BAND_GAP` uses. The gap slots in as a second
+reserved term.
 
-Start by reading the files below, then come back with a short options list before writing code.
+Then verify by running the app and stepping
+`hopBands → rankFocus → rankReveal → raceRecent`, checking the convergence lands
+on the panel's dots and the collapse still hands over cleanly.
 
 ## Relevant Files
 
-- `src/components/scrolly/label-decollide.js` — the de-collision/easing module (id-keyed, exponential ease, `LABEL_MAX_OFFSET_PX`/`LABEL_EASE_MS`).
-- `src/components/scrolly/ScrollyVisual.svelte` — `drawScene()` (label offset + leader-line drawing, ~line 400-440), `playRaceEntry()`/`runSweepPhase()` (entry sweep), `scrubLoop()`/`startScrub()` (scrubber), `reducedMotion` state (~line 218).
-- `src/components/scrolly/layouts/race.js` — `raceRecent`/`raceTrades`/`raceFull` state definitions, `labels`/`labelDirs`, `writeRaceSweepFrame`, `RACE_ENTRY_WINDOW`.
-- `notes/scrolly-framework.md` — read "Annotations (labels + pulse)" and "Known gaps / next steps" before proposing changes.
-- `src/components/Index.svelte` — `<Step state="raceRecent">` wiring (~line 199).
+| File                                              | Why                                                                                                                                                       |
+| ------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/components/scrolly/layout-shared.js:200-277` | `RANK_*` constants, `hopSegmentBounds`, `hopFractions`, `hopDotSlots`. **This is where the gap goes.**                                                    |
+| `src/components/scrolly/RankBars.svelte`          | The HTML panel. `barPaths()` (~L64) turns `hopDotSlots` into four `<path>`s per row; `rows` carries each actor's `fractions`. Where a legend would mount. |
+| `src/components/scrolly/layouts/rank.js:29-83`    | The canvas twin. Reads the same lattice for Bacon's bar; comment at L79-81 explains why there is deliberately no hop key here.                            |
+| `src/components/scrolly/layouts/hop-bands.js`     | The pattern to mirror — `BAND_GAP`, `MIN_BAND_H`, `HOP_SHARE`, commit `04565a5`.                                                                          |
+| `notes/scrolly-framework.md`                      | "Exception: a visual that abandons the dot metaphor…" (~L744) documents the RankBars/canvas contract and the three-beat handoff.                          |
+| `notes/prd.md` §2                                 | P-06-1…P-06-4.                                                                                                                                            |
 
 ## Key Context
 
-- The de-collider only applies to labels with a `labelDirs` "left"/"right" override — below-dot labels are untouched (deliberate scope limit).
-- `raceRecent`'s four labels are all `"right"` now; `raceTrades`'s old hand-placed Welker "below" workaround is gone, replaced by the automatic de-collider.
-- Verified visually via headless-Chromium screenshots (`?step=6/7/8`) and a drag-test of `RaceScrubber`'s `.drag-surface` — no console errors, no overlap. No automated test suite in this repo — verification is manual/visual via `npm run dev` + browser.
-- This repo has a pre-commit hook (lint-staged + a "gate" step) that can sweep in unrelated unstaged changes and rewrite the commit message — it did so this session (commit `a766b00` also contains an unrelated "remove ready build gate" refactor). Check `git show --stat HEAD` after committing to confirm what actually landed.
+**What shipped last session** (commit `04565a5`, on branch
+`feat/race-fixed-y-dev`, not `main`): the vertical `hopBands` chart got
+`BAND_GAP = 12` reserved out of the inner height _before_ the sample shares are
+struck, plus per-band corpus-share labels built from `hopFractions(ANCHOR_ID)`.
+
+**Four things that make the horizontal case genuinely different, not a
+copy-paste:**
+
+1. **Scale.** A row is `RANK_BAR_H = 10px` tall with `RANK_DOT_D = 3` dots on a
+   `RANK_DOT_PITCH = 5` grid. 12px is the width of two dot columns — the
+   horizontal gap wants to be ~2–3px, and it costs 3× that off every one of 250
+   rows.
+2. **`RANK_SEG_MIN = 10` is already there** and is load-bearing beyond looks:
+   its doc comment calls it "the minimum-nodes guarantee — dots are units of
+   width, so the floor that keeps a sparse hop visible is what keeps a handful
+   of its dots on screen." Reserving gap width on top of it shrinks the free
+   pool; check hop 4 still gets dots.
+3. **Percentages can't be a fixed string here.** Every row is a different actor
+   with different `fractions`, so there is no single "70% of actors" to print.
+   The realistic options are a _legend_ keyed once for the whole panel, or
+   percentages on the focused row only. **This is the open design question** —
+   worth putting to Owen before building.
+4. **There is a standing decision against a key here.** `rank.js:79-81`: "no hop
+   key here: the hop-bands step just before this one establishes the colours, so
+   repeating the key over the rank list only adds furniture." That step now
+   carries percentages too, so the argument that the ladder inherits its key is
+   _stronger_ than when it was written. P-06-2 asks for the opposite. Resolve
+   that tension explicitly rather than just implementing P-06-2.
+
+**Risk flag:** P-06-3 / P-06-4 propose replacing the ladder with a stacked bar
+chart entirely. Both still open. If they go ahead, this geometry work is thrown
+away — confirm with Owen before investing.
+
+**Conventions:** Owen writes the reader-facing prose — ship label _shape_, not
+final wording. Never commit without his explicit request. A concurrent session
+is active on this repo; check `git status` and commit only your own files.

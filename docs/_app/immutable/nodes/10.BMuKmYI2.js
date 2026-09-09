@@ -1,4 +1,4 @@
-import{$ as e,J as t,N as n,j as r,v as i}from"../chunks/CsKr0d7k.js";import"../chunks/D9FQP20W.js";import"../chunks/B7sdbF_J.js";var a=n(`<section id="storyboard" class="svelte-phrd3c"><h1>Storyboard: Gen Z's Kevin Bacon</h1> <p class="intro svelte-phrd3c">A text-only outline of the story: each step's visualization described in
+import{$ as e,J as t,N as n,j as r,v as i}from"../chunks/CsKr0d7k.js";import"../chunks/D9FQP20W.js";import"../chunks/BW0B8tJF.js";var a=n(`<section id="storyboard" class="svelte-phrd3c"><h1>Storyboard: Gen Z's Kevin Bacon</h1> <p class="intro svelte-phrd3c">A text-only outline of the story: each step's visualization described in
 		brief, followed by its copy as it appears in the built piece.</p> <h2>Present</h2> <section class="step svelte-phrd3c"><p class="visual svelte-phrd3c">A node labelled "Kevin Bacon" appears alone. A network graph grows around
 			him.</p> <p>The "Six Degrees of Kevin Bacon" is a game where players try to connect an
 			actor to Kevin Bacon via movies they've starred in with other Hollywood
