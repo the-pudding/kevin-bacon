@@ -47,6 +47,7 @@ words:
   - infoterm
   - gridlines
   - conc
+  - decollide
   - decollider
   - repro
   - yfit

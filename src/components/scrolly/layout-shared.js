@@ -27,7 +27,13 @@ export const edgeIndex = (e) => EDGE_BASE + e * STRIDE;
  *
  * @typedef {Object} Tick
  * @property {number} pos px along the axis
- * @property {string} label
+ * @property {string} label the text drawn. On the race chart this is a year in
+ *   TWO digits (see raceTickLabel), so it is lossy — anything keying off a
+ *   particular year must read `year`, never this
+ * @property {number} [year] the year a race tick stands for
+ * @property {number} [alpha] 0-1 opacity; omitted = fully opaque. Only the
+ *   future strip's years use it, fading toward the horizon with the block they
+ *   sit under (see raceFutureTicks)
  *
  * @typedef {Object} Note
  * @property {number} x px
@@ -54,6 +60,19 @@ export const edgeIndex = (e) => EDGE_BASE + e * STRIDE;
  *   allocating nothing per frame
  * @property {number} alpha 0-1, ramped down over the last px of travel at each
  *   plot edge so the callout fades out instead of popping on the cull
+ *
+ * @typedef {Object} FutureBand
+ * @property {number} x px, left edge — the RACE_DATA_END column, where the data
+ *   ends. Also the AXIS BREAK: the strip to its right is on its own fitted scale
+ *   (raceFutureScale), and this border is the only thing that says so
+ * @property {number} y px, top edge (the plot's top)
+ * @property {number} width px, x → the frontier's position on that scale. Grows
+ *   from 0 as the strip opens
+ * @property {number} height px, the plot's full height
+ * @property {{x: number, y: number}} label px, top-left of the block's label.
+ *   ABOVE the box, not inside its corner — the crown's own name renders just
+ *   inside the box's left edge, and on a landscape phone the two line boxes
+ *   would overlap
  *
  * @typedef {Object} LegendItem
  * @property {number[]} color rgb triple
@@ -84,6 +103,8 @@ export const edgeIndex = (e) => EDGE_BASE + e * STRIDE;
  * @property {Note[]} [notes]
  * @property {TakeoverCallout|null} [takeover] the race chart's takeover callout
  *   (the SLJ/Hackman crossing); null when it is off camera
+ * @property {FutureBand|null} [band] the race chart's future block (raceFuture);
+ *   null on every other step, and for the whole of that step's first leg
  * @property {LegendItem[]} [legend]
  * @property {Hit[]} [hits] tappable regions over the chart (see STATE_PICK)
  * @property {number} [legendY] px, top of the legend row; omitted = pinned to bottom
@@ -118,7 +139,10 @@ export const CROWD = [187, 187, 187]; // --category-gray
 export const RED = [238, 102, 119]; // --category-red
 export const BLUE = [68, 119, 170]; // --category-blue
 export const GREEN = [34, 136, 51]; // --category-green
-export const YELLOW = [204, 187, 68]; // --category-yellow
+// --category-yellow. No layout reads this one: its only user is raceFuture's
+// future block, which is DOM rather than canvas and so takes the colour from
+// --category-yellow directly. Kept for parity with the rest of the palette.
+export const YELLOW = [204, 187, 68];
 export const PURPLE = [170, 51, 119]; // --category-purple
 export const CYAN = [102, 204, 238]; // --category-cyan
 export const EDGE_GREY = [120, 120, 120]; // network links at rest

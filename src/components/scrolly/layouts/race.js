@@ -40,6 +40,11 @@ import {
 // than fit on screen, and each step is a *camera* over its content extent (see
 // raceCamera) that the reader pans and the entry choreographies drive.
 //
+// That holds for every year the DATA covers. Past it — the future strip on
+// raceFuture — the axis is fitted instead, because five years at PX_PER_YEAR
+// need more plot than the container has to give (see raceFutureScale, the one
+// fitted scale in the chapter and the one place it branches on width).
+//
 // BOTH axes follow that camera. The y axis is a fixed band under the centre-of-
 // Hollywood record over the years currently on screen (raceWindowYFit) — so no
 // step owns an axis, no animator carries one, and the axis pans with x. That is
@@ -112,6 +117,31 @@ const RACE_RANGE = new Map(
 		return [id, [s[0][0], s.at(-1)[0]]];
 	})
 );
+
+// The last year the DATA reaches. Three separate things hang off it: every
+// step's content extent ends here, the historical x axis stops here (raceAxes),
+// and the future strip starts here (raceFutureScale).
+export const RACE_DATA_END = 2025;
+
+// Asserted, not assumed, because the constant above is load-bearing three times
+// over and every one of those uses reads it as "where the data ends" rather than
+// "where THIS actor's data ends". An actor whose series stopped earlier would
+// have their line correctly faded off the left edge by writeRaceSweepFrame's
+// edgeFade, but the axis would still break at 2025 and raceFuture's dot column
+// would quietly be missing them. Fail loudly rather than ship a chart that is
+// wrong in a way nobody would look for. Same idiom as buildRaceAnchor's gap
+// throw below.
+{
+	const ends = [...RACE_RANGE.values()].map(([, de]) => de);
+	if (
+		Math.min(...ends) !== RACE_DATA_END ||
+		Math.max(...ends) !== RACE_DATA_END
+	) {
+		throw new Error(
+			`scrolly race: every series must end at ${RACE_DATA_END} (got ${Math.min(...ends)}-${Math.max(...ends)})`
+		);
+	}
+}
 
 // fractional year of an ISO date, so an era boundary mid-year lands between two
 // of the annual data points rather than snapping to January
@@ -501,11 +531,20 @@ function curveExit(segs, to, from, vMin, vMax) {
 // reader between two race steps does not (see ScrollyVisual's drawScene).
 export function racePlot(w, h) {
 	const left = MARGIN + 14;
+	const innerRight = w - MARGIN - 6;
 	return {
 		top: MARGIN + 10,
 		bottom: plotBottom(h),
 		left,
-		right: left + ((w - MARGIN - 6 - left) * 2) / 3
+		right: left + ((innerRight - left) * 2) / 3,
+		// The full inner width, gutter included — where the DATA's plot stops
+		// reserving room for names. raceFuture's future strip runs out to here
+		// instead of to `right`: its dot column is pinned at the left, so the
+		// right-hand third that exists to keep right-edge names off the canvas
+		// edge is empty on that step, and the strip is the one thing with any use
+		// for it. Nothing about the data's own geometry reads this — the camera,
+		// the y fit, the dots and the trails all stop at `right`.
+		fullRight: innerRight
 	};
 }
 
@@ -551,18 +590,37 @@ function raceCamera(w, h, playhead) {
 
 /**
  * The latest year a step lets the camera rest on, and so — since a race step's
- * right edge is its playhead — its resting camera, its pan ceiling and its last
- * x tick, all three. The mirror of `minPlayhead`, and the two together are the
- * window of years this step's camera may sit on.
+ * right edge is its playhead — its resting camera and its pan ceiling. The
+ * mirror of `minPlayhead`, and the two together are the window of years this
+ * step's camera may sit on.
+ *
+ * It used to be the step's last x tick as well, all three off one field. That
+ * came apart with the future strip: the historical axis now stops where the
+ * DATA stops (RACE_DATA_END, see raceAxes) and the years past it are ticked on
+ * the strip's own fitted scale (raceFutureTicks), so a step's camera ceiling and
+ * its last label are no longer the same question.
  *
  * Defaults to the content extent's end: every step but raceFuture stops where
- * its data does. raceFuture is the one that doesn't, and separating the two is
- * what lets its axis reach 2030 while its lines still end in 2025 — the lines
- * are capped by each actor's own last data year, never by this.
+ * its data does.
  *
- * @param {{extent: [number, number], maxPlayhead?: number}} step
+ * `tailPx` is the other way to answer it, and raceFuture is the only step that
+ * uses it: instead of naming the year on the RIGHT edge it says how many PX of
+ * history to keep behind the data's own end at the LEFT, and the resting
+ * playhead follows the viewport from there. That is what the strip needs — it is
+ * anchored on where the data ends, not on where the timeline does, so it gets
+ * whatever width is left over rather than a fixed five years the plot may have
+ * no room for. It also makes the step unpannable by construction rather than by
+ * coincidence: raceFloorPlayhead returns the same year, so racePanBounds is left
+ * with nothing between its two ends. Precedent for a width-dependent camera
+ * rest: raceFullRestPlayhead.
+ *
+ * @param {number} w @param {number} h
+ * @param {{extent: [number, number], maxPlayhead?: number, tailPx?: number}} step
  */
-export function raceMaxPlayhead(step) {
+export function raceMaxPlayhead(w, h, step) {
+	if (step.tailPx !== undefined) {
+		return RACE_DATA_END - step.tailPx / pxPerYear + raceVisibleSpan(w, h);
+	}
 	return step.maxPlayhead ?? step.extent[1];
 }
 
@@ -582,7 +640,7 @@ export function raceMaxPlayhead(step) {
  * @param {number} playhead
  */
 export function racePanBounds(w, h, step, playhead) {
-	const panMax = raceMaxPlayhead(step);
+	const panMax = raceMaxPlayhead(w, h, step);
 	const panMin = Math.min(
 		panMax,
 		Math.min(raceFloorPlayhead(w, h, step), playhead)
@@ -597,9 +655,13 @@ export function racePanBounds(w, h, step, playhead) {
  * wide enough to make it the later of the two.
  *
  * @param {number} w @param {number} h
- * @param {{extent: [number, number], minPlayhead?: number}} step
+ * @param {{extent: [number, number], minPlayhead?: number, tailPx?: number}} step
  */
 function raceFloorPlayhead(w, h, step) {
+	// a step that pins its camera by its LEFT edge has exactly one legal
+	// playhead, so its floor is its ceiling — which is what leaves racePanBounds
+	// with nothing between its two ends and reports the step as unpannable
+	if (step.tailPx !== undefined) return raceMaxPlayhead(w, h, step);
 	const front = step.extent[0] + raceVisibleSpan(w, h);
 	return step.minPlayhead === undefined
 		? front
@@ -722,24 +784,200 @@ function raceTakeoverCallout(cam, yS) {
 	};
 }
 
+// ---------------------------------------------------------------------------
+// The future strip: the ground past the end of the data, on its own x scale.
+//
+// The historical axis is FIXED (pxPerYear) and this one is FITTED, and this is
+// the only place in the chapter the two rules differ. It has to be. The strip is
+// five years wide, so at 76px/yr it needs 380px of plot before any data fits
+// beside it — about 1050px of canvas, which the 700px `#scrolly` container makes
+// unreachable at every viewport. That is what made the old step render its whole
+// cast at ~12% opacity on a desktop and nothing at all on a phone (PRD P-11-1).
+// Fitting the five years to whatever plot width is LEFT once the camera has
+// parked is what lets the strip exist at 320px.
+//
+// Deliberately NOT folded into raceCamera.xS as a piecewise branch. raceCamera
+// is pure in (playhead, w, h) and that purity is what makes an animated frame
+// and its settle pixel-identical; keying xS off an animated frontier would put
+// the animation back inside the scale. It would also silently reroute every
+// consumer of xS — dot placement, sampleTrail, collapseTrail, the takeover ring
+// — for anything that ever reaches past RACE_DATA_END. Nothing does today, and
+// the Gen-Z steps (PRD P-21-1/P-22-1) are asking to. Read here by the future
+// ticks and the band, and by nothing else.
+// ---------------------------------------------------------------------------
+
+// The far end of the strip. A SCALE bound, not a camera bound — no playhead ever
+// reaches it, which is why it is no longer named for a year the camera rests on.
+export const RACE_FUTURE_END = 2030;
+
+/** @param {{left: number, right: number, xS: (yr: number) => number}} cam */
+function raceFutureScale(cam) {
+	const x0 = cam.xS(RACE_DATA_END);
+	// out to `fullRight`, the whole inner width: the name gutter the data's plot
+	// reserves is dead space on this step (its dot column is at the LEFT), and
+	// the strip is the one thing with any use for it. See racePlot.
+	const right = cam.fullRight;
+	const pitch = (right - x0) / (RACE_FUTURE_END - RACE_DATA_END);
+	return { x0, right, pitch, xS: (yr) => x0 + (yr - RACE_DATA_END) * pitch };
+}
+
+/**
+ * Every year label on the race chart, in two digits.
+ *
+ * One formatter for the whole chapter — the fixed-scale historical axis and the
+ * future strip's fitted one both go through it, so the axis reads the same
+ * either side of the break and the strip's years are not a special case. It also
+ * buys the strip its density: a 4-digit label is 30.7px wide against 15.4px for
+ * two, and the strip is only ~97px across on a phone at the narrow end.
+ *
+ * Lossy on purpose, so nothing may key off the text: ticks carry a numeric
+ * `year` alongside.
+ */
+const raceTickLabel = (yr) => String(yr).slice(2);
+
+// Tick label box width, measured against a real `.tick` element rather than
+// estimated: the face is Atlas Typewriter at 0.65rem, so it is monospaced at
+// 7.68px per character and a 2-digit year renders 15.4px wide. Centred with
+// translateX(-50%), so a pair of neighbours needs half of each box plus a gap.
+const TICK_W_YY = 16;
+// The last px of a line's travel at the plot's left edge, over which it fades
+// out instead of popping. Short: it is a cull softener, not an effect.
+const RACE_EDGE_FADE_PX = 12;
+
+// The narrowest pitch two adjacent 2-digit strip labels may sit on. Tight — a
+// 3px gap — on purpose, and the exact value earns its keep: a 375px viewport
+// gives a pitch of 19.33, so anything above that flips the strip to a stride of
+// 2 and drops the reader from four future years to two. In a monospaced face at
+// this size the digits stay separable at 3px.
+const FUTURE_TICK_MIN_PITCH = TICK_W_YY + 3;
+// ...and the clearance the FIRST strip label needs from the present's, which the
+// stride knows nothing about because that label belongs to the other scale. Half
+// of each box plus a hair, so the two can never touch.
+const FUTURE_TICK_BOUNDARY = TICK_W_YY + 2.5;
+// How far the strip's years have faded by the horizon. They recede with the
+// block they sit under rather than staying flat under a fading box — the
+// uncertainty is the point, and a crisp 2030 under a dissolved right edge reads
+// as a rendering slip. Not 0: the horizon year still has to be readable.
+const FUTURE_TICK_HORIZON_ALPHA = 0.45;
+
+/**
+ * The strip's ticks: the years the frontier has reached, on the strip's own
+ * scale, in TWO DIGITS.
+ *
+ * Two digits rather than four is a legibility trade, not a style: the strip is
+ * ~97px wide at a 375px viewport, and five 4-digit labels need ~170px there. It
+ * also marks the years apart from the present's full 2025, which is the one
+ * measured year on the axis.
+ *
+ * This is the one place in the chapter that BRANCHES ON WIDTH, and the branch is
+ * honest rather than a lapse. The historical axis below needs no thinning
+ * because pxPerYear guarantees the gap — but that guarantee is a property of a
+ * FIXED scale and a fitted one cannot make it: the pitch here is ~63px on a
+ * desktop, ~19px at a 375px viewport, ~12px at 320px. So the rule is keyed off
+ * the COMPUTED pitch, never off the viewport, which keeps it a pure function of
+ * the same geometry every other number on the frame comes from.
+ *
+ * Counted DOWN from RACE_FUTURE_END so the far end — the year the block's label
+ * is about — is the one tick that survives every thinning, and so a stride of 2
+ * gives 30/28/26 rather than 29/27.
+ *
+ * The stride spaces the strip's ticks against EACH OTHER; the boundary needs its
+ * own rule, because the tick at RACE_DATA_END is the last of the historical axis
+ * and sits at x0 on the fixed scale, four digits wide. A stride wide enough for
+ * the strip can still drop its first year on top of it, so anything crowding
+ * that label is dropped outright — the present owns that space, and the block's
+ * own label already says what the ground to its right is.
+ */
+function raceFutureTicks(cam, frontier) {
+	if (!(frontier > RACE_DATA_END)) return [];
+	const { x0, right, pitch, xS } = raceFutureScale(cam);
+	// no strip at all: no room to the right of the data's column
+	if (pitch <= 0) return [];
+	const stride =
+		pitch >= FUTURE_TICK_MIN_PITCH
+			? 1
+			: pitch * 2 >= FUTURE_TICK_MIN_PITCH
+				? 2
+				: RACE_FUTURE_END - RACE_DATA_END;
+	const span = RACE_FUTURE_END - RACE_DATA_END;
+	const out = [];
+	for (let yr = RACE_FUTURE_END; yr > RACE_DATA_END + 1e-9; yr -= stride) {
+		if (yr > frontier + 1e-9) continue;
+		const pos = xS(yr);
+		if (pos < cam.left - 0.5 || pos > right + 0.5) continue;
+		// ...and not on top of the boundary label (see above)
+		if (pos - x0 < FUTURE_TICK_BOUNDARY) continue;
+		out.push({
+			pos,
+			label: raceTickLabel(yr),
+			year: yr,
+			alpha: 1 - (1 - FUTURE_TICK_HORIZON_ALPHA) * ((yr - RACE_DATA_END) / span)
+		});
+	}
+	return out.reverse();
+}
+
+// The block's label sits ABOVE its top edge rather than inside the corner, and
+// that is a requirement rather than a preference: the crown's own name renders
+// at x(RACE_DATA_END) + 7 (labelDirs "right"), and on a landscape phone the plot
+// is only ~190px tall, which would put that name's line box inside the label's.
+// The ~42px of headroom above the plot is empty at every width.
+const BAND_LABEL_LIFT = 16;
+
+/**
+ * The future block's pixel geometry for one frame, or null when the strip is
+ * shut (every step but raceFuture, and the whole of its first leg).
+ *
+ * No `alpha`, and that is the difference from raceTakeoverCallout: the callout
+ * needs one because it TRAVELS and culls at each plot edge, where a block of
+ * prose popping off reads as a bug. This exists only on a parked camera, so it
+ * never travels and never culls — it is simply absent instead. Its two opacity
+ * concerns are both CSS: the mount fade on the wrapper, and the right-edge
+ * gradient masked onto the box. A frontier-driven ramp, if one is ever wanted,
+ * has to ride the CHILD for the reason spelled out on the callout's markup — an
+ * animation with fill-mode `both` outranks an inline opacity for good.
+ */
+function raceFutureBand(cam, frontier) {
+	if (!(frontier > RACE_DATA_END)) return null;
+	const { x0, right, pitch, xS } = raceFutureScale(cam);
+	if (pitch <= 0 || x0 > right - 1) return null;
+	return {
+		x: x0,
+		y: cam.top,
+		width: Math.min(xS(frontier), right) - x0,
+		height: cam.bottom - cam.top,
+		label: { x: x0 + 2, y: cam.top - BAND_LABEL_LIFT }
+	};
+}
+
 // x (year) + y (avg distance) tick furniture for one frame — shared by the
 // static layout and the per-frame sweep/pan writers so animated axes read off
 // the exact same rule as the static end-states.
-// `axisEnd` is the last year the step's TIMELINE reaches (raceMaxPlayhead), not
-// the last year its data does — the two differ only on raceFuture, and that
-// difference is exactly the empty strip that step is about.
-function raceAxes(cam, yS, vMin, vMax, axisEnd) {
+//
+// `frontier` is how far the future strip has opened; the years past the data get
+// their positions from its fitted scale (raceFutureTicks) and land in the SAME
+// `x` array, so one renderer draws both and the two can never drift apart.
+function raceAxes(cam, yS, vMin, vMax, frontier) {
 	// every visible year gets its own horizontal 4-digit label — no thinning, no
 	// width branch: PX_PER_YEAR guarantees the gap. Ticks travel with their years
 	// during a pan, which is the whole point of a fixed scale.
 	const x = [];
-	const last = Math.floor(Math.min(cam.camRight, axisEnd) + 1e-9);
+	// The historical axis stops where the DATA stops. This used to run to the
+	// step's timeline end (raceMaxPlayhead), which is what put 2026-2030 on the
+	// plot at 76px each and made raceFuture five years of empty ground instead of
+	// a labelled block. Those years now belong to the strip's own scale, never to
+	// pxPerYear. Every other step is unaffected: their timeline end IS the data's.
+	const last = Math.floor(Math.min(cam.camRight, RACE_DATA_END) + 1e-9);
 	for (let yr = Math.ceil(cam.camLeft - 1e-9); yr <= last; yr++) {
 		const pos = cam.xS(yr);
 		// cull a label whose centre has left the plot (can happen for one frame
 		// after a resize changes visibleSpan) so it never lands on the y ticks
 		if (pos < cam.left - 0.5 || pos > cam.right + 0.5) continue;
-		x.push({ pos, label: String(yr) });
+		// TWO DIGITS on every race step, so the axis reads the same everywhere and
+		// the strip's fitted years are not a special case (see raceFutureTicks).
+		// `year` rides along because a label is now lossy — anything keying off a
+		// particular year reads this, never the text.
+		x.push({ pos, label: raceTickLabel(yr), year: yr });
 	}
 	// y ticks sit on round values and SLIDE, exactly as the x ticks travel with
 	// their years — the same fixed-scale logic. Spacing the labels evenly across
@@ -758,7 +996,13 @@ function raceAxes(cam, yS, vMin, vMax, axisEnd) {
 	for (let k = Math.ceil(vMin / step - 1e-9); k * step <= vMax + 1e-9; k++) {
 		y.push({ pos: yS(k * step), label: (k * step).toFixed(dec) });
 	}
-	return { x, xBase: cam.bottom + 10, y };
+	// the strip's years join the historical ones in one array, so they inherit
+	// `.tick.tick-x` and `xBase` verbatim and sit on the same row by construction
+	return {
+		x: [...x, ...raceFutureTicks(cam, frontier)],
+		xBase: cam.bottom + 10,
+		y
+	};
 }
 
 /**
@@ -769,6 +1013,12 @@ function raceAxes(cam, yS, vMin, vMax, axisEnd) {
  * end); clamped to the camera's pan bounds
  * @property {number} [reveal] entry draw-on progress 0..1 across the VISIBLE
  * span (1 = fully drawn). Only the draw-on passes it.
+ * @property {number} [frontier] the year the future strip has opened out to
+ * (default RACE_DATA_END, i.e. shut). Read ONLY by the strip's ticks and its
+ * block — no dot, trail, label, takeover callout or y fit sees it, which is what
+ * lets the strip carry its own fitted x scale without a second scale leaking
+ * into the chart. raceStepVisible, raceAnchorAt and raceBandAt all clamp at
+ * RACE_DATA_END, so a frontier past it changes nothing they compute.
  * @property {number[]} [highlight] the actors this step is *about*: they are
  * guaranteed a name label even if they aren't among the nearest-to-centre cut
  * (see ScrollyVisual's raceLabelCut). It buys a NAME and nothing else — the only
@@ -891,7 +1141,7 @@ const lineMs = new Float64Array(RACE_IDS.length);
  * cast across a phase, so the final frame's visibility matches the static state
  * it settles onto instead of everyone popping at the settle. Omitted → the
  * frame's own visible set at full strength, everyone else hidden.
- * @returns {{axes: {x: {pos:number,label:string}[], xBase:number, y: {pos:number,label:string}[]}, takeover: import("../layout-shared.js").TakeoverCallout|null, cam: ReturnType<typeof raceCamera>, yS: (v:number)=>number, visible: Set<number>, lead: number}}
+ * @returns {{axes: {x: import("../layout-shared.js").Tick[], xBase:number, y: import("../layout-shared.js").Tick[]}, takeover: import("../layout-shared.js").TakeoverCallout|null, band: import("../layout-shared.js").FutureBand|null, frontier: number, cam: ReturnType<typeof raceCamera>, yS: (v:number)=>number, visible: Set<number>, lead: number}}
  */
 export function writeRaceSweepFrame(
 	attrsBuf,
@@ -903,13 +1153,14 @@ export function writeRaceSweepFrame(
 	alphaOf = null
 ) {
 	const [, e1] = frame.extent;
-	// The last year the TIMELINE runs to, which is not always the last year the
-	// DATA runs to: raceFuture's camera and ticks reach 2030 while every series
-	// still ends in 2025. Only the camera and the ticks follow this — the lines
-	// are capped below by each actor's own `de`, which is what leaves the strip.
-	const axisEnd = raceMaxPlayhead(frame);
+	// How far the future strip has opened. Read only by the strip's own ticks and
+	// its block — no dot, trail, label, takeover callout or y fit ever sees it,
+	// which is what lets the strip carry a second x scale with nothing leaking
+	// into the chart. Shut by default, so every other step and both static
+	// layouts get no strip without having to say so.
+	const frontier = frame.frontier ?? RACE_DATA_END;
 	const visible = raceStepVisible(frame, yCap);
-	const cam = raceCamera(w, h, frame.playhead ?? axisEnd);
+	const cam = raceCamera(w, h, frame.playhead ?? raceMaxPlayhead(w, h, frame));
 	const [vMin, vMax] = raceWindowYFit(cam.camLeft, cam.camRight);
 	const yS = (v) => lin(v, vMin, vMax, cam.top, cam.bottom);
 	// draw-on: the lines unspool leftward from the right-hand end of the data
@@ -922,12 +1173,21 @@ export function writeRaceSweepFrame(
 	for (let i = 0; i < RACE_IDS.length; i++) {
 		const id = RACE_IDS[i];
 		const [ds, de] = RACE_RANGE.get(id);
-		// an actor whose data has scrolled off the camera fades out over its last
-		// visible year rather than popping — and once out, its dot must not be
-		// placed (it would sit over the y ticks or in the name gutter, dragging a
-		// collapsed 48-vertex trail with it).
+		// an actor whose data has scrolled off the camera fades out over the last
+		// few px of its travel rather than popping — and once out, its dot must not
+		// be placed (it would sit over the y ticks or in the name gutter, dragging
+		// a collapsed 48-vertex trail with it).
+		//
+		// Measured in PX off the plot's left edge, not in years off camLeft. Those
+		// are the same rule when the ramp is a year long, but only then — and
+		// raceFuture parks its camera RACE_FUTURE_TAIL_PX inside the data, which is
+		// a fraction of a year. In years, that step's whole cast came out at the
+		// fraction of full strength the tail happened to be (~12% on the widest
+		// canvas, 0 on a phone): PRD P-11-1. In px it is a property of where the
+		// line's end actually sits, which is what the fade was always about.
 		const onCamera = de >= cam.camLeft && ds <= cam.playhead;
-		const edgeFade = Math.min(1, Math.max(0, de - cam.camLeft));
+		const endX = cam.xS(Math.min(de, e1));
+		const edgeFade = clamp((endX - cam.left) / RACE_EDGE_FADE_PX, 0, 1);
 		lineMs[i] =
 			(alphaOf ? alphaOf(id) : visible.has(id) ? 1 : 0) *
 			(onCamera ? edgeFade : 0);
@@ -1031,8 +1291,13 @@ export function writeRaceSweepFrame(
 		setTrailHighlight(trailBuf, slot, isLead ? 1 : 0);
 	}
 	return {
-		axes: raceAxes(cam, yS, vMin, vMax, axisEnd),
+		axes: raceAxes(cam, yS, vMin, vMax, frontier),
 		takeover: raceTakeoverCallout(cam, yS),
+		band: raceFutureBand(cam, frontier),
+		// the RESOLVED frontier, so a caller snapshotting the live frame (see
+		// ScrollyVisual's renderFrontier) reads what was drawn rather than what
+		// was asked for
+		frontier,
 		cam,
 		yS,
 		visible,
@@ -1060,14 +1325,19 @@ function raceLayout(step, yCap = Infinity) {
 			const [x, y] = scatterPosition(n, w, h);
 			set(attrs, n.id, x, y, 2, CROWD, 0);
 		}
-		const { axes, takeover, cam, visible } = writeRaceSweepFrame(
+		const { axes, takeover, band, cam, visible } = writeRaceSweepFrame(
 			attrs,
 			trails,
 			w,
 			h,
 			{
 				...step,
-				playhead: params?.playhead ?? raceMaxPlayhead(step),
+				playhead: params?.playhead ?? raceMaxPlayhead(w, h, step),
+				// the step's own resting frontier, so a COLD MOUNT, a RESIZE and the
+				// reduced-motion snap all land on the fully-open strip with nothing
+				// left to play — the same contract a STATE_ENTRY's last leg has to
+				// meet, discharged here by construction rather than by an animation
+				frontier: params?.frontier ?? step.frontier ?? RACE_DATA_END,
 				reveal: 1
 			},
 			yCap
@@ -1094,7 +1364,8 @@ function raceLayout(step, yCap = Infinity) {
 			trails,
 			trailDelays,
 			axes,
-			takeover
+			takeover,
+			band
 		};
 	};
 }
@@ -1113,19 +1384,33 @@ const OVERLAY = {
 const params = (s) => s.raceView;
 
 // Content extents. Width-independent by construction, so the constants derived
-// from them (the per-state yCaps) can be computed at module load. The data ends
-// in 2025, and a step's resting playhead defaults to its extent's end, so the
-// dots land on the plot's right edge with no dead strip — unless the step asks
-// for one, by declaring a maxPlayhead past its data (see RACE_FUTURE_YEAR).
+// from them (the per-state yCaps) can be computed at module load. A step's
+// resting playhead defaults to its extent's end, so the dots land on the plot's
+// right edge with no dead strip — unless the step pins its camera by the left
+// edge instead, as raceFuture does (see RACE_FUTURE_TAIL_PX).
 export const RACE_RECENT_EXTENT = /** @type {[number, number]} */ ([
-	2004, 2025
+	2004,
+	RACE_DATA_END
 ]);
-export const RACE_FULL_EXTENT = /** @type {[number, number]} */ ([1970, 2025]);
-// The year the "into the future" step's camera rests on — five years past the
-// last of the data, so the right of the plot is empty ground. It is a CAMERA
-// bound, not an extent: the content extent stays raceFull's, because who the
-// step shows and how far its lines run are still questions about 1970-2025.
-export const RACE_FUTURE_YEAR = 2030;
+export const RACE_FULL_EXTENT = /** @type {[number, number]} */ ([
+	1970,
+	RACE_DATA_END
+]);
+// How much history raceFuture keeps on the plot behind its dot column, in PX.
+//
+// A pixel budget rather than a year, and it used to be a whole year (76px). That
+// left a visible gap between the plot's left edge and the present, which reads
+// as a missing label — the reader asks where the year before this one went. A
+// short stub of each actor's own curve is all the tail is for.
+//
+// Pixels rather than years also means the camera lands on a FRACTIONAL year, so
+// the historical axis emits exactly one label (the present) with no special
+// casing: `Math.ceil` of a fractional camLeft is already the present.
+//
+// Shortening it below a year is what forced `edgeFade` to become a pixel ramp
+// too — at a year it was the same length as the tail, and the whole cast sat at
+// full opacity by luck of that coincidence. See writeRaceSweepFrame.
+const RACE_FUTURE_TAIL_PX = 24;
 // The earliest year raceFull lets the reader put on the plot's right edge. The
 // extent — and so the x axis and the lines — still starts at
 // 1970; this only stops the camera, which on a wide viewport already rests with
@@ -1179,26 +1464,35 @@ export const RACE_FULL_STEP = {
 	minPlayhead: RACE_FULL_PAN_FLOOR,
 	highlight: [HACKMAN]
 };
-// raceFuture: raceFull's chart with the camera carried past the end of the data.
+// raceFuture: raceFull's chart with the camera run forward to the present, and a
+// fitted strip of future ground opened out to the right of it.
 //
 // The DATA is raceFull's, unchanged — same extent, same cast, same lines, all
-// still ending in 2025. Only the camera differs, and it differs by one field:
-// `maxPlayhead` past the extent puts the resting playhead, the pan ceiling and
-// the last x tick out at 2030, leaving five years of empty plot on the right.
-// Nothing has to cap the lines to keep them out of it — writeRaceSweepFrame
-// already ends each one at that actor's own last data year.
+// still ending in 2025. Only the camera and the strip differ:
 //
-// min === max is how a step declares itself NOT PANNABLE: racePanBounds is left
-// with nothing between its two ends. That is the honest half of "no
-// interactivity" (and what stops publishRaceCam clamping the camera back onto
-// the data); the enforcing half is Index.svelte not mounting RaceScrubber on it.
+// `tailPx` pins the camera by its LEFT edge instead of its right, so the resting
+// playhead follows the viewport (raceMaxPlayhead). A short stub of history stays
+// on the plot and every dot comes to rest in a column just inside the left edge,
+// at FULL opacity — which is PRD P-11-1. Nothing caps the lines to keep them off
+// the strip; writeRaceSweepFrame already ends each one at that actor's own last
+// data year.
+//
+// `frontier` is where the strip RESTS, fully open. Declaring it on the step
+// rather than only in the animation is what makes a cold mount, a resize and the
+// reduced-motion snap all land on the finished state (see raceLayout).
+//
+// tailPx is also how the step declares itself NOT PANNABLE, by construction
+// rather than by coincidence: raceFloorPlayhead returns the same year as the
+// ceiling, so racePanBounds is left with nothing between its two ends. That is the honest half of "no interactivity" (and what stops
+// publishRaceCam clamping the camera back onto the data); the enforcing half is
+// Index.svelte not mounting RaceScrubber on it.
 //
 // Its subject is SLJ — the copy asks who takes the crown FROM him, and a step
 // without a highlight falls back to claiming the whole field as its subject.
 export const RACE_FUTURE_STEP = {
 	extent: RACE_FULL_EXTENT,
-	minPlayhead: RACE_FUTURE_YEAR,
-	maxPlayhead: RACE_FUTURE_YEAR,
+	tailPx: RACE_FUTURE_TAIL_PX,
+	frontier: RACE_FUTURE_END,
 	highlight: [SLJ]
 };
 
@@ -1280,9 +1574,12 @@ function raceLabelSpec(from, to) {
 	const labels = [...ids];
 	return {
 		labels,
-		// names sit in the reserved right gutter, beside the right-edge dots;
+		// beside the dot, always to its right. On raceRecent and raceFull that puts
+		// them in the reserved gutter, since the dots ride the plot's right edge; on
+		// raceFuture the column sits at the far left instead, so the names render
+		// out across the future block — which is why that block carries no fill.
 		// ScrollyVisual's label de-collider keeps them apart when their dots land
-		// close together
+		// close together, and it reads only y, so the move costs it nothing.
 		labelDirs: Object.fromEntries(labels.map((id) => [id, "right"]))
 	};
 }
@@ -1321,6 +1618,14 @@ export function raceFullRestPlayhead(w, h) {
 	return Math.min(RACE_FULL_EXTENT[1], raceFloorPlayhead(w, h, RACE_FULL_STEP));
 }
 
+// raceFull and raceFuture declare the SAME names, and that is the honest
+// statement of what raceFuture is: the same chart with the camera moved. Their
+// camera ranges differ only past RACE_DATA_END, and raceLabelSpec clamps every
+// sample into the actor's own data before ranking it, so the years out on the
+// strip rank exactly as the present does and contribute nothing. Shared rather
+// than written twice, so the two can't drift apart.
+const RACE_FULL_LABELS = raceLabelSpec(RACE_FULL_PAN_FLOOR, RACE_DATA_END);
+
 export const states = {
 	raceRecent: {
 		layout: raceLayout(RACE_RECENT_STEP, RACE_RECENT_YCAP),
@@ -1341,7 +1646,7 @@ export const states = {
 		// viewport and later on a wide one (raceFullRestPlayhead), and the reader
 		// can pan it forward to the present — so the range covers every width
 		// rather than a resting year that only one width actually lands on
-		...raceLabelSpec(RACE_FULL_PAN_FLOOR, RACE_FULL_EXTENT[1]),
+		...RACE_FULL_LABELS,
 		overlay: OVERLAY,
 		params,
 		// rewind choreography: continue the camera pan further back (leg 2, from
@@ -1351,16 +1656,13 @@ export const states = {
 		revealFrom: ["raceRecent"]
 	},
 	raceFuture: {
-		// no yCap, same as raceFull: the whole cast, on a chart whose axis now runs
-		// five years past the last of their data
+		// no yCap, same as raceFull: the whole cast, on a chart whose camera has
+		// run forward to the present with a fitted strip of future beside it
 		layout: raceLayout(RACE_FUTURE_STEP, Infinity),
 		race: RACE_FUTURE_STEP,
-		// the union over the ARRIVAL PAN's range, not just the resting camera: the
-		// forward leg crosses every year from raceFull's camera out to 2030, and a
-		// name this set leaves out can never render at any of them. Sampling past
-		// 2025 is safe — raceLabelSpec clamps each sample into the actor's own
-		// [ds, de] before reading the curve, so the future years rank on 2025.
-		...raceLabelSpec(RACE_FULL_PAN_FLOOR, RACE_FUTURE_YEAR),
+		// raceFull's names exactly — the union over the arrival pan's range, which
+		// covers every year the forward leg crosses. See RACE_FULL_LABELS.
+		...RACE_FULL_LABELS,
 		overlay: OVERLAY,
 		params,
 		// the rewind run FORWARDS: the camera leaves the past and carries on past

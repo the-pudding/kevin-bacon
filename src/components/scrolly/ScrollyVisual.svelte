@@ -20,7 +20,8 @@
 		RACE_REWIND_WAYPOINT_YEAR,
 		RACE_FULL_STEP,
 		RACE_FUTURE_STEP,
-		RACE_FUTURE_YEAR,
+		RACE_FUTURE_END,
+		RACE_DATA_END,
 		raceMaxPlayhead,
 		RACE_CAST,
 		RACE_TRAIL_SLOTS,
@@ -172,6 +173,15 @@
 			Math.max(REWIND_MS_MIN * scale, (px / REWIND_PX_PER_SEC) * 1000 * scale)
 		);
 	}
+	// How long raceFuture's second leg takes to open the future strip.
+	//
+	// A duration rather than a px/sec like every other leg, because this leg moves
+	// no camera. The distance its frontier covers is the strip's own width — ~313px
+	// on a desktop, ~60px on a phone — so held to a constant speed the phone would
+	// open in 200ms and the desktop in a second, which is the opposite of a
+	// consistent beat. Scaled by getRaceSpeedScale like every other race animation,
+	// so RaceSpeedDev still tunes the whole chapter at once.
+	const FUTURE_OPEN_MS = 1400;
 	// trapezoidal speed profile (ported from the reference _animate): R = ramp
 	// fraction at each end, V = cruise speed so integrated progress is exactly 1.
 	// The phase ramps to zero velocity at each end so the draw-on lands softly.
@@ -217,6 +227,28 @@
 			Math.min(fromP, toP) - raceVisibleSpan(width, height),
 			Math.max(fromP, toP)
 		]);
+	// raceFuture leg 0 — "fast-forward to the present". The same pure translation
+	// rewindFrame does, with the strip explicitly SHUT: RACE_FUTURE_STEP carries
+	// its own resting frontier (so a cold mount and the reduced-motion snap land
+	// on the finished state), and the spread would otherwise open the block on
+	// the pan's very first frame.
+	const futurePanFrame = (legExtent, fromP, toP) => (e) => ({
+		...RACE_FUTURE_STEP,
+		extent: legExtent,
+		playhead: fromP + (toP - fromP) * e,
+		frontier: RACE_DATA_END
+	});
+	// raceFuture leg 1 — "the future opens". NOT a camera move: the camera is
+	// parked and only the frontier advances, which is why this leg's duration is
+	// a constant rather than rewindMs (there are no years of pan to derive a
+	// px/sec from). The extent stays the STEP's, not the leg extent leg 0 ran
+	// under, because e = 1 has to reproduce the static settle and the settle's
+	// extent is the step's.
+	const futureOpenFrame = (restP, fromF, toF) => (e) => ({
+		...RACE_FUTURE_STEP,
+		playhead: restP,
+		frontier: fromF + (toF - fromF) * e
+	});
 	// reader-driven pan / settled hold: the camera at one playhead year
 	const panFrame = (step) => (playhead) => ({ ...step, playhead });
 	// the one state whose arrival plays the draw-on entry (scoped by revealFrom)
@@ -317,7 +349,7 @@
 		runPhase(
 			ms,
 			(e) => {
-				const { axes, takeover, cam } = writeRaceSweepFrame(
+				const { axes, takeover, band, frontier, cam } = writeRaceSweepFrame(
 					tweener.current,
 					trailTweener.current,
 					width,
@@ -327,7 +359,12 @@
 					alphaAt(e)
 				);
 				renderPlayhead = cam.playhead;
-				decor = { ...decor, axes, takeover };
+				renderFrontier = frontier;
+				// `band` must be in this spread, not just `axes`/`takeover`: the render
+				// effect writes the arriving state's STATIC decor before the first rAF
+				// tick, so without it raceFuture's fully-open block would sit over the
+				// chart for the whole of leg 0's pan
+				decor = { ...decor, axes, takeover, band };
 			},
 			onDone
 		);
@@ -389,7 +426,7 @@
 		const diff = target - renderPlayhead;
 		const caughtUp = Math.abs(diff) < 0.02;
 		renderPlayhead = caughtUp ? target : renderPlayhead + diff * k;
-		const { axes, takeover } = writeRaceSweepFrame(
+		const { axes, takeover, band, frontier } = writeRaceSweepFrame(
 			tweener.current,
 			trailTweener.current,
 			width,
@@ -397,7 +434,8 @@
 			panFrame(raceStep)(renderPlayhead),
 			STATE_YCAP[stateName]
 		);
-		decor = { ...decor, axes, takeover };
+		renderFrontier = frontier;
+		decor = { ...decor, axes, takeover, band };
 		drawScene();
 		if (story.scrubbing || !caughtUp) {
 			sweepRaf = requestAnimationFrame(scrubLoop);
@@ -405,7 +443,7 @@
 			camPanning = false;
 			sweeping = false;
 			sweepRaf = 0;
-			story.raceView = { playhead: renderPlayhead };
+			story.raceView = raceHoldView();
 			publishRaceCam();
 		}
 	}
@@ -506,7 +544,7 @@
 	/** @type {{ id: number, name: string, x: number, y: number, r: number, alpha: number, labelAlpha: number, labelOffset: number }[]} */
 	let tracked = $state([]);
 	// static per-state chart furniture (ticks/callouts/legend) from the layout result
-	/** @type {{ axes?: { x?: {pos:number,label:string}[], y?: {pos:number,label:string}[], xBase?: number, yBase?: number }, notes?: import("./states.js").Note[], takeover?: import("./layout-shared.js").TakeoverCallout|null, legend?: import("./layout-shared.js").LegendItem[], legendY?: number, hits?: import("./layout-shared.js").Hit[] } | null} */
+	/** @type {{ axes?: { x?: import("./layout-shared.js").Tick[], y?: import("./layout-shared.js").Tick[], xBase?: number, yBase?: number }, notes?: import("./states.js").Note[], takeover?: import("./layout-shared.js").TakeoverCallout|null, band?: import("./layout-shared.js").FutureBand|null, legend?: import("./layout-shared.js").LegendItem[], legendY?: number, hits?: import("./layout-shared.js").Hit[] } | null} */
 	let decor = $state(null);
 	// true while an arrival is clearing the previous scene off the canvas before
 	// its own chart may appear: the axis furniture (ticks, callouts, legend, axis
@@ -543,6 +581,18 @@
 	// function of this camera, so picking the playhead up picks the axis up with it.
 	/** @type {number | null} */
 	let raceExitPlayhead = null;
+	// The frontier's twin of the two above: how far raceFuture's strip has opened.
+	// Published every frame for the same reason the playhead is — the closing leg
+	// picks up from where the reader can actually see the strip rather than from a
+	// hard-coded year, so a step back out of a half-open block closes it from
+	// there instead of jumping to full width first.
+	let renderFrontier = RACE_DATA_END;
+	let raceExitFrontier = RACE_DATA_END;
+	// One hold view, so the playhead and the frontier can never be published apart
+	const raceHoldView = () => ({
+		playhead: renderPlayhead,
+		frontier: renderFrontier
+	});
 	// While an entry choreography is playing, the set of ids whose names have
 	// been introduced so far (see EntryAnim.labelsAfter); null = no gate, every
 	// labelled id shows. Deliberately NOT $state: drawScene folds it into
@@ -568,8 +618,11 @@
 	// the active state's race descriptor — its camera extent and the actors the
 	// step is about — or undefined off the race chapter, whose presence is what
 	// makes a step pannable
+	// Typed off the registry rather than restating its shape: STATE_RACE's own
+	// JSDoc is the one place a race descriptor's fields are described, and a
+	// second copy here silently went stale when raceFuture gained `tailPx`.
 	const raceStep = $derived(
-		/** @type {{extent: [number, number], minPlayhead?: number, maxPlayhead?: number, highlight?: number[]} | undefined} */ (
+		/** @type {(typeof STATE_RACE)[keyof typeof STATE_RACE]} */ (
 			STATE_RACE[stateName]
 		)
 	);
@@ -823,82 +876,143 @@
 		);
 	}
 
-	// The rewind run FORWARDS, played on arrival at raceFuture: the camera leaves
-	// the past, crosses the present and carries on to rest with 2030 on the plot's
-	// right edge, so the step's copy ("now imagine us taking this into the future")
-	// lands on a chart that actually has a future on it.
+	// The chapter's last arrival, in TWO LEGS.
 	//
-	// Nothing here caps the lines to 2025. At a fixed px-per-year the pan is a
-	// pure translation, and writeRaceSweepFrame already ends every line at the
-	// actor's own last data year — so the empty strip opens up on its own as the
-	// camera runs off the end of the data. What the leg does carry across is the
-	// x ticks, which keep being emitted up to the leg extent's end (2030).
+	// Leg 0, "fast-forward to the present": the camera leaves the past and pans
+	// forward until one year of history is all that is left on the plot, so the
+	// lines slide off to the left and every dot comes to rest in a column just
+	// inside the left edge — at FULL opacity, which is PRD P-11-1. The ramp that
+	// used to grey the whole cast out (writeRaceSweepFrame's edgeFade) is exactly
+	// one year long, so parking one year inside the data is where it reaches 1.
+	// Nothing caps the lines: at a fixed px-per-year the pan is a pure
+	// translation, and each line already ends at its actor's own last data year.
+	//
+	// Leg 1, "the future opens": the camera is PARKED and a frontier advances
+	// across the plot width the pan left over, growing the future block and
+	// bringing its ticks in behind it (P-11-2). Chained off leg 0's onDone, the
+	// way playRaceEntry chains into playRaceRewind — not a STATE_ENTRY, because
+	// the race chapter needs writeRaceSweepFrame's per-frame `decor` payload (the
+	// axes, the takeover, and now the band) and playEntry has no channel for it.
+	//
+	// `sweeping` is raised once here and cleared once, at the end of leg 1: cleared
+	// at the join, a render-effect run landing in between would fall into its
+	// catch-all `to(attrs, 0)` and snap the chart mid-choreography. Nothing
+	// publishes raceView or calls publishRaceCam at the join either — both would
+	// re-enter the render effect with a param change mid-chain.
+	//
+	// Skippability comes free from the rAF: stopSweep during leg 0 cancels it,
+	// onDone never fires, and leg 1 never starts.
 	//
 	// Starts from `raceExitPlayhead` for the same reason every other leg does: the
 	// reader may have panned raceFull anywhere before pressing Next.
 	function playRaceFuture() {
 		if (!width || !height) return;
+		const restP = raceMaxPlayhead(width, height, RACE_FUTURE_STEP);
 		const fromP = raceExitPlayhead ?? RACE_REWIND_WAYPOINT_YEAR;
-		const toP = RACE_FUTURE_YEAR;
-		const finalView = { playhead: toP };
 		// no reducedMotion guard: the render effect's snap branch takes that case
-		// before any arrival branch runs
-		if (fromP >= toP) {
-			story.raceView = finalView;
-			publishRaceCam();
+		// before any arrival branch runs, and lands straight on the fully-open
+		// state (RACE_FUTURE_STEP.frontier is what makes that true)
+		sweeping = true;
+		if (fromP >= restP) {
+			// no pan left to play. Unlike every other leg's early-out this must not
+			// return — the strip opening is the step's whole subject, not a flourish
+			// on the way in. (Unreachable in practice: restP is past the present,
+			// which is raceFull's own pan ceiling, on any canvas wider than ~200px.)
+			playRaceFutureOpen(restP);
 			return;
 		}
-		sweeping = true;
 		camPanning = true;
 		runSweepPhase(
-			rewindFrame(RACE_FUTURE_STEP, raceLegExtent(fromP, toP), fromP, toP),
+			futurePanFrame(raceLegExtent(fromP, restP), fromP, restP),
 			STATE_YCAP[RACE_FUTURE_STATE],
 			() => {
-				sweeping = false;
+				// the camera has stopped; only the frontier moves from here
 				camPanning = false;
-				story.raceView = finalView;
-				publishRaceCam();
+				playRaceFutureOpen(restP);
 			},
 			// no `shown`: raceFull and raceFuture both show the whole cast, so
 			// there is nothing to fade in or out across the leg
 			null,
-			rewindMs(fromP, toP)
+			rewindMs(fromP, restP)
 		);
 	}
 
-	// The forward leg retraced, played when the reader steps back from raceFuture
-	// to raceFull — the same relationship playRaceReverse has to leg 2. Lands on
-	// RACE_REWIND_WAYPOINT_YEAR, which is where raceFull rests by every path, so
-	// stepping forward again replays the forward leg from where it first started.
-	function playRaceFutureReverse() {
-		if (!width || !height) return;
-		const fromP = raceExitPlayhead ?? RACE_FUTURE_YEAR;
-		const toP = RACE_REWIND_WAYPOINT_YEAR;
-		const finalView = { playhead: toP };
-		// mirrored guard: this leg travels backwards, so it is a camera already at
-		// or behind the waypoint that has nothing to retrace
-		if (fromP <= toP) {
-			story.raceView = finalView;
-			publishRaceCam();
-			return;
-		}
-		sweeping = true;
-		camPanning = true;
+	// Leg 1 on its own, so leg 0's early-out can reach it.
+	function playRaceFutureOpen(restP) {
 		runSweepPhase(
-			// RACE_FULL_STEP, not RACE_FUTURE_STEP: the leg is landing on raceFull,
-			// so its highlight has to be the one the settle uses. The leg extent
-			// still ends at 2030, which is what keeps the future ticks drawn until
-			// the camera has actually left them behind.
-			rewindFrame(RACE_FULL_STEP, raceLegExtent(fromP, toP), fromP, toP),
-			STATE_YCAP[RACE_FULL_STATE],
+			futureOpenFrame(restP, RACE_DATA_END, RACE_FUTURE_END),
+			STATE_YCAP[RACE_FUTURE_STATE],
 			() => {
 				sweeping = false;
-				camPanning = false;
-				story.raceView = finalView;
+				story.raceView = raceHoldView();
 				publishRaceCam();
 			},
 			null,
-			rewindMs(fromP, toP)
+			FUTURE_OPEN_MS * getRaceSpeedScale()
+		);
+	}
+
+	// Both legs retraced, in reverse order, when the reader steps back from
+	// raceFuture to raceFull: the strip closes, then the camera pans back to
+	// RACE_REWIND_WAYPOINT_YEAR (where raceFull rests by every path, so stepping
+	// forward again replays leg 0 from where it first started).
+	//
+	// The closing leg is skipped when the strip isn't open — a reader who stepped
+	// back during leg 0 has nothing to close, and playing it anyway would hold a
+	// motionless chart for a beat before the pan. That is what raceExitFrontier is
+	// for: the frontier needs the same snapshot the playhead gets, or a step back
+	// out of a half-open block would close it from full width and jump.
+	function playRaceFutureReverse() {
+		if (!width || !height) return;
+		const fromP =
+			raceExitPlayhead ?? raceMaxPlayhead(width, height, RACE_FUTURE_STEP);
+		const fromF = raceExitFrontier;
+		const toP = RACE_REWIND_WAYPOINT_YEAR;
+		const finalView = { playhead: toP };
+		const panBack = () => {
+			// mirrored guard: this leg travels backwards, so it is a camera already
+			// at or behind the waypoint that has nothing to retrace
+			if (fromP <= toP) {
+				sweeping = false;
+				story.raceView = finalView;
+				publishRaceCam();
+				return;
+			}
+			camPanning = true;
+			runSweepPhase(
+				// RACE_FULL_STEP, not RACE_FUTURE_STEP: the leg is landing on
+				// raceFull, so its highlight has to be the one the settle uses. Its
+				// frame carries no frontier, so the strip stays shut for the whole pan
+				// — the block has already closed by the time this runs.
+				rewindFrame(RACE_FULL_STEP, raceLegExtent(fromP, toP), fromP, toP),
+				STATE_YCAP[RACE_FULL_STATE],
+				() => {
+					sweeping = false;
+					camPanning = false;
+					story.raceView = finalView;
+					publishRaceCam();
+				},
+				null,
+				rewindMs(fromP, toP)
+			);
+		};
+		sweeping = true;
+		if (!(fromF > RACE_DATA_END)) {
+			panBack();
+			return;
+		}
+		runSweepPhase(
+			// parked at `fromP`, wherever the camera actually is — a reader who
+			// stepped back during leg 0 has both a shut strip and an off-rest camera
+			futureOpenFrame(fromP, fromF, RACE_DATA_END),
+			STATE_YCAP[RACE_FUTURE_STATE],
+			panBack,
+			null,
+			// proportional to how far it actually has to close, so stepping back out
+			// of a half-open block doesn't take as long as a full one
+			FUTURE_OPEN_MS *
+				getRaceSpeedScale() *
+				((fromF - RACE_DATA_END) / (RACE_FUTURE_END - RACE_DATA_END))
 		);
 	}
 
@@ -1265,6 +1379,32 @@
 					LABEL_LINE_GAP_PX
 				)
 			]);
+			// The de-collider's stack only ever grows DOWNWARD, which is free when
+			// the names sit in the plot's right-hand gutter: an overflowing stack
+			// runs off into empty space beside the axis. raceFuture is the one step
+			// whose column is pinned at the LEFT instead (tailPx), so its
+			// names lie over the plot and an overflow lands on the x-axis tick row
+			// — eight names packed into the band's bottom ~70px need ~112px, and on
+			// a short viewport the last two land on the year labels.
+			//
+			// Lift the whole set by the overflow rather than clamping the names that
+			// cross the line: a clamped label stops making room for the ones under
+			// it and the sweep piles up behind it (the trap LABEL_MAX_OFFSET_PX is
+			// sized to avoid), whereas a uniform lift keeps every gap the
+			// de-collider just solved for and only moves the stack as a body.
+			//
+			// Scoped to tailPx rather than to the race chart at large, so no
+			// step whose names are safely in the gutter changes behaviour.
+			if (raceStep?.tailPx !== undefined && height) {
+				const floor = plotBottom(height) - 4;
+				let over = 0;
+				for (const t of besideDot) {
+					over = Math.max(over, t.y + (shownOffset.get(t.id) ?? 0) - floor);
+				}
+				if (over > 0) {
+					for (const [id, off] of shownOffset) shownOffset.set(id, off - over);
+				}
+			}
 			if (labelRelaxRaf != null) cancelAnimationFrame(labelRelaxRaf);
 			labelRelaxRaf =
 				decollideLabelsLeft.settled() && decollideLabelsRight.settled()
@@ -1309,13 +1449,26 @@
 			// snapshot the camera we're leaving before resetting it — a backward
 			// arrival replays the departing motion in reverse from exactly here
 			raceExitPlayhead = renderPlayhead;
+			raceExitFrontier = renderFrontier;
 			if (story.raceView !== null) story.raceView = null;
 			if (story.scrubYear !== null) story.scrubYear = null;
 			// a race step's default resting camera is the last year its camera may
-			// rest on — its extent's end for every step but raceFuture, which rests
-			// out on the future strip (raceMaxPlayhead). Reading it through that one
+			// rest on — its extent's end for every step but raceFuture, which pins
+			// its camera by the LEFT edge instead and so rests at a year that
+			// depends on the viewport (raceMaxPlayhead). Reading it through that one
 			// function is what keeps this agreeing with raceLayout's own fallback.
-			if (step) renderPlayhead = raceMaxPlayhead(step);
+			// Guarded on width: this runs inside untrack, so on a cold mount the
+			// canvas may not be measured yet and a tailPx step would resolve
+			// against a zero-width plot. publishRaceCam's clamp corrects it as soon
+			// as the dimensions land.
+			if (step)
+				renderPlayhead =
+					width && height
+						? raceMaxPlayhead(width, height, step)
+						: step.extent[1];
+			// ...and its resting frontier: shut on every step but raceFuture, whose
+			// own descriptor declares the open one
+			renderFrontier = step?.frontier ?? RACE_DATA_END;
 			// raceFull's true resting camera is RACE_REWIND_WAYPOINT_YEAR (2006) —
 			// every arrival path settles here, animated or not, so the reader
 			// always has the slider immediately usable from the same year
@@ -1367,7 +1520,7 @@
 			story.raceView &&
 			Math.abs(story.raceView.playhead - renderPlayhead) > 0.01
 		) {
-			story.raceView = { playhead: renderPlayhead };
+			story.raceView = raceHoldView();
 		}
 		story.raceCam = {
 			pxPerYear: getRacePxPerYear(),
@@ -1587,6 +1740,7 @@
 			axes: layout.axes,
 			notes: layout.notes,
 			takeover: layout.takeover,
+			band: layout.band,
 			legend: layout.legend,
 			legendY: layout.legendY,
 			hits: layout.hits
@@ -1911,6 +2065,43 @@
 >
 	<canvas bind:this={canvas}></canvas>
 	<div class="annotations">
+		<!-- The future block (PRD P-11-2). In the ANNOTATIONS layer, ahead of the
+		     node labels, which is what lets it carry a shaded fill: the names sit
+		     beside their dots to the right, so with the column pinned at the left they
+		     render INSIDE the block, and `.overlay` (where this first lived) paints
+		     over `.annotations` — a fill there hid every one of them. Here the wash
+		     goes under the names and under the ticks, and only over the canvas, whose
+		     ink to the right of the present is nothing at all.
+
+		     It rides the frame writer's per-frame payload next to `axes` and
+		     `takeover` rather than the `notes` slot, per the rule on the overlay
+		     below — its own camera is parked whenever it exists, so it needs the
+		     per-frame channel less than the callout does, but the frontier that sizes
+		     it IS animated.
+
+		     A <span> with a dashed border, not SVG: it is an axis-aligned rectangle,
+		     so it needs none of what put the callout's leader in an <svg> (an
+		     arbitrary-angle line, a head, and a halo pass SVG has no text-shadow for),
+		     and it sidesteps the global `svg { width: 100% }` fight documented on
+		     .callout-arrow.
+
+		     Yellow is the chapter's first and only hue, and a deliberate exception:
+		     the field is monochrome-plus-ink by design (see layouts/race.js) because
+		     no actor is identified BY a colour. This colours a REGION, not an actor,
+		     so that rule survives intact. -->
+		{#if decor?.band && !chartVeiled}
+			{@const b = decor.band}
+			<div class="band fade-in">
+				<span
+					class="band-box"
+					aria-hidden="true"
+					style="left: {b.x}px; top: {b.y}px; width: {b.width}px; height: {b.height}px"
+				></span>
+				<p class="band-label" style="left: {b.label.x}px; top: {b.label.y}px">
+					the future
+				</p>
+			</div>
+		{/if}
 		{#if ring}
 			<div
 				class="pulse-wrap"
@@ -1996,8 +2187,11 @@
 					<!-- raceFuture as well as raceFull: its arrival pan starts from
 					     raceFull's camera, so 1980 can be on the plot for the first
 					     frames of the leg, and gating this on raceFull alone would blink
-					     the term off the moment the reader pressed Next. -->
-					{#if (stateName === RACE_FULL_STATE || stateName === RACE_FUTURE_STATE) && tick.label === "1980"}
+					     the term off the moment the reader pressed Next.
+
+					     Keyed off `tick.year`, not the label: every race year now renders
+					     in two digits (raceTickLabel), so the text is lossy. -->
+					{#if (stateName === RACE_FULL_STATE || stateName === RACE_FUTURE_STATE) && tick.year === 1980}
 						<InfoTerm
 							class="tick tick-x tick-1980 fade-in"
 							style="left: {tick.pos}px; {decor.axes.xBase != null
@@ -2021,7 +2215,14 @@
 								? `top: ${decor.axes.xBase}px`
 								: ''}"
 						>
-							{tick.label}
+							<!-- the strip's years recede toward the horizon with the block above
+							     them (raceFutureTicks); historical years carry no alpha and render
+							     flat. On an inner span so it MULTIPLIES with .fade-in's mount
+							     animation rather than being outranked by it — that animation
+							     targets opacity on the <p> with fill-mode `both`. -->
+							<span style={tick.alpha != null ? `opacity: ${tick.alpha}` : null}
+								>{tick.label}</span
+							>
 						</p>
 					{/if}
 				{/each}
@@ -2364,6 +2565,57 @@
 	.callout {
 		position: absolute;
 		inset: 0;
+	}
+
+	/* The future block. Same wrapper pattern as .callout: one positioned layer, so
+	   each child can be placed in canvas coordinates straight off the payload. */
+	.band {
+		position: absolute;
+		inset: 0;
+	}
+
+	.band-box {
+		position: absolute;
+		border: 2px dashed var(--category-yellow, #ccbb44);
+		/* --category-yellow at 13%. A wash rather than nothing: the block reads as
+		   ground the chart has no data for, and an outline alone left it looking like
+		   an empty frame drawn over the plot. It can be this faint and still register
+		   because it is a large area — and it HAS to be faint, and has to sit in the
+		   annotations layer under the names, because this step's ten names render
+		   inside it. */
+		background: rgba(204, 187, 68, 0.13);
+		/* The right-edge fade, and it works on the border too: a mask applies to the
+		   element's whole rendered box, so the top and bottom rules fade out along
+		   their length and the RIGHT rule disappears entirely — which is exactly the
+		   read we want, a block with no far wall. It also composes multiplicatively
+		   with any opacity, unlike the animation trap noted on .callout's children.
+		   -webkit- for Safari < 15.4; without either the box simply keeps its right
+		   wall, which is degraded rather than broken. */
+		-webkit-mask-image: linear-gradient(to right, #000 0 45%, transparent 100%);
+		mask-image: linear-gradient(to right, #000 0 45%, transparent 100%);
+	}
+
+	/* Selected as `.overlay p` + a class for the specificity reason spelled out on
+	   .takeover-note: a lone class loses to `.overlay p`'s font stack.
+	   The text is NOT yellow — #ccbb44 on white is ~1.75:1, which fails at any
+	   size. A decorative border may be that low-contrast; a label may not. */
+	/* A plain class, not `.overlay p.band-label`: this lives in the ANNOTATIONS
+	   layer (so the block's wash can sit under the names), where no generic `p`
+	   rule competes with it. `position` and `margin` are stated here because
+	   nothing else supplies them — without them the label detaches from the
+	   payload's coordinates and lands at the top of the layer. */
+	.band-label {
+		position: absolute;
+		margin: 0;
+		font-size: 0.65rem;
+		letter-spacing: 0.04em;
+		color: var(--color-gray-700, #444);
+		white-space: nowrap;
+		/* it sits in the axis headroom above the plot, and can overhang the box on a
+		   narrow strip, so it needs the same legibility halo the ticks carry */
+		text-shadow:
+			0 0 3px var(--color-bg, #fff),
+			0 0 6px var(--color-bg, #fff);
 	}
 
 	/* the ring has no text: it IS the mark, and the note beside it is what carries

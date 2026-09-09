@@ -123,8 +123,13 @@ export const STATE_YCAP = pick("yCap");
  * pans over, plus the bounds on where its camera may rest (see layouts/race.js).
  * Its presence is what marks a state as a race step; whether that step is
  * *pannable* is a separate question, answered by racePanBounds (raceFuture pins
- * its camera by declaring minPlayhead === maxPlayhead).
- * @type {Partial<Record<LayoutState, { extent: [number, number], minPlayhead?: number, maxPlayhead?: number, highlight?: number[] }>>}
+ * its camera by declaring `tailPx`, which leaves its floor and ceiling equal).
+ *
+ * `tailPx` pins the camera by its LEFT edge instead of its right — how many px
+ * of history to keep behind the end of the data — and `frontier` is how far that
+ * step's future strip rests open. Both are raceFuture's alone; see
+ * raceMaxPlayhead and raceFutureScale.
+ * @type {Partial<Record<LayoutState, { extent: [number, number], minPlayhead?: number, maxPlayhead?: number, tailPx?: number, frontier?: number, highlight?: number[] }>>}
  */
 export const STATE_RACE = pick("race");
 

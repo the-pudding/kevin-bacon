@@ -202,8 +202,9 @@ crowd parked invisible) · `hopBands`
 (degree rows, with a bottom legend keying each hop's color) ·
 `rankFocus` (Bacon's hop bar dissolves; the HTML `RankBars` panel + guess
 take over) · `rankReveal` (SLJ) · `raceRecent`/
-`raceFull`/`raceFuture` (avg-distance-by-year race, three fixed-scale cameras;
-the last rests past the end of the data, see below) ·
+`raceFull`/`raceFuture` (avg-distance-by-year race; the first two are
+fixed-scale cameras, the last runs forward to the present and opens a fitted
+strip of future beside it, see below) ·
 `scatterCenters`/`scatterWalters`/`scatterQuiz` (films-vs-distance scatter
 family) · `scatterCostars` (the same scatter framed on the top 250 by rank,
 coloured by which of the two named actors has worked with each — the one
@@ -228,9 +229,11 @@ trails out in place; `collapseTrail` parks a trail's vertices on its owner
 dot so lines unspool out of dots and retract back into them.
 
 **Race camera (fixed x scale).** The race chapter's x axis is `PX_PER_YEAR`
-(38) pixels per year on every race step and every viewport — it never fits a
+(76) pixels per year on every race step and every viewport — it never fits a
 domain to the plot width, so nothing zooms and every visible year carries its
-own label. Each step therefore holds more years than fit on screen and is a
+own label — in two digits, chapter-wide (`raceTickLabel`). That holds for every
+year the DATA covers; past it, raceFuture's future strip is fitted instead (see
+below), and it is the one exception. Each step therefore holds more years than fit on screen and is a
 _camera_ over its data. Three concepts stay separate (`layouts/race.js`):
 
 - **content extent** `[e0, e1]`, baked per state in `race: { extent }`
@@ -381,36 +384,161 @@ Slider, both writing only `story.scrubYear`/`scrubbing`, with bounds read from
 `story.raceCam` (published by ScrollyVisual, the only component that knows the
 canvas width). It renders nothing when the whole extent already fits on screen.
 
-**The future strip (`raceFuture`).** The chapter's last step is raceFull's chart
-with the camera carried past the end of the data: the axis runs on to 2030 while
-every series still ends in 2025, so the right of the plot is empty ground — the
-future its copy asks the reader to imagine. It costs one field.
-`maxPlayhead` (the mirror of `minPlayhead`, read through `raceMaxPlayhead` and
-defaulting to the extent's end) is the last year a step's camera may rest on, and
-so is its resting playhead, its pan ceiling and its last x tick all at once. The
-content extent stays raceFull's, because who the step shows and how far its lines
-run are still questions about 1970–2025.
+**The future strip (`raceFuture`).** The chapter's last step runs the camera
+forward to the present and opens a strip of future ground beside it, in **two
+legs** on one Next press. Leg 0 pans (at the ordinary fixed scale, so it is a
+pure translation) until the present sits `RACE_FUTURE_TAIL_PX` in from the plot's
+**left** edge: the lines slide away to the left and every dot comes to rest in a
+column just inside the edge, with a short stub of its own trajectory behind it.
+Leg 1 parks the camera and advances a `frontier` from 2025 to 2030 across the
+width the pan left over, growing the future block and bringing its ticks in
+behind it.
 
-Nothing caps the lines to keep them off the strip, and that is the point:
+The camera is pinned by its LEFT edge, which is a second way to answer
+`raceMaxPlayhead`. `tailPx` says how many px of history to keep behind the
+data's end at the left instead of naming the year on the
+right, so the resting playhead follows the viewport (precedent:
+`raceFullRestPlayhead`) — the strip is anchored on where the data ends, not on
+where the timeline does, so it gets whatever plot width is left over rather than
+a fixed five years the plot may have no room for. It is also how the step
+**fixes its camera**, by construction rather than by coincidence:
+`raceFloorPlayhead` returns the same year as the ceiling, so `racePanBounds` is
+left with nothing between its two ends and reports no pan at all. That is the
+honest half of the step having no controls; the enforcing half is `Index.svelte`
+not mounting `RaceScrubber` on it.
+
+`maxPlayhead` used to mean a step's resting camera, its pan ceiling **and** its
+last x tick, all off one field. Those have come apart. The historical axis now
+stops where the DATA stops (`RACE_DATA_END`, in `raceAxes`) and the years past it
+are ticked on the strip's own scale, so a step's camera ceiling and its last
+label are no longer the same question.
+
+**The strip carries the chapter's only fitted x scale** (`raceFutureScale`), and
+its only branch on width. It has to: five years at 76px/yr need 380px of plot
+before any data fits beside them — about 1050px of canvas, which the 700px
+`#scrolly` container makes unreachable at _every_ viewport. Fitting the five
+years to the leftover width is what lets the strip exist at 320px. It runs out
+to `racePlot`'s `fullRight` — the whole inner width, gutter included — rather
+than to the data plot's `right`: the right-hand third exists to keep right-edge
+names off the canvas edge, and on this step the dot column is at the LEFT, so
+that third is dead space and the strip is the one thing with any use for it.
+Nothing about the data's own geometry reads `fullRight`; the camera, the y fit,
+the dots and the trails all still stop at `right`. It is
+deliberately **not** folded into `raceCamera.xS` as a piecewise branch:
+`raceCamera` is pure in `(playhead, w, h)` and that purity is what makes an
+animated frame and its settle pixel-identical, and every dot, trail, label and
+the takeover ring read `xS` — a piecewise `xS` would silently reroute anything
+that ever reached past the data (nothing does today; the Gen-Z steps are asking
+to). Only `raceFutureTicks` and `raceFutureBand` read it.
+
+Because the scale is fitted it cannot make the fixed scale's "every year gets a
+label, no thinning" guarantee: the pitch is ~63px on a desktop, ~19px at a 375px
+viewport, ~12px at 320px. Three things follow, all in `raceFutureTicks`.
+
+**Every year on the race chart is written in two digits** (`26`, not `2026`),
+through the one formatter `raceTickLabel` — the fixed-scale historical axis and
+the strip's fitted one both go through it, so the axis reads the same either side
+of the break and the strip's years are not a special case. Measured against a
+real `.tick` — Atlas Typewriter at 0.65rem, monospaced at 7.68px a character —
+four digits is 30.7px wide against 15.4px for two, and that is what buys the
+strip its density: five 4-digit labels need ~170px in a strip only ~97px wide at
+a 375px viewport with the old geometry.
+
+The label is therefore **lossy**, so every tick also carries a numeric `year`
+and anything keying off a particular one reads that. The 1980 `InfoTerm` is the
+only such consumer, and it used to test the label text.
+
+They **thin**, keyed off the computed pitch rather than the viewport (which keeps
+it a pure function of the same geometry as everything else on the frame),
+counting down from 2030 so the horizon always survives. The min-pitch constant
+is deliberately tight — a 3px gap — because the 375px pitch is 19.33 and
+anything above that flips the stride to 2 and drops the reader from four future
+years to two. Separately, the FIRST strip year needs clearance from the
+present's, which the stride knows nothing about because that label belongs to
+the other scale: anything closer is dropped outright, since the present owns
+that space and the block's own label already says what the ground to its right
+is. With the strip now running out to `fullRight` the pitch is wide enough that
+neither rule usually bites — they are the safeguard, not the normal case.
+
+They also **fade toward the horizon** (1 to 0.45), so they recede with the block
+above them rather than staying crisp under a dissolving right edge. Ticks carry
+an optional `alpha` for it; the historical years set none and render flat. It is
+applied to an inner `<span>` so it multiplies with `.fade-in`'s mount animation
+instead of being outranked by it — that animation targets `opacity` on the `<p>`
+with `fill-mode: both`, the same trap the takeover callout documents.
+
+**The tail is measured in PX, not years** (`RACE_FUTURE_TAIL_PX`), and it is
+short — 24px. A whole year of it (76px) left a visible gap between the plot's
+left edge and the present, which reads as a missing label: the reader asks where
+the year before this one went. A short stub of each actor's own curve is all the
+tail is for.
+
+Pixels also mean the camera lands on a FRACTIONAL year, which is what keeps the
+historical axis to exactly one label — the present — with no special casing:
+`Math.ceil` of a fractional `camLeft` is already the present, so the tail year is
+simply off camera. Mid-pan, while the camera is still moving, that year is well
+inside the plot and labelled like any other.
+
+Nothing caps the lines to keep them off the strip, and that is still the point:
 `writeRaceSweepFrame` already ends every line at `Math.min(cam.playhead, de, e1)`
-and parks every dot at `de`, the actor's own last data year. Push the camera past
-the data and the lines simply stay where they ended. Only the ticks and the
-camera follow `maxPlayhead`.
+and parks every dot at `de`, the actor's own last data year.
 
-Declaring `minPlayhead === maxPlayhead` is how a step **fixes its camera**:
-`racePanBounds` is left with nothing between its two ends, so it reports the step
-as offering the reader no pan at all. That is the honest
-half of the step having no controls; the enforcing half is `Index.svelte` not
-mounting `RaceScrubber` on it. Arrival and departure are `playRaceFuture` /
-`playRaceFutureReverse` — the rewind legs run forwards, since `rewindFrame` only
+**`edgeFade` is a PIXEL ramp (PRD P-11-1).** It fades a line out over the last
+`RACE_EDGE_FADE_PX` of its travel at the plot's left edge, so a series whose data
+has scrolled off goes quietly instead of popping. It used to be measured in
+YEARS off `camLeft` — one year long — and the two rules agree only at that
+length. The old design parked the camera five years PAST the data, leaving 0.12
+of a year of it inside the camera on the widest canvas the 700px container allows
+and none at all below a 654px one, so the whole field rendered at ~12% opacity at
+best and a phone got an empty plot. Measuring in px makes the fade a property of
+where the line's end actually sits, which is what it was always about — and it is
+what lets the tail be a fraction of a year without the greying coming back.
+
+Every one of the 224 series ends on the same year, asserted at module load next
+to `RACE_RANGE` so a rebuild that changed it fails loudly. That assertion is what
+`RACE_DATA_END` rests on: the historical axis stops there, the strip starts
+there, and every step's content extent ends there.
+
+The block itself is `band` on the frame writer's payload, rendered as a DOM
+`<span>` with a dashed border rather than canvas or SVG — it is an axis-aligned
+rectangle, so it needs none of what put the takeover's leader in an `<svg>`. It
+carries no `alpha`: unlike the callout it never travels and never culls, so it is
+simply absent instead, and its two opacity concerns are both CSS (the mount fade
+on the wrapper, the right-edge gradient masked onto the box, which deletes the
+right wall along with the fade).
+
+It is the one piece of chart furniture in the **annotations** layer rather than
+the overlay, and that placement is what lets it carry a shaded fill
+(`--category-yellow` at 13%). The names sit beside their dots to the right, so
+with the column pinned at the left they render _inside_ the block — and
+`.overlay` paints over `.annotations`, so a fill there hid every one of them.
+Placed ahead of the node labels instead, the wash goes under the names and under
+the ticks, and only over the canvas, whose ink to the right of the present is
+nothing at all. Its label needs `position`/`margin` restated on a plain
+`.band-label` class for the same reason: the `.overlay p` selector it used to
+lean on no longer matches. Yellow is the chapter's first and only hue, and stays
+inside the monochrome-plus-ink rule because it colours a region rather than an
+actor.
+
+Moving the column left also moved the name stack over the plot, where the
+de-collider's downward overflow lands on the x-axis row instead of in the empty
+gutter. `drawScene` lifts the whole de-collided set as a body when it overflows
+the plot floor — scoped to `tailPx` steps, so no step whose names sit
+safely in the gutter changes behaviour.
+
+Arrival and departure are `playRaceFuture` / `playRaceFutureReverse`, the latter
+retracing both legs in reverse order (the block closes, then the camera pans
+back) and skipping the closing beat when `raceExitFrontier` says the strip was
+never open. The frontier is snapshotted on the way out exactly as the playhead
+is, so stepping back out of a half-open block closes it from there rather than
+jumping to full width first. The legs run forwards, since `rewindFrame` only
 interpolates `fromP → toP` and a fixed px-per-year makes either direction a pure
 translation.
 
-One consequence to know before retuning `pxPerYear`: the strip is five years
-wide, so a plot narrower than 5 × `pxPerYear` has no room for data beside it. At
-the shipped 76px that is ~1050px, below which this step shows progressively less
-of the field and, on a phone, none of it. That is a deliberate, accepted
-trade-off for holding the axis to 2030 at every width, not an oversight.
+The step's resting frontier lives on `RACE_FUTURE_STEP` rather than only in the
+animation, which is what makes a cold mount, a resize and the reduced-motion snap
+all land directly on the fully-open state — the same contract a `STATE_ENTRY`'s
+last leg has to meet, discharged by construction.
 
 **The simulation race (`simRace`), a reader-driven animation.** The one
 choreography a reader starts rather than an arrival: `SimRunner` (a `panel`
@@ -464,7 +592,9 @@ anchor, where it cannot move the controls.
 **Chart furniture.** A layout can also return `axes` (`x`/`y` tick arrays +
 `xBase`), `notes` (positioned callouts, `nowrap` by default — nothing emits
 them; see the takeover callout below for why prose on the race chart goes
-through the frame writer instead), and `legend`
+through the frame writer instead), `band` (raceFuture's future block — the
+frame writer's payload again, and for the same reason: the frontier that sizes
+it is animated), and `legend`
 (color swatch + label pairs, pinned to the bottom of the chart) — all
 rendered as HTML in the overlay and crossfaded per state. `OVERLAYS[state].caption`
 renders top-centre in small caps. A layout can also return `hits` — rectangles

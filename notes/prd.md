@@ -90,10 +90,61 @@ Related backlogs, deliberately **not** merged in here:
 
 ## 4. The future band — step 11 (`raceFuture`)
 
-- [ ] **P-11-1 · Stop graying the items out.** Keep dots and labels visible;
-      the gray-out reads as confusing.
-- [ ] **P-11-2 · Label the future.** Highlight 2027–2030 as a block (Matt:
-      "a big yellow box") labelled "the future".
+- [x] **P-11-1 · Stop graying the items out.** Keep dots and labels visible;
+      the gray-out reads as confusing. **Shipped:** by moving the camera, not by
+      special-casing the alpha. The grey was `edgeFade` in
+      `writeRaceSweepFrame` — a one-year ramp that fades a line whose data is
+      about to scroll off the left edge — and the step used to park the camera
+      with 2030 on the right edge, leaving only 0.12 of a year of data inside it
+      on the widest canvas the 700px container allows, and none at all below a
+      654px one. So the whole cast rendered at ~12% opacity at best, and a phone
+      got an empty plot. Two changes fix it. The step now pans forward until the
+      present sits a short stub in from the plot's LEFT edge
+      (`RACE_FUTURE_TAIL_PX`, 24px) instead of five years off the right; and the
+      ramp is now measured in PIXELS off that edge rather than in years off the
+      camera, which is what the fade was always about — where the line's end
+      actually sits — and what lets the tail be a fraction of a year without the
+      greying returning. Every dot and every name rests at full strength at
+      every width. `race.js` also now asserts at module load that all 224 series
+      end on the same year, since `RACE_DATA_END` is where three separate things
+      meet: the historical axis stops there, the strip starts there, and every
+      step's extent ends there.
+- [x] **P-11-2 · Label the future.** Highlight 2027–2030 as a block (Matt:
+      "a big yellow box") labelled "the future". **Shipped:** 2025–2030 rather
+      than 2027–2030 (the data ends in 2025, so that is where the future
+      starts), and it opens rather than appearing — a second leg chained off the
+      pan advances a frontier across the plot width the pan left over, growing
+      the block and bringing each future tick in behind it. Those years carry
+      their own FITTED px-per-year, the only one in the chapter: ~63px on a
+      desktop but ~36px even at 320px, because the strip runs out to the full
+      inner width rather than stopping at the data plot's right edge — the
+      name-gutter third is dead space on this step, since the dot column is at
+      the left. Every year 26–30 therefore shows at every width, and they fade
+      toward the horizon with the block above them rather than staying crisp
+      under a dissolving right edge. Years are written in two digits everywhere
+      on the race chart now, not just here (`raceTickLabel`), so the axis reads
+      the same either side of the scale break; ticks carry a numeric `year`
+      because the label is lossy, which is what the 1980 popover keys off. The
+      tail year needs no suppressing — a 24px tail puts the camera on a
+      fractional year, so the historical axis emits the present alone. Yellow is
+      the
+      chapter's first hue and stays inside the monochrome-plus-ink rule because
+      it colours a region, not an actor; the block carries a 13% wash as well as
+      its dashed outline, which is why it sits in the annotations layer rather
+      than the overlay — the ten names now rest inside it, and a fill in the
+      overlay would have painted over every one of them.
+
+      Two consequences worth a look before this is called finished. The name
+      column has moved off the right-hand gutter and onto the plot, so the names
+      read across the inside of the block — defensible ("the actors whose
+      futures we are asking about, standing in the future"), but it is a real
+      change to how the step reads. And the ten names pack into the bottom of a
+      ~0.037-tall band, which overflowed onto the x-axis row once the column
+      moved left; the fix lifts the whole de-collided stack as a body, which
+      keeps every gap but also pulls SLJ's name ~30px off its dot onto a leader.
+      A bottom-up de-collide sweep would leave him alone and is the better fix
+      if that reads badly — it needs a direction flag in `label-decollide.js`,
+      which is shared with every other beside-dot state.
 
 ## 5. Films scatter — step 12 (`scatterCenters`, `showFilms`)
 
