@@ -1,7 +1,9 @@
 <script>
 	// @ts-check
 	/**
-	 * DEV-ONLY curve editor for the race chart's y band.
+	 * DEV-ONLY editor for the race chart's y axis: the band curve that fits the
+	 * cameras before 2004, and the top edge of the fixed window that draws every
+	 * camera after it.
 	 *
 	 * The band is the gap between the crown (the top of the plot) and the bottom
 	 * edge — how much of the chasing field comes along with the record. It is a
@@ -12,13 +14,20 @@
 	 * add one, alt-click a point to drop it. The curve the chart ships with
 	 * (RACE_Y_BAND_POINTS) stays on screen as a dashed ghost to measure edits
 	 * against, and the year currently on the chart's right edge rides along as a
-	 * vertical marker, so you can see which part of the curve you're looking at in
-	 * the real chart. "copy" emits a replacement for that table.
+	 * vertical marker while it is inside the band's years, so you can see which
+	 * part of the curve you're looking at in the real chart. "copy" emits a
+	 * replacement for that table.
 	 *
-	 * It writes the points straight into race.js through setRaceDevBands (a plain
-	 * module variable, so no $state read lands in the per-frame draw path) and
-	 * bumps story.raceYBandsRev, which is ScrollyVisual's cue to drop its cached
-	 * layouts and redraw.
+	 * The "min y" slider is the other half: from RACE_Y_FIXED_FROM on, the axis is
+	 * two constants rather than a fit, and this moves the upper one — the top of
+	 * the plot, the LOWER avg distance. The bottom edge (RACE_Y_FIXED_MAX) is
+	 * fixed. That slider is the only control that does anything on raceRecent and
+	 * raceFuture; the curve is raceFull's.
+	 *
+	 * Both write straight into race.js (setRaceDevBands / setRaceDevFixedYMin,
+	 * plain module variables, so no $state read lands in the per-frame draw path)
+	 * and bump story.raceYBandsRev, which is ScrollyVisual's cue to drop its
+	 * cached layouts and redraw.
 	 *
 	 * Only mounted under `import.meta.env.DEV` (dynamically imported by Index).
 	 */
@@ -29,12 +38,22 @@
 		RACE_BAND_FIRST,
 		RACE_BAND_LAST,
 		RACE_Y_BAND_POINTS,
-		setRaceDevBands
+		RACE_Y_FIXED_MAX,
+		RACE_Y_FIXED_MIN,
+		setRaceDevBands,
+		setRaceDevFixedYMin
 	} from "./layouts/race.js";
 	import { monotoneSegments, curveYAt } from "./layout-shared.js";
 
 	const STORE_KEY = "kb-race-y-band-points";
 	const HIDDEN_KEY = "kb-race-y-band-hidden";
+	const FIXED_MIN_KEY = "kb-race-y-fixed-min";
+	// How far the fixed window's top edge may be dragged. The ceiling is the
+	// binding one: the record's best year inside the window is 2.0839, and a top
+	// edge past that would clip the crown off the plot.
+	const FIXED_MIN_LO = 2.0;
+	const FIXED_MIN_HI = 2.08;
+	const FIXED_MIN_STEP = 0.005;
 	// the editor's own axes. The y ceiling clears the tallest point the shipped
 	// curve reaches (0.1121 at 1980) with room to pull one above it.
 	const BAND_MAX = 0.15;
@@ -121,6 +140,32 @@
 		install();
 		story.raceYBandsRev++;
 	}
+
+	// ---- the fixed window's top edge -----------------------------------------
+
+	/** @type {number} the fixed window's upper bound, i.e. the plot's top edge */
+	let fixedMin = $state(restoreFixedMin());
+
+	function restoreFixedMin() {
+		const saved = localStorage.get(FIXED_MIN_KEY);
+		return Number.isFinite(saved) &&
+			saved >= FIXED_MIN_LO &&
+			saved <= FIXED_MIN_HI
+			? saved
+			: RACE_Y_FIXED_MIN;
+	}
+
+	function installFixedMin() {
+		setRaceDevFixedYMin(fixedMin);
+		localStorage.set(FIXED_MIN_KEY, fixedMin);
+	}
+
+	function onFixedMin(e) {
+		fixedMin = Number(e.currentTarget.value);
+		installFixedMin();
+		story.raceYBandsRev++;
+	}
+
 	// Install whatever the editor opened with, so a restored session reaches the
 	// chart before the reader sees a frame drawn off the shipped curve. Only ask
 	// for the redraw when that is actually a different curve: a bump is a state
@@ -129,7 +174,11 @@
 	// in flight — on a cold load, the opening walk — straight to its end.
 	onMount(() => {
 		const snap = install();
-		if (JSON.stringify(snap) !== JSON.stringify(seedPoints()))
+		installFixedMin();
+		if (
+			JSON.stringify(snap) !== JSON.stringify(seedPoints()) ||
+			fixedMin !== RACE_Y_FIXED_MIN
+		)
 			story.raceYBandsRev++;
 	});
 
@@ -240,6 +289,8 @@
 
 	function resetAll() {
 		points = seedPoints();
+		fixedMin = RACE_Y_FIXED_MIN;
+		installFixedMin();
 		commit();
 	}
 
@@ -304,22 +355,32 @@
 						>{g.toFixed(2)}</text
 					>
 				{/each}
-				<!-- x labels at the decades -->
-				{#each [1980, 1990, 2000, 2010, 2020] as t}
+				<!-- x labels at the decades the band still covers -->
+				{#each [1980, 1990, 2000] as t}
 					<line class="grid" x1={xOf(t)} x2={xOf(t)} y1={Y0} y2={Y1} />
 					<text class="axis" x={xOf(t)} y={Y1 + 12} text-anchor="middle"
 						>{t}</text
 					>
 				{/each}
 
-				<!-- where the real chart is standing right now -->
-				<line class="playhead" x1={xOf(year)} x2={xOf(year)} y1={Y0} y2={Y1} />
-				<circle
-					class="playhead-dot"
-					cx={xOf(year)}
-					cy={yOf(liveBand)}
-					r="2.5"
-				/>
+				<!-- where the real chart is standing right now, while that is a year
+				     the curve still speaks for: past RACE_BAND_LAST the chart is on
+				     the fixed window and the marker would sit off the plot -->
+				{#if year <= RACE_BAND_LAST}
+					<line
+						class="playhead"
+						x1={xOf(year)}
+						x2={xOf(year)}
+						y1={Y0}
+						y2={Y1}
+					/>
+					<circle
+						class="playhead-dot"
+						cx={xOf(year)}
+						cy={yOf(liveBand)}
+						r="2.5"
+					/>
+				{/if}
 
 				<path class="shipped" d={shippedPath} />
 				<path class="curve" d={curvePath} />
@@ -348,9 +409,23 @@
 				>+</button
 			>
 			<span class="meta">
-				band {liveBand.toFixed(4)} · {points.length} pts
+				{#if year <= RACE_BAND_LAST}
+					band {liveBand.toFixed(4)} · {points.length} pts
+				{:else}
+					fixed window · {points.length} pts
+				{/if}
 			</span>
 			<span class="hint">click to add · alt-click to drop</span>
+			<span class="edge">min y</span>
+			<input
+				type="range"
+				min={FIXED_MIN_LO}
+				max={FIXED_MIN_HI}
+				step={FIXED_MIN_STEP}
+				value={fixedMin}
+				oninput={onFixedMin}
+			/>
+			<output class="value">{fixedMin.toFixed(3)}–{RACE_Y_FIXED_MAX}</output>
 			<button type="button" onclick={() => setHidden(true)}>hide</button>
 			<button type="button" onclick={resetAll}>reset</button>
 			<button type="button" onclick={copyPoints}>
@@ -421,9 +496,21 @@
 		opacity: 0.7;
 	}
 	.hint {
-		flex: 1 1 auto;
 		text-align: right;
 		opacity: 0.5;
+	}
+	/* the fixed window's top-edge slider takes the row's slack, so the buttons
+	   still sit hard right however wide the strip is */
+	.edge {
+		opacity: 0.5;
+		white-space: nowrap;
+	}
+	input[type="range"] {
+		flex: 1 1 auto;
+		min-width: 4rem;
+	}
+	.value {
+		white-space: nowrap;
 	}
 
 	.editor-wrap {

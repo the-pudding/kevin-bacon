@@ -256,11 +256,13 @@ per year, built at module load from `story.eras` × `story.raceSeries`. It is
 derived here rather than baked into `scrolly-story.json`, so changing it never
 needs an `ANALYSIS_REPO` rebuild. `buildRaceAnchor` throws on a gap.
 
-`raceWindowYFit(camLeft, camRight)` is the whole rule. The **top** of the plot is
-the record's low point over the years on screen; the **bottom** is that same
-record at the camera's right edge plus the band `raceBandAt` gives that year;
-both ends are then padded by `RACE_Y_PAD` (12% of the plot's height, floored at
-`RACE_Y_PAD_MIN`). `writeRaceSweepFrame` calls it with its own camera, so:
+`raceWindowYFit(camLeft, camRight)` is the whole rule, and it has two regimes:
+the **fixed window** from 2004 on (two constants — see below), and the camera fit
+`raceCameraYFit` behind it, where the **top** of the plot is the record's low
+point over the years on screen, the **bottom** is that same record at the
+camera's right edge plus the band `raceBandAt` gives that year, and both ends are
+padded by `RACE_Y_PAD` (12% of the plot's height, floored at `RACE_Y_PAD_MIN`).
+`writeRaceSweepFrame` calls it with its own camera, so:
 
 - **No step owns an axis and no animator carries one.** There is no `STATE_YFIT`,
   no `fixedYFit` parameter, and nothing to hand across a step transition. An
@@ -285,22 +287,53 @@ mid-pan. That trades in one risk — a monotone cubic sagging below the straight
 between two record points, at most 0.0019 over the reachable playheads — which is
 what `RACE_Y_PAD_MIN` sizes the padding to absorb.
 
-**The band is a curve over the years**, held as eleven control points in
-`RACE_Y_BAND_POINTS` (1980–2025 — exactly the years a camera can rest on, since
-`raceFloorPlayhead` clamps every step and the band is read at the right edge only)
-and read through `raceBandAt`, which runs them through the same monotone cubic
-(`monotoneSegments`/`curveYAt`) the chart's own lines use. Two things follow from
-that shape. It is continuous in `year` for free, which the axis needs for exactly
-the reason `raceAnchorAt` is interpolated. And it is EDITABLE: a decade moves when
-one handle moves, which a value-per-year table isn't.
+**The band is a curve over 1980–2004**, held as seven control points in
+`RACE_Y_BAND_POINTS` and read through `raceBandAt`, which runs them through the
+same monotone cubic (`monotoneSegments`/`curveYAt`) the chart's own lines use. Two
+things follow from that shape. It is continuous in `year` for free, which the axis
+needs for exactly the reason `raceAnchorAt` is interpolated. And it is EDITABLE: a
+decade moves when one handle moves, which a value-per-year table isn't. It starts
+at 1980 because that is the earliest year a camera can rest on
+(`raceFloorPlayhead` clamps every step, and the band is read at the right edge
+only) and stops at 2004 because that is where the fixed window takes over.
 
 A _count_ of lines cannot do this job, which is what the band used to be
 (`RACE_Y_LINES = 6`, guarded by a min and max): the field's density around the
-record changes completely across the chapter — 0.068 of avg-distance holds six
-lines in 2025, where SLJ has pulled clear, but fifty in the mid-2000s, where a
-dozen actors were trading hundredths. Fitting to a count therefore tracked the
-crowd's noise rather than the story, and made the plot breathe on every pan. The
-points are drawn by eye against the live chart instead.
+record changes completely across the chapter — 0.068 of avg-distance puts three
+lines on the plot in 1980, where the crown ran clear of a sparse field, and
+twenty-four in the mid-2000s, where a dozen actors were trading hundredths.
+Fitting to a count therefore tracked the crowd's noise rather than the story, and
+made the plot breathe on every pan. The points are drawn by eye against the live
+chart instead.
+
+**The fixed window (2004 → the present) is PRD P-08-1.** Every camera whose right
+edge sits at `RACE_Y_FIXED_FROM` or later is drawn on two constants —
+`RACE_Y_FIXED_MIN` 2.05 at the top, `RACE_Y_FIXED_MAX` 2.2 at the bottom, taken
+as the domain verbatim with no `RACE_Y_PAD` — so the axis on raceRecent and
+raceFuture does not move at all. That is the point: raceRecent's rewind is the
+chapter's one animated camera, and the fit cannot hold still through it at any
+band height, because the record the fit hangs off falls 0.05 across those years,
+57% of a plot. `RACE_RECENT_EXTENT` reads `RACE_Y_FIXED_FROM` for its own first
+year, so the step's whole camera range is inside the window by construction.
+
+What the window costs is the top of the plot: the record's best year inside it is
+2.0839, so ~23% of the plot is always empty above the crown, and at the 2006 end
+the crown rides 57% of the way down with the field spread under it (21 lines on
+scale at 2006, 29 at 2025, all ten names on scale at every camera). That trade is
+the one dial — `RaceYBandDev`'s "min y" slider moves the top edge live through
+`setRaceDevFixedYMin` and touches nothing else. The takeover ring sinks to 60%
+down the plot with it, which is what pushes its note (always below the ring, see
+`raceTakeoverCallout`) onto the axis row on a landscape phone; accepted for now.
+
+Below the window the fit takes back over, **ramped** over
+`RACE_Y_FIXED_FADE`–`RACE_Y_FIXED_FROM` (2000–2004) rather than switched, because
+raceFull's entry pans from 2006 back through 2004 to ~1980 and a hard swap would
+tick the axis 0.08 — half a plot — in one frame mid-pan. Measured, the ramp moves
+the plot's edges at most 2.3e-4 per 0.005 of a year of pan, which is less than the
+fit's own motion through the mid-1980s, so the crossover is invisible. `raceFull`
+below 2000 is untouched by all of this: its cameras fit exactly as they did.
+Nothing anywhere clips off the top — no actor in the window comes closer to the
+centre than 2.0839.
 
 **Tuning it.** `RaceYBandDev.svelte` is a dev-only curve editor (dynamically
 imported in `Index.svelte` under `import.meta.env.DEV`, so a build drops the chunk
@@ -313,7 +346,10 @@ variable, so nothing reactive lands in the per-frame draw path) and bumps
 `story.raceYBandsRev`, which is `ScrollyVisual`'s cue to drop its cached layouts
 and redraw. "copy" puts a replacement `RACE_Y_BAND_POINTS` on the clipboard; edits
 persist in `localStorage` between reloads, and "reset" goes back to the shipped
-curve.
+curve. The same strip carries the fixed window's **"min y"** slider, on the same
+revision counter, and the playhead marker hides itself while the chart is inside
+the window — the curve has nothing to say about those years, so the slider is the
+only live control on raceRecent and raceFuture.
 
 The accepted cost of a band this tight: the chart holds the leaders and lets the
 rest of the field run off the bottom edge. Lines that leave the plot are ended at

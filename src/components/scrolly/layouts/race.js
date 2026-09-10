@@ -45,12 +45,13 @@ import {
 // need more plot than the container has to give (see raceFutureScale, the one
 // fitted scale in the chapter and the one place it branches on width).
 //
-// BOTH axes follow that camera. The y axis is a fixed band under the centre-of-
-// Hollywood record over the years currently on screen (raceWindowYFit) — so no
-// step owns an axis, no animator carries one, and the axis pans with x. That is
-// what makes an animated frame and the static layout it settles onto agree: they
-// are the same pure function of (playhead, width, height), not two places passed
-// the same constant.
+// BOTH axes follow that camera (raceWindowYFit), and from 2004 on the y axis
+// stops moving altogether: the years the reader spends the chapter in are drawn
+// on two constants (the FIXED WINDOW below), and only the older cameras hang
+// their axis off the centre-of-Hollywood record. Either way the axis is a pure
+// function of (playhead, width, height) — no step owns one, no animator carries
+// one — which is what makes an animated frame and the static layout it settles
+// onto agree rather than two places being passed the same constant.
 //
 // Three concepts, deliberately separate:
 //   content extent  [e0,e1]  baked per state, width-independent — drives who the
@@ -166,10 +167,13 @@ const yearOf = (iso) => {
 //
 // The other end is RACE_Y_BAND below it, and it is deliberately tight: the chart
 // holds the leaders and lets the rest of the field run off the bottom edge. The
-// axis is that same band tall on every step and every viewport, which makes a
-// vertical distance mean one thing across the whole chapter — the y counterpart
-// of PX_PER_YEAR's fixed x scale. What moves is where the band SITS, riding the
-// record down from ~2.82 in 1971 to ~2.09 in 2025.
+// band is a function of the year alone, so a given year fits the same axis on a
+// phone and on a desktop. What moves is where the band SITS, riding the record
+// down from ~2.82 in 1971 to ~2.09 in 2025.
+//
+// All of which describes the years BEFORE 2004. From there to the present the
+// axis is two constants and reads neither table (see the fixed window below);
+// the record is still what those constants are sized against.
 // ---------------------------------------------------------------------------
 
 const RACE_ANCHOR_FIRST = Math.floor(yearOf(story.eras[0].start));
@@ -286,16 +290,19 @@ const RACE_Y_PAD_MIN = 0.0025;
 // plot can carry a name (see raceLabelIds), enough that the step's story has
 // company on screen.
 //
-// It is a CURVE over the years rather than one constant, because the field's
-// density around the record changes completely across the chapter: 0.068 of
-// avg-distance holds six lines in 2025, where SLJ has pulled clear, but fifty in
-// the mid-2000s, where a dozen actors were trading hundredths. One fixed height
-// therefore cannot hold the same chart at both ends of a single step's rewind.
-// It is also not a per-year table: a handful of control points run through the
-// same monotone cubic the chart's own lines use is continuous in `year` for
-// free, which the axis needs — sampled per year, the band would be a step
-// function of the camera and the axis would tick every time a year crossed the
-// plot edge mid-pan.
+// It runs 1980 to RACE_Y_FIXED_FROM and no further: the years after that are the
+// fixed window's, and it reads no band at all.
+//
+// It is a CURVE over those years rather than one constant, because the field's
+// density around the record changes completely across them: 0.068 of avg-distance
+// puts three lines on the plot in 1980, where the crown ran well clear of a
+// sparse field, and twenty-four in the mid-2000s, where a dozen actors were
+// trading hundredths. One height for both ends would rest raceFull on a
+// near-empty chart. It is also not a per-year table: a handful of control points
+// run through the same monotone cubic the chart's own lines use is continuous in
+// `year` for free, which the axis needs — sampled per year, the band would be a
+// step function of the camera and the axis would tick every time a year crossed
+// the plot edge mid-pan.
 //
 // The points are drawn by eye against the live chart, not fitted: an earlier
 // rule fitted the band to a fixed COUNT of lines at the playhead, which tracked
@@ -304,12 +311,65 @@ const RACE_Y_PAD_MIN = 0.0025;
 // this table and hands an edited one back through setRaceDevBands.
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// The fixed window: 2004 to the present, where the axis holds still.
+//
+// PRD P-08-1. Every camera from RACE_Y_FIXED_FROM on is drawn on two constants
+// instead of the fit below, so raceRecent's rewind — 2025 back to the 2006
+// takeover, the chapter's one animated camera — moves the LINES and nothing
+// else. No band height can buy that from the fit: the record the fit hangs off
+// falls 0.05 across those years, 57% of a plot, so the axis slides with it
+// however tightly the plot is scaled.
+//
+// The two bounds ARE the domain, taken with no RACE_Y_PAD — they read as the
+// plot's edges, which is what puts the y ticks (0.05 apart at this height) on
+// 2.05 and 2.20 exactly. Their cost is at the top: the record's best year in the
+// window is 2.0839, so ~23% of the plot is always empty above the crown, and at
+// the 2006 end the crown rides 57% of the way down. That trade is what
+// RaceYBandDev's "min y" slider is for — it moves this top edge live
+// (setRaceDevFixedYMin) and touches nothing else.
+//
+// Below the window the fit takes back over, RAMPED in over
+// RACE_Y_FIXED_FADE..RACE_Y_FIXED_FROM rather than switched: raceFull's entry
+// pans from 2006 back through 2004 to ~1980, and a hard swap would tick the axis
+// half a plot height in one frame mid-pan. Ramping keeps the whole rule a pure
+// function of the camera, which is what still leaves no step owning an axis and
+// nothing to hand across a transition.
+// ---------------------------------------------------------------------------
+
+/** first year of the window; raceRecent's extent starts here too */
+export const RACE_Y_FIXED_FROM = 2004;
+/** ...and where, panning back, the camera fit has fully taken over again */
+const RACE_Y_FIXED_FADE = 2000;
+/** the window's bottom edge (the HIGHER avg distance of the two) */
+export const RACE_Y_FIXED_MAX = 2.2;
+/** its top edge, and the shipped value of the dev slider below */
+export const RACE_Y_FIXED_MIN = 2.05;
+
+/**
+ * The window's live top edge. A plain module variable rather than a rune for the
+ * same reason as devBandSegs: the per-frame draw path reads it.
+ */
+let raceYFixedMin = RACE_Y_FIXED_MIN;
+
+/**
+ * Dev hook: move the fixed window's top edge — the LOWER of its two
+ * avg-distances, so the higher edge of the plot. Called only from
+ * RaceYBandDev.svelte, which only mounts under `npm run dev`.
+ * @param {number} v
+ */
+export function setRaceDevFixedYMin(v) {
+	raceYFixedMin = v;
+}
+
 // The first year a camera can put on its right edge: every step's playhead is
 // clamped to at least this by raceFloorPlayhead, and the band is read at the
 // right edge only, so nothing earlier is reachable. (RACE_FULL_PAN_FLOOR is
 // this same year, declared here because it is needed at module init.)
 export const RACE_BAND_FIRST = 1980;
-export const RACE_BAND_LAST = RACE_ANCHOR_LAST;
+// ...and the last year it covers, which is where the fixed window starts. Past
+// that the band would describe a plot the axis no longer draws.
+export const RACE_BAND_LAST = RACE_Y_FIXED_FROM;
 
 /** the band's control points, [year, band], ascending in year */
 export const RACE_Y_BAND_POINTS = /** @type {[number, number][]} */ ([
@@ -319,11 +379,7 @@ export const RACE_Y_BAND_POINTS = /** @type {[number, number][]} */ ([
 	[1993, 0.0897],
 	[1996, 0.0825],
 	[2000, 0.0756],
-	[2005, 0.0685],
-	[2010, 0.0612],
-	[2015, 0.0616],
-	[2020, 0.0665],
-	[2025, 0.0676]
+	[RACE_BAND_LAST, 0.0699]
 ]);
 const RACE_Y_BAND_SEGS = monotoneSegments(RACE_Y_BAND_POINTS);
 
@@ -353,45 +409,44 @@ function raceBandAt(year) {
 }
 
 /**
- * Constant bounds the dev panel has pinned the axis to, in place of the camera
- * fit below. Null in every normal run; written ONLY by setRaceDevFixedYFit.
+ * The axis for a camera window, and the whole y-scale rule: the fixed window's
+ * two constants from 2004 on, the camera fit below RACE_Y_FIXED_FADE, and a ramp
+ * between the two over the four years in between.
+ *
+ * Because every branch of it reads the CAMERA rather than a step's content
+ * extent, no step owns an axis and nothing has to be handed across a transition
+ * — and an animated frame agrees with the settle it lands on by construction
+ * rather than by passing the same constant to both.
+ *
+ * @returns {[number, number]} the scale domain [vMin, vMax]
  */
-let devFixedYFit = null;
-
-/**
- * Dev hook: pin the axis to constant bounds (or null to go back to the camera
- * fit). Called only from RaceFixedYDev.svelte, which only mounts under
- * `npm run dev` — it exists to settle PRD item P-08-1, which asks whether a
- * static y range reads better than the one that rides the record.
- * @param {[number, number] | null} fit [vMin, vMax], the literal scale domain
- */
-export function setRaceDevFixedYFit(fit) {
-	devFixedYFit = fit;
+function raceWindowYFit(camLeft, camRight) {
+	if (camRight >= RACE_Y_FIXED_FROM) return [raceYFixedMin, RACE_Y_FIXED_MAX];
+	const fit = raceCameraYFit(camLeft, camRight);
+	if (camRight <= RACE_Y_FIXED_FADE) return fit;
+	const t =
+		(camRight - RACE_Y_FIXED_FADE) / (RACE_Y_FIXED_FROM - RACE_Y_FIXED_FADE);
+	return [
+		fit[0] + (raceYFixedMin - fit[0]) * t,
+		fit[1] + (RACE_Y_FIXED_MAX - fit[1]) * t
+	];
 }
 
 /**
- * The axis for a camera window: the record over the years on screen at the top,
- * and the right edge's band (raceBandAt) of the chasing field under it, padded
- * so a dot riding an extreme doesn't touch the plot edge.
+ * The axis a camera window fits itself: the record over the years on screen at
+ * the top, and the right edge's band (raceBandAt) of the chasing field under it,
+ * padded so a dot riding an extreme doesn't touch the plot edge. What the chart
+ * ran on everywhere before the fixed window, and still runs on behind it.
  *
- * The window is still scanned for the record's LOW point, which is what pins the
- * top of the plot and guarantees nothing clips off it. What it deliberately does
- * NOT do is stretch to the record's HIGH point: over a wide camera the crown
- * itself moves (0.06 across raceRecent's 11 years, 0.57 across raceFull's
- * 1970s), and fitting to that reopens the axis onto the whole field.
- *
- * This is the whole y-scale rule. Because it reads the CAMERA rather than a
- * step's content extent, no step owns an axis and nothing has to be handed
- * across a transition — the axis pans with x, and an animated frame agrees with
- * the settle it lands on by construction rather than by passing the same
- * constant to both.
+ * The window is scanned for the record's LOW point, which is what pins the top of
+ * the plot and guarantees nothing clips off it. What it deliberately does NOT do
+ * is stretch to the record's HIGH point: over a wide camera the crown itself
+ * moves (0.57 across raceFull's 1970s), and fitting to that reopens the axis onto
+ * the whole field.
  *
  * @returns {[number, number]} the padded scale domain [vMin, vMax]
  */
-function raceWindowYFit(camLeft, camRight) {
-	// DEV: the fixed-axis panel's bounds ARE the domain — taken before the pad, so
-	// what its two sliders read is exactly what the plot's edges mean.
-	if (devFixedYFit) return devFixedYFit;
+function raceCameraYFit(camLeft, camRight) {
 	// both fractional edges, then every whole year between them (<= 11 of them at
 	// any viewport width, so this is nothing per frame)
 	let lo = Math.min(raceAnchorAt(camLeft), raceAnchorAt(camRight));
@@ -1388,8 +1443,11 @@ const params = (s) => s.raceView;
 // resting playhead defaults to its extent's end, so the dots land on the plot's
 // right edge with no dead strip — unless the step pins its camera by the left
 // edge instead, as raceFuture does (see RACE_FUTURE_TAIL_PX).
+// Shares its first year with RACE_Y_FIXED_FROM, which is what puts this step's
+// whole camera range inside the fixed window: the rewind pans back to 2006 and
+// the reader can pan on to the extent's own front, and neither moves the axis.
 export const RACE_RECENT_EXTENT = /** @type {[number, number]} */ ([
-	2004,
+	RACE_Y_FIXED_FROM,
 	RACE_DATA_END
 ]);
 export const RACE_FULL_EXTENT = /** @type {[number, number]} */ ([

@@ -496,7 +496,6 @@
 	// effect). Always 0 in a build, where the tuning panel doesn't exist.
 	let lastBandRev = 0;
 	let lastPxRev = 0;
-	let lastFixedYRev = 0;
 	function layoutFor(name, w, h, layoutParams) {
 		// a race camera hold is a fresh continuous value every time the reader
 		// releases a pan, and each entry is ~0.8MB of Float64Array — never a cache
@@ -615,6 +614,15 @@
 	let prevLabelIds = new Set();
 
 	const overlay = $derived(OVERLAYS[stateName]);
+	// Scene identity for the axes and the takeover callout, which the template
+	// keys on to replay their mount fade. Every race step draws the same two axes
+	// off the same camera and recomputes them per frame through a pan, so the
+	// whole chapter is ONE scene here: keyed on stateName instead, stepping
+	// raceRecent -> raceFull remounted every tick and faded an identical axis back
+	// in from nothing, which is the only motion the reader saw at that step
+	// change. The overlay labels below solve the same problem by keying on their
+	// own text; ticks change too often for that, so they key on the scene.
+	const axesScene = $derived(STATE_RACE[stateName] ? "race" : stateName);
 	// the active state's race descriptor — its camera extent and the actors the
 	// step is about — or undefined off the race chapter, whose presence is what
 	// makes a step pannable
@@ -1697,11 +1705,6 @@
 			lastPxRev = story.racePxPerYearRev;
 			layoutCache.clear();
 		}
-		// DEV: same idea for RaceFixedYDev's fixed y-axis bounds.
-		if (import.meta.env.DEV && story.raceFixedYRev !== lastFixedYRev) {
-			lastFixedYRev = story.raceFixedYRev;
-			layoutCache.clear();
-		}
 		if (!canvas || !width || !height || !stateName) return;
 		// while the path animator/scrub loop owns the rAF, step aside: a genuine
 		// state change (Next) abandons it — dots tween on from wherever they are, so
@@ -2167,7 +2170,7 @@
 				</p>
 			{/if}
 		{/key}
-		{#key stateName}
+		{#key axesScene}
 			<!-- axes and the takeover ring are recomputed every frame during the race
 			     sweep/scrub animations (see writeRaceSweepFrame), so they stay
 			     pixel-accurate throughout and don't need to hide. Anything that comes
