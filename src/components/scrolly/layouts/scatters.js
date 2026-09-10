@@ -95,7 +95,7 @@ const avgScatter = (nodes, w, h, highlights) =>
 	});
 
 // by tmdb id, not QUIZ_IDS position: Portman/Kendrick are the worked example
-// for scatterCenters/concurrenceScatter/degScatter regardless of whether
+// for scatterCenters/degScatter regardless of whether
 // they're one of the quiz pairs, and this stays correct across data rebuilds
 const PORTMAN = idOf(524);
 const KENDRICK = idOf(84223);
@@ -169,23 +169,6 @@ function layoutScatterQuiz(nodes, w, h, _edges, params) {
 	});
 	return avgScatter(nodes, w, h, highlights);
 }
-
-// all six quiz actors as uniform marks (the prototype's single mark
-// family — no per-pair colour coding)
-const PAIR_HIGHLIGHTS = new Map(
-	QUIZ_IDS.map((id) => [id, { rgb: CROWD, r: 5.5 }])
-);
-
-const PAIR_LABELS = [...QUIZ_IDS];
-
-/** @type {import("../layout-shared.js").LayoutFn} */
-const layoutConcScatter = (nodes, w, h) =>
-	filmsScatter(nodes, w, h, {
-		yOf: (n) => n.conc,
-		invert: true, // lower concurrence = more new co-stars = better connected = up
-		tickStep: 0.1,
-		highlights: PAIR_HIGHLIGHTS
-	});
 
 // this step narrows the highlight to just the Portman/Kendrick pair from the
 // earlier scatter steps — every other dot stays in frame as plain crowd
@@ -384,6 +367,7 @@ const AVG_OVERLAY = {
 export const states = {
 	scatterCenters: {
 		layout: layoutScatterCenters,
+		title: "Films vs. remoteness",
 		labels: (params) => (params?.showPair ? [PORTMAN, KENDRICK] : [SLJ, CAGE]),
 		// the pair labels carry their metric, so they're too wide to sit beside
 		// their dots at the right edge of the cloud — they hang below (clamped)
@@ -425,6 +409,7 @@ export const states = {
 	},
 	scatterQuiz: {
 		layout: layoutScatterQuiz,
+		title: "Films vs. remoteness",
 		labels: (params) => {
 			const picks = params?.picks ?? {};
 			return QUIZ_PAIRS.flatMap((pair, i) =>
@@ -440,17 +425,9 @@ export const states = {
 		labelDirs: QUIZ_LABEL_DIRS,
 		overlay: AVG_OVERLAY
 	},
-	concurrenceScatter: {
-		layout: layoutConcScatter,
-		labels: PAIR_LABELS,
-		labelDirs: QUIZ_LABEL_DIRS,
-		overlay: {
-			xLabel: "Films (log scale)",
-			yLabel: "Fewer recurring co-stars →"
-		}
-	},
 	degScatter: {
 		layout: layoutDegScatter,
+		title: "Films vs. costar film count",
 		labels: [PORTMAN, KENDRICK],
 		// no labelDirs entry for either id: they fall back to hanging below the
 		// dot, which is what "only these two" calls for once the crowd is gone
@@ -472,6 +449,7 @@ export const states = {
 	},
 	scatterGenZ: {
 		layout: layoutScatterGenZ,
+		title: "Films vs. remoteness",
 		// plain names, no labelText: the win percentages that pick five of these
 		// seven are the simulation chapter's payoff, and printing them on the
 		// contenders' first appearance gives the ending away
