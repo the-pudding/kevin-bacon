@@ -189,6 +189,11 @@
 		/* let flown cards travel across the whole scatter */
 		overflow: visible;
 		pointer-events: none;
+		/* over the tap gutters: at phone width .quiz__cards stacks to a full-width
+		   column, so the cards run straight through both gutter bands. Free to
+		   lift because only .quiz__card takes pointer events — same idiom as
+		   ScrollyVisual's .hits and Index's .route. */
+		z-index: var(--z-tap-above);
 	}
 
 	/* blur the scatter behind the overlay only while a question is showing */

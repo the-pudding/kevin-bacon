@@ -17,6 +17,11 @@
 	--z-bottom: -1;
 	--z-base: 1;
 	--z-top: 10;
+	/* the story's tap gutters, and the controls that must stay reachable
+	   through them. Above --z-top because the race chart's dev tuners sit at 5
+	   and .tick-1980 at 1 — see the z ladder comment in Index.svelte */
+	--z-tap: 20;
+	--z-tap-above: 21;
 	--z-overlay: 100;
 	--z-modal: 1000;
 

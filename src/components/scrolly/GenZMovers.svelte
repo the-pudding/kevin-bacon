@@ -225,16 +225,24 @@
 	   row, so the ticks sit over the dots they label. On a row the grid is the
 	   button, not the li — the li also holds the unfolded breakdown, which spans
 	   the full width */
+	/* The name column keeps a floor as well as a share: the left tap gutter
+	   takes a sixth of this panel's width at phone size, and a flat 45% of what
+	   is left clipped almost every name to four characters. 9rem is what the
+	   longest names were getting before the gutters existed. On a wide viewport
+	   45% is the larger value and nothing changes. */
 	.axis,
 	.rows .row {
 		display: grid;
-		grid-template-columns: 45% 1fr;
+		grid-template-columns: max(45%, 9rem) 1fr;
 		align-items: center;
 		gap: 0.5rem;
 	}
 
+	/* Padding matched to .rows below so the axis ticks stay over the dumbbells.
+	   The 2.25rem top already left room the progress bar now sits in. */
 	.axis {
 		padding: 2.25rem 1rem 0.75rem;
+		padding-inline: var(--tap-gutter) 1rem;
 		font-size: 0.65rem;
 		color: var(--color-fg-light);
 	}
@@ -249,8 +257,27 @@
 		transform: translateX(-50%);
 	}
 
+	/* The one component that has to give the tap gutters real room rather than
+	   just out-stacking them. .row is a full-width <button> on a 45% / 1fr
+	   grid, so at phone width the left gutter would otherwise cover the entire
+	   rank-and-name column of all 99 rows — and this panel is opaque, so there
+	   is nothing to lift it above. (The rank ladder is deliberately NOT inset
+	   the same way: its rows carry no buttons, and squeezing them would change
+	   the four-band dot waffle the story is showing.) */
+	/* The one component that has to give the tap gutters real room rather than
+	   just out-stacking them: .row is a full-width <button> and this panel is
+	   opaque, so there is nothing to lift it above. Asymmetric on purpose —
+	   the left gutter would otherwise cover the rank and name, which is the
+	   part of a row the reader aims at, while the right gutter only overlaps
+	   the tail of the track, which invites no tap. Costs ~40px of track rather
+	   than half of every name.
+
+	   (The rank ladder is deliberately NOT inset the same way: its rows carry
+	   no buttons, so only drag-scrolling is affected, and squeezing them would
+	   change the four-band dot waffle the story is showing.) */
 	.rows {
 		padding: 0 1rem 0.5rem;
+		padding-inline: var(--tap-gutter) 1rem;
 		overflow-y: auto;
 		flex: 1;
 		--fade-top: 1.5rem;

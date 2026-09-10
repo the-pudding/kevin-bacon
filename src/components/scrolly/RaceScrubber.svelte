@@ -115,11 +115,18 @@
 		touch-action: pan-y;
 		cursor: ew-resize;
 	}
+	/* The one part of the scrubber that beats the tap gutters. .drag-surface
+	   above deliberately loses to them — panning is a centre-of-the-chart
+	   gesture — but the slider track runs the full width, and a tap on its far
+	   end is how the reader jumps to the earliest or latest year. Needs
+	   position for the z-index to apply. */
 	.control {
 		display: flex;
 		align-items: center;
 		gap: 0.75rem;
 		padding: 0 1rem 0.5rem;
+		position: relative;
+		z-index: var(--z-tap-above);
 	}
 	.control :global(.bits-slider) {
 		flex: 1 1 auto;

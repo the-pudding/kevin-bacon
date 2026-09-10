@@ -6,7 +6,7 @@
 	 * One story step: prose in the slot, visual state declared alongside it.
 	 * Registers itself in document order with the "scrolly-steps" context, so
 	 * the parent can map the active step index back to a layout state. Only the
-	 * active step's prose renders (the Wizard shows one step at a time);
+	 * active step's prose renders (the story shows one step at a time);
 	 * presentation is left to the parent's step container.
 	 *
 	 * `panel` is an optional snippet rendered *over the canvas* (not in the step

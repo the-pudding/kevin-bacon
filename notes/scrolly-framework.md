@@ -5,12 +5,15 @@ data (28 steps, 20 states across Present/Past/Future) and awaiting Owen's
 review pass. This documents the framework in `src/components/scrolly/` so a
 fresh session (or collaborator) can pick it up.
 
-> **Naming note (2026-07-12).** The story is no longer scroll-driven: the
-> Scrolly mechanism was replaced by a headless prev/next **Wizard**
-> (`helpers/Wizard.svelte` — buttons + arrow keys) that advances the same
-> 0-based step index. Only the mechanism setting the active step changed; the
-> visual framework below is driven purely by that index. The "scrolly" in
-> folder/file/context names is historical and kept to avoid churn.
+> **Naming note (2026-07-12, revised 2026-09-10).** The story is no longer
+> scroll-driven: the Scrolly mechanism was replaced by a step index the reader
+> advances themselves. That driver was briefly a prev/next Wizard; it is now
+> **`scrolly/TapNav.svelte`** — tap gutters at the far left and right edges,
+> plus ArrowLeft/ArrowRight — with **`scrolly/StepProgress.svelte`** showing
+> position as a chapter-segmented dot bar. Only the mechanism setting the
+> active step has ever changed; the visual framework below is driven purely by
+> that index. The "scrolly" in folder/file/context names is historical and kept
+> to avoid churn.
 
 ## What it is
 
@@ -36,7 +39,8 @@ line's P50/P10 toggle) re-run the current layout via params — see
 | `src/components/scrolly/states.js`            | Thin aggregator: merges every chapter's `states` object into one registry and derives the public `STATES`/`STATE_LABELS`/`STATE_PARAMS`/`STATE_PULSE`/`OVERLAYS` exports from it, plus `STATE_TRACKED`, `INTERACTIVE_IDS`, and the `nodeName`/`nodeRank`/`nodeAvgDistance` lookups. This is still the only module other files import from.                                                                                                                                                                                                                                                                                                                                                                |
 | `src/components/scrolly/Step.svelte`          | One story step: prose in the slot, visual state declared on the tag (`<Step state="lone">…</Step>`). Calls `register({ state, params, panel })` in document order on the `"scrolly-steps"` context provided by `Index.svelte`; renders its prose only while active — no hand-numbered step indices anywhere. `panel` is an optional snippet rendered over the canvas while the step is active (see "Exception" under interaction patterns).                                                                                                                                                                                                                                                               |
 | `src/components/scrolly/Chapter.svelte`       | A chapter card: a step whose whole content is a title (`<Chapter state="chapterCenters" title="…" />`). Registers `{ state, chapter: { title } }` the same way, but renders **nothing** — see "Chapter cards" below.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
-| `src/components/helpers/Wizard.svelte`        | The step driver: headless Previous/Next buttons + ArrowLeft/ArrowRight advancing a bindable 0-based `value`, which `Index.svelte` maps through `stepConfigs` to the active state/params.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| `src/components/scrolly/TapNav.svelte`        | The step driver: two tap gutters running the full height of the layout at its far edges, plus ArrowLeft/ArrowRight. Both call `go()` on the `"scrolly-steps"` context, so every move runs through `Index.svelte`'s `navigate()` gate. Gutters rather than a full-bleed tap split because the middle of the canvas carries the story's own interactions; anything that must stay tappable _through_ a gutter is lifted to `--z-tap-above` (the ladder is commented on `.scrolly-layout`). They carry no arrow or marking — the press tint is the only feedback, so nothing competes with the charts.                                                                                                       |
+| `src/components/scrolly/StepProgress.svelte`  | Position, as one dot per step with the chapters divided by a hairline tick. Indicator only — it takes no pointer events, so a tap over it falls through to the gutter beneath; jumping would let a reader past the `beforenext` steps. Segments derive from any registered step carrying a `chapter`, so adding a step or a chapter re-segments the bar with no edit.                                                                                                                                                                                                                                                                                                                                     |
 | `src/components/scrolly/ScrollyVisual.svelte` | Canvas host wired into `Index.svelte` as `<ScrollyVisual state={…} />` (a state name, not a step number). Owns dpr scaling, resize, reduced-motion, the HTML overlay, and the `$effect` that reacts to state changes.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 
 JSDoc typedefs (`ActorNode`, `Edge`, `LayoutResult`, `LayoutFn`, `Tweener`) are in
@@ -105,7 +109,7 @@ second canvas writer would corrupt tween starts.
 `<Step state="…">` registers itself (in document order) with the
 `"scrolly-steps"` context, which builds the `stepConfigs` array —
 `{ state: string, params?: Object }` per step. `Index.svelte` passes the
-Wizard-selected step's `state` and `params` to `ScrollyVisual`; the props are
+active step's `state` and `params` to `ScrollyVisual`; the props are
 `undefined` for a beat on first client render (the visual mounts before the
 steps register), so ScrollyVisual guards on them. Steps needing _different
 visuals_ get _distinct state keys_ (lone vs networkIntro); `params` is for
@@ -912,8 +916,8 @@ Three rules:
    after each one reads out what the animation showed. Skipping those is not
    skipping a question, it is arriving at an answer with nothing behind it, so
    the step registers a `beforenext` gate (`Step.svelte` → `stepConfigs` →
-   `Index.svelte`'s `navigate()`, which Wizard lets return `false` to hold the
-   story where it is):
+   `Index.svelte`'s `navigate()`, which the registry's `go()` lets return `false`
+   to hold the story where it is):
    - **`rewindBeforeNext`** asks for the pan and lets the move through. The
      rewind is choreographed to play _across_ the step change — that is what its
      own button does too — and ScrollyVisual drops the ask when the camera has
@@ -1016,15 +1020,24 @@ re-runs the layout effect with an identical params key, which lands in its
 catch-all and snaps the very reveal the measurement exists to aim.
 
 Also required before publish: a step-visibility analytics beacon — fire on
-`value` changes in `Index.svelte` (the wizard equivalent of the old per-step
+`value` changes in `Index.svelte` (the step-driver equivalent of the old per-step
 IntersectionObserver) so real reader drop-off is measurable — cheap now,
 impossible to retrofit meaningfully after launch.
 
 ## Known gaps / next steps
 
-- Step prose and the wizard nav overlay the bottom of the full-height canvas
-  (`.scrolly-steps` in Index.svelte); layouts should keep essential marks out
-  of the bottom quarter where they sit.
+- Step prose overlays the bottom of the full-height canvas (`.scrolly-steps` in
+  Index.svelte); layouts should keep essential marks out of the bottom quarter
+  where it sits. The tap gutters run the full height of the layout, over the
+  card's left and right edges as well, so anything in the card the reader has
+  to hit must clear them — a new interactive control in a step card needs the
+  same. There are two ways: lift it to `--z-tap-above` (what the inline
+  InfoTerm triggers do), or inset it by `--tap-gutter` (what GuessRank's
+  controls do). Reach for the inset when a wrapper between the control and the
+  card forms a stacking context — `.rank-focus-text` animates opacity with
+  `both`, which traps a lift inside it at any z-index. The dot bar takes the
+  top `--progress-band` (30px), which every layout already clears (the highest
+  plot top is 40px).
 - A step card that grows can cover a layout's `hits`, and the card wins the tap.
   `networkIntro` used to be the one case: its caption walked every route in
   prose, which ran to several sentences and covered the four lowest actors at

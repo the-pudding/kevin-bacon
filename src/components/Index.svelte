@@ -1,10 +1,11 @@
 <script>
 	// @ts-check
 	import { setContext, onMount } from "svelte";
-	import Wizard from "$components/helpers/Wizard.svelte";
 	import ScrollyVisual from "$components/scrolly/ScrollyVisual.svelte";
 	import Step from "$components/scrolly/Step.svelte";
 	import Chapter from "$components/scrolly/Chapter.svelte";
+	import TapNav from "$components/scrolly/TapNav.svelte";
+	import StepProgress from "$components/scrolly/StepProgress.svelte";
 	import GuessRank from "$components/scrolly/GuessRank.svelte";
 	import RankBars from "$components/scrolly/RankBars.svelte";
 	import RaceScrubber from "$components/scrolly/RaceScrubber.svelte";
@@ -89,7 +90,14 @@
 	 */
 	const stepConfigs = $state([]);
 
-	/** @type {{ register: (config: StepConfig) => number, current: number|undefined, advance: () => void }} */
+	// which step each chapter opens on, in order — [3, 12, 20] today. Derived
+	// from the registry rather than written down, so inserting a step or a
+	// chapter re-segments the progress bar with no edit anywhere else.
+	const chapterStarts = $derived(
+		stepConfigs.reduce((out, c, i) => (c.chapter ? [...out, i] : out), [])
+	);
+
+	/** @type {{ register: (config: StepConfig) => number, current: number|undefined, count: number, chapterStarts: number[], chapter: string|null, advance: () => void, go: (to: number) => void, next: () => void, prev: () => void }} */
 	const scrollySteps = {
 		// one object rather than positional args: a step now has five optional
 		// kinds of registration and `register(s, undefined, undefined, c)` is a
@@ -98,9 +106,45 @@
 		get current() {
 			return value;
 		},
+		get count() {
+			return stepConfigs.length;
+		},
+		get chapterStarts() {
+			return chapterStarts;
+		},
+		get chapter() {
+			return stepConfigs[value ?? 0]?.chapter?.title ?? null;
+		},
+		// Deliberately NOT routed through go() below: this is the in-chapter
+		// nudge a step's own control gives itself once its interaction is done
+		// (GuessRank on a correct guess or a give-up, RaceRewindStart's button,
+		// and the effect waiting on the simulation). Every one of them moves
+		// within a chapter, so none crosses a transition navigate() cares
+		// about — and sending them through go() would re-fire `beforenext` on
+		// the very step whose button just fired it.
 		advance: () => {
 			if (value < stepConfigs.length - 1) value += 1;
-		}
+		},
+		/**
+		 * The reader's own navigation — the tap gutters and the arrow keys both
+		 * land here, so everything navigate() prepares happens for a tap exactly
+		 * as it did for the Previous/Next buttons this replaced.
+		 *
+		 * navigate() runs with the destination index *before* `value` changes, so
+		 * it can compare against the current `value` to know the direction and
+		 * prepare state the destination step reads on its first render (a
+		 * post-render $effect is too late for anything that mounts with the step).
+		 * Returning `false` from it holds the story where it is — for a step that
+		 * answers the press by playing the visual the reader hasn't seen yet and
+		 * moves them on itself once it has.
+		 */
+		go(to) {
+			if (to < 0 || to > stepConfigs.length - 1) return;
+			if (navigate(to) === false) return;
+			value = to;
+		},
+		next: () => scrollySteps.go(value + 1),
+		prev: () => scrollySteps.go(value - 1)
 	};
 	setContext("scrolly-steps", scrollySteps);
 
@@ -218,7 +262,7 @@
 	// story.quizRevealed as it mounts, and a post-render $effect would leave it
 	// painting the blurred question for a frame before being told not to.
 	//
-	// Returns false to hold the story where it is (see Wizard's `onnavigate`).
+	// Returns false to hold the story where it is (see the registry's `go`).
 	function navigate(to) {
 		// a step that answers Next by playing its own visual gets first refusal on
 		// the move, before any of the arrival state below is prepared for a step
@@ -445,13 +489,18 @@
 					<raceSpeedDev.default />
 				{/if}
 			</div>
-			<div class="scrolly-steps" bind:clientHeight={stepsHeight}>
-				<!-- shared over-canvas panels live here, NOT inside <Wizard> — a
-				     snippet declared directly inside a component's tags becomes a
-				     prop of that component (that's how single-step panels nest
-				     inside <Step> directly). The rank ladder is NOT one of them: it
-				     spans the step change into raceRecent, so it is mounted up beside
-				     the canvas instead (see the note there). -->
+			<div
+				class="scrolly-steps"
+				bind:clientHeight={stepsHeight}
+				aria-live="polite"
+			>
+				<!-- shared over-canvas panels live here, beside the <Step>s rather
+				     than inside one — a snippet declared directly inside a
+				     component's tags becomes a prop of that component (that's how
+				     single-step panels nest inside <Step> directly). The rank ladder
+				     is NOT one of them: it spans the step change into raceRecent, so
+				     it is mounted up beside the canvas instead (see the note
+				     there). -->
 				<!-- raceRecent's opening step: the Start button that asks for the
 				     backwards rewind - consent for the "remove information" move, same
 				     reasoning as simPanel below. Only that one step gets it; raceRecent's
@@ -499,18 +548,16 @@
 						<GenZMovers />
 					</div>
 				{/snippet}
-				<Wizard bind:value count={stepConfigs.length} onnavigate={navigate}>
-					<!-- PRESENT -->
-					<Step state="lone">
-						<p>
-							The "Six Degrees of Kevin Bacon" is a game where players try to
-							connect an actor to Kevin Bacon via movies they've starred in with
-							other Hollywood actors, aiming to reach him in six movies or
-							fewer.
-						</p>
-					</Step>
-					<Step state="networkIntro">
-						<!-- The tour's caption, over the canvas rather than in the card: it is
+				<!-- PRESENT -->
+				<Step state="lone">
+					<p>
+						The "Six Degrees of Kevin Bacon" is a game where players try to
+						connect an actor to Kevin Bacon via movies they've starred in with
+						other Hollywood actors, aiming to reach him in six movies or fewer.
+					</p>
+				</Step>
+				<Step state="networkIntro">
+					<!-- The tour's caption, over the canvas rather than in the card: it is
 						     naming a dot, so it sits with the constellation and is typed like
 						     the names on it. Whoever the tour (or the reader's tap) has picked
 						     out is named here, and the chart labels the same actors, so
@@ -527,316 +574,312 @@
 						     fraction of the canvas: the intro fit is width-limited on a tall
 						     phone, so the graph stops well short of its band and any fixed
 						     fraction leaves a hole under it. -->
-						{#snippet panel()}
-							{#if story.settled === "networkIntro" && introRoute}
-								<p
-									class="route"
-									bind:clientHeight={routeHeight}
-									style="top: {routeTop}px"
+					{#snippet panel()}
+						{#if story.settled === "networkIntro" && introRoute}
+							<p
+								class="route"
+								bind:clientHeight={routeHeight}
+								style="top: {routeTop}px"
+							>
+								<strong>{introRoute.name}</strong>:
+								<InfoTerm
+									title="{introRoute.name} → {introRoute.anchor}"
+									onclick={() => (story.introPinned = true)}
 								>
-									<strong>{introRoute.name}</strong>:
-									<InfoTerm
-										title="{introRoute.name} → {introRoute.anchor}"
-										onclick={() => (story.introPinned = true)}
-									>
-										{introRoute.count}
-										{#snippet info()}
-											<RouteFilms id={story.introFocus} />
-										{/snippet}
-									</InfoTerm>
-									away from {introRoute.anchor}.
-								</p>
-							{/if}
-						{/snippet}
-						<p>
-							The intuition is that Kevin Bacon is so prolific and well-known
-							that the game is a lot easier than if it were called the "Six
-							Degrees of John Doe", implying he's some sort of all-encompassing
-							center of Hollywood.
-						</p>
-					</Step>
-					<Step state="hopSeed">
-						<!-- The copy lands over the constellation pulling back: the network
+									{introRoute.count}
+									{#snippet info()}
+										<RouteFilms id={story.introFocus} />
+									{/snippet}
+								</InfoTerm>
+								away from {introRoute.anchor}.
+							</p>
+						{/if}
+					{/snippet}
+					<p>
+						The intuition is that Kevin Bacon is so prolific and well-known that
+						the game is a lot easier than if it were called the "Six Degrees of
+						John Doe", implying he's some sort of all-encompassing center of
+						Hollywood.
+					</p>
+				</Step>
+				<Step state="hopSeed">
+					<!-- The copy lands over the constellation pulling back: the network
 						     Bacon is in the middle of shrinks to a small thing as the line
 						     says he isn't the centre of Hollywood (see layouts/hop-bands.js).
 						     The bands' crowd is already parked behind it, invisible. -->
-						<p>
-							However, Kevin Bacon is <b>not</b> the center of Hollywood. Not
-							only that, he <b>never has been</b>, and almost certainly
-							<b>never will be</b>.
-						</p>
-					</Step>
+					<p>
+						However, Kevin Bacon is <b>not</b> the center of Hollywood. Not only
+						that, he <b>never has been</b>, and almost certainly
+						<b>never will be</b>.
+					</p>
+				</Step>
 
-					<!-- CHAPTER: THE CENTERS OF HOLLYWOOD -->
-					<!-- The card opens on hopSeed's own closing frame — the crowd is
+				<!-- CHAPTER: THE CENTERS OF HOLLYWOOD -->
+				<!-- The card opens on hopSeed's own closing frame — the crowd is
 					     already spread across the plot, so nothing in the field moves and
 					     the picture simply holds while the title lands. Only the intro
 					     fifteen travel, dissolving out of the constellation into the crowd,
 					     which is the line the reader has just read. It rests there
 					     drifting (the framework's one ambient loop) until they step on,
 					     and the field then sorts itself into the hop bands. -->
-					<Chapter state="chapterCenters" title="The centers of Hollywood" />
+				<Chapter state="chapterCenters" title="The centers of Hollywood" />
 
-					<Step state="hopBands">
+				<Step state="hopBands">
+					<p>
+						No doubt, he's well connected. With
+						<InfoTerm>
+							our dataset
+							{#snippet info()}
+								<p>
+									The corpus is the IMDb top 10,000 English-language feature
+									films by user vote count.
+								</p>
+								<p>
+									We then enrich the data with cast information from the TMDB
+									API so we can build the graph network. In total, there are
+									just over 169,000 actors in the dataset.
+								</p>
+								<p>The data for this was taken in ~March 2026.</p>
+								<p>
+									Massive tangent: this dataset even includes <a
+										href="https://www.imdb.com/name/nm8509587/">my bestie</a
+									>, who got a role in the 2018 film Tolkien, putting him two
+									movies away from Kevin Bacon!
+								</p>
+							{/snippet}
+						</InfoTerm>, you can get from any Hollywood actor to Kevin Bacon in
+						four movies or fewer, a.k.a. the <i>four</i> degrees of Kevin Bacon.
+					</p>
+					<p>
+						The reality is that Kevin Bacon isn't special in this respect; there
+						are 16,429 actors who can be reached by everyone within 4 movies,
+						and no one can be reached by everyone within 3.
+					</p>
+				</Step>
+				<Step state="hopBands">
+					<p>
+						We need a better way to measure the connectivity of actors in this
+						highly congested network. For this, we use how many movies on
+						average it takes to get to them from all other actors. In graph
+						theory, this is often referred to as <i>remoteness</i>.
+					</p>
+					<p>
+						For example, Kevin Bacon's remoteness is 2.28: an actor is 2.28
+						movies away on average. Smaller is better: the less remote you are,
+						the more likely you are to be the center of Hollywood.
+					</p>
+				</Step>
+				<Step state="rankFocus">
+					<div class="rank-focus-text">
 						<p>
-							No doubt, he's well connected. With
-							<InfoTerm>
-								our dataset
-								{#snippet info()}
-									<p>
-										The corpus is the IMDb top 10,000 English-language feature
-										films by user vote count.
-									</p>
-									<p>
-										We then enrich the data with cast information from the TMDB
-										API so we can build the graph network. In total, there are
-										just over 169,000 actors in the dataset.
-									</p>
-									<p>The data for this was taken in ~March 2026.</p>
-									<p>
-										Massive tangent: this dataset even includes <a
-											href="https://www.imdb.com/name/nm8509587/">my bestie</a
-										>, who got a role in the 2018 film Tolkien, putting him two
-										movies away from Kevin Bacon!
-									</p>
-								{/snippet}
-							</InfoTerm>, you can get from any Hollywood actor to Kevin Bacon
-							in four movies or fewer, a.k.a. the <i>four</i> degrees of Kevin Bacon.
+							As mentioned earlier, Kevin Bacon is not the center of Hollywood.
+							His remoteness of 2.28 puts him at #175 of all Hollywood actors.
+							Can you guess who #1 is?
 						</p>
-						<p>
-							The reality is that Kevin Bacon isn't special in this respect;
-							there are 16,429 actors who can be reached by everyone within 4
-							movies, and no one can be reached by everyone within 3.
-						</p>
-					</Step>
-					<Step state="hopBands">
-						<p>
-							We need a better way to measure the connectivity of actors in this
-							highly congested network. For this, we use how many movies on
-							average it takes to get to them from all other actors. In graph
-							theory, this is often referred to as <i>remoteness</i>.
-						</p>
-						<p>
-							For example, Kevin Bacon's remoteness is 2.28: an actor is 2.28
-							movies away on average. Smaller is better: the less remote you
-							are, the more likely you are to be the center of Hollywood.
-						</p>
-					</Step>
-					<Step state="rankFocus">
-						<div class="rank-focus-text">
-							<p>
-								As mentioned earlier, Kevin Bacon is not the center of
-								Hollywood. His remoteness of 2.28 puts him at #175 of all
-								Hollywood actors. Can you guess who #1 is?
-							</p>
-							<GuessRank />
-						</div>
-					</Step>
-					<Step state="rankReveal">
-						<p>
-							Yes, Samuel L. Jackson is the <i>center of Hollywood</i>, with a
-							remoteness of just 2.09. Willem Dafoe is second with 2.13, Robert
-							De Niro third with 2.14.
-						</p>
-						<p>
-							Female actors are under-represented here, taking only 16 of the
-							top 100 places. Nicole Kidman is the first female in at #21 with
-							2.19.
-						</p>
-					</Step>
+						<GuessRank />
+					</div>
+				</Step>
+				<Step state="rankReveal">
+					<p>
+						Yes, Samuel L. Jackson is the <i>center of Hollywood</i>, with a
+						remoteness of just 2.09. Willem Dafoe is second with 2.13, Robert De
+						Niro third with 2.14.
+					</p>
+					<p>
+						Female actors are under-represented here, taking only 16 of the top
+						100 places. Nicole Kidman is the first female in at #21 with 2.19.
+					</p>
+				</Step>
 
-					<Step
-						state="raceRecent"
-						panel={raceStartPanel}
-						beforenext={rewindBeforeNext}
-					>
-						<p>
-							We can repeat the process for calculating all actors' remoteness
-							and go backwards to create a time machine of centers. By using
-							completed calendar years, our time machine starts at the end of
-							2025.
-						</p>
-						<p>Remember, lower remoteness is better. Press 'Start' to begin.</p>
-					</Step>
-					<Step state="raceRecent">
-						<p>
-							Let's go back to where Samuel L. Jackson took the crown in 2006.
-							Interestingly, this was before any MCU movie took place, which
-							only made matters worse for his competitors.
-						</p>
-					</Step>
-					<Step state="raceFull" panel={racePanel}>
-						<p>
-							We can then view all centers of Hollywood since 1980. Use the
-							slider or drag to take a look around, or go next.
-						</p>
-					</Step>
+				<Step
+					state="raceRecent"
+					panel={raceStartPanel}
+					beforenext={rewindBeforeNext}
+				>
+					<p>
+						We can repeat the process for calculating all actors' remoteness and
+						go backwards to create a time machine of centers. By using completed
+						calendar years, our time machine starts at the end of 2025.
+					</p>
+					<p>Remember, lower remoteness is better. Press 'Start' to begin.</p>
+				</Step>
+				<Step state="raceRecent">
+					<p>
+						Let's go back to where Samuel L. Jackson took the crown in 2006.
+						Interestingly, this was before any MCU movie took place, which only
+						made matters worse for his competitors.
+					</p>
+				</Step>
+				<Step state="raceFull" panel={racePanel}>
+					<p>
+						We can then view all centers of Hollywood since 1980. Use the slider
+						or drag to take a look around, or go next.
+					</p>
+				</Step>
 
-					<Step state="raceFuture">
-						<p>
-							Now imagine us taking this into the future. How might we predict
-							who will take the crown from Samuel L. Jackson?
-						</p>
+				<Step state="raceFuture">
+					<p>
+						Now imagine us taking this into the future. How might we predict who
+						will take the crown from Samuel L. Jackson?
+					</p>
 
-						<p>
-							To do that, we need to find what moves an actor towards the
-							center.
-						</p>
-					</Step>
-					<Chapter
-						state="chapterCenters"
-						title="The makings of a center of Hollywood"
-					/>
-					<Step state="scatterCenters" params={{ showFilms: true }}>
-						<p>
-							The obvious one is film count. More films mean closer to the
-							center. Indeed, Samuel L. Jackson has been in far more films than
-							anyone else, 20 more than Nicolas Cage, who's next closest.
-						</p>
-					</Step>
-					<Step state="scatterCenters" params={{ showPair: true }}>
-						<p>
-							The relationship between film count and remoteness is strong, but
-							it doesn't explain it fully. Two actors can have the same film
-							counts but very different average distances. For example, Natalie
-							Portman and Anna Kendrick are shown here at the two extremes of
-							the data.
-						</p>
-					</Step>
-					<Step state="scatterCenters" params={{ showPair: true }}>
-						<p>
-							So what's different about them? Put simply: better costars.
-							Natalie Portman stars with more "big dogs" than Anna Kendrick.
-							They say in Hollywood "It's not what you know, it's who you know",
-							and it seems this is also true when explaining an actor's
-							remoteness.
-						</p>
-					</Step>
-					<Step
-						state="scatterCenters"
-						params={{ showPair: true, showCostars: true }}
-					>
-						<p>
-							For example, of the 250 most-connected actors from earlier,
-							Natalie Portman has worked with almost three times as many.
-						</p>
-					</Step>
-					<Step
-						state="scatterCenters"
-						params={{ showPair: true, showCostars: true }}
-					>
-						<p>
-							It would be too circular to use costars with low remoteness as our
-							measure. That's like saying "We think the most expensive houses
-							will be the ones with the highest price".
-						</p>
-					</Step>
-					<Step state="degScatter">
-						<p>
-							Instead we use the costar film count as a sort of proxy.
-							Concretely, this is an actor's 50 most prolific costars by number
-							of films, taken as an average. If you work with more "big dog"
-							actors compared to someone with the same film count, you'll almost
-							certainly be closer to the center of Hollywood than them.
-						</p>
-					</Step>
-					<Step state="scatterQuiz" panel={quizPanel}>
-						<p>
-							Let's test our knowledge with a few more examples. For these
-							actors with similar film counts, who do you think works with more
-							"big dogs" and is therefore closer to the center?
-						</p>
-					</Step>
-					<Chapter
-						state="chapterCenters"
-						title="Predicting the next center of Hollywood"
-					/>
-					<Step state="scatterGenZ">
-						<p>
-							We now have everything we need to predict Gen Z's Kevin Bacon
-							using film count and costar data. Our contenders are actors born
-							since 1997 who have been in at least 5 films.
-						</p>
-					</Step>
-					<Step state="scatterGenZ">
-						<p>
-							To predict future remoteness we need to model their trajectory by
-							stating what we think their film count and costar data will look
-							like at a certain point in time. To do this, we look at what has
-							happened to actors with similar stats in the past.
-						</p>
-					</Step>
-					<Step state="careerTrio">
-						<p>
-							Films first. Take Sydney Sweeney: she's been in 16 films since her
-							debut 15 years ago. At the same point in their career, Robert De
-							Niro had also racked up 16 films — and went on to have a brilliant
-							career totalling 87. By contrast, Chevy Chase reached the same
-							milestone at the same point — but only ever appeared in 27.
-						</p>
-					</Step>
-					<Step state="careerMany">
-						<p>
-							This means that whatever actor we use to model a Gen Z actor's
-							film trajectory can massively impact the results. For each actor,
-							we consider similar actors based on proximity to them, and
-							randomly select one weighted by how close they are.
-						</p>
-						<p>
-							By applying the same approach for costar film counts, we can start
-							predicting.
-						</p>
-					</Step>
-					<Step state="simRace" panel={simPanel} beforenext={simBeforeNext}>
-						<p>
-							To achieve a stable result, we'll run the simulation 10,000 times
-							and see who comes out on top. Press start to find out who wins.
-						</p>
-					</Step>
-					<!-- 
+					<p>
+						To do that, we need to find what moves an actor towards the center.
+					</p>
+				</Step>
+				<Chapter
+					state="chapterCenters"
+					title="The makings of a center of Hollywood"
+				/>
+				<Step state="scatterCenters" params={{ showFilms: true }}>
+					<p>
+						The obvious one is film count. More films mean closer to the center.
+						Indeed, Samuel L. Jackson has been in far more films than anyone
+						else, 20 more than Nicolas Cage, who's next closest.
+					</p>
+				</Step>
+				<Step state="scatterCenters" params={{ showPair: true }}>
+					<p>
+						The relationship between film count and remoteness is strong, but it
+						doesn't explain it fully. Two actors can have the same film counts
+						but very different average distances. For example, Natalie Portman
+						and Anna Kendrick are shown here at the two extremes of the data.
+					</p>
+				</Step>
+				<Step state="scatterCenters" params={{ showPair: true }}>
+					<p>
+						So what's different about them? Put simply: better costars. Natalie
+						Portman stars with more "big dogs" than Anna Kendrick. They say in
+						Hollywood "It's not what you know, it's who you know", and it seems
+						this is also true when explaining an actor's remoteness.
+					</p>
+				</Step>
+				<Step
+					state="scatterCenters"
+					params={{ showPair: true, showCostars: true }}
+				>
+					<p>
+						For example, of the 250 most-connected actors from earlier, Natalie
+						Portman has worked with almost three times as many.
+					</p>
+				</Step>
+				<Step
+					state="scatterCenters"
+					params={{ showPair: true, showCostars: true }}
+				>
+					<p>
+						It would be too circular to use costars with low remoteness as our
+						measure. That's like saying "We think the most expensive houses will
+						be the ones with the highest price".
+					</p>
+				</Step>
+				<Step state="degScatter">
+					<p>
+						Instead we use the costar film count as a sort of proxy. Concretely,
+						this is an actor's 50 most prolific costars by number of films,
+						taken as an average. If you work with more "big dog" actors compared
+						to someone with the same film count, you'll almost certainly be
+						closer to the center of Hollywood than them.
+					</p>
+				</Step>
+				<Step state="scatterQuiz" panel={quizPanel}>
+					<p>
+						Let's test our knowledge with a few more examples. For these actors
+						with similar film counts, who do you think works with more "big
+						dogs" and is therefore closer to the center?
+					</p>
+				</Step>
+				<Chapter
+					state="chapterCenters"
+					title="Predicting the next center of Hollywood"
+				/>
+				<Step state="scatterGenZ">
+					<p>
+						We now have everything we need to predict Gen Z's Kevin Bacon using
+						film count and costar data. Our contenders are actors born since
+						1997 who have been in at least 5 films.
+					</p>
+				</Step>
+				<Step state="scatterGenZ">
+					<p>
+						To predict future remoteness we need to model their trajectory by
+						stating what we think their film count and costar data will look
+						like at a certain point in time. To do this, we look at what has
+						happened to actors with similar stats in the past.
+					</p>
+				</Step>
+				<Step state="careerTrio">
+					<p>
+						Films first. Take Sydney Sweeney: she's been in 16 films since her
+						debut 15 years ago. At the same point in their career, Robert De
+						Niro had also racked up 16 films — and went on to have a brilliant
+						career totalling 87. By contrast, Chevy Chase reached the same
+						milestone at the same point — but only ever appeared in 27.
+					</p>
+				</Step>
+				<Step state="careerMany">
+					<p>
+						This means that whatever actor we use to model a Gen Z actor's film
+						trajectory can massively impact the results. For each actor, we
+						consider similar actors based on proximity to them, and randomly
+						select one weighted by how close they are.
+					</p>
+					<p>
+						By applying the same approach for costar film counts, we can start
+						predicting.
+					</p>
+				</Step>
+				<Step state="simRace" panel={simPanel} beforenext={simBeforeNext}>
+					<p>
+						To achieve a stable result, we'll run the simulation 10,000 times
+						and see who comes out on top. Press start to find out who wins.
+					</p>
+				</Step>
+				<!-- 
           1. GCM is the winner
           2. A typical sim doesn't get her close, only an over-performing sim gets her close
           3. The sim doesn't just confirm today's leaderboard, it reshuffles it
            -->
-					<Step state="simRace">
-						<p>
-							Chloë Grace Moretz is the most likely to be Gen Z's Kevin Bacon,
-							winning just over 10% of the simulations. It's by no means a
-							landslide: her median remoteness is 2.19 with a median projected
-							film count of 66, quite far away from Samuel L. Jackson's
-							stratospheric numbers.
-						</p>
-					</Step>
-					<Step state="simRace">
-						<p>
-							From our historical analysis, you'll recall lines dropping off as
-							actors stop appearing in so many films. We're counting on this
-							happening to Samuel L. Jackson, or a Marvel-sized cinematic
-							universe being spawned again.
-						</p>
-					</Step>
-					<!-- the list is a reading of the race chart it covers: the canvas does
+				<Step state="simRace">
+					<p>
+						Chloë Grace Moretz is the most likely to be Gen Z's Kevin Bacon,
+						winning just over 10% of the simulations. It's by no means a
+						landslide: her median remoteness is 2.19 with a median projected
+						film count of 66, quite far away from Samuel L. Jackson's
+						stratospheric numbers.
+					</p>
+				</Step>
+				<Step state="simRace">
+					<p>
+						From our historical analysis, you'll recall lines dropping off as
+						actors stop appearing in so many films. We're counting on this
+						happening to Samuel L. Jackson, or a Marvel-sized cinematic universe
+						being spawned again.
+					</p>
+				</Step>
+				<!-- the list is a reading of the race chart it covers: the canvas does
 					     not change for this step, the panel simply fades over it and back
 					     off again. simRace's replay is not re-armed by arriving here — it
 					     only ever runs off SimRunner's nonce. -->
-					<Step state="simRace" panel={moversPanel}>
-						<p>
-							Here are the full results, including how much they've moved their
-							current position by remoteness.
-						</p>
-						<p>Click on an actor to see their breakdown.</p>
-					</Step>
-					<!-- closes on an empty canvas: the chart dissolves where it stands
+				<Step state="simRace" panel={moversPanel}>
+					<p>
+						Here are the full results, including how much they've moved their
+						current position by remoteness.
+					</p>
+					<p>Click on an actor to see their breakdown.</p>
+				</Step>
+				<!-- closes on an empty canvas: the chart dissolves where it stands
 					     and the last words are left on their own. -->
-					<Step state="outro">
-						<p>
-							What is far more certain is that the first female center of
-							Hollywood is on the horizon, with 65% of the wins going to women —
-							though perhaps not for a few years yet.
-						</p>
-					</Step>
-				</Wizard>
+				<Step state="outro">
+					<p>
+						What is far more certain is that the first female center of
+						Hollywood is on the horizon, with 65% of the wins going to women —
+						though perhaps not for a few years yet.
+					</p>
+				</Step>
 			</div>
+			<StepProgress />
+			<TapNav />
 		</div>
 	</section>
 </svelte:boundary>
@@ -848,9 +891,31 @@
 		padding: 0 1rem;
 	}
 
+	/* --tap-gutter: how wide the two tap regions at the far edges are. A
+	   percentage, not vw: #scrolly is max-width 700px, so above that the layout
+	   stops growing while vw does not. Every consumer's containing block is
+	   this same box (.scrolly-visual and the panels are all inset:0
+	   descendants), so the percentage resolves identically wherever it is used
+	   — that is the fragile part worth knowing. Resolves to 56px below a 467px
+	   viewport and 80px at 700px+.
+
+	   --progress-band: the strip the dot bar occupies. The bar takes no pointer
+	   events and the gutters run the full height beneath it, so a tap over a
+	   dot steps the story like any other — the dots report position, they are
+	   never a jump target.
+
+	   The z ladder over this box, lowest first:
+	     auto  canvas, rank/movers/scrubber panels, chapter card, step card
+	     5     the dev-only race tuners
+	     20    --z-tap: the two tap gutters
+	     21    --z-tap-above: what must stay reachable through them — .hits,
+	           .quiz, .route, the scrubber's .control, .tick-1980, the dot bar
+	     100+  InfoTerm's scrim and panel, untouched */
 	.scrolly-layout {
 		position: relative;
 		height: var(--viewport-height);
+		--tap-gutter: clamp(56px, 12%, 88px);
+		--progress-band: 30px;
 	}
 
 	/* Full-height, stable canvas: its size must NOT track the step text height,
@@ -951,6 +1016,9 @@
 		/* the caption lies over the layout's tap regions; only the term inside it
 		   is meant to catch a click */
 		pointer-events: none;
+		/* a pointer-events:none overlay whose children opt in can be lifted over
+		   the tap gutters for free — same idiom as .hits and .quiz */
+		z-index: var(--z-tap-above);
 		animation: panel-in 0.4s ease both;
 	}
 
@@ -1016,5 +1084,16 @@
 		left: 0;
 		right: 0;
 		bottom: 0;
+	}
+
+	/* The tap gutters run the full height of the layout, so they lie over the
+	   left and right edges of the step card too. Prose gives those edges up
+	   (a tap there is a step, which is the point), but a control the reader has
+	   to hit does not: an InfoTerm trigger sits inline and lands wherever the
+	   line wraps puts it, including hard against an edge. GuessRank lifts its
+	   own controls the same way, in its own file. */
+	.scrolly-steps :global(.bits-infoterm) {
+		position: relative;
+		z-index: var(--z-tap-above);
 	}
 </style>

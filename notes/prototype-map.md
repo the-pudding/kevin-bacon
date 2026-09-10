@@ -57,9 +57,9 @@ These ship in this repo but have no counterpart story in the design sandbox:
 ## Orchestration & infra (this repo only)
 
 No prototype equivalent — Storybook renders stories in isolation; the story here
-is a driven wizard.
+is reader-driven, a step at a time.
 
 - `scrolly/states.js` — merges every layout's `states` into the `STATES`/`STATE_LABELS`/`STATE_PARAMS`/… registry `ScrollyVisual` consumes.
 - `scrolly/story.svelte.js` — shared interaction store the quiz/toggle/rank cards write and layouts read via `STATE_PARAMS`.
-- `scrolly/Step.svelte`, `helpers/Wizard.svelte` — prev/next step driver and per-step card wrapper.
+- `scrolly/Step.svelte`, `scrolly/TapNav.svelte`, `scrolly/StepProgress.svelte` — per-step card wrapper, the tap/arrow-key step driver, and the chapter-segmented progress bar.
   </content>

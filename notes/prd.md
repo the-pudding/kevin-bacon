@@ -15,7 +15,7 @@ owner: [matt@polygraph.cool](mailto:matt@polygraph.cool)).
 
   the `<Step state="…">` in `src/components/Index.svelte` the item maps to —
 
-  matched by description, since the wizard shows no step counter and Matt's
+  matched by description, since the walkthrough predates the progress bar and Matt's
 
   numbering is off by one against the current build from step 12 on.
 

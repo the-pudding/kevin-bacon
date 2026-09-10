@@ -2434,10 +2434,17 @@
 		pointer-events: none;
 	}
 
+	/* Lifted over the tap gutters. Free to do: the container is
+	   pointer-events:none and only .hit opts back in, so raising it hands the
+	   gutters back everything except the actor targets themselves — which
+	   overlap the gutter band at every viewport width (at 320px a target's
+	   centre sits inside it), so geometry alone could never have separated
+	   them. Same idiom as .quiz and .route. */
 	.hits {
 		position: absolute;
 		inset: 0;
 		pointer-events: none;
+		z-index: var(--z-tap-above);
 	}
 
 	.hit {
@@ -2541,8 +2548,10 @@
 		pointer-events: auto;
 		/* RaceScrubber's own full-bleed .drag-surface sits later in the DOM
 		   (Index.svelte mounts the panel after ScrollyVisual) and would
-		   otherwise intercept the click before it reaches this trigger */
-		z-index: 1;
+		   otherwise intercept the click before it reaches this trigger — as
+		   would the right-hand tap gutter, which is why this is now on the
+		   gutters' own layer rather than a bare 1 */
+		z-index: var(--z-tap-above);
 		font-size: 0.65rem;
 		color: var(--color-gray-500, #888);
 		text-shadow:

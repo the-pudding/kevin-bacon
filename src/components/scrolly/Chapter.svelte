@@ -5,7 +5,7 @@
 	/**
 	 * A chapter card: one step whose whole content is a title, over whatever the
 	 * canvas state it declares is doing behind it. It carries no prose, so the
-	 * step card below is empty and the wizard's Next stays live like any other
+	 * step card below is empty and tapping forward stays live like any other
 	 * step.
 	 *
 	 * Registers itself with the "scrolly-steps" context exactly as <Step> does —

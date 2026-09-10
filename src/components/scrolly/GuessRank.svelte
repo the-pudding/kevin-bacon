@@ -75,11 +75,20 @@
 </div>
 
 <style>
+	/* Inset clear of the tap gutters, which run the full height of the layout
+	   and would otherwise cover the search box's left third, the wrapped match
+	   buttons and the Give-up button (align-self: flex-start puts it flush in
+	   the left gutter). Padding rather than a z-index lift: the step card sits
+	   below the gutters and a step wrapper with a filling opacity animation
+	   (.rank-focus-text) forms a stacking context, so a lift on this element
+	   cannot escape it at any value. The prose above stays full width — a tap
+	   on its outer edge is meant to be a step. */
 	.guess {
 		display: flex;
 		flex-direction: column;
 		gap: 0.5rem;
 		margin-top: 0.75rem;
+		padding-inline: var(--tap-gutter);
 	}
 
 	input {
