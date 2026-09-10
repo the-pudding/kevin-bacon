@@ -244,6 +244,7 @@ const simParams = (s) => ({ runs: s.simRuns ?? 0, names: s.simNames ?? 0 });
 export const states = {
 	simRace: {
 		layout: layoutSimRace,
+		title: "Wins after 10,000 simulations",
 		// the names arrive one at a time part-way through the race (SIM_NAMES_AT +
 		// SIM_NAME_STAGGER), once the field has pulled apart. `names` is what brings
 		// them in during the replay itself, whose playhead the layout never sees —

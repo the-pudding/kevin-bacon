@@ -918,15 +918,26 @@
 		height: var(--viewport-height);
 		--tap-gutter: clamp(56px, 12%, 88px);
 		--progress-band: 30px;
+		/* space for each chart's title, between the dot bar and the canvas's own
+		   MARGIN-based top clearance (see layout-shared.js) */
+		--title-band: 26px;
 	}
 
 	/* Full-height, stable canvas: its size must NOT track the step text height,
 	   or a step change resizes the canvas and ScrollyVisual jumps (instant, no
 	   reveal) instead of tweening. Step text + nav overlay the bottom, where the
-	   layouts already keep clear. */
+	   layouts already keep clear.
+
+	   Top is offset by --title-band (rather than inset: 0) so each chart's
+	   title has room to sit below the dot bar (StepProgress, absolute over the
+	   same top edge) without overlapping either it or the chart's own content,
+	   which starts MARGIN px below this box's top edge. */
 	.scrolly-visual {
 		position: absolute;
-		inset: 0;
+		top: var(--title-band);
+		right: 0;
+		bottom: 0;
+		left: 0;
 	}
 
 	/* the rank chapter's "everyone else" list: sits below the space where

@@ -93,6 +93,14 @@ export const STATES = Object.fromEntries(
 export const STATE_LABELS = pick("labels");
 
 /**
+ * Per-state chart title, shown above the visual. Grouped by chart, not by
+ * step: every state belonging to the same chart (e.g. raceRecent/raceFull/
+ * raceFuture) repeats the same string.
+ * @type {Partial<Record<LayoutState, string>>}
+ */
+export const STATE_TITLE = pick("title");
+
+/**
  * Per-state selector plucking the interaction fields a layout consumes from
  * the shared `story` state (see story.svelte.js) merged with the step's
  * static params. Only states that react to interactions appear here.

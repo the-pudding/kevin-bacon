@@ -1687,6 +1687,7 @@ const RACE_FULL_LABELS = raceLabelSpec(RACE_FULL_PAN_FLOOR, RACE_DATA_END);
 export const states = {
 	raceRecent: {
 		layout: raceLayout(RACE_RECENT_STEP, RACE_RECENT_YCAP),
+		title: "The center of Hollywood, over time",
 		race: RACE_RECENT_STEP,
 		yCap: RACE_RECENT_YCAP,
 		// its camera runs between its own extent's ends — the arrival rewind parks
@@ -1699,6 +1700,7 @@ export const states = {
 	},
 	raceFull: {
 		layout: raceLayout(RACE_FULL_STEP, Infinity),
+		title: "The center of Hollywood, over time",
 		race: RACE_FULL_STEP,
 		// the whole chapter's span: its camera floor is the pan floor on a narrow
 		// viewport and later on a wide one (raceFullRestPlayhead), and the reader
@@ -1717,6 +1719,7 @@ export const states = {
 		// no yCap, same as raceFull: the whole cast, on a chart whose camera has
 		// run forward to the present with a fitted strip of future beside it
 		layout: raceLayout(RACE_FUTURE_STEP, Infinity),
+		title: "The center of Hollywood, over time",
 		race: RACE_FUTURE_STEP,
 		// raceFull's names exactly — the union over the arrival pan's range, which
 		// covers every year the forward leg crosses. See RACE_FULL_LABELS.

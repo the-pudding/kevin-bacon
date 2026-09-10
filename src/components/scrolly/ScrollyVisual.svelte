@@ -41,6 +41,7 @@
 		STATES,
 		OVERLAYS,
 		STATE_LABELS,
+		STATE_TITLE,
 		STATE_LABEL_TEXT,
 		STATE_LABEL_DIRS,
 		STATE_PICK,
@@ -2141,6 +2142,11 @@
 		{/each}
 	</div>
 	<div class="overlay">
+		{#key STATE_TITLE[stateName]}
+			{#if STATE_TITLE[stateName] && !chartVeiled}
+				<p class="chart-title fade-in">{STATE_TITLE[stateName]}</p>
+			{/if}
+		{/key}
 		{#key overlay?.xLabel}
 			{#if overlay?.xLabel && !chartVeiled}
 				<p class="x-label fade-in" style="top: {xLabelTop}px; bottom: auto">
@@ -2511,6 +2517,17 @@
 		font-family: var(--font-mono);
 		font-size: 0.75rem;
 		color: var(--color-gray-600, #666);
+	}
+
+	.chart-title {
+		/* .scrolly-visual (this component's containing box) is already offset
+		   down by --title-band, clearing the dot bar above it — this just
+		   centres the title within that reserved strip */
+		top: 4px;
+		left: 50%;
+		transform: translateX(-50%);
+		font-weight: 600;
+		color: var(--color-gray-800, #222);
 	}
 
 	.x-label {

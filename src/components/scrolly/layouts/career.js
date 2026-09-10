@@ -324,6 +324,7 @@ const CAREER_OVERLAY = {
 export const states = {
 	careerTrio: {
 		layout: careerLayout(false),
+		title: "Film count by career age",
 		labels: [SWEENEY, DENIRO, CHASE],
 		// the draw-on is authored for the forward arrival out of the Gen Z scatter;
 		// stepping back into it from careerMany gets a plain tween
@@ -339,6 +340,7 @@ export const states = {
 	},
 	careerMany: {
 		layout: careerLayout(true),
+		title: "Film count by career age",
 		// the comparisons have demoted into the cohort — only the hero is named
 		labels: [SWEENEY],
 		// the fan is authored to branch off the endpoint careerTrio just drew;

@@ -175,6 +175,7 @@ export const states = {
 	},
 	hopBands: {
 		layout: (n, w, h, e) => layoutHopBands(n, w, h, e, {}),
+		title: "The four degrees of Kevin Bacon",
 		labels: [ANCHOR_ID],
 		// The cascade is authored for the forward arrival off the chapter card,
 		// where the crowd is spread across the plot and sorts itself into rows;
