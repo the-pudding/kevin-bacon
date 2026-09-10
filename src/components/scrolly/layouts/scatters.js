@@ -411,7 +411,7 @@ export const states = {
 					? Object.fromEntries(
 							[PORTMAN, KENDRICK].map((id) => [
 								id,
-								`${nodes[id].name} · ${nodes[id].avgDistance.toFixed(2)} avg. distance`
+								`${nodes[id].name} · ${nodes[id].avgDistance.toFixed(2)} remoteness`
 							])
 						)
 					: Object.fromEntries(
