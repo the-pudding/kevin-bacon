@@ -15,47 +15,77 @@
 	 * of them, so the progress indicator is that, shrunk to a strip.
 	 */
 	import { getContext } from "svelte";
+	import { fade } from "svelte/transition";
+	import { MediaQuery } from "svelte/reactivity";
+	import {
+		CHAPTER_IN_MS,
+		CHAPTER_IN_DELAY_MS,
+		CHAPTER_OUT_MS
+	} from "$components/scrolly/chapterFade.js";
 
 	const steps = getContext("scrolly-steps");
 
 	// [0, ...chapterStarts] — the three chapter cards open at 3, 12 and 20, and
 	// the steps before the first one are a segment of their own rather than
-	// being folded into a chapter that hasn't been announced yet.
+	// being folded into a chapter that hasn't been announced yet. A segment's
+	// own `from` is a chapter's step index for every segment but the first, so
+	// the dot loop below skips it — the tick already marks the chapter break,
+	// and a chapter card isn't a step the bar should claim a dot for.
 	const segments = $derived.by(() => {
 		const starts = [0, ...steps.chapterStarts];
 		return starts.map((from, i) => ({
-			from,
+			from: i > 0 ? from + 1 : from,
 			to: (starts[i + 1] ?? steps.count) - 1
 		}));
 	});
+
+	// Crossfades the bar against the chapter card's own fade (Index.svelte):
+	// the bar leaves on the title's slow, delayed arrival, and returns on the
+	// title's quick exit — one transition, not two independent ones.
+	const reducedMotion = new MediaQuery(
+		"(prefers-reduced-motion: reduce)",
+		false
+	);
+	const barOut = $derived(
+		reducedMotion.current
+			? { duration: 0 }
+			: { duration: CHAPTER_IN_MS, delay: CHAPTER_IN_DELAY_MS }
+	);
+	const barIn = $derived(
+		reducedMotion.current ? { duration: 0 } : { duration: CHAPTER_OUT_MS }
+	);
 </script>
 
-<div class="step-progress" role="group" aria-label="Story progress">
-	<!-- the dots carry no information a screen reader can use; this line is the
-	     same fact, said once -->
-	<span class="sr-only"
-		>Step {steps.current + 1} of {steps.count}{steps.chapter
-			? `, ${steps.chapter}`
-			: ""}</span
+{#if !steps.chapter}
+	<div
+		class="step-progress"
+		role="group"
+		aria-label="Story progress"
+		in:fade={barIn}
+		out:fade={barOut}
 	>
-	<div class="segments" aria-hidden="true">
-		{#each segments as segment, i (segment.from)}
-			{#if i > 0}
-				<span class="tick"></span>
-			{/if}
-			<div class="segment">
-				{#each { length: segment.to - segment.from + 1 } as _, n}
-					{@const step = segment.from + n}
-					<span
-						class="dot"
-						class:past={step < steps.current}
-						class:current={step === steps.current}
-					></span>
-				{/each}
-			</div>
-		{/each}
+		<!-- the dots carry no information a screen reader can use; this line is
+		     the same fact, said once -->
+		<span class="sr-only">Step {steps.current + 1} of {steps.count}</span>
+		<div class="segments" aria-hidden="true">
+			{#each segments as segment, i (segment.from)}
+				{#if i > 0}
+					<span class="tick"></span>
+				{/if}
+				<div class="segment">
+					{#each { length: segment.to - segment.from + 1 } as _, n}
+						{@const step = segment.from + n}
+						<span
+							class="dot"
+							class:past={step < steps.current}
+							class:current={step === steps.current}
+						></span>
+					{/each}
+				</div>
+			{/each}
+		</div>
 	</div>
-</div>
+{/if}
 
 <style>
 	/* Absolute over the top of the canvas, never in flow: .scrolly-layout is

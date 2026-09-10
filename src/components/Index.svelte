@@ -31,6 +31,11 @@
 	import { MediaQuery } from "svelte/reactivity";
 	import { fade } from "svelte/transition";
 	import { cubicInOut } from "svelte/easing";
+	import {
+		CHAPTER_IN_MS,
+		CHAPTER_IN_DELAY_MS,
+		CHAPTER_OUT_MS
+	} from "$components/scrolly/chapterFade.js";
 
 	const STEP_PARAM = "step";
 	const isRankState = (s) => s === "rankFocus" || s === "rankReveal";
@@ -309,9 +314,6 @@
 	// dissolving into the crowd underneath reads first, and leaves briskly — it
 	// must be gone before the next step starts sorting the field into bands.
 	const activeChapter = $derived(stepConfigs[value ?? 0]?.chapter);
-	const CHAPTER_IN_MS = 600;
-	const CHAPTER_IN_DELAY_MS = 400;
-	const CHAPTER_OUT_MS = 300;
 	// cubicInOut is the same curve the dot tweener eases on (tween.js's
 	// easeCubicInOut), so the title arrives on the motion the canvas is already
 	// moving to
