@@ -31,7 +31,7 @@ Related backlogs, deliberately **not** merged in here:
 
 ## 1. Hop layers — step 4 (`hopBands`)
 
-- [ ] **P-04-1 · Chart title.** The hop-band chart has none.
+- [x] **P-04-1 · Chart title.** The hop-band chart has none.
 - [ ] **P-04-2 · Actor search.** Let the reader look up an actor and see which
   ```
   layer they land in. Matt: "might be neat" — biggest build of the four.
@@ -53,7 +53,7 @@ Related backlogs, deliberately **not** merged in here:
 
 ## 2. Rank ladder — steps 5–6 (`hopBands` → `rankFocus`)
 
-- [ ] **P-06-1 · Chart title.** e.g. "ranking of actors by average distance,
+- [x] **P-06-1 · Chart title.** e.g. "ranking of actors by average distance,
   ```
   2025".
   ```
@@ -91,7 +91,7 @@ Related backlogs, deliberately **not** merged in here:
 
 ## 3. Race chart — steps 8–9 (`raceRecent`)
 
-- [ ] **P-08-1 · Fixed y-axis range.** Hold y at a static range for
+- [x] **P-08-1 · Fixed y-axis range.** Hold y at a static range for
   ```
   readability. **Open thread in the doc** — Matt confirmed he means literal
   constant bounds, no animation, and is "not convinced this would be an
@@ -102,7 +102,7 @@ Related backlogs, deliberately **not** merged in here:
   the camera fit for two constant bounds, seeded top 2.05 / bottom 2.40.
   Off is the chart as it ships.
   ```
-- [ ] **P-08-2 · Chart title — and on every subsequent line chart.**
+- [x] **P-08-2 · Chart title — and on every subsequent line chart.**
 - [x] **P-09-1 · Auto-rewind.** If the reader never pressed "start", the chart
   ```
   should animate back to 2001–2006 on its own. **Shipped:** on Next rather
@@ -182,27 +182,25 @@ Related backlogs, deliberately **not** merged in here:
 
 ## 5. Films scatter — step 12 (`scatterCenters`, `showFilms`)
 
-- [ ] **P-12-1 · Label the x-axis** as film count.
+- [x] **P-12-1 · Label the x-axis** as film count.
 
 ## 6. Gen Z hand-off — steps 21–22 (`scatterGenZ`)
 
 - [ ] **P-21-1 · Return to the future line chart** (the step-11 chart) with SLJ
-  ```
+
   on it, instead of the scatter.
-  ```
+
 - [ ] **P-22-1 · Choose the second Gen-Z visual:** either repeat whatever
-  ```
+
   P-21-1 lands on, or put the Gen-Z actors onto the step-11 chart. Matt
+
   prefers the latter — its x-axis is already years, so the hand-off into
+
   `careerTrio` becomes trivial. P-21-1 and P-22-1 resolve together.
-  ```
 
 ## 7. Simulation payoff — step 27 (`simRace`)
 
-- [ ] **P-27-1 · Close on the future line chart, 2025–2030**, showing SLJ
-  ```
-  receding from #1.
-  ```
+- [ ] **P-27-1 · Close on the future line chart, 2025–2030**, showing SLJ receding from #1.
 
 ## 8. Out of scope
 
