@@ -318,7 +318,7 @@ function cohortEntryFrames(nodes, w, h) {
 
 const CAREER_OVERLAY = {
 	xLabel: "Career age (years)",
-	yLabel: "Films"
+	yLabel: "Film count"
 };
 
 export const states = {

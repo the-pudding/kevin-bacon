@@ -356,7 +356,7 @@ function layoutScatterGenZ(nodes, w, h) {
 // the y-axis direction is conveyed by the pinned "lower"/"higher" mini-labels
 // (see ScrollyVisual's .y-hint), not by an arrow in the title
 const AVG_OVERLAY = {
-	xLabel: "Films (log scale)",
+	xLabel: "Film count (log scale)",
 	yLabel: "Remoteness",
 	// these render inside writing-mode: vertical-rl + rotate(180deg) (see
 	// ScrollyVisual's .y-hint), which visually rotates → to ↑ and ← to ↓
@@ -443,7 +443,7 @@ export const states = {
 				])
 			),
 		overlay: {
-			xLabel: "Films (log scale)",
+			xLabel: "Film count (log scale)",
 			yLabel: "Costar film count average (log scale)"
 		}
 	},
