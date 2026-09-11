@@ -9,7 +9,7 @@ import {
 	NETWORK_HOP_DELAY_MS,
 	PULLBACK_ZOOM,
 	writeFieldCrowd,
-	fieldSpot,
+	cardSpot,
 	hopFractions,
 	hopShareLabels,
 	set,
@@ -74,14 +74,15 @@ function layoutHopBands(nodes, w, h, _edges, params) {
 			attrs,
 			n.id,
 			// Each dot keeps the COLUMN it stands in on the chapter card — the band
-			// only decides its row. Both are a uniform scatter across the same span,
-			// so the chart is unchanged from any other arrival; what changes is the
-			// arrival from the card, where an independent x would send twelve
-			// thousand dots off on twelve thousand unrelated diagonals and read as
-			// static. Sharing the x makes it fall: the universe rains straight down
-			// into rows, which is the only reading of this transition that says
-			// "sorted".
-			anchor ? w / 2 : fieldSpot(n.id, w, h)[0],
+			// only decides its row. The crowd's columns are a uniform scatter across
+			// the plot and the intro fifteen's are their places in the pulled-back
+			// constellation, so the chart is indistinguishable from any other
+			// arrival; what changes is the arrival from the card, where an
+			// independent x would send twelve thousand dots off on twelve thousand
+			// unrelated diagonals and read as static. Sharing the x makes it fall:
+			// the universe rains straight down into rows, which is the only reading
+			// of this transition that says "sorted".
+			anchor ? w / 2 : cardSpot(n.id, w, h)[0],
 			bandTop[n.hop] + (anchor ? bandH[0] / 2 : hash01(n.id, 4) * bandH[n.hop]),
 			anchor ? 10 : 3,
 			HOP_RGB[n.hop],

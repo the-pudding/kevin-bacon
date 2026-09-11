@@ -760,23 +760,26 @@ renders the card from `stepConfigs[value].chapter` inside a stable `{#if}` block
 which Svelte can transition both ways. That is the whole reason a chapter is not
 just a panel.
 
-**The card opens on the frame before it.** `chapterCenters` reuses
-`writeFieldCrowd` at `PULLBACK_ZOOM` — hopSeed's landed camera — so the field is
-byte-identical to the frame the reader was already looking at and nothing in it
-moves on arrival. The only actors that travel are the intro fifteen, dissolving
-out of the constellation into the crowd on the same `fieldSpot`, radius and grey
-as everyone else, Bacon included: the visual form of the line the reader has just
-read. Reusing the writer is what makes the identity true by construction; that is
-also why `fieldSpot`/`fieldEdgeAlpha` are extracted in `layout-shared.js` rather
-than the placement being written out twice.
+**The card opens on the frame before it, and nothing moves.** `chapterCenters`
+reuses `writeFieldCrowd` at `PULLBACK_ZOOM` — hopSeed's landed camera — so the
+field is byte-identical to the frame the reader was already looking at. The intro
+fifteen hold their places too: `cardSpot` gives them `introPosition` at that same
+`PULLBACK_ZOOM`, and only their radius, grey and edge ramp change to the crowd's,
+Bacon included. So the constellation dissolves into the crowd where it stands
+rather than scattering into it — the visual form of the line the reader has just
+read, without fifteen dots flying across the plot to say it. Reusing the writers
+is what makes the identity true by construction; that is also why
+`cardSpot`/`fieldSpot`/`fieldEdgeAlpha` are extracted in `layout-shared.js`
+rather than the placement being written out twice.
 
 **The handoff out is vertical.** `hopBands` takes each dot's x from the same
-`fieldSpot` the card places it at, so the band decides only its row. Both are a
-uniform scatter over the same span — the chart is unchanged from any other
-arrival (deciles stay 9.7–10.4%) — but from the card an independent x would send
-twelve thousand dots off on twelve thousand unrelated diagonals, which reads as
-static rather than as sorting. Sharing the x makes it fall: measured max |dx| is
-0 across all 12,066 visible dots, mean |dy| 160px. If a future layout wants to
+`cardSpot` the card places it at, so the band decides only its row. The crowd's
+columns are a uniform scatter over the plot and the fifteen's are their
+constellation columns — the chart is indistinguishable from any other arrival
+(deciles stay 9.7–10.4%) — but from the card an independent x would send twelve
+thousand dots off on twelve thousand unrelated diagonals, which reads as static
+rather than as sorting. Sharing the x makes it fall: measured max |dx| is 0
+across all 12,066 visible dots, mean |dy| 160px. If a future layout wants to
 receive that crowd the same way, share the x the same way.
 
 **The title is centred on the field's box, not the canvas's.** The crowd occupies
