@@ -841,9 +841,11 @@ two generated JSON files are committed — the app builds and deploys without an
 of the above.
 
 `data/top-250-hop-bands-with-hop-counts.csv` feeds `rankHopBands` (the rank
-chapter's per-actor hop breakdown for the top 250). It was missing for a while,
-so a full rebuild could not complete; it is present in the analysis repo now and
-every one of the build's inputs resolves.
+chapter's per-actor hop breakdown for the top 250). Unlike the rest of this
+script's inputs, it is committed in this repo's own `data/` directory rather
+than read from `ANALYSIS_REPO` — it was missing from the analysis repo for a
+while, so a full rebuild could not complete, and keeping a copy here avoids
+that failure mode recurring.
 
 `rankHopBands` is **full-corpus**: the counts sum to 162,229 (matching the
 sqlite's `reachable`) and their hop-weighted mean reproduces each actor's

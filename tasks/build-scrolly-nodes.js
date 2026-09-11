@@ -49,9 +49,9 @@ const sub = analysisRepo();
 const readJson = (p) => JSON.parse(fs.readFileSync(p, "utf8"));
 const design = (f) => readJson(path.join(sub, "design/data", f));
 const raw = (f) => readJson(path.join(sub, "data", f));
-const rawCsv = (f) => {
+const rawCsv = (p) => {
 	const [header, ...lines] = fs
-		.readFileSync(path.join(sub, "data", f), "utf8")
+		.readFileSync(p, "utf8")
 		.trim()
 		.split("\n")
 		.map((line) => line.trimEnd());
@@ -479,7 +479,9 @@ assert(
 // rank chapter's per-actor hop breakdown for the top 250 (mirrors the bacon
 // bucket blob above, one row per actor instead of one row for Bacon)
 const rankHopBands = {};
-for (const row of rawCsv("top-250-hop-bands-with-hop-counts.csv")) {
+for (const row of rawCsv(
+	path.join(root, "data/top-250-hop-bands-with-hop-counts.csv")
+)) {
 	const id = idOf(Number(row.pid));
 	assert(
 		nodes[id][5] === Number(row.rank),
