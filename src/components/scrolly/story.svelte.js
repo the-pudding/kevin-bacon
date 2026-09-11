@@ -2,10 +2,15 @@
 // "Interactive steps"). Step-card UI components write here; ScrollyVisual's
 // layout effect reads the fields relevant to the active state, so a change
 // re-runs the current layout with a short tween — an interaction is a param
-// update, not a step change. Every question is skippable: the step after an
-// interaction reveals its answer unconditionally. The two Start buttons are not
-// questions — the step's own Next presses them (see the request functions at the
-// bottom of this file, and Index.svelte's `beforenext` gates).
+// update, not a step change.
+//
+// Four of these interactions gate the story: the reader cannot be carried to
+// the step that reads out the answer without doing the thing (the rank guess,
+// the race rewind, the quiz, the simulation). Three of them are their own way
+// out — the control calls the step registry's `advance()` — and the fourth
+// (the quiz) opens a gate the reader's own Next then walks through. The fields
+// below are what those gates are asked about; see `gate` / `skipback` /
+// `advanceon` in Step.svelte.
 export const story = $state({
 	/** rank ladder: every actor the reader has guessed, in the order they picked
 	 * them. The last one is the current guess (what the list focuses on); the
@@ -17,17 +22,22 @@ export const story = $state({
 	/** pair quiz: per-pair pick, keyed by pair index → picked pid */
 	quizPicks: {},
 	/** pair quiz: the reader stepped *back* into the quiz step, so it shows every
-	 * pair revealed instead of re-asking — whether they answered or skipped. Set
-	 * (and cleared again on a forwards arrival) by Index's navigate(), which runs
-	 * before the step renders so PairQuiz reads the right value at mount */
+	 * pair revealed instead of re-asking. Set (and cleared again on a forwards
+	 * arrival) by Index's navigate(), which runs before the step renders so
+	 * PairQuiz reads the right value at mount. It also opens the quiz step's
+	 * forward gate — a reader who reloaded past the quiz and stepped back has a
+	 * revealed panel with nothing to answer, and states.js's `quizDone` is the
+	 * one predicate both the gate and the panel read, so they cannot disagree */
 	quizRevealed: false,
 	/** prediction scatter: false = film count alone, true = the full model */
 	predictInsights: false,
 	/** simulation race: how many of the 10,000 recorded runs have been replayed —
-	 * the chart's playhead. 0 = the reader hasn't pressed Run yet. Written once
+	 * the chart's playhead. 0 = the reader hasn't pressed Start yet. Written once
 	 * per run (0 or all of them), never per frame: the animation writes the canvas
 	 * buffers directly, and a per-frame write here would retarget the tweener
-	 * mid-run (see ScrollyVisual's playSimRun) */
+	 * mid-run (see ScrollyVisual's playSimRun). Also zeroed — with `simNames`, by
+	 * resetSimRace() below — when the reader walks into the chapter again, so the
+	 * step has a race to watch rather than the finished chart */
 	simRuns: 0,
 	/** simulation race: a replay is in flight. ScrollyVisual owns this write;
 	 * SimRunner only reads it, to disable its buttons */
@@ -123,10 +133,9 @@ export const story = $state({
 });
 
 // -- Asking for the two reader-triggered animations --------------------------
-// Both have two callers now: the Start button in the step's panel, and the same
-// step's Next gate, which presses it for a reader who reached for Next instead
-// (see Index.svelte's `beforenext` gates). The nonce protocol is written down
-// once, here, rather than retyped either side.
+// One caller each: the Start button in the step's own panel, which is the only
+// way past that step (see `gate` in Step.svelte). The nonce protocol is written
+// down once, here, rather than retyped at the call site.
 
 /** Ask ScrollyVisual for the race chapter's backwards pan (see raceRewindNonce).
  * ScrollyVisual decides whether there is any pan left to play. */
@@ -140,4 +149,16 @@ export function requestRaceRewind() {
 export function requestSimRun() {
 	story.simRuns = 0;
 	story.simRunNonce += 1;
+}
+
+/** Put the simulation race back to the state that asks to be started: no runs
+ * replayed and no winners named. Both fields together, because the two label
+ * selectors fall back to `simNames` whenever `simRuns` is below the threshold
+ * (see layouts/sim-race.js) — zeroing the playhead alone would draw all five
+ * winners on a chart collapsed back to the origin. Called from Index's
+ * navigate() on a forward arrival into the chapter from outside it; playSimRun
+ * zeroes `simNames` itself, which is why requestSimRun above need not. */
+export function resetSimRace() {
+	story.simRuns = 0;
+	story.simNames = 0;
 }

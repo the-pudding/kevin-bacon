@@ -19,9 +19,10 @@
 	 * (raceRecent's second, SLJ-since-2006 step) should come forward with it
 	 * instead of leaving the reader to scroll there themselves.
 	 *
-	 * Reaching for Next instead of this button does the same thing — the step
-	 * registers a gate that asks for the rewind on the reader's behalf, so the
-	 * pan can never be skipped past (see Index.svelte's `beforenext`).
+	 * And it is the ONLY way forward off that step — the reader's Next is
+	 * refused there (the step's `gate`, see Step.svelte), so the pan can never
+	 * be skipped past. advance() goes straight to the step index and bypasses
+	 * the gate, which is what lets this button out through it.
 	 */
 	import { getContext } from "svelte";
 	import Button from "$components/ui/Button.svelte";

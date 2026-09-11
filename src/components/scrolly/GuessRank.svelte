@@ -8,7 +8,9 @@
 	const steps = getContext("scrolly-steps");
 
 	// Guessing pans the rank ladder to the picked actor (a param update, not a
-	// step change); the next step reveals #1 regardless — fully skippable.
+	// step change). Naming #1 or giving up is the only way off this step — the
+	// reader's Next is refused there (the step's `gate`, see Step.svelte), and
+	// the advance() below bypasses it, so "Give up" is always the way out.
 	// Search is scoped to the same top-N actors RankBars renders, so every
 	// result here has a visible row to scroll to and highlight.
 	let query = $state("");

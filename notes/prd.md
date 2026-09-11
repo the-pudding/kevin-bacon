@@ -105,16 +105,18 @@ Related backlogs, deliberately **not** merged in here:
 - [x] **P-08-2 · Chart title — and on every subsequent line chart.**
 - [x] **P-09-1 · Auto-rewind.** If the reader never pressed "start", the chart
   ```
-  should animate back to 2001–2006 on its own. **Shipped:** on Next rather
-  than on a timer — pressing Next on the Start step asks for the same rewind
-  the button does and steps forward with it, so the pan can't be skipped and
-  the reader is never left reading "back to where SLJ took the crown in 2006"
-  off a chart still parked on 2025. A timer would have to fire while the
+  should animate back to 2001–2006 on its own. **Shipped:** not on a timer and
+  not on Next, but by closing the step — the reader's Next is refused on the
+  Start step, so Start is the only way on and it advances as it asks for the
+  pan. The reader is never left reading "back to where SLJ took the crown in
+  2006" off a chart still parked on 2025. A timer would have to fire while the
   reader is still reading the step (there is no scroll position to key it
   off), which is the one thing the chapter's consent gate exists to avoid.
-  The simulation's Start button (step 25) was the same trap and got the same
-  treatment, except that the move waits for the 10,000 runs to play before
-  advancing — see `beforenext` in `notes/scrolly-framework.md`.
+  The simulation's Start button (step 25) was the same trap and is gated the
+  same way, except that the run itself carries the reader on once the 10,000
+  runs have played. Stepping back off either payoff skips the Start step
+  rather than landing on it — see `gate` / `skipback` / `advanceon` in
+  `notes/scrolly-framework.md`.
   ```
 
 ## 4. The future band — step 11 (`raceFuture`)
@@ -186,9 +188,7 @@ Related backlogs, deliberately **not** merged in here:
 
 ## 6. Gen Z hand-off — steps 21–22 (`scatterGenZ`)
 
-- [ ] **P-21-1 · Return to the future line chart** (the step-11 chart) with SLJ
-
-  on it, instead of the scatter.
+- [ ] **P-21-1 · Return to the future line chart** (the step-11 chart) with SLJ on it, instead of the scatter.
 
 - [ ] **P-22-1 · Choose the second Gen-Z visual:** either repeat whatever
 

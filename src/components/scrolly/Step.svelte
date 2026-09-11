@@ -15,23 +15,44 @@
 	 * one visual should pass the same snippet reference so it survives the step
 	 * change without remounting (RankBars keeps its scroll position this way).
 	 *
-	 * `beforenext` runs when the reader presses Next (or ArrowRight) on this
-	 * step, before the step index moves — for a step whose visual only plays on
-	 * request, so that Next plays it rather than skipping past it. Return `false`
-	 * to hold the story here; the gate is then responsible for moving the reader
-	 * on itself (see Index.svelte's gates).
+	 * The three gating props below make a step and the one after it read as a
+	 * single beat: the reader cannot be carried to the payoff without doing the
+	 * thing, and cannot land back on the controls once they have.
+	 *
+	 * `gate` is asked before the reader's own Next (tap gutter or ArrowRight)
+	 * leaves this step; while it returns false the move is refused outright and
+	 * the right-hand gutter goes disabled. A step whose only way forward is its
+	 * own control passes a gate that never opens.
+	 *
+	 * `skipback` marks this step as one the reader passes *through* on the way
+	 * back — a backward move that would land here continues to the step before,
+	 * so an interaction's controls are never re-shown behind their own answer.
+	 *
+	 * `advanceon` is the step moving itself on: the parent watches it while this
+	 * step is active and advances once it returns true (the simulation's
+	 * end-of-run hand-off).
 	 *
 	 * @see notes/scrolly-framework.md
-	 * @type {{ state: import("./states.js").VisualState, params?: unknown, panel?: import("svelte").Snippet, beforenext?: () => boolean|void, children: import("svelte").Snippet }}
+	 * @type {{ state: import("./states.js").VisualState, params?: unknown, panel?: import("svelte").Snippet, gate?: () => boolean, skipback?: boolean, advanceon?: () => boolean, children: import("svelte").Snippet }}
 	 */
-	let { state: layoutState, params, panel, beforenext, children } = $props();
+	let {
+		state: layoutState,
+		params,
+		panel,
+		gate,
+		skipback,
+		advanceon,
+		children
+	} = $props();
 
 	const steps = getContext("scrolly-steps");
 	const index = steps.register({
 		state: layoutState,
 		params,
 		panel,
-		beforenext
+		gate,
+		skipback,
+		advanceon
 	});
 	const active = $derived(steps.current === index);
 </script>

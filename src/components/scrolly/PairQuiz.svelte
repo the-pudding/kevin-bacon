@@ -10,7 +10,7 @@
 	// `panel` snippet rendered over the canvas by Index.svelte (see
 	// notes/scrolly-framework.md "Exception").
 	import { story } from "./story.svelte.js";
-	import { INTERACTIVE_IDS, nodeName } from "./states.js";
+	import { INTERACTIVE_IDS, nodeName, quizDone } from "./states.js";
 	import { CROWD } from "./layout-shared.js";
 
 	/**
@@ -31,14 +31,14 @@
 	// the reader stepped back into this step — quizRevealed — or when every pair
 	// is answered; otherwise the first unanswered pair, which resumes a quiz left
 	// part-finished by stepping back to an earlier step and forward again.
+	//
+	// `quizDone` rather than that test spelled out here, because the step's
+	// forward gate asks the same question: a panel with nothing left to ask must
+	// be a step the gate lets the reader leave, or they are stuck on it.
 	const firstUnanswered = pairs.findIndex(
 		(_, idx) => story.quizPicks[idx] === undefined
 	);
-	let i = $state(
-		story.quizRevealed || firstUnanswered === -1
-			? pairs.length
-			: firstUnanswered
-	);
+	let i = $state(quizDone(story) ? pairs.length : firstUnanswered);
 	let phase = $state("asking"); // "asking" | "resolving"
 
 	/** @type {HTMLButtonElement[]} */

@@ -243,6 +243,16 @@ export const INTERACTIVE_IDS = {
 	quiz: QUIZ_PAIRS
 };
 
+/**
+ * Is there anything left for the pair quiz to ask? Both step 19's forward gate
+ * (Index.svelte) and PairQuiz's own starting cursor read this, so the gate can
+ * never hold the reader on a panel that has nothing left to answer — which is
+ * what a reload straight past the quiz produces: `quizRevealed` with no picks.
+ */
+export const quizDone = (s) =>
+	s.quizRevealed ||
+	INTERACTIVE_IDS.quiz.every((_, i) => s.quizPicks[i] !== undefined);
+
 /** name/rank lookups for the interactive step-card components */
 export const nodeName = (id) => rawNodes.nodes[id][1];
 export const nodeRank = (id) => rawNodes.nodes[id][5];

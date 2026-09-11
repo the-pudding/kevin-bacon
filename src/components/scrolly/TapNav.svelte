@@ -3,10 +3,14 @@
 	/**
 	 * The story's navigation: two narrow full-height tap gutters at the far left
 	 * and right of the layout, plus ArrowLeft/ArrowRight. Both go through the
-	 * registry's `go()`, so Index's navigate() gate — the `beforenext` steps,
-	 * quizRevealed, rankHandoff — runs for a tap exactly as it did for the
-	 * Previous/Next buttons this replaced ("No question may gate the Next
-	 * button", notes/scrolly-framework.md).
+	 * registry's `go()`, so a tap gets exactly what a key does: the gated steps'
+	 * refusal, the backward skip past them, and everything Index's navigate()
+	 * prepares on arrival (see notes/scrolly-framework.md).
+	 *
+	 * The next gutter goes disabled while the active step's gate is shut, so a
+	 * step that is holding the reader reads as held rather than as a dead tap —
+	 * the gutters carry no marking of their own, so the missing press tint is
+	 * the only signal available.
 	 *
 	 * Gutters, not a full-bleed left/right split: the middle of the canvas is
 	 * where the story's own interactions live (the race scrubber's drag, the
@@ -20,6 +24,10 @@
 
 	const atStart = $derived(steps.current <= 0);
 	const atEnd = $derived(steps.current >= steps.count - 1);
+	// $derived, not read inline: the gate closures read `story`, and those reads
+	// have to land in a tracked scope for the gutter to re-enable the moment the
+	// reader answers
+	const held = $derived(atEnd || steps.nextBlocked);
 
 	function onKeydown(e) {
 		const el = e.target;
@@ -77,7 +85,7 @@
 	type="button"
 	class="tap-gutter next"
 	aria-label="Next step"
-	disabled={atEnd}
+	disabled={held}
 	onpointerdown={onPointerDown}
 	onclick={(e) => onTap(e, "next")}
 ></button>

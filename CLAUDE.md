@@ -31,8 +31,8 @@ This is The Pudding's `svelte-starter` template (SvelteKit 2 + Svelte 5 with run
 - **Micro-CMS**: `google.config.js` lists Google Docs/Sheets to pull in via `npm run gdoc`, parsed with ArchieML and written into `src/data`.
 - **Styling**: global styles live in `src/styles` and are pulled into `app.css`; design tokens are authored in `properties/` and compiled to CSS/JS via Style Dictionary (`npm run style`).
 - **Component layers** under `src/components/`:
-  - `scrolly/` — the story's object-constancy visual framework (canvas dots tweening between per-step layout states, driven by the active step index from `helpers/Wizard.svelte`). Architecture and contracts documented in `notes/scrolly-framework.md` — read that before touching these files.
-  - `helpers/` — interaction helpers; `Wizard.svelte` (the story's prev/next step driver) and the CMS helpers are in — most others live under `helpers/migrate/` and `layercake/migrate/` as unmigrated starter templates.
+  - `scrolly/` — the story's object-constancy visual framework (canvas dots tweening between per-step layout states, driven by the active step index from `scrolly/TapNav.svelte` through the step registry in `Index.svelte`). Architecture and contracts documented in `notes/scrolly-framework.md` — read that before touching these files.
+  - `helpers/` — interaction helpers; the CMS helpers and `Tip.svelte` are in — most others live under `helpers/migrate/` and `layercake/migrate/` as unmigrated starter templates. The story's step driver is not here: it is `scrolly/TapNav.svelte` (tap gutters + arrow keys) against the registry `Index.svelte` builds.
   - `layercake/` — LayerCake chart primitives (requires installing the `layercake` package before use).
   - `ui/` — bits-ui-based headless UI wrappers (Button, Checkbox, InfoTerm, Select, Slider, Switch, ToggleGroup). Each is styled from a global `src/styles/ui.<name>.css` that must be `@import`ed by `src/styles/ui.css`, not from a scoped `<style>` block.
 - `src/runes/` — Svelte 5 rune-based state utilities (`useWindowDimensions`, `useClipboard`, `useFetcher`, `useWindowFocus`); the `runed` package is also preloaded for more.

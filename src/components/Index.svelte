@@ -1,6 +1,6 @@
 <script>
 	// @ts-check
-	import { setContext, onMount } from "svelte";
+	import { setContext, onMount, untrack } from "svelte";
 	import ScrollyVisual from "$components/scrolly/ScrollyVisual.svelte";
 	import Step from "$components/scrolly/Step.svelte";
 	import Chapter from "$components/scrolly/Chapter.svelte";
@@ -15,11 +15,8 @@
 	import PairQuiz from "$components/scrolly/PairQuiz.svelte";
 	import useWindowDimensions from "$runes/useWindowDimensions.svelte.js";
 	import urlParams from "$utils/urlParams.js";
-	import {
-		story,
-		requestRaceRewind,
-		requestSimRun
-	} from "$components/scrolly/story.svelte.js";
+	import { story, resetSimRace } from "$components/scrolly/story.svelte.js";
+	import { quizDone } from "$components/scrolly/states.js";
 	import { routeSummary } from "$components/scrolly/intro-routes.js";
 	import {
 		CYCLE_ORDER,
@@ -40,6 +37,10 @@
 	const STEP_PARAM = "step";
 	const isRankState = (s) => s === "rankFocus" || s === "rankReveal";
 	const isQuizState = (s) => s === "scatterQuiz";
+
+	// A gate that never opens: the step's own control is the only way forward,
+	// so the reader's Next has nothing to do but wait for them to press it.
+	const NEVER = () => false;
 
 	// current step lives in the URL query (?step=N) so each tab keeps its own
 	// place across refreshes independently — unlike localStorage, which is
@@ -88,9 +89,11 @@
 	 * Filled by each <Step> / <Chapter> as it mounts, in document order — the
 	 * single source of truth mapping step index → visual state (+ per-step
 	 * params, plus an optional `panel` snippet rendered over the canvas while the
-	 * step is active, a `beforenext` gate the reader's Next press goes through,
-	 * or `chapter` for a chapter card's title).
-	 * @typedef {{ state: import("$components/scrolly/states.js").VisualState, params?: Object, panel?: import("svelte").Snippet, beforenext?: () => boolean|void, chapter?: { title: string } }} StepConfig
+	 * step is active, the three gating fields documented on Step.svelte — `gate`
+	 * (the reader's Next is refused while it returns false), `skipback` (a
+	 * backward move passes through this step) and `advanceon` (the step carries
+	 * the reader on itself) — or `chapter` for a chapter card's title).
+	 * @typedef {{ state: import("$components/scrolly/states.js").VisualState, params?: Object, panel?: import("svelte").Snippet, gate?: () => boolean, skipback?: boolean, advanceon?: () => boolean, chapter?: { title: string } }} StepConfig
 	 * @type {StepConfig[]}
 	 */
 	const stepConfigs = $state([]);
@@ -102,9 +105,26 @@
 		stepConfigs.reduce((out, c, i) => (c.chapter ? [...out, i] : out), [])
 	);
 
-	/** @type {{ register: (config: StepConfig) => number, current: number|undefined, count: number, chapterStarts: number[], chapter: string|null, advance: () => void, go: (to: number) => void, next: () => void, prev: () => void }} */
+	// Which steps own a dot on the progress bar. A chapter card isn't a step the
+	// bar claims a dot for, and neither is a gated interaction step: it and the
+	// step that reads out its answer are one beat to the reader (they cannot
+	// arrive at the second without passing the first, and stepping back skips
+	// straight over it), so they share the successor's dot rather than making
+	// the bar tick twice for one move. Derived, like chapterStarts — nothing
+	// downstream counts steps by hand.
+	const dotSteps = $derived(
+		stepConfigs.reduce(
+			(out, c, i) => (c.chapter || c.skipback ? out : [...out, i]),
+			[]
+		)
+	);
+	const dotStep = $derived(
+		stepConfigs[value ?? 0]?.skipback ? (value ?? 0) + 1 : (value ?? 0)
+	);
+
+	/** @type {{ register: (config: StepConfig) => number, current: number|undefined, count: number, chapterStarts: number[], chapter: string|null, nextBlocked: boolean, dotSteps: number[], dotStep: number, advance: () => void, go: (to: number) => void, next: () => void, prev: () => void }} */
 	const scrollySteps = {
-		// one object rather than positional args: a step now has five optional
+		// one object rather than positional args: a step now has six optional
 		// kinds of registration and `register(s, undefined, undefined, c)` is a
 		// call nobody can read
 		register: (config) => stepConfigs.push(config) - 1,
@@ -120,33 +140,57 @@
 		get chapter() {
 			return stepConfigs[value ?? 0]?.chapter?.title ?? null;
 		},
+		// the active step's gate is shut, so the reader's Next has nothing to do —
+		// TapNav reads this to disable the right-hand gutter, so a held step reads
+		// as held rather than as a dead tap
+		get nextBlocked() {
+			const gate = stepConfigs[value ?? 0]?.gate;
+			return !!gate && !gate();
+		},
+		get dotSteps() {
+			return dotSteps;
+		},
+		get dotStep() {
+			return dotStep;
+		},
 		// Deliberately NOT routed through go() below: this is the in-chapter
 		// nudge a step's own control gives itself once its interaction is done
 		// (GuessRank on a correct guess or a give-up, RaceRewindStart's button,
-		// and the effect waiting on the simulation). Every one of them moves
-		// within a chapter, so none crosses a transition navigate() cares
-		// about — and sending them through go() would re-fire `beforenext` on
-		// the very step whose button just fired it.
+		// and the effect watching a gated step's `advanceon`). Every one of them
+		// moves within a chapter, so none crosses a transition navigate() cares
+		// about — and sending them through go() would put them straight into the
+		// gate their own press exists to answer.
 		advance: () => {
 			if (value < stepConfigs.length - 1) value += 1;
 		},
 		/**
 		 * The reader's own navigation — the tap gutters and the arrow keys both
-		 * land here, so everything navigate() prepares happens for a tap exactly
-		 * as it did for the Previous/Next buttons this replaced.
+		 * land here, so the gate and everything navigate() prepares happen for a
+		 * tap exactly as they do for a key.
 		 *
-		 * navigate() runs with the destination index *before* `value` changes, so
-		 * it can compare against the current `value` to know the direction and
+		 * Two things sit between the press and the move, in this order:
+		 *
+		 * - `skipback` resolves the real destination first. A backward move that
+		 *   would land on a gated interaction step passes through it instead, so
+		 *   the reader never arrives back on the controls behind their own answer.
+		 * - the departing step's `gate` then gets the last word on a FORWARD move.
+		 *   While it is shut the press does nothing at all: the step's own control
+		 *   is the only way on, and it goes through advance() above.
+		 *
+		 * navigate() runs with the resolved destination *before* `value` changes,
+		 * so it can compare against the current `value` to know the direction and
 		 * prepare state the destination step reads on its first render (a
 		 * post-render $effect is too late for anything that mounts with the step).
-		 * Returning `false` from it holds the story where it is — for a step that
-		 * answers the press by playing the visual the reader hasn't seen yet and
-		 * moves them on itself once it has.
 		 */
 		go(to) {
 			if (to < 0 || to > stepConfigs.length - 1) return;
-			if (navigate(to) === false) return;
-			value = to;
+			const back = to < value;
+			let dest = to;
+			if (back) while (dest > 0 && stepConfigs[dest].skipback) dest -= 1;
+			const gate = stepConfigs[value]?.gate;
+			if (!back && gate && !gate()) return;
+			navigate(dest);
+			value = dest;
 		},
 		next: () => scrollySteps.go(value + 1),
 		prev: () => scrollySteps.go(value - 1)
@@ -219,68 +263,43 @@
 		urlParams.set(STEP_PARAM, value);
 	});
 
-	// --- the two steps whose visual only plays when asked ---
-	// raceRecent's backwards pan and the simulation replay both sit behind a Start
-	// button in the step's panel, and the step after each one reads out what the
-	// animation shows: SLJ taking the crown in 2006, and who won the 10,000 runs.
-	// A reader who reaches for Next instead of Start used to be carried straight
-	// past it, left reading the answer off a chart that never moved — and with the
-	// Start button behind them, no way back to it but the Previous arrow (PRD
-	// P-09-1). So Next presses Start for them.
+	// --- a step that carries the reader on itself ---
+	// A gated step's own control is the only way past it, and one of them isn't a
+	// button press but the thing the press starts: the simulation's 10,000 runs
+	// ARE the payoff, and the next step names the winner, so the story waits for
+	// the race and then moves on by itself. The step declares when that has
+	// happened as `advanceon`, and this watches whichever step is active — so a
+	// reader who steps away mid-run disarms it by leaving, with no flag to clear.
 	//
-	// The rewind plays ACROSS the step change, which is what its own button does
-	// too (see RaceRewindStart) — the pan lands on the very view the next step
-	// describes, so the press only has to ask for it and let the move through.
-	// Nothing to ask for while it is already running: the button is disabled at
-	// that point, so Next doesn't re-press it either.
-	function rewindBeforeNext() {
-		if (!story.raceRewinding) requestRaceRewind();
-	}
-
-	// The simulation is the other way round — the run IS the payoff, and the next
-	// step names the winner — so the move waits for the race to play out. Armed
-	// here, fired by the effect below. A reader who has already watched it (or is
-	// watching it now) gets a plain Next: the point is that nobody is carried past
-	// the run unseen, not that they must sit through it twice.
-	let simAdvancePending = $state(false);
-	function simBeforeNext() {
-		if (story.simRuns > 0 || story.simRunning) return;
-		requestSimRun();
-		simAdvancePending = true;
-		return false;
-	}
-
-	// Carries the reader on once the Next-triggered run has played out. `simRuns`
-	// is published in one write as the run ends, and is also the only write the
-	// reduced-motion path makes (there is no run to watch there — see
-	// ScrollyVisual's playSimRun), so this covers the snap case for free.
-	// `advance()` rather than a bare `value += 1` for the same reason GuessRank
-	// uses it: it is the one place that knows where the story ends.
+	// advance() is untracked because it writes the `value` this effect reads:
+	// without it the write re-runs the effect against the step it just left.
 	$effect(() => {
-		if (!simAdvancePending || story.simRunning || story.simRuns === 0) return;
-		simAdvancePending = false;
-		scrollySteps.advance();
+		if (stepConfigs[value]?.advanceon?.())
+			untrack(() => scrollySteps.advance());
 	});
 
-	// Runs before `value` changes, so state the destination step's own components
-	// read at mount is already correct — PairQuiz decides whether to ask from
-	// story.quizRevealed as it mounts, and a post-render $effect would leave it
-	// painting the blurred question for a frame before being told not to.
-	//
-	// Returns false to hold the story where it is (see the registry's `go`).
+	// Prepares an arrival. Runs before `value` changes, so state the destination
+	// step's own components read at mount is already correct — PairQuiz decides
+	// whether to ask from story.quizRevealed as it mounts, and a post-render
+	// $effect would leave it painting the blurred question for a frame before
+	// being told not to. It is handed the destination the registry's `go` has
+	// already resolved, so `to < value` is still the reader's direction of travel.
 	function navigate(to) {
-		// a step that answers Next by playing its own visual gets first refusal on
-		// the move, before any of the arrival state below is prepared for a step
-		// the reader may not be going to
-		if (to > value && stepConfigs[value]?.beforenext?.() === false)
-			return false;
-		// the reader is driving, so an auto-advance still waiting on the simulation
-		// stands down — they have moved themselves, forwards or back
-		simAdvancePending = false;
 		// arriving at the quiz backwards means the reader has already been through
-		// it, so reveal every pair instead of re-asking (whether they answered or
-		// skipped — see story.svelte.js). Arriving forwards re-arms the question.
+		// it, so reveal every pair instead of re-asking (see story.svelte.js).
+		// Arriving forwards re-arms the question — and with it the step's gate.
 		if (isQuizState(stepConfigs[to]?.state)) story.quizRevealed = to < value;
+		// the simulation rests at zero runs until the reader presses Start, so a
+		// reader who walked back out of the chapter and in again gets the race to
+		// watch rather than the finished chart under a dead Start button. Forward
+		// arrivals from OUTSIDE the state only: the steps inside it that read the
+		// result out must keep the settled chart they describe.
+		if (
+			to > value &&
+			stepConfigs[to]?.state === "simRace" &&
+			currentState !== "simRace"
+		)
+			resetSimRace();
 		// the rank panel only carries over into raceRecent when the reader actually
 		// walks there out of the rank chapter — that is the one arrival whose bars
 		// collapse into the chart's dots. Reloading straight onto raceRecent, or
@@ -506,8 +525,8 @@
 				<!-- raceRecent's opening step: the Start button that asks for the
 				     backwards rewind - consent for the "remove information" move, same
 				     reasoning as simPanel below. Only that one step gets it; raceRecent's
-				     second step is already rewinding by then — because pressing Next
-				     here asks for the pan too (see rewindBeforeNext). -->
+				     second step is already rewinding by then — the button advances as it
+				     asks, and it is the only way past that step. -->
 				{#snippet raceStartPanel()}
 					<div class="race-scrubber-panel" style="bottom: {stepsHeight + 12}px">
 						<RaceRewindStart />
@@ -531,12 +550,12 @@
 						<RaceScrubber />
 					</div>
 				{/snippet}
-				<!-- simulation race: the Start/Replay button over the plot. Keep this
-				     step's card unconditional — its height is what the panel's `bottom`
-				     is measured from, so anything that unmounts mid-run would move the
-				     button under the reader's finger. The chart rests at zero runs until
-				     Start — or until Next asks for the run itself and waits for it (see
-				     simBeforeNext). -->
+				<!-- simulation race: the Start button over the plot. Keep this step's
+				     card unconditional — its height is what the panel's `bottom` is
+				     measured from, so anything that unmounts mid-run would move the
+				     button under the reader's finger. The chart rests at zero runs
+				     until Start, which is the only way past this step; the run then
+				     carries the reader on itself (the step's `advanceon`). -->
 				{#snippet simPanel()}
 					<div class="race-scrubber-panel" style="bottom: {stepsHeight + 12}px">
 						<SimRunner />
@@ -671,7 +690,11 @@
 						the more likely you are to be the center of Hollywood.
 					</p>
 				</Step>
-				<Step state="rankFocus">
+				<!-- guessing #1 or giving up is the only way on: GuessRank calls the
+				     registry's advance() itself, and stepping back off the reveal
+				     skips this step so its search box isn't left sitting under the
+				     answer (see `gate` / `skipback` in Step.svelte) -->
+				<Step state="rankFocus" gate={NEVER} skipback>
 					<div class="rank-focus-text">
 						<p>
 							As mentioned earlier, Kevin Bacon is not the center of Hollywood.
@@ -693,11 +716,10 @@
 					</p>
 				</Step>
 
-				<Step
-					state="raceRecent"
-					panel={raceStartPanel}
-					beforenext={rewindBeforeNext}
-				>
+				<!-- Start is the only way on, and it advances as it asks for the pan
+				     (RaceRewindStart) — the rewind is choreographed to play ACROSS
+				     the step change onto the view the next step describes -->
+				<Step state="raceRecent" panel={raceStartPanel} gate={NEVER} skipback>
 					<p>
 						We can repeat the process for calculating all actors' remoteness and
 						go backwards to create a time machine of centers. By using completed
@@ -784,7 +806,16 @@
 						closer to the center of Hollywood than them.
 					</p>
 				</Step>
-				<Step state="scatterQuiz" panel={quizPanel}>
+				<!-- the one gate the reader's own Next walks through once it opens:
+				     the quiz has no single completing press, so finishing the last
+				     pair is what unblocks it. Stepping back to 18 stays open, and
+				     `quizDone` is the same predicate PairQuiz seeds itself from, so
+				     the gate can never hold a panel with nothing left to ask -->
+				<Step
+					state="scatterQuiz"
+					panel={quizPanel}
+					gate={() => quizDone(story)}
+				>
 					<p>
 						Let's test our knowledge with a few more examples. For these actors
 						with similar film counts, who do you think works with more "big
@@ -831,7 +862,16 @@
 						predicting.
 					</p>
 				</Step>
-				<Step state="simRace" panel={simPanel} beforenext={simBeforeNext}>
+				<!-- Start is the only way on, and the run itself carries the reader
+				     over once it lands: the 10,000 runs are the payoff and the next
+				     step names the winner -->
+				<Step
+					state="simRace"
+					panel={simPanel}
+					gate={NEVER}
+					skipback
+					advanceon={() => story.simRuns > 0 && !story.simRunning}
+				>
 					<p>
 						To achieve a stable result, we'll run the simulation 10,000 times
 						and see who comes out on top. Press start to find out who wins.

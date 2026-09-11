@@ -1568,10 +1568,9 @@
 		untrack(playSimRun);
 	});
 
-	// Race rewind: RaceRewindStart (and the step's own Next — see Index's
-	// rewindBeforeNext) asks for the backwards pan by bumping this nonce, the same
-	// pattern as the sim trigger above. Gated on RACE_ENTRY_STATE so a stray press
-	// after the reader has moved on is a no-op.
+	// Race rewind: RaceRewindStart asks for the backwards pan by bumping this
+	// nonce, the same pattern as the sim trigger above. Gated on RACE_ENTRY_STATE
+	// so a stray press after the reader has moved on is a no-op.
 	//
 	// It starts from the LIVE camera, not the resting view: `renderPlayhead` is
 	// reset to the step's resting year on every arrival and then written by every
@@ -1584,8 +1583,10 @@
 	// `raceRewinding`). So the second ask a step back and forth produces is
 	// dropped here rather than guarded at each caller.
 	//
-	// Both askers advance the step (see RaceRewindStart's comment), so this effect
-	// and the render effect below can land in the same flush. Single-writer
+	// The asker advances the step as it asks (see RaceRewindStart's comment), so
+	// this effect and the render effect below can land in the same flush. It also
+	// means a dropped ask still moves the reader: advance() bypasses the step's
+	// gate, so there is no way to be stranded on the Start step. Single-writer
 	// discipline still applies here exactly as it does at every other
 	// playRaceRewind call site: stopSweep() so the arrival choreography this
 	// interrupts hands the rAF over instead of driving frames alongside the pan

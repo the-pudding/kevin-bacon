@@ -1,14 +1,20 @@
 <script>
 	// @ts-check
 	/**
-	 * Chapter-segmented progress across the top of the story: one dot per step,
+	 * Chapter-segmented progress across the top of the story: one dot per beat,
 	 * chapter groups divided by a hairline tick.
+	 *
+	 * A beat is not always a step. Chapter cards claim no dot, and neither does
+	 * a gated interaction step: it and the step that reads out its answer are
+	 * one move to the reader, so they share a dot and the bar doesn't tick twice
+	 * for it. The registry works out which steps own a dot and which dot the
+	 * active step lights (`dotSteps` / `dotStep` in Index.svelte) — nothing here
+	 * counts steps by hand.
 	 *
 	 * Indicator only — the dots take no pointer events, so a tap over the bar
 	 * falls through to the tap gutter beneath it and steps the story by one
-	 * like anywhere else. Never a jump target: that would let a reader past the
-	 * two steps gated behind a Start button (the race rewind, the simulation),
-	 * which the story deliberately makes unskippable — see `beforenext` in
+	 * like anywhere else. Never a jump target: that would land a reader past the
+	 * gated steps, which the story deliberately makes unskippable — see
 	 * notes/scrolly-framework.md.
 	 *
 	 * Dots are the piece's own vocabulary: the canvas behind this bar is 11,486
@@ -27,16 +33,16 @@
 
 	// [0, ...chapterStarts] — the three chapter cards open at 3, 12 and 20, and
 	// the steps before the first one are a segment of their own rather than
-	// being folded into a chapter that hasn't been announced yet. A segment's
-	// own `from` is a chapter's step index for every segment but the first, so
-	// the dot loop below skips it — the tick already marks the chapter break,
-	// and a chapter card isn't a step the bar should claim a dot for.
+	// being folded into a chapter that hasn't been announced yet. Each segment
+	// then keeps only the steps that own a dot, so a chapter card and a gated
+	// step both fall out of the bar here rather than needing a guard in the
+	// markup — the tick already marks the chapter break.
 	const segments = $derived.by(() => {
 		const starts = [0, ...steps.chapterStarts];
-		return starts.map((from, i) => ({
-			from: i > 0 ? from + 1 : from,
-			to: (starts[i + 1] ?? steps.count) - 1
-		}));
+		return starts.map((from, i) => {
+			const to = (starts[i + 1] ?? steps.count) - 1;
+			return steps.dotSteps.filter((step) => step >= from && step <= to);
+		});
 	});
 
 	// Crossfades the bar against the chapter card's own fade (Index.svelte):
@@ -66,19 +72,21 @@
 	>
 		<!-- the dots carry no information a screen reader can use; this line is
 		     the same fact, said once -->
-		<span class="sr-only">Step {steps.current + 1} of {steps.count}</span>
+		<span class="sr-only">
+			Step {steps.dotSteps.indexOf(steps.dotStep) + 1} of {steps.dotSteps
+				.length}
+		</span>
 		<div class="segments" aria-hidden="true">
-			{#each segments as segment, i (segment.from)}
+			{#each segments as segment, i (i)}
 				{#if i > 0}
 					<span class="tick"></span>
 				{/if}
 				<div class="segment">
-					{#each { length: segment.to - segment.from + 1 } as _, n}
-						{@const step = segment.from + n}
+					{#each segment as step (step)}
 						<span
 							class="dot"
-							class:past={step < steps.current}
-							class:current={step === steps.current}
+							class:past={step < steps.dotStep}
+							class:current={step === steps.dotStep}
 						></span>
 					{/each}
 				</div>
@@ -119,7 +127,7 @@
 		display: flex;
 		align-items: center;
 		gap: 3px;
-		/* 30 dots is 258px at these sizes, so the bar fits 320px without
+		/* 24 dots is 189px at these sizes, so the bar fits 320px without
 		   shrinking; never let it wrap into a second row if a step is added */
 		flex-wrap: nowrap;
 	}
@@ -131,7 +139,7 @@
 	}
 
 	/* Three states by colour alone. The current dot grows by transform, never by
-	   width: a width change would reflow its 29 neighbours and jiggle the whole
+	   width: a width change would reflow its 23 neighbours and jiggle the whole
 	   bar on every step. */
 	.dot {
 		width: 5px;

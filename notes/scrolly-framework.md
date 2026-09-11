@@ -30,18 +30,18 @@ line's P50/P10 toggle) re-run the current layout via params — see
 
 ## Files
 
-| File                                          | Role                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
-| --------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `src/components/scrolly/nodes.js`             | Real data: `makeNodes()` → `{ nodes, edges }` decoded from `src/data/scrolly-nodes.json` (built by `npm run scrolly-data`). 11,486 `ActorNode`s (`id, pid, name, hop, films, avgDistance, rank`); node 0 is the anchor (Kevin Bacon), ids 0–14 are the curated intro network in reveal order (`INTRO_IDS`), edges are the 18 intro edges (`[sourceId, targetId, [[title, year], …]]` — **every** corpus film linking the pair, newest first; two of the eighteen have more than one). Also exports `ANCHOR_ID`, `INTRO_LAYOUT` (baked 860×680 planar intro coords) and `hash01(id, salt)` — deterministic per-node randomness used everywhere (never `Math.random`, which would flicker between renders). |
-| `src/components/scrolly/tween.js`             | `createTweener(size, draw, stride)` → `{ current, to, stop }`. One rAF loop lerping a flat `Float64Array` from the _currently rendered_ values to a target. `to(next, ms, jitter, nodeDelays?)`. Vanilla (hand-rolled `easeCubicInOut`), no d3.                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
-| `src/components/scrolly/layout-shared.js`     | Geometry/color constants, attr/trail helpers (`set`, `setEdge`, `setTrail`, `collapseTrail`, `clipSeries`), named-actor id lookups (`SLJ`, `HANKS`, …), and the `LayoutFn`/`LayoutResult`/`Note`/`Tick` JSDoc typedefs — everything shared across more than one chapter.                                                                                                                                                                                                                                                                                                                                                                                                                                  |
-| `src/components/scrolly/layouts/*.js`         | One module per story chapter (`intro`, `hop-bands`, `chapters`, `rank`, `race`, `scatters`, `prediction`, `career`, `sim-race`, `genz-line`). Each exports a `states` object mapping state key → `{ layout, labels?, params?, pulse?, revealFrom?, entry?, overlay? }` (`revealFrom` scopes the layout's `delays` choreography to specific prior states — arriving from any other state is one plain tween) — everything about one state colocated in one object, instead of spread across parallel top-level maps.                                                                                                                                                                                       |
-| `src/components/scrolly/states.js`            | Thin aggregator: merges every chapter's `states` object into one registry and derives the public `STATES`/`STATE_LABELS`/`STATE_PARAMS`/`STATE_PULSE`/`OVERLAYS` exports from it, plus `STATE_TRACKED`, `INTERACTIVE_IDS`, and the `nodeName`/`nodeRank`/`nodeAvgDistance` lookups. This is still the only module other files import from.                                                                                                                                                                                                                                                                                                                                                                |
-| `src/components/scrolly/Step.svelte`          | One story step: prose in the slot, visual state declared on the tag (`<Step state="lone">…</Step>`). Calls `register({ state, params, panel })` in document order on the `"scrolly-steps"` context provided by `Index.svelte`; renders its prose only while active — no hand-numbered step indices anywhere. `panel` is an optional snippet rendered over the canvas while the step is active (see "Exception" under interaction patterns).                                                                                                                                                                                                                                                               |
-| `src/components/scrolly/Chapter.svelte`       | A chapter card: a step whose whole content is a title (`<Chapter state="chapterCenters" title="…" />`). Registers `{ state, chapter: { title } }` the same way, but renders **nothing** — see "Chapter cards" below.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
-| `src/components/scrolly/TapNav.svelte`        | The step driver: two tap gutters running the full height of the layout at its far edges, plus ArrowLeft/ArrowRight. Both call `go()` on the `"scrolly-steps"` context, so every move runs through `Index.svelte`'s `navigate()` gate. Gutters rather than a full-bleed tap split because the middle of the canvas carries the story's own interactions; anything that must stay tappable _through_ a gutter is lifted to `--z-tap-above` (the ladder is commented on `.scrolly-layout`). They carry no arrow or marking — the press tint is the only feedback, so nothing competes with the charts.                                                                                                       |
-| `src/components/scrolly/StepProgress.svelte`  | Position, as one dot per step with the chapters divided by a hairline tick. Indicator only — it takes no pointer events, so a tap over it falls through to the gutter beneath; jumping would let a reader past the `beforenext` steps. Segments derive from any registered step carrying a `chapter`, so adding a step or a chapter re-segments the bar with no edit.                                                                                                                                                                                                                                                                                                                                     |
-| `src/components/scrolly/ScrollyVisual.svelte` | Canvas host wired into `Index.svelte` as `<ScrollyVisual state={…} />` (a state name, not a step number). Owns dpr scaling, resize, reduced-motion, the HTML overlay, and the `$effect` that reacts to state changes.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| File                                          | Role                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| --------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/components/scrolly/nodes.js`             | Real data: `makeNodes()` → `{ nodes, edges }` decoded from `src/data/scrolly-nodes.json` (built by `npm run scrolly-data`). 11,486 `ActorNode`s (`id, pid, name, hop, films, avgDistance, rank`); node 0 is the anchor (Kevin Bacon), ids 0–14 are the curated intro network in reveal order (`INTRO_IDS`), edges are the 18 intro edges (`[sourceId, targetId, [[title, year], …]]` — **every** corpus film linking the pair, newest first; two of the eighteen have more than one). Also exports `ANCHOR_ID`, `INTRO_LAYOUT` (baked 860×680 planar intro coords) and `hash01(id, salt)` — deterministic per-node randomness used everywhere (never `Math.random`, which would flicker between renders).                                             |
+| `src/components/scrolly/tween.js`             | `createTweener(size, draw, stride)` → `{ current, to, stop }`. One rAF loop lerping a flat `Float64Array` from the _currently rendered_ values to a target. `to(next, ms, jitter, nodeDelays?)`. Vanilla (hand-rolled `easeCubicInOut`), no d3.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| `src/components/scrolly/layout-shared.js`     | Geometry/color constants, attr/trail helpers (`set`, `setEdge`, `setTrail`, `collapseTrail`, `clipSeries`), named-actor id lookups (`SLJ`, `HANKS`, …), and the `LayoutFn`/`LayoutResult`/`Note`/`Tick` JSDoc typedefs — everything shared across more than one chapter.                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| `src/components/scrolly/layouts/*.js`         | One module per story chapter (`intro`, `hop-bands`, `chapters`, `rank`, `race`, `scatters`, `prediction`, `career`, `sim-race`, `genz-line`). Each exports a `states` object mapping state key → `{ layout, labels?, params?, pulse?, revealFrom?, entry?, overlay? }` (`revealFrom` scopes the layout's `delays` choreography to specific prior states — arriving from any other state is one plain tween) — everything about one state colocated in one object, instead of spread across parallel top-level maps.                                                                                                                                                                                                                                   |
+| `src/components/scrolly/states.js`            | Thin aggregator: merges every chapter's `states` object into one registry and derives the public `STATES`/`STATE_LABELS`/`STATE_PARAMS`/`STATE_PULSE`/`OVERLAYS` exports from it, plus `STATE_TRACKED`, `INTERACTIVE_IDS`, and the `nodeName`/`nodeRank`/`nodeAvgDistance` lookups. This is still the only module other files import from.                                                                                                                                                                                                                                                                                                                                                                                                            |
+| `src/components/scrolly/Step.svelte`          | One story step: prose in the slot, visual state declared on the tag (`<Step state="lone">…</Step>`). Calls `register({ state, params, panel, gate, skipback, advanceon })` in document order on the `"scrolly-steps"` context provided by `Index.svelte`; renders its prose only while active — no hand-numbered step indices anywhere. `panel` is an optional snippet rendered over the canvas while the step is active (see "Exception" under interaction patterns); the last three gate the step (see "Required: interaction / drop-off points").                                                                                                                                                                                                  |
+| `src/components/scrolly/Chapter.svelte`       | A chapter card: a step whose whole content is a title (`<Chapter state="chapterCenters" title="…" />`). Registers `{ state, chapter: { title } }` the same way, but renders **nothing** — see "Chapter cards" below.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| `src/components/scrolly/TapNav.svelte`        | The step driver: two tap gutters running the full height of the layout at its far edges, plus ArrowLeft/ArrowRight. Both call `go()` on the `"scrolly-steps"` context, so a tap gets exactly what a key does: the gated steps' refusal, the backward skip past them, and everything `navigate()` prepares on arrival. The next gutter is disabled while the active step's gate is shut. Gutters rather than a full-bleed tap split because the middle of the canvas carries the story's own interactions; anything that must stay tappable _through_ a gutter is lifted to `--z-tap-above` (the ladder is commented on `.scrolly-layout`). They carry no arrow or marking — the press tint is the only feedback, so nothing competes with the charts. |
+| `src/components/scrolly/StepProgress.svelte`  | Position, as one dot per beat with the chapters divided by a hairline tick. A beat is not always a step: chapter cards claim no dot, and a gated interaction step shares its payoff's dot (`dotSteps` / `dotStep` on the registry). Indicator only — it takes no pointer events, so a tap over it falls through to the gutter beneath; jumping would land a reader past the gated steps. Segments derive from any registered step carrying a `chapter`, so adding a step or a chapter re-segments the bar with no edit.                                                                                                                                                                                                                               |
+| `src/components/scrolly/ScrollyVisual.svelte` | Canvas host wired into `Index.svelte` as `<ScrollyVisual state={…} />` (a state name, not a step number). Owns dpr scaling, resize, reduced-motion, the HTML overlay, and the `$effect` that reacts to state changes.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 
 JSDoc typedefs (`ActorNode`, `Edge`, `LayoutResult`, `LayoutFn`, `Tweener`) are in
 `nodes.js` / `layout-shared.js` / `tween.js` — VS Code type-checks them without any
@@ -108,7 +108,9 @@ second canvas writer would corrupt tween starts.
 **Step → state.** Declared per step in `Index.svelte` markup: each
 `<Step state="…">` registers itself (in document order) with the
 `"scrolly-steps"` context, which builds the `stepConfigs` array —
-`{ state: string, params?: Object }` per step. `Index.svelte` passes the
+`{ state: string, params?: Object, panel?: Snippet, gate?: () => boolean,
+skipback?: boolean, advanceon?: () => boolean }` per step (a `<Chapter>`
+registers `{ state, chapter: { title } }` the same way). `Index.svelte` passes the
 active step's `state` and `params` to `ScrollyVisual`; the props are
 `undefined` for a beat on first client render (the visual mounts before the
 steps register), so ScrollyVisual guards on them. Steps needing _different
@@ -904,38 +906,79 @@ Three rules:
    short tween, so e.g. panning the rank ladder to the reader's guess is a param
    update, not a step change. The interruption-safe `to()` already covers a
    reader who interacts then immediately steps away.
-2. **Every question is skippable.** The step _after_ an interaction that asks the
-   reader something reveals the answer unconditionally (SLJ is revealed whether
-   or not the reader guessed; quiz answers get highlighted regardless). No
-   question may gate the Next button — Next must always be clickable. An
-   interaction _may_ auto-advance on completion (e.g. guessing SLJ or giving up
-   on the rank ladder calls the `scrolly-steps` context's `advance()`, the same
-   step-index bump Next performs) as long as that never removes the reader's own
-   ability to skip via Next/ArrowRight.
-3. **A Start button is not a question, and Next presses it.** Two steps sit on a
-   chart that only moves when asked — `raceRecent`'s backwards pan
-   (`RaceRewindStart`) and the simulation replay (`SimRunner`) — and the step
-   after each one reads out what the animation showed. Skipping those is not
-   skipping a question, it is arriving at an answer with nothing behind it, so
-   the step registers a `beforenext` gate (`Step.svelte` → `stepConfigs` →
-   `Index.svelte`'s `navigate()`, which the registry's `go()` lets return `false`
-   to hold the story where it is):
-   - **`rewindBeforeNext`** asks for the pan and lets the move through. The
-     rewind is choreographed to play _across_ the step change — that is what its
-     own button does too — and ScrollyVisual drops the ask when the camera has
-     no travel left (a reader stepping back and forth), so a re-press can't
-     replay a zero-length pan.
-   - **`simBeforeNext`** asks for the run and returns `false`. The run _is_ the
-     payoff and the next step names the winner, so the move waits: an effect in
-     `Index.svelte` advances once `story.simRuns` is published (the run's single
-     end-of-run write, and the reduced-motion path's only one). A reader who has
-     already seen the run — or is watching it — gets a plain Next; the rule is
-     that nobody is carried past it unseen, not that they must sit through it
-     twice. Any reader-driven navigation disarms the pending advance, so a Next
-     pressed mid-run moves them once, not twice.
+2. **A gated question owns the way out of its step** (revised 2026-09-11;
+   this replaces "every question is skippable / Next must always be
+   clickable"). Four steps ask the reader to do something and are followed by a
+   step that reads out the answer. Carrying the reader across that boundary
+   untouched leaves them reading an answer to a question they never saw put —
+   and with the control behind them, no way back to it but Prev. So the
+   boundary is closed: on those four steps the reader's Next (tap gutter or
+   ArrowRight) is **refused**, and the right-hand gutter goes disabled so the
+   step reads as held rather than as a dead tap.
 
-   Next stays clickable throughout both, which is what item 2 is protecting; what
-   changes is what the press _does_.
+   The step after an interaction still reveals its answer unconditionally (SLJ
+   is revealed however the reader got there; a quiz pair the reader never
+   picked is still highlighted) — what changed is that they cannot arrive there
+   without answering or conceding, not what they are shown when they do.
+
+   Three props on `<Step>` carry this (`Step.svelte` → `stepConfigs` →
+   `Index.svelte`'s registry `go()`):
+   - **`gate: () => boolean`** — asked before a reader-driven FORWARD move
+     leaves the step; while it returns false the press does nothing at all.
+     Exposed as the registry's `nextBlocked` for TapNav's disabled gutter.
+   - **`skipback: boolean`** — a reader-driven BACKWARD move that would land on
+     this step passes through it to the step before. Without this, stepping
+     back off the answer drops the reader onto the controls that produced it,
+     with the answer still on screen. It is a separate prop and **not derived
+     from `gate`**: the quiz has a gate and must not skip back, and step 6's
+     gate would evaluate as open on the way back (the guess-reset effect runs
+     after `navigate`).
+   - **`advanceon: () => boolean`** — the step carrying the reader on itself.
+     Index watches it for the active step only, so a reader who steps away
+     mid-wait disarms it by leaving; there is no pending flag to clear.
+
+   `advance()` on the `"scrolly-steps"` context deliberately bypasses `go()`,
+   which is exactly what lets a gated step's own control out through its own
+   gate.
+
+3. **Which four, and what opens each.**
+   - **Step 6, the rank guess** (`gate` never opens; `skipback`). Naming #1 or
+     pressing Give up calls `advance()` (`GuessRank`). Give up is always on
+     screen, so the step can never strand a reader. Stepping back off the
+     reveal lands on step 5, and the existing effect in `Index.svelte` clears
+     `rankGuesses`/`rankGaveUp` on the way out of the chapter, so walking in
+     again re-asks the question with the gate shut.
+   - **Step 8, the race rewind** (`gate` never opens; `skipback`). Start asks
+     for the pan and advances with it — the rewind is choreographed to play
+     _across_ the step change onto the view the next step describes. If the
+     camera has no travel left ScrollyVisual drops the ask, but the button
+     advances regardless, so a dropped ask is never a dead end. Stepping back
+     off the payoff lands on step 7; re-entering `raceRecent` from another
+     state resets `renderPlayhead` to the present, so the pan has its full
+     travel again.
+   - **Step 19, the pair quiz** (`gate` opens on completion; **no** `skipback`).
+     The one gate the reader's own Next walks through: the quiz has no single
+     completing press, so answering the last pair is what unblocks it. Prev
+     stays open throughout, and `states.js`'s `quizDone` is the single
+     predicate both the gate and `PairQuiz`'s own starting cursor read — a
+     panel with nothing left to ask must be a step the gate lets the reader
+     leave, or a reader who reloaded past the quiz and stepped back into it is
+     stuck.
+   - **Step 25, the simulation** (`gate` never opens; `skipback`; `advanceon`).
+     Start asks for the run; the run _is_ the payoff and the next step names
+     the winner, so the story waits and then moves on by itself once
+     `story.simRuns` is published (the run's single end-of-run write, and the
+     reduced-motion path's only one). Walking back into the chapter calls
+     `resetSimRace()` from `navigate()` — `simRuns` **and** `simNames`
+     together, because the label selectors fall back to `simNames` below the
+     run threshold and zeroing the playhead alone would draw all five winners
+     on a chart collapsed to the origin.
+
+4. **The progress bar merges a gated pair into one dot.** A gated step and its
+   payoff are one move to the reader, so they share a dot and the bar does not
+   tick twice for it. `Index.svelte` derives `dotSteps` (no `chapter`, no
+   `skipback`) and `dotStep` (the gated step lights its successor's), and
+   `StepProgress` renders those — it never counts steps by hand. 24 dots today.
 
 Exception: a visual that abandons the dot metaphor entirely gains nothing from
 the shared canvas — layer a plain HTML component over (or beside) the canvas
@@ -1013,6 +1056,10 @@ Three things the handoff depends on:
 - **Only the forward step out of the rank chapter gets it** (`rankHandoff`, set in
   `navigate`). A reload straight onto raceRecent, or a step back to it from
   raceFull, must not flash the list up over a chart that is already drawn.
+  Stepping back off raceRecent's second step lands on `rankReveal` (the Start
+  step is `skipback`), which hands the panel back and remounts `RankBars` with
+  `collapse` false — so walking forward again replays the fold, where a step
+  back onto the Start step would have left `rankCollapsed` stuck true.
 
 Two rules come with a measured hand-off like that, both learned the hard way:
 publish from a **pre-effect**, so the box is set before ScrollyVisual's layout
