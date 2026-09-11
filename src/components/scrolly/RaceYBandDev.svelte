@@ -40,6 +40,9 @@
 		RACE_Y_BAND_POINTS,
 		RACE_Y_FIXED_MAX,
 		RACE_Y_FIXED_MIN,
+		RACE_GENZ_Y_MIN,
+		RACE_GENZ_Y_MAX,
+		setRaceDevGenzWindow,
 		setRaceDevBands,
 		setRaceDevFixedYMin
 	} from "./layouts/race.js";
@@ -54,6 +57,16 @@
 	const FIXED_MIN_LO = 2.0;
 	const FIXED_MIN_HI = 2.08;
 	const FIXED_MIN_STEP = 0.005;
+	// ...and the Gen Z window's two edges, the raceGenz step's own dial. Same
+	// protocol as the fixed window's slider: live into race.js, persisted, and one
+	// revision bump per edit.
+	const GENZ_MIN_KEY = "kb-race-y-genz-min";
+	const GENZ_MAX_KEY = "kb-race-y-genz-max";
+	const GENZ_MIN_LO = 2.2;
+	const GENZ_MIN_HI = 2.4;
+	const GENZ_MAX_LO = 2.8;
+	const GENZ_MAX_HI = 3.45;
+	const GENZ_STEP = 0.01;
 	// the editor's own axes. The y ceiling clears the tallest point the shipped
 	// curve reaches (0.1121 at 1980) with room to pull one above it.
 	const BAND_MAX = 0.15;
@@ -166,6 +179,37 @@
 		story.raceYBandsRev++;
 	}
 
+	// ---- the Gen Z window ------------------------------------------------------
+	// The raceGenz step's axis, which the crown's band has nothing to say about:
+	// it is a stretch of remoteness rather than a distance below the record. Two
+	// edges rather than one because both move — the step is a pan AND a zoom.
+
+	let genzMin = $state(restoreGenz(GENZ_MIN_KEY, GENZ_MIN_LO, GENZ_MIN_HI, RACE_GENZ_Y_MIN)); // prettier-ignore
+	let genzMax = $state(restoreGenz(GENZ_MAX_KEY, GENZ_MAX_LO, GENZ_MAX_HI, RACE_GENZ_Y_MAX)); // prettier-ignore
+
+	function restoreGenz(key, lo, hi, fallback) {
+		const saved = localStorage.get(key);
+		return Number.isFinite(saved) && saved >= lo && saved <= hi
+			? saved
+			: fallback;
+	}
+
+	function installGenz() {
+		setRaceDevGenzWindow(genzMin, genzMax);
+		localStorage.set(GENZ_MIN_KEY, genzMin);
+		localStorage.set(GENZ_MAX_KEY, genzMax);
+	}
+
+	function onGenz(which) {
+		return (e) => {
+			const v = Number(e.currentTarget.value);
+			if (which === "min") genzMin = v;
+			else genzMax = v;
+			installGenz();
+			story.raceYBandsRev++;
+		};
+	}
+
 	// Install whatever the editor opened with, so a restored session reaches the
 	// chart before the reader sees a frame drawn off the shipped curve. Only ask
 	// for the redraw when that is actually a different curve: a bump is a state
@@ -175,9 +219,12 @@
 	onMount(() => {
 		const snap = install();
 		installFixedMin();
+		installGenz();
 		if (
 			JSON.stringify(snap) !== JSON.stringify(seedPoints()) ||
-			fixedMin !== RACE_Y_FIXED_MIN
+			fixedMin !== RACE_Y_FIXED_MIN ||
+			genzMin !== RACE_GENZ_Y_MIN ||
+			genzMax !== RACE_GENZ_Y_MAX
 		)
 			story.raceYBandsRev++;
 	});
@@ -290,7 +337,10 @@
 	function resetAll() {
 		points = seedPoints();
 		fixedMin = RACE_Y_FIXED_MIN;
+		genzMin = RACE_GENZ_Y_MIN;
+		genzMax = RACE_GENZ_Y_MAX;
 		installFixedMin();
+		installGenz();
 		commit();
 	}
 
@@ -426,6 +476,26 @@
 				oninput={onFixedMin}
 			/>
 			<output class="value">{fixedMin.toFixed(3)}–{RACE_Y_FIXED_MAX}</output>
+			<span class="edge">gen z</span>
+			<input
+				type="range"
+				min={GENZ_MIN_LO}
+				max={GENZ_MIN_HI}
+				step={GENZ_STEP}
+				value={genzMin}
+				oninput={onGenz("min")}
+			/>
+			<input
+				type="range"
+				min={GENZ_MAX_LO}
+				max={GENZ_MAX_HI}
+				step={GENZ_STEP}
+				value={genzMax}
+				oninput={onGenz("max")}
+			/>
+			<output class="value">
+				{genzMin.toFixed(2)}–{genzMax.toFixed(2)}
+			</output>
 			<button type="button" onclick={() => setHidden(true)}>hide</button>
 			<button type="button" onclick={resetAll}>reset</button>
 			<button type="button" onclick={copyPoints}>

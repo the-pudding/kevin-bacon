@@ -20,6 +20,7 @@
 		RACE_REWIND_WAYPOINT_YEAR,
 		RACE_FULL_STEP,
 		RACE_FUTURE_STEP,
+		RACE_GENZ_STEP,
 		RACE_FUTURE_END,
 		RACE_DATA_END,
 		raceMaxPlayhead,
@@ -250,6 +251,28 @@
 		playhead: restP,
 		frontier: fromF + (toF - fromF) * e
 	});
+	// raceGenz leg 1 — "the camera pans down". Also not a camera move in x: the
+	// playhead is parked and only yOpen travels, so the lines hold still while the
+	// axis under them opens onto the Gen-Z window (see raceWindowYFit). A constant
+	// duration for the same reason futureOpenFrame has one — no years of pan to
+	// derive a px/sec from. The strip stays open throughout: the reader arrived
+	// looking at it and it is not what this leg is about.
+	const genzOpenFrame = (restP) => (e) => ({
+		...RACE_GENZ_STEP,
+		playhead: restP,
+		yOpen: e,
+		genz: 0
+	});
+	// raceGenz leg 2 — "the Gen Z field arrives", the reader's own press. The
+	// camera is settled on both axes and only the arrival playhead moves, so e = 1
+	// is byte-identical to the static layout with `genzShown` set, which is what
+	// the settle then lands on.
+	const genzDrawFrame = (restP) => (e) => ({
+		...RACE_GENZ_STEP,
+		playhead: restP,
+		yOpen: 1,
+		genz: e
+	});
 	// reader-driven pan / settled hold: the camera at one playhead year
 	const panFrame = (step) => (playhead) => ({ ...step, playhead });
 	// the one state whose arrival plays the draw-on entry (scoped by revealFrom)
@@ -291,6 +314,9 @@
 	// the chapter's last step: the same chart with the camera carried forward past
 	// the end of the data — see playRaceFuture
 	const RACE_FUTURE_STATE = "raceFuture";
+	// ...and the prediction chapter's opening beat, which brings that chart back
+	// and pans it down off the crown onto the Gen-Z field — see playRaceGenzOpen
+	const RACE_GENZ_STATE = "raceGenz";
 	// per-frame smoothing factor for the pan glide: renderPlayhead moves this
 	// fraction of the remaining distance to the target each frame (exponential
 	// ease-out — feels like a weighted reel). Reduced motion uses 1 (snap).
@@ -1038,6 +1064,97 @@
 		);
 	}
 
+	// -- The Gen Z step ----------------------------------------------------------
+	// Two beats, one automatic and one the reader asks for.
+	//
+	// The camera pan down (leg 1) is an ARRIVAL choreography, but unlike every
+	// race animator above it there is no race frame to pan from: this step
+	// arrives from a chapter card, so the crowd has to fly onto the chart first.
+	// The ordinary arrival tween does that — it is aimed at leg 1's frame 0
+	// (yOpen 0, no Gen Z lines: the chart the reader left at the end of the race
+	// chapter) by the raceGenz branch of the render effect, which then fires this
+	// off its onDone. Exactly the shape playRaceEntry is given by the rank
+	// chapter's flight, and for the same reason.
+	const GENZ_OPEN_MS = 2200;
+	// ...and the arrival, which is slower than the pan by design: 99 actors
+	// travelling in from the left is the thing the reader pressed a button to
+	// watch. It is a real journey across the plot rather than a reveal, so it
+	// wants the time — the dots enter at the left edge and ride their own curves
+	// into the present.
+	const GENZ_DRAW_MS = 2600;
+
+	// Leg 1: the axis travels from the chapter's own window down onto the Gen-Z
+	// one, and the whole race cast retires as it goes — `shown` is {everyone, no
+	// one}, so the crown fades out over the first third of the leg while it is
+	// still on the plot, rather than being cut off the moment the window leaves
+	// it. That empty landing frame is also the step's STATIC frame
+	// (RACE_GENZ_STEP's yCap is below the field), so the settle has nothing to do.
+	//
+	// Says nothing about the axis itself: `yOpen` is a camera parameter and
+	// raceWindowYFit reads it off each frame's own camera, so the last frame and
+	// the settle agree by construction — the same property that lets the rewind
+	// legs say nothing about the y fit.
+	function playRaceGenzOpen(restP) {
+		if (!width || !height) return;
+		if (reducedMotion) {
+			// defensive: the effect's snap branch normally lands on the static
+			// (already panned-down) frame before this can run
+			story.raceView = raceHoldView();
+			return;
+		}
+		sweeping = true;
+		runSweepPhase(
+			genzOpenFrame(restP),
+			STATE_YCAP[RACE_GENZ_STATE],
+			() => {
+				sweeping = false;
+				story.raceView = raceHoldView();
+				publishRaceCam();
+			},
+			{ from: raceStepVisible(RACE_FULL_STEP, Infinity), to: new Set() },
+			GENZ_OPEN_MS * getRaceSpeedScale()
+		);
+	}
+
+	// Leg 2: the reader's press. Same discipline as playSimRun — land both
+	// tweeners first, raise `sweeping` so the render effect steps aside, and let a
+	// state change abandon the run for free (stopSweep clears the flag the button
+	// reads, or it would stay disabled for a reader who steps back).
+	//
+	// The end-of-run write is the single publish, exactly as simRuns is: the last
+	// frame IS the static layout with `genzShown` set, so handing off to the
+	// reactive path leaves nothing to move — and it is what the step's `advanceon`
+	// is watching, so the story carries itself on from here.
+	function playGenzLines() {
+		if (!width || !height) return;
+		if (reducedMotion) {
+			story.genzLinesDrawing = false;
+			story.genzLinesShown = true;
+			return;
+		}
+		stopSweep();
+		if (tweener.target) tweener.to(tweener.target, 0);
+		if (trailTweener.target) trailTweener.to(trailTweener.target, 0);
+		tweener.stop();
+		trailTweener.stop();
+		sweeping = true;
+		story.genzLinesDrawing = true;
+		const restP = raceMaxPlayhead(width, height, RACE_GENZ_STEP);
+		runSweepPhase(
+			genzDrawFrame(restP),
+			STATE_YCAP[RACE_GENZ_STATE],
+			() => {
+				sweeping = false;
+				story.genzLinesDrawing = false;
+				story.genzLinesShown = true;
+				story.raceView = raceHoldView();
+				publishRaceCam();
+			},
+			null,
+			GENZ_DRAW_MS * getRaceSpeedScale()
+		);
+	}
+
 	// -- Simulation replay -------------------------------------------------------
 	// Reader-triggered, unlike every choreography above it: SimRunner bumps
 	// story.simRunNonce and this replays the 10,000 recorded simulation runs as a
@@ -1584,6 +1701,18 @@
 		untrack(playSimRun);
 	});
 
+	// Gen Z lines: GenZLinesStart asks for the draw-on the same way, gated to its
+	// own state. Nothing else about it differs — the run publishes its own end,
+	// and the step's `advanceon` is what carries the reader on.
+	let genzNonceSeen = 0;
+	$effect(() => {
+		const nonce = story.genzLinesNonce;
+		if (nonce === genzNonceSeen) return;
+		genzNonceSeen = nonce;
+		if (nonce === 0 || stateName !== RACE_GENZ_STATE) return;
+		untrack(playGenzLines);
+	});
+
 	// Race rewind: RaceRewindStart asks for the backwards pan by bumping this
 	// nonce, the same pattern as the sim trigger above. Gated on RACE_ENTRY_STATE
 	// so a stray press after the reader has moved on is a no-op.
@@ -1747,6 +1876,8 @@
 			// a replay the reader stepped away from is over, however far it got —
 			// leave its controls usable if they step back
 			if (story.simRunning) untrack(() => (story.simRunning = false));
+			if (story.genzLinesDrawing)
+				untrack(() => (story.genzLinesDrawing = false));
 			if (story.raceRewinding) untrack(() => (story.raceRewinding = false));
 		}
 		if (resized) {
@@ -1853,6 +1984,13 @@
 		// pan the other way, out past the end of the data — see playRaceFuture.
 		const raceFutureArrival =
 			stateChange && playReveal && stateName === RACE_FUTURE_STATE;
+		// the prediction chapter's opening beat: the race chart comes back and the
+		// camera pans down off the crown. Unlike every race arrival above it this
+		// one comes from a CHAPTER CARD, so there is no race frame to pan from —
+		// the arrival tween flies the cast onto the chart first and the pan is
+		// chained off its onDone (see the branch below).
+		const raceGenzArrival =
+			stateChange && playReveal && stateName === RACE_GENZ_STATE;
 		// ...and that leg retraced, stepping BACKWARDS from raceFuture to raceFull.
 		// Disjoint from raceFullEntryArrival above by construction: that one needs
 		// playReveal, and raceFull's revealFrom is ["raceRecent"], so an arrival
@@ -2045,6 +2183,34 @@
 		} else if (raceFutureReverseArrival) {
 			landOffChart(attrs, trailTarget);
 			playRaceFutureReverse();
+		} else if (raceGenzArrival) {
+			// Two beats on one arrival. This one is the ordinary tween, but aimed at
+			// the pan's frame 0 rather than at the static layout: the same chart the
+			// reader left at the end of the race chapter — the crown window, the
+			// whole cast, the future strip already open — which is what the camera
+			// then travels away from. The static layout is where beat two LANDS, so
+			// it cannot also be what beat one arrives on.
+			//
+			// yCap Infinity, not the step's: the step shows none of the race cast
+			// (that is the state the pan lands on), and this frame is the one before
+			// the pan, where they are all still there.
+			const restP = raceMaxPlayhead(width, height, RACE_GENZ_STEP);
+			const startAttrs = attrs.slice();
+			const startTrails = trailTarget.slice();
+			writeRaceSweepFrame(
+				startAttrs,
+				startTrails,
+				width,
+				height,
+				{ ...RACE_GENZ_STEP, playhead: restP, yOpen: 0, genz: 0, reveal: 1 },
+				Infinity
+			);
+			// onDone only fires on an uninterrupted tween, so a reader who steps on
+			// mid-flight skips the pan exactly as they skip any other choreography
+			tweener.to(startAttrs, TWEEN_MS, TWEEN_JITTER, stateDelays, () =>
+				playRaceGenzOpen(restP)
+			);
+			trailTweener.to(startTrails, TWEEN_MS, 0);
 		} else if (entryAnim) {
 			// arrive onto the choreography's own frame 0 (its animated slots stamped
 			// over the static layout), then hand the rAF to playEntry. Like the race

@@ -12,7 +12,8 @@ import {
 	INK,
 	SLJ,
 	CAGE,
-	idOf
+	idOf,
+	GENZ_NAMED_IDS
 } from "../layout-shared.js";
 
 // ---------------------------------------------------------------------------
@@ -237,25 +238,41 @@ const inGenzWindow = (n) =>
 // side, so the decollider never has to nudge one and no leader stubs are drawn;
 // it stays as insurance rather than the mechanism.
 //
+// WHO the seven are lives in layout-shared as GENZ_NAMED_IDS, because the race
+// chart's Gen-Z step names the same seven and the two must not be able to drift
+// apart. What lives here is only where each name sits relative to its dot, which
+// is a fact about THIS frame's crowding — on the race chart every name goes in
+// the right-hand gutter like every other race label.
+//
 // Keyed by tmdb id like PORTMAN/KENDRICK above, not by position in the
 // win-sorted candidate list: a data rebuild that reorders the field would
 // otherwise leave seven hand-tuned sides attached to seven different actors,
 // silently. An id that drops out of the corpus throws from idOf instead.
-const GENZ_LABEL_DIRS = {
+//
+// The last two are from the far end of the same cloud. Every other contender is
+// up in the well-connected band, which leaves the bottom of the frame reading as
+// anonymous filler when it is the more surprising half: Sink and Elordi are as
+// famous as anyone here and sit among the most remote actors in the pool. The
+// band is sparse enough to take a name where the top is not.
+const GENZ_LABEL_SIDES = {
 	[idOf(56734)]: "left", // Chloë Grace Moretz
 	[idOf(1767250)]: "left", // Ariana Greenblatt
 	[idOf(1903874)]: "left", // Maya Hawke
 	[idOf(1428070)]: "right", // Isabela Merced
 	[idOf(2099497)]: "right", // Fred Hechinger
-	// Two from the far end of the same cloud. Every contender above is up in the
-	// well-connected band, which leaves the bottom of the frame reading as
-	// anonymous filler when it is the more surprising half: Sink and Elordi are
-	// as famous as anyone here and sit among the most remote actors in the pool.
-	// The band is sparse enough to take a name where the top is not.
 	[idOf(1590797)]: "left", // Sadie Sink
 	[idOf(2034418)]: "right" // Jacob Elordi
 };
-const GENZ_LABELS = Object.keys(GENZ_LABEL_DIRS).map(Number);
+// ...so a name added to (or dropped from) the shared list without a side here
+// fails at module load rather than rendering with no label direction.
+const GENZ_LABEL_DIRS = Object.fromEntries(
+	GENZ_NAMED_IDS.map((id) => {
+		const dir = GENZ_LABEL_SIDES[id];
+		if (!dir) throw new Error(`Gen Z name ${id} has no scatter label side`);
+		return [id, dir];
+	})
+);
+const GENZ_LABELS = GENZ_NAMED_IDS;
 
 // CGM is candidates[0], so she wears the same candidate mark
 const GENZ_MARK = { rgb: CROWD, r: 3.5, alpha: 0.9 };

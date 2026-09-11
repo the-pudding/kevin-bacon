@@ -444,6 +444,31 @@ export const SIM_LABEL_N = 5;
 /** the contenders whose line carries their name */
 export const SIM_LABEL_IDS = SIM_SERIES.slice(0, SIM_LABEL_N);
 
+/**
+ * The seven Gen-Z contenders the story picks out by name — the five likeliest
+ * winners plus two from the remote end of the field, so the cloud reads as a
+ * range rather than a shortlist.
+ *
+ * Declared here rather than in either chart because BOTH draw them: the films
+ * scatter (`layouts/scatters.js`, where each also carries a hand-tuned label
+ * side) and the race chart's Gen-Z step (`layouts/race.js`, where every name
+ * sits to the right of its dot like every other race label). One list is what
+ * makes "the same seven" true by construction instead of by two lists agreeing.
+ *
+ * Keyed by TMDB id deliberately, NOT by position in the win-sorted field: a
+ * rebuild that reorders the candidates should throw in `idOf` rather than
+ * silently rename the people the story is about.
+ */
+export const GENZ_NAMED_IDS = [
+	idOf(56734), // Chloë Grace Moretz
+	idOf(1767250), // Ariana Greenblatt
+	idOf(1903874), // Maya Hawke
+	idOf(1428070), // Isabela Merced
+	idOf(2099497), // Fred Hechinger
+	idOf(1590797), // Sadie Sink
+	idOf(2034418) // Jacob Elordi
+];
+
 // ---------------------------------------------------------------------------
 // Trails: polylines tweened by a second tweener (vertex morphing = object
 // constancy for lines). Fixed slots, in order: one per race actor (RACE_IDS),
@@ -491,6 +516,18 @@ export const DENIRO_SLOT = RACE_IDS.length + 1;
 export const CHASE_SLOT = RACE_IDS.length + 2;
 export const COHORT_SLOT = RACE_IDS.length + 3;
 export const SIM_SLOT_BASE = COHORT_SLOT + story.careers.cohort.length;
+/** slot -> contender, and the inverse of SIM_SERIES' index */
+export const SIM_SLOT = new Map(
+	SIM_SERIES.map((id, i) => [id, SIM_SLOT_BASE + i])
+);
+/**
+ * The simulation block as a set, for the two charts that own it: the simulation
+ * race and the race chart's Gen-Z step, which draw the SAME 99 actors and so
+ * share one block of slots rather than allocating a second. Reusing them is what
+ * lets a contender's trajectory line become their win-count climb four steps
+ * later instead of two unrelated lines occupying two slots.
+ */
+export const SIM_TRAIL_SLOTS = new Set(SIM_SLOT.values());
 export const RULE_SLOT = TRAIL_META.length - 1;
 
 // ---------------------------------------------------------------------------

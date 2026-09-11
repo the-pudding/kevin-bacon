@@ -12,10 +12,15 @@
 	import SimRunner from "$components/scrolly/SimRunner.svelte";
 	import GenZMovers from "$components/scrolly/GenZMovers.svelte";
 	import RaceRewindStart from "$components/scrolly/RaceRewindStart.svelte";
+	import GenZLinesStart from "$components/scrolly/GenZLinesStart.svelte";
 	import PairQuiz from "$components/scrolly/PairQuiz.svelte";
 	import useWindowDimensions from "$runes/useWindowDimensions.svelte.js";
 	import urlParams from "$utils/urlParams.js";
-	import { story, resetSimRace } from "$components/scrolly/story.svelte.js";
+	import {
+		story,
+		resetSimRace,
+		resetGenzLines
+	} from "$components/scrolly/story.svelte.js";
 	import { quizDone } from "$components/scrolly/states.js";
 	import { routeSummary } from "$components/scrolly/intro-routes.js";
 	import {
@@ -299,6 +304,11 @@
 			currentState !== "simRace"
 		)
 			resetSimRace();
+		// ...and the same for the Gen Z step, which is one step rather than a
+		// chapter: its whole payoff is the draw-on, so an arrival must find the
+		// plot empty and the button live. It is `skipback`, so the only arrival
+		// there is a forward one.
+		if (to > value && stepConfigs[to]?.state === "raceGenz") resetGenzLines();
 		// the rank panel only carries over into raceRecent when the reader actually
 		// walks there out of the rank chapter — that is the one arrival whose bars
 		// collapse into the chart's dots. Reloading straight onto raceRecent, or
@@ -561,6 +571,16 @@
 				{#snippet simPanel()}
 					<div class="race-scrubber-panel" style="bottom: {stepsHeight + 12}px">
 						<SimRunner />
+					</div>
+				{/snippet}
+				<!-- the Gen Z field arriving on the race chart: the same Start-button
+				     shape, and the same reasoning as simPanel above. The camera has
+				     already panned down onto the empty stretch the contenders live on
+				     by the time this is pressed; the draw-on is the only way past the
+				     step and carries the reader on when it lands. -->
+				{#snippet genzLinesPanel()}
+					<div class="race-scrubber-panel" style="bottom: {stepsHeight + 12}px">
+						<GenZLinesStart />
 					</div>
 				{/snippet}
 				<!-- the Monte Carlo reshuffle: a dumbbell row per contender, opaque over
@@ -828,14 +848,27 @@
 					state="chapterCenters"
 					title="Predicting the next center of Hollywood"
 				/>
-				<Step state="scatterGenZ">
+				<!-- The race chart comes back for one beat, and the camera pans down
+				     off the crown onto the stretch of remoteness the contenders
+				     actually live on — Samuel L. Jackson leaves through the top of the
+				     plot, which is the distance the rest of the chapter is about.
+				     "Show Gen Z actors" is the only way on (the reader's Next is
+				     refused) and the draw-on carries them to the next step when it
+				     lands, so the step and its payoff read as one move. -->
+				<Step
+					state="raceGenz"
+					panel={genzLinesPanel}
+					gate={NEVER}
+					skipback
+					advanceon={() => story.genzLinesShown && !story.genzLinesDrawing}
+				>
 					<p>
 						We now have everything we need to predict Gen Z's Kevin Bacon using
 						film count and costar data. Our contenders are actors born since
 						1997 who have been in at least 5 films.
 					</p>
 				</Step>
-				<Step state="scatterGenZ">
+				<Step state="raceGenz">
 					<p>
 						To predict future remoteness we need to model their trajectory by
 						stating what we think their film count and costar data will look

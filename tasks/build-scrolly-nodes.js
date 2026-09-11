@@ -170,6 +170,15 @@ for (const [hop, target] of Object.entries(HOP_TARGETS)) {
 const predictionPoints = design("prediction-scatter.json").points;
 const quizSrc = design("distance-quiz.json");
 const genzSrc = raw("genz-mc-knn-bootstrap.json");
+// ...and the same 99 candidates' avg_distance by year, so a step can draw their
+// trajectories on the race chart's own axis rather than only their end points.
+// Same export shape as the race cast's file below (and the same top_n 0 metric),
+// which is what lets one builder serve both.
+const genzTrajSrc = raw("genz-candidate-trajectories.json");
+assert(
+	genzTrajSrc.top_n === 0,
+	`Gen Z trajectories are top_n ${genzTrajSrc.top_n}, not 0`
+);
 // The race chart's cast: everyone who reached a year-end top 50 by avg distance
 // between 1980 and 2025, plus every era anchor (analysis/export-yearly-top-n.py
 // -> analysis/actor-trajectory.py). Not just the 15 crown-holders the era
@@ -586,6 +595,10 @@ const genz = genzAll.map((c) => ({
 	conc: round4(c.current_concurrence),
 	top50: round4(c.current_top50_log_films),
 	mad: round4(c.current_mad),
+	// the same metric on a 2020-only graph, so a step can show how far the field
+	// has closed in. null for the three candidates with no corpus film by 2020 —
+	// they were not vertices in that graph, so any field average is over 96.
+	mad2020: round4(c.mad_2020),
 	projMedian: round4(c.projected_mad_median),
 	projP10: round4(c.projected_mad_p10),
 	projP90: round4(c.projected_mad_p90)
@@ -605,6 +618,46 @@ assert(
 	genzSrc.n_sims === 10000,
 	`simulation ran ${genzSrc.n_sims} times, but the copy says 10,000`
 );
+
+// Gen-Z trajectories: per-candidate avg_distance by year, keyed by node id — the
+// race chart's `raceSeries` shape exactly, so `layouts/race.js` can run them
+// through the same monotone-cubic machinery with no conversion. Ragged, unlike
+// raceSeries: first_year runs 2001-2022, so the series are 4 to 25 points long.
+const genzSeries = {};
+for (const a of genzTrajSrc.actors) {
+	genzSeries[idOf(a.person_id)] = a.trajectory
+		.filter((t) => t.in_giant && t.avg_distance != null)
+		.map((t) => [t.year, round4(t.avg_distance)]);
+}
+// one series per simulation candidate and no others — the chart reuses the
+// simulation's own trail slots, so the two sets have to be the same 99 actors
+const genzIds = new Set(genz.map((c) => c.id));
+assert(
+	Object.keys(genzSeries).length === genzIds.size &&
+		Object.keys(genzSeries).every((id) => genzIds.has(Number(id))),
+	`${Object.keys(genzSeries).length} Gen Z series against ${genzIds.size} candidates`
+);
+// Both exports have to stop on the same year: the Gen Z lines and the race lines
+// share one x axis, and the chart hangs its camera off a single last data year.
+assert(
+	genzTrajSrc.end_year === raceSrc.end_year,
+	`Gen Z trajectories end ${genzTrajSrc.end_year}, the race cast ${raceSrc.end_year}`
+);
+assert(
+	Object.values(genzSeries).every((s) => s.at(-1)[0] === genzTrajSrc.end_year),
+	`a Gen Z series does not end on ${genzTrajSrc.end_year}`
+);
+// ...and the two Gen Z exports agree: the trajectory's 2020 value IS the
+// bootstrap's mad_2020, for each of the 96 candidates who had one. A cross-file
+// check, so a rebuild that pairs mismatched exports fails here.
+for (const c of genz) {
+	if (c.mad2020 == null) continue;
+	const at2020 = genzSeries[c.id].find(([yr]) => yr === 2020);
+	assert(
+		at2020 && at2020[1] === c.mad2020,
+		`${nodes[c.id][1]}: trajectory 2020 ${at2020?.[1]} != mad2020 ${c.mad2020}`
+	);
+}
 // The per-run winner sequence, so the browser can replay the simulation run by
 // run rather than only draw its summary (see layouts/sim-race.js). It is not
 // persisted in the bootstrap JSON, but it is exactly recoverable: a run's winner
@@ -736,6 +789,7 @@ const storyOut = {
 	quiz,
 	eras,
 	raceSeries,
+	genzSeries,
 	careers: { ...trioAges, cohort },
 	genz: {
 		nSims: genzSrc.n_sims,

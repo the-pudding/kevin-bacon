@@ -14,6 +14,10 @@ import {
 	RACE_IDS,
 	TRAIL_META,
 	RACE_SLOT,
+	SIM_SERIES,
+	SIM_SLOT,
+	SIM_TRAIL_SLOTS,
+	GENZ_NAMED_IDS,
 	sampleTrail,
 	collapseTrail,
 	setTrailHighlight,
@@ -143,6 +147,32 @@ export const RACE_DATA_END = 2025;
 		);
 	}
 }
+
+// ---------------------------------------------------------------------------
+// The Gen-Z field (the raceGenz step). The same shape as the race cast above,
+// on the same metric and the same axis — mean distance to the whole giant
+// component, top_n 0 — so the two sets of lines need no conversion between them.
+//
+// They are a separate cast rather than extra members of RACE_CAST because they
+// are a separate QUESTION: the race cast is everyone who has ever led, and only
+// one step ever draws these 99. Keeping them apart is what leaves every other
+// race step byte-identical to what it drew before.
+//
+// Ragged where the race cast is not: first_year runs 2001-2022, so these series
+// are 4 to 25 points long. Nothing below assumes otherwise — each line is
+// clamped to its own GENZ_RANGE exactly as a race line is.
+// ---------------------------------------------------------------------------
+const GENZ_SEGS = new Map(
+	SIM_SERIES.map((id) => [id, monotoneSegments(story.genzSeries[id])])
+);
+const GENZ_RANGE = new Map(
+	SIM_SERIES.map((id) => {
+		const s = story.genzSeries[id];
+		return [id, [s[0][0], s.at(-1)[0]]];
+	})
+);
+/** the seven the step names, as a set — read once per candidate per frame */
+const GENZ_NAMED = new Set(GENZ_NAMED_IDS);
 
 // fractional year of an ISO date, so an era boundary mid-year lands between two
 // of the annual data points rather than snapping to January
@@ -337,6 +367,52 @@ const RACE_Y_PAD_MIN = 0.0025;
 // nothing to hand across a transition.
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// The camera's Y degree of freedom: `yOpen`.
+//
+// Every camera above answers "which years am I looking at" and the axis follows.
+// The Gen-Z step asks the chart a question no playhead can express — look at a
+// different STRETCH of remoteness, the one the contenders actually live on,
+// which sits a long way below the crown. So the camera gains a second axis of
+// travel, 0 at the chapter's own window and 1 at the Gen-Z window below it.
+//
+// It is a property of the CAMERA, not of the step, and that is the whole design:
+// `raceWindowYFit` stays a pure function of its arguments, so an animated frame
+// and the settle it lands on still agree by construction rather than by both
+// being handed the same constant. A step declares where it RESTS (yOpen: 1 on
+// RACE_GENZ_STEP, exactly as raceFuture declares its frontier), which is what
+// makes a cold mount, a resize and the reduced-motion snap all land on the
+// panned-down view with no animation having run.
+//
+// The window itself is two constants, drawn by eye against the live chart the
+// same way the fixed window's are (RaceYBandDev's Gen Z sliders), not fitted:
+// fitting it to the field would put its edges on whichever candidate happened to
+// be the most remote that year, which is nobody's story. Measured over the
+// step's own camera range (2022-2025) the seven named contenders span
+// 2.3433-2.9461 and the whole field 2.3530-3.3848 — so the named seven sit
+// inside this window with room and the top decile of the field presses up
+// through the floor, which is the chapter's existing idiom, not a clipping bug.
+// ---------------------------------------------------------------------------
+
+/** the Gen-Z window's top edge (the LOWER avg distance, nearer the centre) */
+export const RACE_GENZ_Y_MIN = 2.3;
+/** ...and its bottom edge */
+export const RACE_GENZ_Y_MAX = 3.0;
+
+/** live values, plain module variables for the same reason as raceYFixedMin */
+let genzYMin = RACE_GENZ_Y_MIN;
+let genzYMax = RACE_GENZ_Y_MAX;
+
+/**
+ * Dev hook: move the Gen-Z window's two edges. Called only from
+ * RaceYBandDev.svelte, which only mounts under `npm run dev`.
+ * @param {number} lo top edge @param {number} hi bottom edge
+ */
+export function setRaceDevGenzWindow(lo, hi) {
+	genzYMin = lo;
+	genzYMax = hi;
+}
+
 /** first year of the window; raceRecent's extent starts here too */
 export const RACE_Y_FIXED_FROM = 2004;
 /** ...and where, panning back, the camera fit has fully taken over again */
@@ -409,18 +485,36 @@ function raceBandAt(year) {
 }
 
 /**
- * The axis for a camera window, and the whole y-scale rule: the fixed window's
- * two constants from 2004 on, the camera fit below RACE_Y_FIXED_FADE, and a ramp
- * between the two over the four years in between.
+ * The axis for a camera window, and the whole y-scale rule: the chapter's own
+ * fit (the fixed window's two constants from 2004 on, the camera fit below
+ * RACE_Y_FIXED_FADE, and a ramp between the two over the four years in between),
+ * then the camera's y travel lerped on top of it.
  *
- * Because every branch of it reads the CAMERA rather than a step's content
- * extent, no step owns an axis and nothing has to be handed across a transition
- * — and an animated frame agrees with the settle it lands on by construction
- * rather than by passing the same constant to both.
+ * Because every branch of it reads the CAMERA — including yOpen, which is a
+ * camera parameter and not a step's — rather than a step's content extent, no
+ * step owns an axis and nothing has to be handed across a transition, and an
+ * animated frame agrees with the settle it lands on by construction rather than
+ * by passing the same constant to both.
  *
+ * @param {number} camLeft @param {number} camRight
+ * @param {number} [yOpen] the camera's y travel, 0 = the chapter's own window,
+ *   1 = the Gen-Z window below it
  * @returns {[number, number]} the scale domain [vMin, vMax]
  */
-function raceWindowYFit(camLeft, camRight) {
+function raceWindowYFit(camLeft, camRight, yOpen = 0) {
+	const base = raceChapterYFit(camLeft, camRight);
+	if (!yOpen) return base;
+	// ...and the same lerp again for the camera's y travel. Both ends move, so
+	// this is a pan and a zoom at once: the crown leaves through the top while
+	// the ground opens below it.
+	return [
+		base[0] + (genzYMin - base[0]) * yOpen,
+		base[1] + (genzYMax - base[1]) * yOpen
+	];
+}
+
+/** the chapter's own axis at a camera — everything above yOpen 0 */
+function raceChapterYFit(camLeft, camRight) {
 	if (camRight >= RACE_Y_FIXED_FROM) return [raceYFixedMin, RACE_Y_FIXED_MAX];
 	const fit = raceCameraYFit(camLeft, camRight);
 	if (camRight <= RACE_Y_FIXED_FADE) return fit;
@@ -658,8 +752,9 @@ function raceCamera(w, h, playhead) {
  * Defaults to the content extent's end: every step but raceFuture stops where
  * its data does.
  *
- * `tailPx` is the other way to answer it, and raceFuture is the only step that
- * uses it: instead of naming the year on the RIGHT edge it says how many PX of
+ * A TAIL is the other way to answer it, and the two future-facing steps are the
+ * ones that use it (`tailPx` on raceFuture, `tailYears` on raceGenz — see
+ * raceTailPx): instead of naming the year on the RIGHT edge it says how much
  * history to keep behind the data's own end at the LEFT, and the resting
  * playhead follows the viewport from there. That is what the strip needs — it is
  * anchored on where the data ends, not on where the timeline does, so it gets
@@ -670,13 +765,51 @@ function raceCamera(w, h, playhead) {
  * rest: raceFullRestPlayhead.
  *
  * @param {number} w @param {number} h
- * @param {{extent: [number, number], maxPlayhead?: number, tailPx?: number}} step
+ * @param {{extent: [number, number], maxPlayhead?: number, tailPx?: number, tailYears?: number}} step
  */
 export function raceMaxPlayhead(w, h, step) {
-	if (step.tailPx !== undefined) {
-		return RACE_DATA_END - step.tailPx / pxPerYear + raceVisibleSpan(w, h);
+	const tail = raceTailPx(w, h, step);
+	if (tail !== null) {
+		return RACE_DATA_END - tail / pxPerYear + raceVisibleSpan(w, h);
 	}
 	return step.maxPlayhead ?? step.extent[1];
+}
+
+// The most of the data plot a step's tail of history may take, leaving the rest
+// for the future strip beside it. Only `tailYears` is clamped by it: `tailPx` is
+// already a pixel budget its author has sized against the plot.
+const RACE_TAIL_MAX_FRAC = 0.6;
+
+/**
+ * How much history a left-pinned step keeps behind the data's end, in px — or
+ * null for the steps that pin their camera by the right edge instead.
+ *
+ * Two ways to say it. `tailPx` is a flat budget (raceFuture's 24px stub, small
+ * enough to fit any viewport). `tailYears` asks for a real span of history —
+ * which at the chapter's fixed 76px/year does NOT fit everywhere: three years is
+ * 228px against a data plot of ~389px at 700px, ~173px at 375px and ~136px at
+ * 320px. So it is capped at a fraction of the plot, and a phone gets less
+ * history rather than the chart getting a second x scale. The alternative —
+ * fitting x to the span — is the one thing the chapter refuses to do (see the
+ * header): every visible year carries its own label because the scale never
+ * moves.
+ *
+ * One helper because raceMaxPlayhead and raceFloorPlayhead must agree on the
+ * answer to the character: that they return the same year is what leaves
+ * racePanBounds with nothing between its two ends, i.e. what makes a left-pinned
+ * step unpannable by construction rather than by coincidence.
+ *
+ * @param {number} w @param {number} h
+ * @param {{tailPx?: number, tailYears?: number}} step
+ */
+function raceTailPx(w, h, step) {
+	if (step.tailPx !== undefined) return step.tailPx;
+	if (step.tailYears === undefined) return null;
+	const plot = racePlot(w, h);
+	return Math.min(
+		step.tailYears * pxPerYear,
+		(plot.right - plot.left) * RACE_TAIL_MAX_FRAC
+	);
 }
 
 /**
@@ -710,13 +843,13 @@ export function racePanBounds(w, h, step, playhead) {
  * wide enough to make it the later of the two.
  *
  * @param {number} w @param {number} h
- * @param {{extent: [number, number], minPlayhead?: number, tailPx?: number}} step
+ * @param {{extent: [number, number], minPlayhead?: number, tailPx?: number, tailYears?: number}} step
  */
 function raceFloorPlayhead(w, h, step) {
 	// a step that pins its camera by its LEFT edge has exactly one legal
 	// playhead, so its floor is its ceiling — which is what leaves racePanBounds
 	// with nothing between its two ends and reports the step as unpannable
-	if (step.tailPx !== undefined) return raceMaxPlayhead(w, h, step);
+	if (raceTailPx(w, h, step) !== null) return raceMaxPlayhead(w, h, step);
 	const front = step.extent[0] + raceVisibleSpan(w, h);
 	return step.minPlayhead === undefined
 		? front
@@ -1012,7 +1145,7 @@ function raceFutureBand(cam, frontier) {
 // `frontier` is how far the future strip has opened; the years past the data get
 // their positions from its fitted scale (raceFutureTicks) and land in the SAME
 // `x` array, so one renderer draws both and the two can never drift apart.
-function raceAxes(cam, yS, vMin, vMax, frontier) {
+function raceAxes(cam, yS, vMin, vMax, frontier, futureTicks = true) {
 	// every visible year gets its own horizontal 4-digit label — no thinning, no
 	// width branch: PX_PER_YEAR guarantees the gap. Ticks travel with their years
 	// during a pan, which is the whole point of a fixed scale.
@@ -1053,8 +1186,17 @@ function raceAxes(cam, yS, vMin, vMax, frontier) {
 	}
 	// the strip's years join the historical ones in one array, so they inherit
 	// `.tick.tick-x` and `xBase` verbatim and sit on the same row by construction
+	//
+	// ...unless the step turns them off. Two pitches on one axis row only reads as
+	// one axis while the eye has a reason to accept the break, and that reason is
+	// raceFuture's subject: the step is ABOUT the empty ground ahead, so its years
+	// are what make the strip five years rather than a blank. On raceGenz the
+	// strip is context behind 99 lines the reader is actually looking at, and the
+	// fitted pitch sitting next to the fixed one just reads as a broken scale. The
+	// block keeps its own "the future" label either way, so nothing that is turned
+	// off here was carrying meaning.
 	return {
-		x: [...x, ...raceFutureTicks(cam, frontier)],
+		x: [...x, ...(futureTicks ? raceFutureTicks(cam, frontier) : [])],
 		xBase: cam.bottom + 10,
 		y
 	};
@@ -1074,6 +1216,13 @@ function raceAxes(cam, yS, vMin, vMax, frontier) {
  * lets the strip carry its own fitted x scale without a second scale leaking
  * into the chart. raceStepVisible, raceAnchorAt and raceBandAt all clamp at
  * RACE_DATA_END, so a frontier past it changes nothing they compute.
+ * @property {boolean} [futureTicks] emit the strip's own year labels (default
+ * true). raceGenz turns them off — see raceAxes.
+ * @property {number} [yOpen] the camera's y travel, 0 = the chapter's own
+ * window, 1 = the Gen-Z window below it (see raceWindowYFit). A camera
+ * parameter, not a step's, which is what keeps the axis rule pure.
+ * @property {number} [genz] the Gen-Z field's draw-on progress 0..1; 0 (or
+ * absent) leaves those 99 lines off the frame entirely.
  * @property {number[]} [highlight] the actors this step is *about*: they are
  * guaranteed a name label even if they aren't among the nearest-to-centre cut
  * (see ScrollyVisual's raceLabelCut). It buys a NAME and nothing else — the only
@@ -1101,6 +1250,15 @@ export function raceDotSpec(lead = false) {
 		? { r: 4, rgb: INK, alpha: 1 }
 		: { r: 3, rgb: CROWD, alpha: 0.55 };
 }
+
+/**
+ * A NAMED Gen-Z contender's dot, on the one step that draws them. Lifted
+ * verbatim from `scatterGenZ`'s GENZ_NAMED_MARK so the seven wear the same mark
+ * on both charts: a name beside an identical grey dot in a column of identical
+ * grey dots reads as a caption on the cluster rather than on one actor. The
+ * other 92 take raceDotSpec's field treatment unchanged.
+ */
+const GENZ_NAMED_DOT = { r: 5, rgb: INK, alpha: 1 };
 
 // ---------------------------------------------------------------------------
 // The lead: who is in front.
@@ -1170,6 +1328,103 @@ const dotVs = new Float64Array(RACE_IDS.length);
 const dotMs = new Float64Array(RACE_IDS.length);
 const lineMs = new Float64Array(RACE_IDS.length);
 
+// Where the Gen-Z field's arrival sweep starts, as a fraction of the camera's
+// own span back from the plot's LEFT edge. Slightly off-plot rather than exactly
+// on it, so the column of dots is already moving when it crosses into view
+// instead of materialising on the edge itself.
+const GENZ_ARRIVE_LEAD = 0.06;
+
+/**
+ * The 99 Gen-Z contenders' trajectories, on the frame's own camera and axis.
+ *
+ * A near-copy of the race pass above rather than a shared loop, and deliberately
+ * so: the two casts answer different questions and differ in three ways that
+ * would each need a branch — these lines are ragged (4 to 25 points against the
+ * race cast's uniform series), they carry no `visible` set and no lead, and
+ * their emphasis is a fixed seven rather than whoever is in front. Folding them
+ * together would cost more in conditionals than it saves in lines.
+ *
+ * The ink here is NOT the chapter's crown ink, and it is not an exception to the
+ * rule either. On this step no race actor is on the plot at all — the camera has
+ * panned off them — so nothing is being identified as "in front"; these seven
+ * are the ones the story names, drawn exactly as `scatterGenZ` already draws
+ * them (INK at r 5), so a reader meets the same seven marks on both charts.
+ *
+ * @param {Float64Array} attrsBuf @param {Float64Array} trailBuf
+ * @param {ReturnType<typeof raceCamera>} cam
+ * @param {(v: number) => number} yS
+ * @param {number} vMin @param {number} vMax
+ * @param {number} reveal arrival progress 0..1. The field TRAVELS: each dot
+ *   enters at the plot's left edge and rides its own curve rightward until it
+ *   reaches the present, trailing its history behind it. At 1 every dot has
+ *   landed on its last data year, which is where the static layout puts it.
+ */
+function writeGenzLines(attrsBuf, trailBuf, cam, yS, vMin, vMax, reveal) {
+	// The arrival playhead — a year, swept left to right, shared by all 99 so they
+	// cross the plot as one cohort rather than 99 independent draw-ons.
+	//
+	// This is the opposite of the race chapter's entry, which unspools a line
+	// leftward from a dot pinned at the right edge, and the difference is the
+	// story each one is telling. There, the camera is a time machine and the
+	// reader is being shown history that already happened. Here the actors are
+	// ARRIVING: they come in from the past at the left and travel into the
+	// present, which is the beat the chapter is about — and a tail growing
+	// backwards out of a stationary dot says the reverse of that.
+	const arriveFrom = cam.camLeft - cam.visibleSpan * GENZ_ARRIVE_LEAD;
+	const arriveYr = arriveFrom + (RACE_DATA_END - arriveFrom) * reveal;
+	for (const id of SIM_SERIES) {
+		const segs = GENZ_SEGS.get(id);
+		const slot = SIM_SLOT.get(id);
+		const [ds, de] = GENZ_RANGE.get(id);
+		const named = GENZ_NAMED.has(id);
+		// the dot rides the arrival playhead, clamped to the actor's own data: one
+		// who debuts inside the window waits at their first year rather than
+		// sliding along a curve that does not exist yet, and every dot stops dead
+		// on its last data year (2025 for all 99) instead of running on with the
+		// camera, which this step parks past the present to make room for the strip
+		const dotYr = Math.min(Math.max(arriveYr, ds), de);
+		// ...so the line's right-hand end is the dot, and the SAME pixel ramp the
+		// race pass uses for a line leaving at the left edge becomes this one's
+		// entrance for free: it measures where the end actually sits, and here that
+		// end is what is moving. No separate fade-in constant to keep in step.
+		const onCamera = de >= cam.camLeft && ds <= cam.playhead && arriveYr >= ds;
+		const edgeFade = clamp(
+			(cam.xS(dotYr) - cam.left) / RACE_EDGE_FADE_PX,
+			0,
+			1
+		);
+		const m = onCamera ? edgeFade : 0;
+		const dotV = curveYAt(segs, dotYr);
+		const dotM = dotV >= vMin && dotV <= vMax ? m : 0;
+		const dx = cam.xS(dotYr);
+		const dy = yS(dotV);
+		const dot = named ? GENZ_NAMED_DOT : raceDotSpec(false);
+		set(attrsBuf, id, dx, dy, dot.r, dot.rgb, dot.alpha * dotM);
+		if (m <= 0.002) {
+			collapseTrail(trailBuf, slot, dx, dy, 0);
+			continue;
+		}
+		const drawFloor = Math.max(cam.camLeft, ds);
+		// the history trailing the dot, ending wherever the dot has got to
+		const sx1 = curveExit(segs, dotYr, drawFloor, vMin, vMax);
+		const sx0 =
+			sx1 === null
+				? 0
+				: Math.max(
+						cam.camLeft,
+						ds,
+						curveEntry(segs, sx1, drawFloor, vMin, vMax)
+					);
+		if (sx1 !== null && sx1 > sx0) {
+			sampleTrail(trailBuf, slot, segs, sx0, sx1, cam.xS, yS, 0.35 * m);
+		} else {
+			collapseTrail(trailBuf, slot, dx, dy, 0.35 * dotM);
+		}
+		// after the line, never before — every trail writer zeroes this channel
+		setTrailHighlight(trailBuf, slot, named ? 1 : 0);
+	}
+}
+
 /**
  * Writes ONLY the race cast's dot slots + trail slots (one each per RACE_IDS)
  * for one frame, directly into the live Float32 tweener buffers (no allocation,
@@ -1216,7 +1471,11 @@ export function writeRaceSweepFrame(
 	const frontier = frame.frontier ?? RACE_DATA_END;
 	const visible = raceStepVisible(frame, yCap);
 	const cam = raceCamera(w, h, frame.playhead ?? raceMaxPlayhead(w, h, frame));
-	const [vMin, vMax] = raceWindowYFit(cam.camLeft, cam.camRight);
+	const [vMin, vMax] = raceWindowYFit(
+		cam.camLeft,
+		cam.camRight,
+		frame.yOpen ?? 0
+	);
 	const yS = (v) => lin(v, vMin, vMax, cam.top, cam.bottom);
 	// draw-on: the lines unspool leftward from the right-hand end of the data
 	const revealRight = Math.min(cam.camRight, e1);
@@ -1345,8 +1604,16 @@ export function writeRaceSweepFrame(
 		// ink can only be on one line and can never linger on one it has left.
 		setTrailHighlight(trailBuf, slot, isLead ? 1 : 0);
 	}
+	// The Gen-Z field, on the same camera and the same axis. Written from inside
+	// this function rather than beside it so that writeRaceSweepFrame stays the
+	// SINGLE placer of everything on this chart — which is what makes a settle
+	// byte-identical to its animation's last frame by construction rather than by
+	// review, for the new lines exactly as for the old ones.
+	if (frame.genz)
+		writeGenzLines(attrsBuf, trailBuf, cam, yS, vMin, vMax, frame.genz);
+
 	return {
-		axes: raceAxes(cam, yS, vMin, vMax, frontier),
+		axes: raceAxes(cam, yS, vMin, vMax, frontier, frame.futureTicks !== false),
 		takeover: raceTakeoverCallout(cam, yS),
 		band: raceFutureBand(cam, frontier),
 		// the RESOLVED frontier, so a caller snapshotting the live frame (see
@@ -1393,6 +1660,15 @@ function raceLayout(step, yCap = Infinity) {
 				// left to play — the same contract a STATE_ENTRY's last leg has to
 				// meet, discharged here by construction rather than by an animation
 				frontier: params?.frontier ?? step.frontier ?? RACE_DATA_END,
+				// ...and the same contract for the camera's y travel and for the Gen-Z
+				// draw-on: both rest where the step says, so every path that arrives
+				// without an animation (cold mount, resize, reduced motion) lands on
+				// the finished frame. `genzShown` is the reader's own press — the step
+				// rests with the lines NOT drawn until they ask for them, which is why
+				// this one reads a param before the step's declaration rather than
+				// after it.
+				yOpen: params?.yOpen ?? step.yOpen ?? 0,
+				genz: step.genz ? (params?.genzShown ? 1 : 0) : 0,
 				reveal: 1
 			},
 			yCap
@@ -1412,6 +1688,10 @@ function raceLayout(step, yCap = Infinity) {
 				if (meta.id !== null && visible.has(meta.id)) trailDelays[t] = 250;
 				return;
 			}
+			// ...and on the Gen-Z step the simulation block too: those 99 slots hold
+			// the contenders' trajectories here and their win counts four steps
+			// later, so this step must not retract what it is itself drawing.
+			if (step.genz && SIM_TRAIL_SLOTS.has(t)) return;
 			collapseTrail(trails, t, w / 2, cam.bottom, 0);
 		});
 		return {
@@ -1437,6 +1717,11 @@ const OVERLAY = {
 // optional runtime override of the camera ({ playhead }); null while idle, so
 // normal stepping keeps its resting playhead and stays on the reveal path
 const params = (s) => s.raceView;
+
+// ...and the Gen-Z step's, which consumes one interaction as well: whether the
+// reader has asked for the lines yet. Spread rather than nested so the camera
+// override keeps reading exactly as it does on every other race step.
+const genzParams = (s) => ({ ...s.raceView, genzShown: s.genzLinesShown });
 
 // Content extents. Width-independent by construction, so the constants derived
 // from them (the per-state yCaps) can be computed at module load. A step's
@@ -1553,6 +1838,74 @@ export const RACE_FUTURE_STEP = {
 	frontier: RACE_FUTURE_END,
 	highlight: [SLJ]
 };
+
+// How much recent history the Gen-Z step keeps on the plot behind the present.
+// THE dial for that step: three years is long enough for 99 lines to read as
+// trajectories rather than as a column of dots, and short enough to leave the
+// future strip most of the plot beside them. Clamped on a narrow viewport rather
+// than shrinking the x scale — see raceTailPx.
+export const RACE_GENZ_TAIL_YEARS = 3;
+
+// raceGenz: raceFuture's view, with the camera panned DOWN onto the stretch of
+// remoteness the Gen-Z contenders live on, and their 99 trajectories drawn under
+// it when the reader asks.
+//
+// The DATA behind the race lines is raceFull's, unchanged, which is the point:
+// the reader arrives on the chart they left and watches the camera travel off
+// it. What is new is `yOpen`, the camera's y degree of freedom (see
+// raceWindowYFit): at 1 the window is [2.3, 3.0], and the crown — which never
+// comes within 2.09 of the centre — has left through the top.
+//
+// `yCap: RACE_GENZ_YCAP` (below) is what makes the race cast's departure a
+// STATIC fact rather than something an animator has to remember: the step shows
+// none of them, so its resting frame carries no race line at all and the pan's
+// last frame lands on exactly that. The 224 lines are still placed on their own
+// curves at alpha 0, as on every race step, so nothing flies in from off the
+// plot when the reader steps away.
+//
+// `genz` says this step owns the simulation's trail block, and `tailYears` pins
+// its camera by the left edge the way raceFuture's `tailPx` does — so it is
+// unpannable by construction, and Index.svelte mounts no scrubber on it.
+//
+// Its subject is the seven the story names, which is what buys them a label:
+// `highlight` is exempt from ScrollyVisual's ten-nearest cut.
+export const RACE_GENZ_STEP = {
+	extent: RACE_FULL_EXTENT,
+	tailYears: RACE_GENZ_TAIL_YEARS,
+	frontier: RACE_FUTURE_END,
+	yOpen: 1,
+	genz: true,
+	// the strip keeps its block and its label, but not its years — see raceAxes
+	futureTicks: false,
+	highlight: GENZ_NAMED_IDS
+};
+
+// ...and the yCap that empties the race cast. Any value below every actor's best
+// year does it (raceContenders keeps whoever dips to the cap); -Infinity says so
+// outright rather than leaving a reader to check a number against the data.
+const RACE_GENZ_YCAP = -Infinity;
+
+// The seven named contenders have to be ON the Gen-Z window, over every year the
+// step's camera can reach. They are what the step is about, and a name in the
+// gutter pointing at a dot the frame has hidden is worse than no name — so a
+// data rebuild that moves one of them out of the window fails here rather than
+// shipping a chart with a label attached to nothing. Same idiom as
+// buildRaceAnchor's gap throw and solveTakeover's.
+{
+	const from = RACE_DATA_END - RACE_GENZ_TAIL_YEARS;
+	for (const id of GENZ_NAMED_IDS) {
+		const segs = GENZ_SEGS.get(id);
+		if (!segs) throw new Error(`scrolly race: no Gen Z series for ${id}`);
+		for (let yr = from; yr <= RACE_DATA_END; yr += 0.25) {
+			const v = curveYAt(segs, yr);
+			if (v < RACE_GENZ_Y_MIN || v > RACE_GENZ_Y_MAX) {
+				throw new Error(
+					`scrolly race: Gen Z name ${id} is off the window at ${yr} (${v})`
+				);
+			}
+		}
+	}
+}
 
 /**
  * The ids one state SHOWS: everyone whose line dips to its yCap somewhere in its
@@ -1714,6 +2067,25 @@ export const states = {
 		// reader never pressed Start) when arriving from it, all the way to 1970
 		// — see playRaceFullEntry
 		revealFrom: ["raceRecent"]
+	},
+	raceGenz: {
+		// no yCap in the raceFull sense — a cap BELOW the field, so the race cast
+		// is off this step entirely and the Gen-Z lines have the plot to themselves
+		layout: raceLayout(RACE_GENZ_STEP, RACE_GENZ_YCAP),
+		title: "The center of Hollywood, over time",
+		race: RACE_GENZ_STEP,
+		yCap: RACE_GENZ_YCAP,
+		// the seven the story names, in the chapter's own gutter position. Not
+		// raceLabelSpec's top ten: that rule answers "who is nearest the centre at
+		// this camera", and at this camera the answer is nobody — every race actor
+		// is above the window.
+		labels: GENZ_NAMED_IDS,
+		labelDirs: Object.fromEntries(GENZ_NAMED_IDS.map((id) => [id, "right"])),
+		overlay: OVERLAY,
+		params: genzParams,
+		// the camera pans down off the crown on arrival from the chapter card —
+		// see ScrollyVisual's playRaceGenzOpen
+		revealFrom: ["chapterCenters"]
 	},
 	raceFuture: {
 		// no yCap, same as raceFull: the whole cast, on a chart whose camera has

@@ -31,6 +31,7 @@ words:
   - yourpassword
   - chloë
   - unspool
+  - unspools
   - toggleable
   - crossfaded
   - crossfades
@@ -52,6 +53,10 @@ words:
   - repro
   - yfit
   - ycap
+  - segs
+  - lookback
+  - pannable
+  - unpannable
   - jacque
   - sarandon
   - pred

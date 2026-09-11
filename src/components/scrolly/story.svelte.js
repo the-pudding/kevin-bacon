@@ -4,12 +4,13 @@
 // re-runs the current layout with a short tween — an interaction is a param
 // update, not a step change.
 //
-// Four of these interactions gate the story: the reader cannot be carried to
+// Five of these interactions gate the story: the reader cannot be carried to
 // the step that reads out the answer without doing the thing (the rank guess,
-// the race rewind, the quiz, the simulation). Three of them are their own way
-// out — the control calls the step registry's `advance()` — and the fourth
-// (the quiz) opens a gate the reader's own Next then walks through. The fields
-// below are what those gates are asked about; see `gate` / `skipback` /
+// the race rewind, the quiz, the Gen Z draw-on, the simulation). Two of them
+// are their own way out — the control calls the step registry's `advance()` —
+// two carry the reader on when their animation lands (`advanceon`), and the
+// fifth (the quiz) opens a gate the reader's own Next then walks through. The
+// fields below are what those gates are asked about; see `gate` / `skipback` /
 // `advanceon` in Step.svelte.
 export const story = $state({
 	/** rank ladder: every actor the reader has guessed, in the order they picked
@@ -50,6 +51,21 @@ export const story = $state({
 	 * Written by ScrollyVisual, a handful of times per run, because the layout
 	 * never sees the live playhead: `simRuns` is only published when a run ends */
 	simNames: 0,
+	/** Gen Z race step: bumped by GenZLinesStart to ask for the 99 contenders'
+	 * trajectories to draw in. A counter rather than a boolean, same reason as
+	 * simRunNonce — ScrollyVisual owns the animation, this only requests it,
+	 * gated to the raceGenz state */
+	genzLinesNonce: 0,
+	/** Gen Z race step: the draw-on is in flight. ScrollyVisual owns this write;
+	 * GenZLinesStart only reads it, to disable its button */
+	genzLinesDrawing: false,
+	/** Gen Z race step: the lines are drawn. The step's one layout param — it
+	 * rests with the field NOT on the chart, so the reader's press is what puts it
+	 * there — and what the step's `advanceon` watches, so the draw carries the
+	 * story on by itself. Written once, at the end of a run, for the same reason
+	 * simRuns is: a per-frame write would retarget the tweener mid-draw. Cleared
+	 * by resetGenzLines() when the reader walks into the chapter again */
+	genzLinesShown: false,
 	/** name of the state whose arrival tween has finished, else null. Set by
 	 * ScrollyVisual — a layout reads it to hold an interaction back until its
 	 * own authored reveal has landed (see layouts/intro.js). Cleared on every
@@ -149,6 +165,22 @@ export function requestRaceRewind() {
 export function requestSimRun() {
 	story.simRuns = 0;
 	story.simRunNonce += 1;
+}
+
+/** Ask ScrollyVisual to draw the Gen Z field onto the race chart (see
+ * genzLinesNonce). A counter like the two above, though this one never replays:
+ * the draw is the step's only payoff and the story moves on when it lands. */
+export function requestGenzLines() {
+	story.genzLinesNonce += 1;
+}
+
+/** Put the Gen Z race step back to the state that asks to be started: the camera
+ * panned down onto an empty plot, with the field still to be drawn. Called from
+ * Index's navigate() on a forward arrival, so walking into the chapter again
+ * re-asks rather than showing the finished chart. */
+export function resetGenzLines() {
+	story.genzLinesShown = false;
+	story.genzLinesDrawing = false;
 }
 
 /** Put the simulation race back to the state that asks to be started: no runs

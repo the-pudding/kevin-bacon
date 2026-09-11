@@ -32,7 +32,7 @@ line's P50/P10 toggle) re-run the current layout via params — see
 
 | File                                          | Role                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | --------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `src/components/scrolly/nodes.js`             | Real data: `makeNodes()` → `{ nodes, edges }` decoded from `src/data/scrolly-nodes.json` (built by `npm run scrolly-data`). 11,486 `ActorNode`s (`id, pid, name, hop, films, avgDistance, rank`); node 0 is the anchor (Kevin Bacon), ids 0–14 are the curated intro network in reveal order (`INTRO_IDS`), edges are the 18 intro edges (`[sourceId, targetId, [[title, year], …]]` — **every** corpus film linking the pair, newest first; two of the eighteen have more than one). Also exports `ANCHOR_ID`, `INTRO_LAYOUT` (baked 860×680 planar intro coords) and `hash01(id, salt)` — deterministic per-node randomness used everywhere (never `Math.random`, which would flicker between renders).                                             |
+| `src/components/scrolly/nodes.js`             | Real data: `makeNodes()` → `{ nodes, edges }` decoded from `src/data/scrolly-nodes.json` (built by `npm run scrolly-data`). 22,530 `ActorNode`s (`id, pid, name, hop, films, avgDistance, rank`); node 0 is the anchor (Kevin Bacon), ids 0–14 are the curated intro network in reveal order (`INTRO_IDS`), edges are the 18 intro edges (`[sourceId, targetId, [[title, year], …]]` — **every** corpus film linking the pair, newest first; two of the eighteen have more than one). Also exports `ANCHOR_ID`, `INTRO_LAYOUT` (baked 860×680 planar intro coords) and `hash01(id, salt)` — deterministic per-node randomness used everywhere (never `Math.random`, which would flicker between renders).                                             |
 | `src/components/scrolly/tween.js`             | `createTweener(size, draw, stride)` → `{ current, to, stop }`. One rAF loop lerping a flat `Float64Array` from the _currently rendered_ values to a target. `to(next, ms, jitter, nodeDelays?)`. Vanilla (hand-rolled `easeCubicInOut`), no d3.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
 | `src/components/scrolly/layout-shared.js`     | Geometry/color constants, attr/trail helpers (`set`, `setEdge`, `setTrail`, `collapseTrail`, `clipSeries`), named-actor id lookups (`SLJ`, `HANKS`, …), and the `LayoutFn`/`LayoutResult`/`Note`/`Tick` JSDoc typedefs — everything shared across more than one chapter.                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 | `src/components/scrolly/layouts/*.js`         | One module per story chapter (`intro`, `hop-bands`, `chapters`, `rank`, `race`, `scatters`, `prediction`, `career`, `sim-race`, `genz-line`). Each exports a `states` object mapping state key → `{ layout, labels?, params?, pulse?, revealFrom?, entry?, overlay? }` (`revealFrom` scopes the layout's `delays` choreography to specific prior states — arriving from any other state is one plain tween) — everything about one state colocated in one object, instead of spread across parallel top-level maps.                                                                                                                                                                                                                                   |
@@ -210,7 +210,10 @@ crowd parked invisible) · `hopBands`
 take over) · `rankReveal` (SLJ) · `raceRecent`/
 `raceFull`/`raceFuture` (avg-distance-by-year race; the first two are
 fixed-scale cameras, the last runs forward to the present and opens a fitted
-strip of future beside it, see below) ·
+strip of future beside it, see below) · `raceGenz` (that same chart, a chapter
+later, with the camera panned DOWN off the crown onto the stretch of remoteness
+the Gen Z field lives on, and their 99 trajectories drawn in when the reader asks
+— see below) ·
 `scatterCenters`/`scatterWalters`/`scatterQuiz` (films-vs-distance scatter
 family) · `scatterCostars` (the same scatter framed on the top 250 by rank,
 coloured by which of the two named actors has worked with each — the one
@@ -582,6 +585,90 @@ animation, which is what makes a cold mount, a resize and the reduced-motion sna
 all land directly on the fully-open state — the same contract a `STATE_ENTRY`'s
 last leg has to meet, discharged by construction.
 
+**The Gen Z field (`raceGenz`).** The prediction chapter opens by bringing this
+chart back one more time and then leaving the crown behind. Three beats on one
+step: the reader arrives from the chapter card onto the view they left
+(`raceFuture`'s, with a few years of history on the plot); the camera pans DOWN
+onto `[2.3, 3.0]`, where the 99 Gen Z contenders actually sit, and the whole race
+cast retires as it goes; a **Show Gen Z actors** button draws their trajectories
+in, and the draw carries the reader on to the next step.
+
+**The camera gained a y degree of freedom for it, `yOpen`** — 0 at the chapter's
+own window, 1 at the Gen Z one — and that is the whole design. The rule above
+stands unchanged: `raceWindowYFit(camLeft, camRight, yOpen)` is still a pure
+function of its arguments, still reads no step and no extent, so an animated
+frame and the settle it lands on still agree by construction. A step declares
+where it RESTS (`yOpen: 1` on `RACE_GENZ_STEP`), exactly as raceFuture declares
+its frontier, which is what makes a cold mount, a resize and the reduced-motion
+snap all land on the panned-down view with no animation having run. The
+alternative — a domain on the step — is the one thing the axis rule exists to
+forbid.
+
+Everything the pan needs was already there. `curveEntry`/`curveExit` test
+`[vMin, vMax]` symmetrically, so lines leaving through the **top** end at the plot
+edge exactly as lines leaving through the bottom always have; an off-scale dot is
+hidden outright; `raceLeadBy` picks from the dots the frame is showing, so with no
+race dot on the plot nothing is inked from the race side; and the takeover callout
+culls itself off camera.
+
+**The race cast's departure is a STATIC fact, not something the animator
+remembers.** The step's yCap is `-Infinity`, so `raceStepVisible` is empty and its
+resting frame carries no race line at all — which is what the pan's last frame
+lands on. The leg gets there through the ordinary `shown` mechanism
+(`{from: the whole cast, to: ∅}`), so the crown fades out over the first third
+while it is still on the plot rather than being cut off the moment the window
+leaves it. As on every race step the 224 stay parked on their own curves at alpha
+0, so nothing flies in from off the plot when the reader steps away.
+
+**The lookback is three years, clamped.** `tailYears: 3` pins the camera by its
+left edge the way raceFuture's `tailPx` does, and both resolve through one helper
+(`raceTailPx`) — that the ceiling and the floor return the same year is what
+makes the step unpannable by construction. But three years is 228px at the
+chapter's fixed 76px/year, against a data plot of ~389px at 700px, ~173px at
+375px and ~136px at 320px, so it is capped at `RACE_TAIL_MAX_FRAC` (60%) of the
+plot: measured, the reader gets 3.00 years at 700px, 1.36 at 375px and 1.07 at
+320px, and the future strip still labels all five of its years at every one. A
+phone gets less history rather than the chart getting a second x scale — fitting
+x to the span is the one thing the chapter refuses to do, because every visible
+year carries its own label only while the scale never moves.
+
+**Its seven names are inked, and that is not an exception to the ink rule.** The
+chapter's rule is that no actor is identified BY a colour and the only ink belongs
+to whoever leads at the camera. On this step no race actor is on the plot at all,
+so nothing is being identified as "in front"; the seven are the ones the story
+names, drawn exactly as `scatterGenZ` already draws them (`INK` at r 5). Who the
+seven are lives in `layout-shared.js` as `GENZ_NAMED_IDS`, because both charts
+read it and they must not be able to drift apart; what stays in `scatters.js` is
+only each name's side, which is a fact about that frame's crowding (the race chart
+puts every name in the right-hand gutter).
+
+**It reuses the simulation's 99 trail slots** (`SIM_TRAIL_SLOTS`) rather than
+allocating a second block for the same 99 actors: a contender's trajectory line
+here becomes their win-count climb in `simRace` four steps later. `raceLayout`
+therefore skips those slots instead of retracting them when `step.genz` is set.
+
+**The field ARRIVES, it does not draw on.** The race chapter's own entry unspools
+a line leftward from a dot pinned at the plot's right edge, because there the
+camera is a time machine and the reader is being shown history that already
+happened. Here the 99 dots enter at the LEFT edge and ride their own curves
+rightward into the present, trailing their history behind them, all on one shared
+arrival playhead so they cross as a cohort. A tail growing backwards out of a
+stationary dot says the reverse of the beat, which is actors turning up.
+
+Two things fall out of it rather than needing constants. The dot is clamped to
+its own `[first, last]` year, so a contender who debuts inside the window waits at
+their first year instead of sliding along a curve that does not exist yet, and
+every dot stops dead on 2025 rather than running on with a camera this step parks
+past the present. And `edgeFade` — the chapter's pixel ramp for a line whose end
+is at the plot's left edge — becomes the entrance fade for free, because it
+measures where the end actually sits and here that end is what is moving.
+
+The trigger itself is `story.genzLinesShown`, a layout param written once at the
+end of the run — the same shape as `simRuns`, and for the same reason. The step
+rests with the field NOT on the chart, so the press is what puts it there, and a
+resize or a reduced-motion arrival lands on whichever of the two frames the flag
+says.
+
 **The simulation race (`simRace`), a reader-driven animation.** The one
 choreography a reader starts rather than an arrival: `SimRunner` (a `panel`
 snippet) bumps `story.simRunNonce`, and `ScrollyVisual`'s `playSimRun` replays
@@ -869,7 +956,8 @@ age 15, CGM tops the 10k-run sim with the lowest current avg distance).
 Node rows: ids 0–14 curated intro graph, then the full shared hop tree (every
 reachable actor, best-connected first), then appended actors the later chapters
 plot (prediction cohort, quiz pairs, Gen-Z candidates, race anchors, Julie
-Walters…), 11,486 rows total. Each row joins
+Walters…), 22,530 rows total (12,097 with a hop of 1–4; the other 10,433 are
+unreachable and park hidden). Each row joins
 sqlite films/avgDistance/rank with concurrence, top-50 costar log-degree and
 the four predicted-distance variants (null when a metric doesn't exist for that
 actor; layouts hide non-participants at their distance-scatter park spot —
@@ -964,11 +1052,11 @@ Three rules:
    reader who interacts then immediately steps away.
 2. **A gated question owns the way out of its step** (revised 2026-09-11;
    this replaces "every question is skippable / Next must always be
-   clickable"). Four steps ask the reader to do something and are followed by a
+   clickable"). Five steps ask the reader to do something and are followed by a
    step that reads out the answer. Carrying the reader across that boundary
    untouched leaves them reading an answer to a question they never saw put —
    and with the control behind them, no way back to it but Prev. So the
-   boundary is closed: on those four steps the reader's Next (tap gutter or
+   boundary is closed: on those five steps the reader's Next (tap gutter or
    ArrowRight) is **refused**, and the right-hand gutter goes disabled so the
    step reads as held rather than as a dead tap.
 
@@ -997,7 +1085,7 @@ Three rules:
    which is exactly what lets a gated step's own control out through its own
    gate.
 
-3. **Which four, and what opens each.**
+3. **Which five, and what opens each.**
    - **Step 6, the rank guess** (`gate` never opens; `skipback`). Naming #1 or
      pressing Give up calls `advance()` (`GuessRank`). Give up is always on
      screen, so the step can never strand a reader. Stepping back off the
@@ -1029,12 +1117,24 @@ Three rules:
      together, because the label selectors fall back to `simNames` below the
      run threshold and zeroing the playhead alone would draw all five winners
      on a chart collapsed to the origin.
+   - **The Gen Z race step** (`gate` never opens; `skipback`; `advanceon`). The
+     same shape as the simulation, one chapter earlier: "Show Gen Z actors" asks
+     for the draw-on, the draw _is_ the payoff, and the story moves on by itself
+     once `story.genzLinesShown` is published (the run's single end-of-run
+     write, and the reduced-motion path's only one). Walking into it calls
+     `resetGenzLines()` from `navigate()`, so a reader who came back gets the
+     empty plot and a live button rather than the finished chart. Unlike the
+     simulation it is one step rather than a chapter, so the reset is keyed on
+     the step's own state and needs no "from outside" test — `skipback` means
+     the only arrival there is a forward one.
 
 4. **The progress bar merges a gated pair into one dot.** A gated step and its
    payoff are one move to the reader, so they share a dot and the bar does not
    tick twice for it. `Index.svelte` derives `dotSteps` (no `chapter`, no
    `skipback`) and `dotStep` (the gated step lights its successor's), and
-   `StepProgress` renders those — it never counts steps by hand. 24 dots today.
+   `StepProgress` renders those — it never counts steps by hand. 24 dots today
+   (the Gen Z step is gated and `skipback`, so it shares `scatterGenZ`'s dot and
+   adding it moved the count by nothing).
 
 Exception: a visual that abandons the dot metaphor entirely gains nothing from
 the shared canvas — layer a plain HTML component over (or beside) the canvas
