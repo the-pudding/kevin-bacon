@@ -24,7 +24,6 @@
 	} from "$components/scrolly/layouts/intro.js";
 	import RouteFilms from "$components/scrolly/RouteFilms.svelte";
 	import InfoTerm from "$components/ui/InfoTerm.svelte";
-	import { plotBottom } from "$components/scrolly/layout-shared.js";
 	import { MediaQuery } from "svelte/reactivity";
 	import { fade } from "svelte/transition";
 	import { cubicInOut } from "svelte/easing";
@@ -350,10 +349,13 @@
 			? { duration: 0 }
 			: { duration: CHAPTER_OUT_MS, easing: cubicInOut }
 	);
-	// centred on the FIELD's box, not the canvas's: the crowd occupies the plot
-	// area above the step card (plotBottom), so a canvas-centred title would sit
-	// half over empty ground below the universe it is meant to be inside
-	const chapterHeight = $derived(visualHeight ? plotBottom(visualHeight) : 0);
+	// centred on the whole visual box, because that is now the field's box too: a
+	// chapter card drops the plot area and spreads its crowd over the entire
+	// canvas (galaxyBox), so there is no empty ground below the universe for a
+	// centred title to sit over. A chapter carries no prose, so nothing competes
+	// for the lower half. Any state that still keeps to plotBottom is a chart, and
+	// charts have no title card.
+	const chapterHeight = $derived(visualHeight);
 
 	const introRoute = $derived(
 		story.introFocus == null ? null : routeSummary(story.introFocus)
@@ -637,12 +639,12 @@
 
 				<!-- CHAPTER: THE CENTERS OF HOLLYWOOD -->
 				<!-- The card opens on hopSeed's own closing frame — the crowd is
-					     already spread across the plot, so nothing in the field moves and
-					     the picture simply holds while the title lands. Only the intro
-					     fifteen travel, dissolving out of the constellation into the crowd,
-					     which is the line the reader has just read. It rests there
-					     drifting (the framework's one ambient loop) until they step on,
-					     and the field then sorts itself into the hop bands. -->
+					     already spread across the plot, so nothing moves and the picture
+					     simply holds while the title lands. The intro fifteen dissolve
+					     into the crowd where they stand, taking its mark without leaving
+					     their places, which is the line the reader has just read. It rests
+					     there drifting (the framework's one ambient loop) until they step
+					     on, and the field then sorts itself into the hop bands. -->
 				<Chapter state="chapterCenters" title="The centers of Hollywood" />
 
 				<Step state="hopBands">
@@ -1085,11 +1087,13 @@
 		}
 	}
 
-	/* A chapter card's title, centred in the field's own box (height set inline
-	   off plotBottom) rather than the canvas's, so it sits inside the universe
-	   drifting behind it rather than half below it. Nothing here is interactive
-	   and the canvas underneath may carry a layout's `hits`, so the whole layer
-	   stays out of the way of taps. */
+	/* A chapter card's title, centred in the field's own box — which on a card is
+	   the whole visual box, since the crowd spreads over the entire canvas (height
+	   still set inline, see chapterHeight). It sits in the middle of the universe
+	   drifting behind it. Note the title stays in the 700px column while the dots
+	   run past it on both sides: the sky is full-bleed, the words are not.
+	   Nothing here is interactive and the canvas underneath may carry a layout's
+	   `hits`, so the whole layer stays out of the way of taps. */
 	.chapter-card {
 		position: absolute;
 		top: 0;
@@ -1137,6 +1141,19 @@
 		left: 0;
 		right: 0;
 		bottom: 0;
+		/* halo, not a plate — the same reason .chapter-card h2 carries one. A
+		   full-bleed state (hopSeed, the chapter cards) puts the crowd behind the
+		   copy all the way to the bottom edge, and a background would be a
+		   rectangle cut out of the sky. Sized from .node-label's rather than the
+		   title's: body copy needs a tighter hold-out than display type. It costs
+		   nothing on the boxed steps, where the field stops at plotBottom and the
+		   text sits on plain white. */
+		text-shadow:
+			0 0 4px var(--color-bg, #fff),
+			0 0 4px var(--color-bg, #fff),
+			0 0 8px var(--color-bg, #fff),
+			0 0 8px var(--color-bg, #fff),
+			0 0 12px var(--color-bg, #fff);
 	}
 
 	/* The tap gutters run the full height of the layout, so they lie over the

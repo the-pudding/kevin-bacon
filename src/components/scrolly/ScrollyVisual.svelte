@@ -497,17 +497,20 @@
 	// effect). Always 0 in a build, where the tuning panel doesn't exist.
 	let lastBandRev = 0;
 	let lastPxRev = 0;
-	function layoutFor(name, w, h, layoutParams) {
+	// `bleed` is part of the key, not just an argument: it moves with the VIEWPORT
+	// while w/h stay pinned to the 700px reading column, so two different screen
+	// widths produce the same w:h and would otherwise share one cached sky.
+	function layoutFor(name, w, h, layoutParams, bleed) {
 		// a race camera hold is a fresh continuous value every time the reader
 		// releases a pan, and each entry is ~0.8MB of Float64Array — never a cache
 		// hit, so don't keep it
 		if (layoutParams?.playhead != null) {
-			return STATES[name](nodes, w, h, edges, layoutParams);
+			return STATES[name](nodes, w, h, edges, layoutParams, bleed);
 		}
-		const key = `${name}:${w}:${h}:${JSON.stringify(layoutParams) ?? ""}`;
+		const key = `${name}:${w}:${h}:${bleed}:${JSON.stringify(layoutParams) ?? ""}`;
 		let result = layoutCache.get(key);
 		if (!result) {
-			result = STATES[name](nodes, w, h, edges, layoutParams);
+			result = STATES[name](nodes, w, h, edges, layoutParams, bleed);
 			layoutCache.set(key, result);
 		}
 		return result;
@@ -518,6 +521,15 @@
 	let container = $state();
 	let width = $state(0);
 	let height = $state(0);
+	// The canvas's own width, which is the VIEWPORT's, not `.visual`'s: the canvas
+	// bleeds past the 700px column so a chapter card can fill the screen (see the
+	// render transform below and layout-shared's galaxyBox). Measured rather than
+	// taken from the 100vw it is styled with, so what the layouts get is what the
+	// browser actually laid out.
+	let canvasWidth = $state(0);
+	// how far the canvas sticks out past `.visual` on EACH side, in the CSS pixels
+	// every layout is authored in
+	const bleed = $derived(Math.max(0, (canvasWidth - width) / 2));
 	// live, so DevTools' emulation (and a reader changing the OS setting mid-story)
 	// stands every animation down straight away
 	const motionQuery = new MediaQuery("(prefers-reduced-motion: reduce)", false);
@@ -564,6 +576,7 @@
 	let prevParamsKey = null;
 	let prevW = 0;
 	let prevH = 0;
+	let prevCanvasW = 0;
 	let entered = false;
 	// `camPanning` is true whenever the camera is actively moving (a reader pan, or
 	// the rewind phase) — a reader's scrub grab is ignored while it is set, so a
@@ -1134,7 +1147,7 @@
 		tweener.stop();
 		trailTweener.stop();
 		sweeping = true;
-		const write = anim.frames(nodes, width, height, layoutParams);
+		const write = anim.frames(nodes, width, height, layoutParams, bleed);
 		runLoop((t) => write(tweener.current, trailTweener.current, t));
 	}
 
@@ -1241,7 +1254,10 @@
 		if (!ctx) return;
 		const attrs = tweener.current;
 		const trailAttrs = trailTweener.current;
-		ctx.clearRect(0, 0, width, height);
+		// past the column on both sides: the origin sits on `.visual`'s left edge,
+		// so clearing [0, width] would leave the chapter card's sky smeared across
+		// the bleed for the rest of the story
+		ctx.clearRect(-bleed, 0, width + bleed * 2, height);
 		// trails under everything: race/career lines, prediction diagonal. An INKED
 		// line (the race chart's leader — see setTrailHighlight) is held back to a
 		// second pass so the crown is drawn over the field rather than buried under
@@ -1707,7 +1723,10 @@
 			lastPxRev = story.racePxPerYearRev;
 			layoutCache.clear();
 		}
-		if (!canvas || !width || !height || !stateName) return;
+		// canvasWidth is in here with the rest: it sizes the backing store, so a tick
+		// where it has not been measured yet would hand the store a width of 0 and
+		// blank the canvas until the next resize
+		if (!canvas || !width || !height || !canvasWidth || !stateName) return;
 		// while the path animator/scrub loop owns the rAF, step aside: a genuine
 		// state change (Next) abandons it — dots tween on from wherever they are, so
 		// Next stays live and any in-progress scrub ends; a param/raceView change is
@@ -1718,7 +1737,8 @@
 		// draws the old geometry for the rest of its life — and an ambient loop has
 		// no rest of its life, so it would never recover. The snap branch below
 		// re-fits, and settle() restarts the ambient at the new size.
-		const resized = width !== prevW || height !== prevH;
+		const resized =
+			width !== prevW || height !== prevH || canvasWidth !== prevCanvasW;
 		if (sweeping) {
 			if (stateName === prevState && !resized) return;
 			stopSweep();
@@ -1731,15 +1751,21 @@
 		}
 		if (resized) {
 			const dpr = Math.min(window.devicePixelRatio || 1, 2);
-			canvas.width = width * dpr;
+			// The backing store spans the bled canvas, but the ORIGIN stays on
+			// `.visual`'s left edge: shifting the transform by `bleed` is what keeps
+			// every layout's coordinates meaning the same screen pixels they always
+			// did, so only a layout that deliberately authors outside [0, width] —
+			// the chapter card's sky — sees any difference.
+			canvas.width = canvasWidth * dpr;
 			canvas.height = height * dpr;
 			ctx = canvas.getContext("2d");
-			ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+			ctx.setTransform(dpr, 0, 0, dpr, bleed * dpr, 0);
 			prevW = width;
 			prevH = height;
+			prevCanvasW = canvasWidth;
 		}
 		const paramsKey = JSON.stringify(layoutParams) ?? "";
-		const layout = layoutFor(stateName, width, height, layoutParams);
+		const layout = layoutFor(stateName, width, height, layoutParams, bleed);
 		const { attrs, delays } = layout;
 		decor = {
 			axes: layout.axes,
@@ -2026,7 +2052,7 @@
 			// reader who hits Next mid-flight skips the choreography.
 			// no name is on the chart yet; each leg introduces its own as it lands
 			if (entryAnim.labelsAfter) entryLabels = new Set();
-			const write = entryAnim.frames(nodes, width, height, layoutParams);
+			const write = entryAnim.frames(nodes, width, height, layoutParams, bleed);
 			const startAttrs = attrs.slice();
 			const startTrails = trailTarget.slice();
 			write(startAttrs, startTrails, 0, 0);
@@ -2068,7 +2094,7 @@
 	bind:clientWidth={width}
 	bind:clientHeight={height}
 >
-	<canvas bind:this={canvas}></canvas>
+	<canvas bind:this={canvas} bind:clientWidth={canvasWidth}></canvas>
 	<div class="annotations">
 		<!-- The future block (PRD P-11-2). In the ANNOTATIONS layer, ahead of the
 		     node labels, which is what lets it carry a shaded fill: the names sit
@@ -2361,22 +2387,43 @@
 </div>
 
 <style>
+	/* Deliberately NOT overflow:hidden — the canvas below is wider than this box
+	   and has to escape it. The clipping that was here has moved onto
+	   .annotations, which is what actually needed it: this box is still the
+	   coordinate frame every panel, hit target and label is positioned against,
+	   and every hit test still measures it (see the getBoundingClientRect in
+	   drawScene's neighbours), so nothing about it may move. */
 	.visual {
 		position: relative;
 		width: 100%;
 		height: 100%;
-		overflow: hidden;
 	}
 
+	/* Full-bleed, centred on the reading column rather than sized by it: a
+	   chapter card's crowd fills the screen, and a canvas clipped to the 700px
+	   column could only ever draw a rectangle of dots in the middle of it. The
+	   drawing origin is put back on this box's left edge by the render
+	   transform, so every other state is unaffected — see the `bleed` derived.
+
+	   100vw is exact here because the page is a single 100svh section with no
+	   vertical scrollbar to take a gutter out of it; the width the layouts use
+	   is measured off this element regardless, never assumed. */
 	canvas {
 		display: block;
-		width: 100%;
+		position: absolute;
+		top: 0;
+		left: 50%;
+		transform: translateX(-50%);
+		width: 100vw;
 		height: 100%;
 	}
 
+	/* the labels stay inside the reading column: a name is set against the prose
+	   measure, not the sky behind it */
 	.annotations {
 		position: absolute;
 		inset: 0;
+		overflow: hidden;
 		pointer-events: none;
 	}
 

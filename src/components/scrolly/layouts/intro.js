@@ -11,6 +11,7 @@ import {
 	parkHidden,
 	introPosition,
 	writeFieldCrowd,
+	galaxyBox,
 	NETWORK_INTRO_RADIUS
 } from "../layout-shared.js";
 import { routesTo, routeActors } from "../intro-routes.js";
@@ -171,7 +172,7 @@ export function writeNetwork(
 
 // The full intro frame: the constellation, with every other node parked at the
 // scatter spot a later chapter wants it at (alpha 0).
-function buildNetworkAttrs(nodes, w, h, focus) {
+function buildNetworkAttrs(nodes, w, h, focus, bleed = 0) {
 	const attrs = new Float64Array(ATTR_SIZE);
 	const introSet = new Set(INTRO_IDS);
 	for (const n of nodes) {
@@ -181,8 +182,10 @@ function buildNetworkAttrs(nodes, w, h, focus) {
 	// have pushed it back out to. Without this the crowd is parked on the films
 	// scatter instead, and stepping back out of hopSeed drags 600 visible dots
 	// left across the canvas toward their film counts rather than letting the
-	// camera zoom back in over them.
-	writeFieldCrowd(attrs, w, h, 1);
+	// camera zoom back in over them. Same box hopSeed lands the field on
+	// (`galaxyBox`), so the park is that step's own geometry rather than one that
+	// merely looks like it from behind alpha 0.
+	writeFieldCrowd(attrs, w, h, 1, galaxyBox(w, h, bleed));
 	const pos = writeNetwork(attrs, nodes, w, h, focus);
 	return { attrs, pos };
 }
@@ -218,7 +221,7 @@ function buildHits(nodes, pos, focus) {
 }
 
 /** @type {import("../layout-shared.js").LayoutFn} */
-function layoutLone(nodes, w, h, edges) {
+function layoutLone(nodes, w, h, edges, _params, bleed = 0) {
 	const delays = new Float64Array(DELAY_SIZE);
 
 	// index edges by unordered endpoint pair so paths can look them up by name
@@ -267,7 +270,7 @@ function layoutLone(nodes, w, h, edges) {
 		}
 	});
 
-	const attrs = buildNetworkAttrs(nodes, w, h, null).attrs;
+	const attrs = buildNetworkAttrs(nodes, w, h, null, bleed).attrs;
 	for (const n of nodes) {
 		delays[n.id] = nodeDelay.get(n.id) ?? 0;
 	}
@@ -282,12 +285,12 @@ function layoutLone(nodes, w, h, edges) {
 }
 
 /** @type {import("../layout-shared.js").LayoutFn} */
-function layoutNetworkIntro(nodes, w, h, _edges, params) {
+function layoutNetworkIntro(nodes, w, h, _edges, params, bleed = 0) {
 	// The network is already fully grown by the time the reader lands here (see
 	// `lone`'s pop-in above), so this state is a static settle: same geometry,
 	// just picking out a route once the reader taps an actor.
 	const focus = params?.focus ?? null;
-	const { attrs, pos } = buildNetworkAttrs(nodes, w, h, focus);
+	const { attrs, pos } = buildNetworkAttrs(nodes, w, h, focus, bleed);
 	const hits = buildHits(nodes, pos, focus);
 	return { attrs, hits };
 }

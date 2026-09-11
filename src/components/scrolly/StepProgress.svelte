@@ -101,8 +101,15 @@
 	   one viewport and start it scrolling. Above --z-tap-above so the movers
 	   panel (top: 0, opaque) can't cover it and the quiz's backdrop-filter can't
 	   blur it. No background — it lands on white everywhere, and a plate would
-	   be the only thing in the piece punching a rectangle out of the canvas. */
+	   be the only thing in the piece punching a rectangle out of the canvas.
+	   What the marks get instead is --bar-halo, the same hold-out the chapter
+	   title and the step prose carry: a full-bleed state runs its crowd up under
+	   the bar, and a 5px dot on a field of 3px dots needs separating from them
+	   without a plate. Invisible wherever the canvas behind it is empty. */
 	.step-progress {
+		--bar-halo:
+			0 0 3px var(--color-bg, #fff), 0 0 3px var(--color-bg, #fff),
+			0 0 6px var(--color-bg, #fff), 0 0 6px var(--color-bg, #fff);
 		position: absolute;
 		top: 0;
 		left: 0;
@@ -136,6 +143,7 @@
 		width: 1px;
 		height: 10px;
 		background: var(--color-border);
+		box-shadow: var(--bar-halo);
 	}
 
 	/* Three states by colour alone. The current dot grows by transform, never by
@@ -146,6 +154,7 @@
 		height: 5px;
 		border-radius: 50%;
 		background: var(--color-gray-200);
+		box-shadow: var(--bar-halo);
 		/* --1s rather than an explicit reduced-motion block (which is what
 		   Index.svelte uses): those disable keyframe animations with delays,
 		   where shrinking the duration leaves the delay standing. This is the

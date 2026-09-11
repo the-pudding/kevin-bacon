@@ -9,6 +9,7 @@ import {
 	NETWORK_HOP_DELAY_MS,
 	PULLBACK_ZOOM,
 	writeFieldCrowd,
+	galaxyBox,
 	cardSpot,
 	hopFractions,
 	hopShareLabels,
@@ -120,7 +121,13 @@ function layoutHopBands(nodes, w, h, _edges, params) {
 // distance left to travel here.
 //
 // This step no longer hands straight to hopBands: the chapter card sits between
-// them and opens on this exact closing frame (see layouts/chapters.js).
+// them and opens on this exact closing frame (see layouts/chapters.js). It is
+// the same frame in the literal sense — the crowd is authored across the card's
+// `galaxyBox`, not the plot's `fieldBox`, so the pull-back lands on a sky that
+// already fills the screen and stepping onto the card moves nothing: the title
+// fades up, the dot bar fades out, and the fifteen grey into the crowd where
+// they stand. The network itself still sits in the column; only the field
+// around it is full-bleed.
 // ---------------------------------------------------------------------------
 
 // "slowly" — the whole pull-back is one long leg, long enough that the reader
@@ -131,12 +138,12 @@ const PULLBACK_ZOOM_MS = 4000;
 const HOP_SEED_EDGE_FADE = 0;
 
 /** @type {import("../layout-shared.js").LayoutFn} */
-function layoutHopSeed(nodes, w, h, edges) {
+function layoutHopSeed(nodes, w, h, edges, _params, bleed = 0) {
 	const { attrs } = layoutHopBands(nodes, w, h, edges, { seed: true });
 	// no focus: whatever route the reader lit up on networkIntro releases as the
 	// camera pulls back, because the step is about the network as a whole again
 	writeNetwork(attrs, nodes, w, h, null, PULLBACK_ZOOM, HOP_SEED_EDGE_FADE);
-	writeFieldCrowd(attrs, w, h, PULLBACK_ZOOM);
+	writeFieldCrowd(attrs, w, h, PULLBACK_ZOOM, galaxyBox(w, h, bleed));
 	// an all-zero clock, opting out of the default edge lag: that lag is for links
 	// fading IN behind travelling dots, and these are fading OUT over a frame
 	// where nothing moves — so they go with the names, not half a beat later. It
@@ -152,12 +159,18 @@ function layoutHopSeed(nodes, w, h, edges) {
  * names) while nothing moves; frame 1 reproduces layoutHopSeed call for call, so
  * playEntry's settle is a zero-duration retarget. Only the intro slots are
  * touched: the crowd's invisible band parks come from the static layout.
+ *
+ * The box is struck once from the layout's own `bleed`, outside the closure, so
+ * every frame of the leg and the static layout it settles onto are the same
+ * call — a frame built against a different box would snap the sky inward on
+ * settle.
  */
-function zoomOutFrames(nodes, w, h) {
+function zoomOutFrames(nodes, w, h, _params, bleed = 0) {
+	const box = galaxyBox(w, h, bleed);
 	return (attrs, _trails, _phase, e) => {
 		const scale = 1 + (PULLBACK_ZOOM - 1) * e;
 		writeNetwork(attrs, nodes, w, h, null, scale, HOP_SEED_EDGE_FADE);
-		writeFieldCrowd(attrs, w, h, scale);
+		writeFieldCrowd(attrs, w, h, scale, box);
 	};
 }
 

@@ -760,32 +760,85 @@ renders the card from `stepConfigs[value].chapter` inside a stable `{#if}` block
 which Svelte can transition both ways. That is the whole reason a chapter is not
 just a panel.
 
-**The card opens on the frame before it, and nothing moves.** `chapterCenters`
-reuses `writeFieldCrowd` at `PULLBACK_ZOOM` — hopSeed's landed camera — so the
-field is byte-identical to the frame the reader was already looking at. The intro
-fifteen hold their places too: `cardSpot` gives them `introPosition` at that same
-`PULLBACK_ZOOM`, and only their radius, grey and edge ramp change to the crowd's,
-Bacon included. So the constellation dissolves into the crowd where it stands
-rather than scattering into it — the visual form of the line the reader has just
-read, without fifteen dots flying across the plot to say it. Reusing the writers
-is what makes the identity true by construction; that is also why
-`cardSpot`/`fieldSpot`/`fieldEdgeAlpha` are extracted in `layout-shared.js`
-rather than the placement being written out twice.
+**The card drops the reading column, and so does the step that feeds it.** Every
+state carrying a chart is drawn inside `#scrolly`'s 700px measure, because a
+chart wider than the prose it belongs to stops being readable. The two states
+that carry no chart — `hopSeed`'s pull-back and `chapterCenters` — author their
+crowd across `galaxyBox` instead: the whole viewport, edge to edge and top to
+bottom, so the reader gets the corpus as something too big for the page exactly
+where the argument pauses. `fieldEdgeAlpha`'s 40px ramp becomes the vignette at
+the screen edges.
 
-**The handoff out is vertical.** `hopBands` takes each dot's x from the same
-`cardSpot` the card places it at, so the band decides only its row. The crowd's
-columns are a uniform scatter over the plot and the fifteen's are their
-constellation columns — the chart is indistinguishable from any other arrival
-(deciles stay 9.7–10.4%) — but from the card an independent x would send twelve
-thousand dots off on twelve thousand unrelated diagonals, which reads as static
-rather than as sorting. Sharing the x makes it fall: measured max |dx| is 0
-across all 12,066 visible dots, mean |dy| 160px. If a future layout wants to
-receive that crowd the same way, share the x the same way.
+`hopSeed` sharing the card's box is what makes the step onto the card a no-op.
+Both write the same crowd through `writeFieldCrowd` at `PULLBACK_ZOOM` against
+the same `galaxyBox`, and the fifteen are already at `cardSpot`'s
+`introPosition(PULLBACK_ZOOM)`, so the arrival tween has nothing to carry: the
+title fades up, the dot bar fades out, the fifteen shrink and grey, and not one
+dot moves. The blooming-outward move belongs to the pull-back that precedes it —
+`zoomOutFrames` expands the sky over 4s while the reader reads the line — rather
+than to the card's arrival.
 
-**The title is centred on the field's box, not the canvas's.** The crowd occupies
-the plot area (`plotBottom`), so a canvas-centred title would sit half over the
-empty ground below the universe it is meant to be inside. Same "position off the
-layout's own geometry" rule as step 1's caption and `introBottom`.
+Anything drawn OVER a full-bleed state gets a halo rather than a plate: the
+chapter title (`.chapter-card h2`), the step prose (`.scrolly-steps`) and the
+progress bar's dots and ticks (`--bar-halo` in `StepProgress.svelte`) all hold
+out the background colour with a stack of shadows. A solid background would be
+the only rectangle punched out of the universe, and the halos cost nothing on a
+boxed step, where the field stops at `plotBottom` and the marks sit on white.
+
+The mechanism is `bleed`, threaded from `ScrollyVisual` as the last argument to
+every `LayoutFn` (and to `AmbientAnim.frames`): how far the canvas extends past
+`w` on each side. The canvas element is styled `100vw` and centred, while the
+drawing origin is pushed back onto `.visual`'s left edge by the render
+transform, so `w`/`h` still mean the column and **every other layout is
+unaffected** — only one that deliberately authors outside `[0, w]` sees any
+difference. Three consequences worth knowing:
+
+- `bleed` is part of the layout cache key. `w`/`h` are pinned to the column, so
+  two different screen widths produce the same `w:h` and would otherwise share
+  one cached sky.
+- `drawScene` clears `[-bleed, w + bleed]`, not `[0, w]`.
+- `.visual` is no longer `overflow: hidden` (the canvas has to escape it); the
+  clipping moved to `.annotations`, which is what wanted it. `.visual` itself is
+  untouched otherwise — it is still the box every panel, hit target and label is
+  positioned against, and every hit test measures it.
+
+The intro fifteen are the exception that stays put: `cardSpot` gives them
+`introPosition` at `PULLBACK_ZOOM` — hopSeed's landed camera — and only their
+radius, grey and edge ramp change to the crowd's, Bacon included. So what
+dissolves is the diagram, not their positions: the constellation becomes the
+crowd where it stands rather than scattering into it, which is the visual form of
+the line the reader has just read.
+
+**The handoff out is a contraction, and the x ordering survives it.** `hopBands`
+takes each dot's x from `cardSpot`, which is the **column** box (`fieldBox`) —
+the card is the only caller that passes `galaxyBox`. So stepping off a card, a
+dot moves horizontally as well as vertically: the sky funnels back into the
+measure while the bands sort it. Because `galaxyBox` is the column box scaled
+about the same centre, that contraction is uniform — every dot keeps its
+left-to-right place and its neighbours — rather than twelve thousand unrelated
+diagonals, which is what an independently-hashed x would give and what reads as
+static rather than as sorting.
+
+Where the identity has to be exact is the OTHER side: `hopSeed` and the card both
+author across `galaxyBox` at `PULLBACK_ZOOM`, so that handoff is byte-identical
+by construction — both call the same `writeFieldCrowd` with the same box. The
+box is struck once in `zoomOutFrames`, outside the per-frame closure, so the
+leg's last frame and the static layout it settles onto cannot drift apart; a
+frame built against a different `bleed` would snap the sky inward on settle,
+which is why `EntryAnim.frames` takes `bleed` as well. `networkIntro` and `lone`
+park the same crowd (invisible, at scale 1) through the same box, so stepping
+back out of `hopSeed` zooms the camera in over that state's own geometry rather
+than one that merely looks like it from behind alpha 0. The card shows
+12,097 dots: `FIELD_IDS` (12,082 = hop 1–4 less the intro fifteen) plus the
+fifteen. If a future layout wants to receive that crowd the same way,
+share the x the same way, and pass no box.
+
+**The title is centred on the field's box, not the canvas's.** On a card those are
+now the same box — the crowd fills the whole canvas — so `chapterHeight` is just
+`visualHeight`. The rule is unchanged and still worth keeping: position off the
+layout's own geometry, as step 1's caption and `introBottom` do. Note the title
+stays inside the reading column while the dots run past it on both sides; the sky
+is full-bleed, the words are not.
 
 ## How to add a state
 

@@ -7,20 +7,27 @@ import {
 	FIELD_IDS,
 	PULLBACK_DOT_R,
 	PULLBACK_ZOOM,
-	fieldSpot,
+	cardSpot,
 	fieldEdgeAlpha,
 	writeFieldCrowd,
+	galaxyBox,
 	set,
 	parkHidden
 } from "../layout-shared.js";
 
 // ---------------------------------------------------------------------------
 // Chapter cards: a title beat between chapters, with the corpus drifting behind
-// it. The visual is deliberately the one the reader is already looking at —
-// hopSeed's pull-back ends with the whole field spread across the plot, so the
-// card arrives on an identical frame and the picture simply holds still while
-// the title lands on it. The only thing that moves is the intro constellation
-// dissolving into the crowd, which is the argument the previous line just made.
+// it. Every other state is drawn inside the 700px reading column; a card is the
+// one place that column is dropped, and the crowd opens out across the whole
+// viewport (`galaxyBox`) so the title lands on a sky rather than on a rectangle
+// of dots. Arriving is therefore the one move the card makes: the field blooms
+// outward from wherever the previous state left it over the state tween, and
+// draws back into the column on the way out, so the reader gets the corpus as
+// something too big for the page exactly where the prose stops.
+//
+// The intro constellation is the exception that stays put: its fifteen dots
+// take the crowd's mark where they already stand (`cardSpot`), so what dissolves
+// is the diagram, not their positions.
 // ---------------------------------------------------------------------------
 
 /**
@@ -32,15 +39,15 @@ import {
 const UNIVERSE_IDS = [...FIELD_IDS, ...INTRO_IDS];
 
 /**
- * The intro fifteen (Bacon included) taking their places in the field. Same
- * `fieldSpot`, same landed radius, same grey, same edge ramp as everyone else —
- * so what the reader sees is fifteen dots leaving a diagram and becoming
- * indistinguishable members of a crowd, Bacon shrinking and greying out with
- * them.
+ * The intro fifteen (Bacon included) joining the field where they stand. They
+ * keep hopSeed's landed positions (`cardSpot`) and take on the crowd's radius,
+ * grey and edge ramp, so nothing about the constellation travels: the fifteen
+ * simply stop being drawn as a diagram and blend into the crowd already around
+ * them, Bacon shrinking and greying out among them.
  */
-function writeIntroIntoField(attrs, w, h) {
+function writeIntroIntoField(attrs, w, h, box) {
 	for (const id of INTRO_IDS) {
-		const [x, y] = fieldSpot(id, w, h);
+		const [x, y] = cardSpot(id, w, h);
 		set(
 			attrs,
 			id,
@@ -48,22 +55,24 @@ function writeIntroIntoField(attrs, w, h) {
 			y,
 			PULLBACK_DOT_R,
 			CROWD,
-			FIELD_ALPHA * fieldEdgeAlpha(x, y, w, h)
+			FIELD_ALPHA * fieldEdgeAlpha(x, y, w, h, box)
 		);
 	}
 }
 
 /** @type {import("../layout-shared.js").LayoutFn} */
-function layoutChapterCenters(nodes, w, h) {
+function layoutChapterCenters(nodes, w, h, _edges, _params, bleed = 0) {
 	const attrs = new Float64Array(ATTR_SIZE);
+	// the sky: the whole canvas, past the reading column on both sides
+	const box = galaxyBox(w, h, bleed);
 	// unreachable actors have no place in a crowd of degrees of separation; park
 	// them where hopBands parks them too, so they never move across the handoff
 	for (const n of nodes) if (n.hop < 0) parkHidden(attrs, n, w, h);
-	// PULLBACK_ZOOM is the landed camera, so this is hopSeed's closing frame to
-	// the pixel — reusing the writer rather than reproducing it is what makes
-	// that true by construction instead of by review
-	writeFieldCrowd(attrs, w, h, PULLBACK_ZOOM);
-	writeIntroIntoField(attrs, w, h);
+	// PULLBACK_ZOOM is the landed camera, so this is hopSeed's closing frame
+	// re-authored across the wider box — same dots, same radius, same grey, each
+	// carried out to its place in the sky by the arrival tween
+	writeFieldCrowd(attrs, w, h, PULLBACK_ZOOM, box);
+	writeIntroIntoField(attrs, w, h, box);
 	return { attrs };
 }
 
@@ -94,8 +103,17 @@ const DRIFT_PERIOD_MAX_MS = 22000;
 const DRIFT_BANDS = 12;
 
 /** @type {import("../states.js").AmbientAnim["frames"]} */
-function driftFrames(nodes, w, h) {
-	const { attrs: base } = layoutChapterCenters(nodes, w, h);
+function driftFrames(nodes, w, h, params, bleed = 0) {
+	// same `bleed` the static layout was built with, or the drift base would be
+	// the column-width field and the whole sky would snap inward on settle
+	const { attrs: base } = layoutChapterCenters(
+		nodes,
+		w,
+		h,
+		null,
+		params,
+		bleed
+	);
 	const n = UNIVERSE_IDS.length;
 	const at = new Int32Array(n);
 	const baseX = new Float32Array(n);

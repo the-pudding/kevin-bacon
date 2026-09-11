@@ -76,8 +76,16 @@ const pick = (field) => {
 	return out;
 };
 
-export const STATES = Object.fromEntries(
-	Object.entries(REGISTRY).map(([key, def]) => [key, def.layout])
+// Annotated rather than inferred: a layout only declares the parameters it
+// actually uses, so inference makes STATES a union of arities and the widest
+// call site (ScrollyVisual's, which passes `bleed`) fails against whichever
+// member declares the fewest. Every entry IS a LayoutFn — that is the contract
+// the whole registry exists to hold — so say so. Keyed off REGISTRY so
+// LayoutState below stays the union of real state names rather than `string`.
+export const STATES = /** @type {Record<keyof typeof REGISTRY, LayoutFn>} */ (
+	Object.fromEntries(
+		Object.entries(REGISTRY).map(([key, def]) => [key, def.layout])
+	)
 );
 
 /** @typedef {keyof typeof STATES} LayoutState */
@@ -172,10 +180,16 @@ export const STATE_REVEAL_FROM = pick("revealFrom");
  * it instead of captioning a dot mid-flight. Declaring it hides every one of
  * the state's labels until its leg lands, including through the arrival tween.
  *
+ * `bleed` is the layout's own (see LayoutFn) and is passed for the same reason
+ * AmbientAnim gets it: a leg that authors across the bled canvas must strike its
+ * box from the SAME bleed as the static layout it settles onto, or the last
+ * frame and the settle are different frames.
+ *
  * @typedef {Object} EntryAnim
  * @property {number[]} phases
  * @property {number[][]} [labelsAfter]
- * @property {(nodes: import("./nodes.js").ActorNode[], w: number, h: number, params?: Object) =>
+ * @property {(nodes: import("./nodes.js").ActorNode[], w: number, h: number, params?: Object,
+ *   bleed?: number) =>
  *   (attrs: Float64Array, trails: Float64Array, phase: number, e: number) => void} frames
  * @type {Partial<Record<LayoutState, EntryAnim>>}
  */
@@ -200,8 +214,14 @@ export const STATE_ENTRY = pick("entry");
  *
  * Never runs under prefers-reduced-motion: the static layout is the still frame.
  *
+ * `bleed` is the layout's own (see LayoutFn) and is passed here for one reason:
+ * a loop that rebuilds its base by calling its static layout must call it with
+ * the SAME bleed, or the base is a different frame from the one the arrival
+ * landed on and the t = 0 contract above breaks.
+ *
  * @typedef {Object} AmbientAnim
- * @property {(nodes: import("./nodes.js").ActorNode[], w: number, h: number, params?: Object) =>
+ * @property {(nodes: import("./nodes.js").ActorNode[], w: number, h: number, params?: Object,
+ *   bleed?: number) =>
  *   (attrs: Float32Array, trails: Float32Array, t: number) => void} frames
  * @type {Partial<Record<LayoutState, AmbientAnim>>}
  */

@@ -115,6 +115,10 @@ export const edgeIndex = (e) => EDGE_BASE + e * STRIDE;
  * @param {number} h height in px
  * @param {Edge[]} edges
  * @param {Object} [params] step params merged with interaction state (see STATE_PARAMS)
+ * @param {number} [bleed] px the canvas extends past `w` on EACH side. Almost every
+ *   layout ignores this and stays inside [0, w]: `w` is the reading column, and a
+ *   chart drawn wider than the prose it belongs to stops being readable. Only the
+ *   chapter card spends it, to author its crowd across the full screen (galaxyBox).
  * @returns {LayoutResult}
  */
 
@@ -846,16 +850,36 @@ const FIELD_KEEPOUT =
 const fieldBox = (w, h) => [MARGIN, w - MARGIN, MARGIN, plotBottom(h)];
 
 /**
+ * The chapter card's rect: the whole bled canvas, edge to edge and top to
+ * bottom. A card carries no chart and no step prose, so nothing needs the
+ * margins or the bottom 40% that `fieldBox` keeps clear — the crowd is the
+ * picture, and boxing it into the column reads as a rectangle of dots rather
+ * than a sky.
+ *
+ * `bleed` is how far the canvas extends past the 700px reading column on each
+ * side (see ScrollyVisual's render transform), so negative x and x past `w` are
+ * both on screen. Everything else keeps `fieldBox`: the pull-back and hopBands
+ * share the column, and widening theirs would spread the bands' rain across the
+ * whole viewport too.
+ */
+export const galaxyBox = (w, h, bleed) => [-bleed, w + bleed, 0, h];
+
+/**
  * Where one actor stands when the pull-back has landed — the single definition of
  * a field dot's position, so anything else placing the same crowd (the chapter
  * card's universe) lands on the identical frame rather than one that merely
  * looks the same. A pixel of drift between the two would twitch the whole field
  * on a step change.
  *
+ * `box` is the rect the crowd is authored across, defaulting to the plot area.
+ * The chapter card passes `galaxyBox` to spread the same dots over the whole
+ * screen; every other caller takes the default, so the pull-back and hopBands
+ * stay pixel-identical.
+ *
  * @returns {[number, number]}
  */
-export function fieldSpot(id, w, h) {
-	const [x0, x1, y0, y1] = fieldBox(w, h);
+export function fieldSpot(id, w, h, box = fieldBox(w, h)) {
+	const [x0, x1, y0, y1] = box;
 	const [bx, by] = introPosition(ANCHOR_ID, w, h);
 	const fx = x0 + hash01(id, 10) * (x1 - x0);
 	const fy = y0 + hash01(id, 11) * (y1 - y0);
@@ -865,24 +889,44 @@ export function fieldSpot(id, w, h) {
 	return [bx + Math.cos(a) * d, by + Math.sin(a) * d];
 }
 
+/**
+ * Where one actor stands on the chapter card — `fieldSpot` for the crowd, and
+ * for the intro fifteen the place hopSeed's landed camera already has them: the
+ * card holds the constellation's geometry and changes only how the dots are
+ * drawn, so the fifteen blend into the crowd where they stand instead of flying
+ * out across the plot to scatter spots of their own.
+ *
+ * The single definition of that frame, because two states need to agree on it to
+ * the pixel: the card places dots here, and `hopBands` takes each dot's x from
+ * here so the sort off the card falls straight down for every dot rather than
+ * for the crowd and diagonally for fifteen.
+ *
+ * @returns {[number, number]}
+ */
+export function cardSpot(id, w, h) {
+	return INTRO_SET.has(id)
+		? introPosition(id, w, h, PULLBACK_ZOOM)
+		: fieldSpot(id, w, h);
+}
+
 /** the ramp that fades a dot up as it crosses the plot edge rather than popping */
-export function fieldEdgeAlpha(x, y, w, h) {
-	const [x0, x1, y0, y1] = fieldBox(w, h);
+export function fieldEdgeAlpha(x, y, w, h, box = fieldBox(w, h)) {
+	const [x0, x1, y0, y1] = box;
 	const inset = Math.min(x - x0, x1 - x, y - y0, y1 - y);
 	return Math.max(0, Math.min(1, inset / FIELD_FADE_PX));
 }
 
-export function writeFieldCrowd(attrs, w, h, scale) {
+export function writeFieldCrowd(attrs, w, h, scale, box = fieldBox(w, h)) {
 	const [bx, by] = introPosition(ANCHOR_ID, w, h);
 	const k = scale / PULLBACK_ZOOM;
 	// how far through the pull-back the camera is: 0 at full zoom, 1 at landing
 	const travel = (1 - scale) / (1 - PULLBACK_ZOOM);
 	const r = NETWORK_INTRO_RADIUS[1] * scale;
 	for (const id of FIELD_IDS) {
-		const [fx, fy] = fieldSpot(id, w, h);
+		const [fx, fy] = fieldSpot(id, w, h, box);
 		const x = bx + (fx - bx) * k;
 		const y = by + (fy - by) * k;
-		const edge = fieldEdgeAlpha(x, y, w, h);
+		const edge = fieldEdgeAlpha(x, y, w, h, box);
 		// this dot's own slot in the trickle: the hold, plus its place in the stagger
 		const start =
 			FIELD_OPEN_HOLD + hash01(id, 14) ** FIELD_OPEN_SKEW * FIELD_OPEN_STAGGER;
