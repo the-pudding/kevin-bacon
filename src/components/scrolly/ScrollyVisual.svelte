@@ -592,6 +592,16 @@
 	// takes the rAF; reset by every render pass, so an arrival cut short
 	// mid-fade can't leave the chart hidden.
 	let chartVeiled = $state(false);
+	// hopBands' title + labelled bands: unlike every other state's furniture
+	// (which mounts alongside the dots and fades in over its own arrival), this
+	// one waits for the arrival tween to actually land (story.settled), so the
+	// bands read once the crowd has sorted into them rather than over the
+	// tween. Steps 4 and 5 both rest in this one state (see layouts/hop-bands.js),
+	// so settling once on arrival covers both; a resize/reduced-motion snap still
+	// calls settle() immediately, so this never sticks veiled.
+	const hopBandsVeiled = $derived(
+		stateName === "hopBands" && story.settled !== "hopBands"
+	);
 	// tappable chart regions (layout `hits` + the state's `pick`): rendered as
 	// transparent buttons over the canvas, so a pick is keyboard- and
 	// screen-reader-reachable without any canvas hit-testing
@@ -2238,8 +2248,12 @@
 			trailTweener.to(trailTarget, TWEEN_MS, 0, layout.trailDelays);
 		} else if (paramChange) {
 			// interaction: retarget quickly, no choreography (delays would make
-			// a small pan/highlight feel laggy)
-			tweener.to(attrs, PARAM_TWEEN_MS, 0);
+			// a small pan/highlight feel laggy). Still settles on completion —
+			// rankFocus's bar only gets its real target once RankBars measures
+			// its row (story.rankFocusBar), so this is the one state whose
+			// "reveal has landed" moment is a param retarget rather than the
+			// state's own arrival tween.
+			tweener.to(attrs, PARAM_TWEEN_MS, 0, null, () => settle(stateName));
 			trailTweener.to(trailTarget, PARAM_TWEEN_MS, 0);
 		} else {
 			tweener.to(attrs, 0);
@@ -2336,7 +2350,7 @@
 	</div>
 	<div class="overlay">
 		{#key STATE_TITLE[stateName]}
-			{#if STATE_TITLE[stateName] && !chartVeiled}
+			{#if STATE_TITLE[stateName] && !chartVeiled && !hopBandsVeiled}
 				<p class="chart-title fade-in">{STATE_TITLE[stateName]}</p>
 			{/if}
 		{/key}
@@ -2383,8 +2397,10 @@
 
 			     `chartVeiled` holds the whole lot back while an arrival is still
 			     fading the previous scene off the canvas; dropping it mounts these,
-			     so each one plays its own fade-in then rather than at the step change. -->
-			{#if !chartVeiled}
+			     so each one plays its own fade-in then rather than at the step change.
+			     `hopBandsVeiled` holds the same lot back on hopBands specifically,
+			     until its own arrival tween lands — see its declaration. -->
+			{#if !chartVeiled && !hopBandsVeiled}
 				{#each decor?.axes?.x ?? [] as tick}
 					<!-- raceFuture as well as raceFull: its arrival pan starts from
 					     raceFull's camera, so 1980 can be on the plot for the first

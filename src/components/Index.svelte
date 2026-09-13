@@ -221,6 +221,16 @@
 	const rankPanelBottom = $derived(
 		(isRankState(currentState) ? stepsHeight : rankStepsHeight) + 12
 	);
+	// The panel's own fade-in used to run on a fixed delay timed to land after
+	// the hopBands→rankFocus bar retarget (see the removed CSS comment); now it
+	// waits for that retarget to actually settle instead. Once true it stays
+	// true: the panel outlives rankFocus (see rankHandoff above), and re-checking
+	// story.settled live would hide it again the moment the reader reaches
+	// rankReveal, where settled no longer reads "rankFocus".
+	let rankBarsRevealed = $state(false);
+	$effect(() => {
+		if (story.settled === "rankFocus") rankBarsRevealed = true;
+	});
 	// the overlay is up through the rank chapter, and for the collapse that opens
 	// raceRecent — until the nodes are the canvas's (see RankBars' `collapse`)
 	const showRankPanel = $derived(
@@ -481,7 +491,11 @@
 				     the reader's guess and re-hide every other name at the exact moment
 				     the bars collapse. -->
 				{#if showRankPanel}
-					<div class="rank-bars-panel" style="bottom: {rankPanelBottom}px">
+					<div
+						class="rank-bars-panel"
+						class:revealed={rankBarsRevealed}
+						style="bottom: {rankPanelBottom}px"
+					>
 						<RankBars
 							reveal={currentState === "rankReveal" ||
 								currentState === "raceRecent"}
@@ -667,75 +681,90 @@
 					     on, and the field then sorts itself into the hop bands. -->
 				<Chapter state="chapterCenters" title="The centers of Hollywood" />
 
+				<!-- hopBands' prose waits for the bands to actually land (story.settled)
+				     rather than mounting the moment the step becomes active — the crowd
+				     sorting into rows is the point of the step, and the reader should see
+				     that finish before being told what it means. Both steps below rest in
+				     the one hopBands state (see layouts/hop-bands.js), so the gate holds
+				     for the whole pair, not just the first arrival. -->
 				<Step state="hopBands">
-					<p>
-						No doubt, he's well connected. With
-						<InfoTerm>
-							our dataset
-							{#snippet info()}
-								<p>
-									The corpus is the IMDb top 10,000 English-language feature
-									films by user vote count.
-								</p>
-								<p>
-									We then enrich the data with cast information from the TMDB
-									API so we can build the graph network. In total, there are
-									just over 169,000 actors in the dataset.
-								</p>
-								<p>The data for this was taken in ~March 2026.</p>
-								<p>
-									Massive tangent: this dataset even includes <a
-										href="https://www.imdb.com/name/nm8509587/">my bestie</a
-									>, who got a role in the 2018 film Tolkien, putting him two
-									movies away from Kevin Bacon!
-								</p>
-							{/snippet}
-						</InfoTerm>, you can get from any Hollywood actor to Kevin Bacon in
-						four movies or fewer, a.k.a. the <i>four</i> degrees of Kevin Bacon.
-					</p>
-					<p>
-						The reality is that Kevin Bacon isn't special in this respect; there
-						are 16,429 actors who can be reached by everyone within 4 movies,
-						and no one can be reached by everyone within 3.
-					</p>
+					{#if story.settled === "hopBands"}
+						<p>
+							No doubt, he's well connected. With
+							<InfoTerm>
+								our dataset
+								{#snippet info()}
+									<p>
+										The corpus is the IMDb top 10,000 English-language feature
+										films by user vote count.
+									</p>
+									<p>
+										We then enrich the data with cast information from the TMDB
+										API so we can build the graph network. In total, there are
+										just over 169,000 actors in the dataset.
+									</p>
+									<p>The data for this was taken in ~March 2026.</p>
+									<p>
+										Massive tangent: this dataset even includes <a
+											href="https://www.imdb.com/name/nm8509587/">my bestie</a
+										>, who got a role in the 2018 film Tolkien, putting him two
+										movies away from Kevin Bacon!
+									</p>
+								{/snippet}
+							</InfoTerm>, you can get from any Hollywood actor to Kevin Bacon
+							in four movies or fewer, a.k.a. the <i>four</i> degrees of Kevin Bacon.
+						</p>
+						<p>
+							The reality is that Kevin Bacon isn't special in this respect;
+							there are 16,429 actors who can be reached by everyone within 4
+							movies, and no one can be reached by everyone within 3.
+						</p>
+					{/if}
 				</Step>
 				<Step state="hopBands">
-					<p>
-						We need a better way to measure the connectivity of actors in this
-						highly congested network. For this, we use how many movies on
-						average it takes to get to them from all other actors. In graph
-						theory, this is often referred to as <i>remoteness</i>.
-					</p>
-					<p>
-						For example, Kevin Bacon's remoteness is 2.28: an actor is 2.28
-						movies away on average. Smaller is better: the less remote you are,
-						the more likely you are to be the center of Hollywood.
-					</p>
+					{#if story.settled === "hopBands"}
+						<p>
+							We need a better way to measure the connectivity of actors in this
+							highly congested network. For this, we use how many movies on
+							average it takes to get to them from all other actors. In graph
+							theory, this is often referred to as <i>remoteness</i>.
+						</p>
+						<p>
+							For example, Kevin Bacon's remoteness is 2.28: an actor is 2.28
+							movies away on average. Smaller is better: the less remote you
+							are, the more likely you are to be the center of Hollywood.
+						</p>
+					{/if}
 				</Step>
 				<!-- guessing #1 or giving up is the only way on: GuessRank calls the
 				     registry's advance() itself, and stepping back off the reveal
 				     skips this step so its search box isn't left sitting under the
 				     answer (see `gate` / `skipback` in Step.svelte) -->
 				<Step state="rankFocus" gate={NEVER} skipback>
-					<div class="rank-focus-text">
-						<p>
-							As mentioned earlier, Kevin Bacon is not the center of Hollywood.
-							His remoteness of 2.28 puts him at #175 of all Hollywood actors.
-							Can you guess who #1 is?
-						</p>
-						<GuessRank />
-					</div>
+					{#if story.settled === "rankFocus"}
+						<div class="rank-focus-text">
+							<p>
+								As mentioned earlier, Kevin Bacon is not the center of
+								Hollywood. His remoteness of 2.28 puts him at #175 of all
+								Hollywood actors. Can you guess who #1 is?
+							</p>
+							<GuessRank />
+						</div>
+					{/if}
 				</Step>
 				<Step state="rankReveal">
-					<p>
-						Yes, Samuel L. Jackson is the <i>center of Hollywood</i>, with a
-						remoteness of just 2.09. Willem Dafoe is second with 2.13, Robert De
-						Niro third with 2.14.
-					</p>
-					<p>
-						Female actors are under-represented here, taking only 16 of the top
-						100 places. Nicole Kidman is the first female in at #21 with 2.19.
-					</p>
+					{#if story.settled === "rankReveal"}
+						<p>
+							Yes, Samuel L. Jackson is the <i>center of Hollywood</i>, with a
+							remoteness of just 2.09. Willem Dafoe is second with 2.13, Robert
+							De Niro third with 2.14.
+						</p>
+						<p>
+							Female actors are under-represented here, taking only 16 of the
+							top 100 places. Nicole Kidman is the first female in at #21 with
+							2.19.
+						</p>
+					{/if}
 				</Step>
 
 				<!-- Start is the only way on, and it advances as it asks for the pan
@@ -1017,18 +1046,24 @@
 
 	/* the rank chapter's "everyone else" list: sits below the space where
 	   Bacon's hop bar dissolves (see layouts/rank.js) and above the measured
-	   step card (inline `bottom`). The delayed fade-in keeps the panel's opaque
-	   background from hiding the hopBands → rankFocus canvas collapse. That
-	   collapse runs on the param tween (the bar can only be aimed once RankBars
-	   has measured its focus row), so it lands well inside TWEEN_MS — and the
-	   frame it lands on is the one this list then draws, dot for dot. */
+	   step card (inline `bottom`). Its opaque background must not hide the
+	   hopBands → rankFocus canvas collapse (the bar can only be aimed once
+	   RankBars has measured its focus row), so the fade-in is held back — via
+	   the `.revealed` class, driven by `rankBarsRevealed` in the script, which
+	   only flips once `story.settled` confirms that retarget has actually
+	   landed — until the frame it lands on is the one this list then draws,
+	   dot for dot. */
 	.rank-bars-panel {
 		position: absolute;
 		top: 84px;
 		left: 0;
 		right: 0;
 		background: var(--color-bg);
-		animation: panel-in 0.4s ease 0.7s both;
+		opacity: 0;
+	}
+
+	.rank-bars-panel.revealed {
+		animation: panel-in 0.4s ease both;
 	}
 
 	@keyframes panel-in {
@@ -1068,15 +1103,22 @@
 	}
 
 	/* rankFocus' own staged reveal: Bacon's bar/row lands first (panel-in,
-	   above), then this text fades in once that's had time to read, so the
-	   reader meets Bacon before the question — see RankBars.svelte's row-in
-	   for the next stage (everyone else fading in after this). */
+	   above; both now gated on the same story.settled === "rankFocus" check —
+	   see the Step markup), then this text fades in a beat later so the reader
+	   meets Bacon before the question — see RankBars.svelte's row-in for the
+	   next stage (everyone else fading in after this). The 0.55s delay is
+	   relative to this element's own mount, not a fixed point after the step
+	   became active, since it no longer mounts until the bar has landed. */
 	.rank-focus-text {
-		animation: panel-in 0.5s ease 1.25s both;
+		animation: panel-in 0.5s ease 0.55s both;
 	}
 
 	@media (prefers-reduced-motion: reduce) {
-		.rank-bars-panel,
+		.rank-bars-panel {
+			opacity: 1;
+		}
+
+		.rank-bars-panel.revealed,
 		.movers-panel,
 		.rank-focus-text {
 			animation: none;
