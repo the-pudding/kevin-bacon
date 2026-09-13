@@ -326,9 +326,9 @@ export const states = {
 		layout: careerLayout(false),
 		title: "Film count by career age",
 		labels: [SWEENEY, DENIRO, CHASE],
-		// the draw-on is authored for the forward arrival out of the Gen Z scatter;
+		// the draw-on is authored for the forward arrival out of the Gen Z race;
 		// stepping back into it from careerMany gets a plain tween
-		revealFrom: ["scatterGenZ"],
+		revealFrom: ["raceGenz"],
 		entry: {
 			phases: CAREER_ENTRY_MS,
 			frames: careerEntryFrames,
