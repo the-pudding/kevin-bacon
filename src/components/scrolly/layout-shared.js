@@ -727,6 +727,34 @@ export function collapseTrail(trails, t, x, y, alpha = 0) {
 }
 
 /**
+ * The closing beat: a layout with every alpha taken to zero, so the tween
+ * dissolves whatever the reader was looking at WHERE IT LIES instead of sliding
+ * it off to some parking spot on its way out.
+ *
+ * A wrapper rather than a fresh empty buffer, and a shared one rather than a
+ * copy per chapter: the story's last step has to dissolve whichever chart
+ * precedes it, and that has changed once already.
+ *
+ * @param {LayoutFn} fn the layout to fade out
+ * @returns {LayoutFn}
+ */
+export function dissolve(fn) {
+	return function layoutDissolve(nodes, w, h, edges, params) {
+		const { attrs, trails } = fn(nodes, w, h, edges, params);
+		for (let i = 0; i < EDGE_BASE; i += STRIDE) attrs[i + 6] = 0;
+		for (let i = EDGE_BASE; i < ATTR_SIZE; i += STRIDE) attrs[i + 1] = 0;
+		for (let t = 0; t < TRAIL_META.length; t++) {
+			trails[t * TRAIL_STRIDE + TRAIL_POINTS * 2] = 0;
+		}
+		// the buffers only: a layout's axes, block and callouts are FURNITURE, and
+		// dropping them here is what empties the canvas. They have no alpha to
+		// take down — they are HTML in the annotations layer — so an empty canvas
+		// under a full set of axes is the one thing this beat must not leave.
+		return { attrs, trails };
+	};
+}
+
+/**
  * Sets trail slot t's ink (0-1). Every other trail writer ZEROES this channel,
  * so a slot can only carry ink while the writer that owns it keeps saying so —
  * which is what stops a chapter inheriting the previous one's emphasis in the

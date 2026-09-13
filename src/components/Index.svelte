@@ -955,24 +955,19 @@
 						stratospheric numbers.
 					</p>
 				</Step>
-				<Step state="simRace">
+				<!-- the story's closing chart (PRD P-27-1): the race chart's future
+				     view returns, SLJ's line falls away across the block, and the
+				     contenders the reader just watched win 10,000 simulations land on
+				     their simulated medians above him. His 2030 landing is AUTHORED,
+				     not modelled — the simulation projects the 99 contenders and
+				     nobody else. See RACE_CLOSE_SLJ_END in layouts/race.js. -->
+				<Step state="raceClose">
 					<p>
 						From our historical analysis, you'll recall lines dropping off as
 						actors stop appearing in so many films. We're counting on this
 						happening to Samuel L. Jackson, or a Marvel-sized cinematic universe
 						being spawned again.
 					</p>
-				</Step>
-				<!-- the list is a reading of the race chart it covers: the canvas does
-					     not change for this step, the panel simply fades over it and back
-					     off again. simRace's replay is not re-armed by arriving here — it
-					     only ever runs off SimRunner's nonce. -->
-				<Step state="simRace" panel={moversPanel}>
-					<p>
-						Here are the full results, including how much they've moved their
-						current position by remoteness.
-					</p>
-					<p>Click on an actor to see their breakdown.</p>
 				</Step>
 				<!-- closes on an empty canvas: the chart dissolves where it stands
 					     and the last words are left on their own. -->

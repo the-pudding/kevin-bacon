@@ -21,6 +21,7 @@
 		RACE_FULL_STEP,
 		RACE_FUTURE_STEP,
 		RACE_GENZ_STEP,
+		RACE_CLOSE_STEP,
 		RACE_FUTURE_END,
 		RACE_DATA_END,
 		raceMaxPlayhead,
@@ -273,6 +274,16 @@
 		yOpen: 1,
 		genz: e
 	});
+	// raceClose — "the projections are drawn out of the present". The camera is
+	// parked on both axes and only `proj` travels, so e = 1 is byte-identical to
+	// the static layout (RACE_CLOSE_STEP rests at proj 1) and the settle has
+	// nothing left to move. A constant duration for the same reason
+	// futureOpenFrame has one: no years of pan to derive a px/sec from.
+	const closeDrawFrame = (restP) => (e) => ({
+		...RACE_CLOSE_STEP,
+		playhead: restP,
+		proj: e
+	});
 	// reader-driven pan / settled hold: the camera at one playhead year
 	const panFrame = (step) => (playhead) => ({ ...step, playhead });
 	// the one state whose arrival plays the draw-on entry (scoped by revealFrom)
@@ -317,6 +328,9 @@
 	// ...and the prediction chapter's opening beat, which brings that chart back
 	// and pans it down off the crown onto the Gen-Z field — see playRaceGenzOpen
 	const RACE_GENZ_STATE = "raceGenz";
+	// ...and the story's last chart, which draws its projections out of the
+	// present across the future strip — see playRaceCloseDraw
+	const RACE_CLOSE_STATE = "raceClose";
 	// per-frame smoothing factor for the pan glide: renderPlayhead moves this
 	// fraction of the remaining distance to the target each frame (exponential
 	// ease-out — feels like a weighted reel). Reduced motion uses 1 (snap).
@@ -689,6 +703,19 @@
 	// the live one — same (w, h) the frame writer fits its camera to.
 	const racePlotRect = $derived(
 		raceStep && width && height ? racePlot(width, height) : null
+	);
+	// ...and how far right that cull reaches. The data plot's right edge on every
+	// step but the closing one, whose marks sit out on the future strip — which
+	// runs to `fullRight`, past the name gutter. Without this the projection dots
+	// are inside the plot the frame drew and outside the rectangle the cull
+	// tests: they survive the step change (the cull is down for an arrival from
+	// outside the chapter) and vanish on the first RESIZE, where the previous and
+	// the next state are both this one.
+	// Read off the STEP, whose `proj` is its RESTING progress (1), never off a
+	// frame — and tested against undefined rather than for truth, as everywhere
+	// else, because 0 is a real progress on that step.
+	const racePlotCullRight = $derived(
+		raceStep?.proj !== undefined ? racePlotRect?.fullRight : racePlotRect?.right
 	);
 	// Whether that cull is armed: only for a move WITHIN the race chapter, where
 	// both frames are the chart's own (see onRacePlot). An arrival from outside it
@@ -1177,6 +1204,50 @@
 		);
 	}
 
+	// -- The closing chart's draw-on --------------------------------------------
+	// The projections travel out of the present to 2030. Slower than the future
+	// strip merely opening (FUTURE_OPEN_MS): there the reader is watching empty
+	// ground appear, here they are watching six lines cross it and change places,
+	// and the crown changing hands is the last thing the story says.
+	const CLOSE_DRAW_MS = 2600;
+
+	// Leg 1 of a two-beat arrival, and the only leg with an animator. The ordinary
+	// state tween plays first, aimed by the raceClose branch of the render effect
+	// at this leg's frame 0 — every line standing on the present, the 94
+	// contenders the step does not draw already faded out — and fires this off its
+	// onDone. Exactly the shape playRaceGenzOpen is given, and for the same reason.
+	//
+	// Says nothing about the axis: the closing window is a camera parameter
+	// (yClose) that this leg never touches, so every frame and the settle agree by
+	// construction. SLJ's entrance is not scheduled here either — he leaves 2025
+	// above the window's top edge, so the frame writer's own clip is what brings
+	// him in through the top as the draw passes the year his line descends onto
+	// the plot.
+	function playRaceCloseDraw(restP) {
+		if (!width || !height) return;
+		if (reducedMotion) {
+			// defensive: the effect's snap branch normally lands on the static
+			// (fully drawn) frame before this can run
+			story.raceView = raceHoldView();
+			return;
+		}
+		sweeping = true;
+		runSweepPhase(
+			closeDrawFrame(restP),
+			STATE_YCAP[RACE_CLOSE_STATE],
+			() => {
+				sweeping = false;
+				story.raceView = raceHoldView();
+				publishRaceCam();
+			},
+			// no `shown` set: the race cast is not on this chart at all (the step's
+			// yCap leaves SLJ alone, and the projection pass owns him), and the
+			// contenders the step drops are already gone by frame 0
+			null,
+			CLOSE_DRAW_MS * getRaceSpeedScale()
+		);
+	}
+
 	// -- Simulation replay -------------------------------------------------------
 	// Reader-triggered, unlike every choreography above it: SimRunner bumps
 	// story.simRunNonce and this replays the 10,000 recorded simulation runs as a
@@ -1316,7 +1387,7 @@
 		const y = attrs[i + 1];
 		return (
 			x >= racePlotRect.left - 0.5 &&
-			x <= racePlotRect.right + 0.5 &&
+			x <= racePlotCullRight + 0.5 &&
 			y >= racePlotRect.top - 0.5 &&
 			y <= racePlotRect.bottom + 0.5
 		);
@@ -2013,6 +2084,13 @@
 		// chained off its onDone (see the branch below).
 		const raceGenzArrival =
 			stateChange && playReveal && stateName === RACE_GENZ_STATE;
+		// the story's last chart: the projections are drawn out of the present.
+		// Same two-beat shape as raceGenz — the arrival tween morphs the simulation's
+		// lines onto the present and the draw is chained off it — and scoped by
+		// revealFrom to the forward arrival from simRace, so stepping back out of
+		// the outro does not replay it.
+		const raceCloseArrival =
+			stateChange && playReveal && stateName === RACE_CLOSE_STATE;
 		// ...and that leg retraced, stepping BACKWARDS from raceFuture to raceFull.
 		// Disjoint from raceFullEntryArrival above by construction: that one needs
 		// playReveal, and raceFull's revealFrom is ["raceRecent"], so an arrival
@@ -2240,6 +2318,37 @@
 			// mid-flight skips the pan exactly as they skip any other choreography
 			tweener.to(startAttrs, TWEEN_MS, TWEEN_JITTER, stateDelays, () =>
 				playRaceGenzOpen(restP)
+			);
+			trailTweener.to(startTrails, TWEEN_MS, 0);
+		} else if (raceCloseArrival) {
+			// The same two beats, and the same reason this branch does not call
+			// landOffChart: that helper preserves the race cast's dots and trail
+			// slots only, and the five contenders' lines live in the SIMULATION's
+			// trail block — the slots their win-count climbs occupy on the chart the
+			// reader is arriving from. Landing off-chart would snap those slots onto
+			// the arriving layout before the first frame and destroy the line-into-
+			// line morph they are shared for, which is the whole point of beat one.
+			//
+			// Beat one is therefore the ordinary tween, aimed at the draw's frame 0:
+			// every line standing on the present with nothing yet out on the strip,
+			// and the 94 contenders this step does not draw already at alpha 0 on
+			// their own curves. yCap is the step's own — unlike raceGenz, nothing
+			// about who is on this chart changes across the two beats.
+			const restP = raceMaxPlayhead(width, height, RACE_CLOSE_STEP);
+			const startAttrs = attrs.slice();
+			const startTrails = trailTarget.slice();
+			writeRaceSweepFrame(
+				startAttrs,
+				startTrails,
+				width,
+				height,
+				{ ...RACE_CLOSE_STEP, playhead: restP, proj: 0, reveal: 1 },
+				STATE_YCAP[RACE_CLOSE_STATE]
+			);
+			// onDone only fires on an uninterrupted tween, so a reader who steps on
+			// mid-flight skips the draw exactly as they skip any other choreography
+			tweener.to(startAttrs, TWEEN_MS, TWEEN_JITTER, stateDelays, () =>
+				playRaceCloseDraw(restP)
 			);
 			trailTweener.to(startTrails, TWEEN_MS, 0);
 		} else if (entryAnim) {

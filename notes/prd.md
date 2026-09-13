@@ -198,9 +198,72 @@ Related backlogs, deliberately **not** merged in here:
 
   `careerTrio` becomes trivial. P-21-1 and P-22-1 resolve together.
 
-## 7. Simulation payoff — step 27 (`simRace`)
+## 7. Simulation payoff — step 27 (`raceClose`)
 
-- [ ] **P-27-1 · Close on the future line chart, 2025–2030**, showing SLJ receding from #1.
+- [x] **P-27-1 · Close on the future line chart, 2025–2030**, showing SLJ receding from #1.
+
+  ```
+  **Shipped** as a new race state, `raceClose` — no new steps, so no `?step=` URL
+  changed meaning. It is `raceFuture`'s camera with a year of measured history
+  behind the present (`tailYears: 1`, against that step's 24px stub) and the strip
+  open to 2030, with two additions: `yClose`, a second camera degree of freedom
+  that puts the step on a window of its own, and `proj`, the one frame kind in the
+  chapter whose MARKS go past the end of the data. SLJ's line descends across the
+  block while the contenders rise to their simulated medians. The block keeps its
+  dashed outline and drops its 13% wash — that wash exists because empty ground
+  read as an empty frame, and with lines inside it would only tint the data.
+
+  **It draws five contenders, not 99** — `SIM_LABEL_IDS`, the ones the simulation
+  named and the reader has just watched, each carrying their name. Every
+  projection ends at the same x, so the whole field was one 99-high wall of
+  line-ends at the strip's edge with the marks the step is about buried inside it.
+  The other 94 stay on their own curves at alpha 0, the rule every race step
+  follows.
+
+  **The window is read off those five** (`RACE_CLOSE_Y_MIN`/`MAX`, ~[2.17, 2.67]):
+  their best projected landing over the most remote of them today, padded, rather
+  than a pair of authored constants. That is what makes SLJ's arrival real rather
+  than animated — he is at 2.087, ABOVE the top edge, so he is not on the chart
+  when it opens and comes in through the top as the draw crosses the years his
+  line descends onto the window. Asserted at module load, so a rebuild that moves
+  him inside it fails the build.
+
+  **Its arrival is two beats.** The contenders keep the trail slots their
+  win-count climbs occupy on the simulation chart, so the ordinary state tween
+  morphs a line into a line — landing on the frame where every line stands on the
+  present — and the draw out to 2030 is chained off it (`playRaceCloseDraw`,
+  scoped `revealFrom: ["simRace"]`, so stepping back out of the outro does not
+  replay it). `proj` rests at 1, so a cold mount, a resize and reduced motion all
+  land on the finished frame with nothing left to play. `outro` dissolves this
+  chart instead of the simulation one, through a shared `dissolve()` helper.
+
+  **Two things on this chart are authored rather than modelled.** Both are
+  deliberate, both carry the caveat at their definition, and neither should be
+  quoted as a result:
+
+  1. **SLJ's future line is a stub.** The k-NN bootstrap projects the 99 Gen Z
+     candidates and nobody else, so there is no forecast of his to draw.
+     `RACE_CLOSE_SLJ_END` (2.55, in `layouts/race.js`) is the chapter's own claim
+     — "we're counting on this happening to Samuel L. Jackson", which the step's
+     copy says out loud — drawn on the axis. It lands clear of all five the step
+     draws, and by a distance: a landing inside their band (2.30 was tried) says
+     "some of them pass him", and since every line on this chart ends at the same
+     x it is not even legible, because his mark ends up under a stack of theirs.
+     Asserted at module load.
+  2. **The contenders' medians land at the strip's far edge**, but the model's
+     horizon is each contender's CAREER AGE 40 — a different calendar year per
+     actor, ~2045 for Chloë Grace Moretz. **The step therefore has no x axis at
+     all** (`xTicks: false`): a row of years under those marks would label the one
+     thing on the chart that is not being measured, and the block's own "the
+     future" says which way time runs. The chart title still names 2030, which is
+     now the only year claim on the step — a copy call, flagged not made. Putting
+     real years back needs a calendar-horizon re-run of
+     `genz-mc-knn-bootstrap.py`, i.e. a data request.
+
+  Unrelated, and pre-existing: at ~390px the block's "the future" label collides
+  with the chart title. It does the same on `raceFuture` as shipped, so it is not
+  this step's doing — but it is now on two steps rather than one.
+  ```
 
 ## 8. Out of scope
 

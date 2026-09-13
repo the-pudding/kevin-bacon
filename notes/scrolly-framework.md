@@ -213,7 +213,9 @@ fixed-scale cameras, the last runs forward to the present and opens a fitted
 strip of future beside it, see below) · `raceGenz` (that same chart, a chapter
 later, with the camera panned DOWN off the crown onto the stretch of remoteness
 the Gen Z field lives on, and their 99 trajectories drawn in when the reader asks
-— see below) ·
+— see below) · `raceClose` (the story's last chart: the same future view again,
+its window widened to hold the crown and the field at once, with projected
+segments drawn OUT on the strip — see below) ·
 `scatterCenters`/`scatterWalters`/`scatterQuiz` (films-vs-distance scatter
 family) · `scatterCostars` (the same scatter framed on the top 250 by rank,
 coloured by which of the two named actors has worked with each — the one
@@ -641,6 +643,113 @@ Three depths on one monochrome chart, separated by alpha and radius alone —
 backdrop at 0.3, the 92 unnamed contenders at `raceDotSpec`'s 0.55, the seven
 named in ink. A hue for any of them would break the chapter's rule and would not
 read as depth anyway.
+
+**The closing chart (`raceClose`), its own window, and a draw-on.** The story
+ends on this chart one more time (PRD P-27-1): SLJ's line descends across the
+future block while the five contenders the simulation named rise to the medians
+those 10,000 runs actually produced. It is `raceFuture`'s camera with a YEAR of
+measured history behind the present instead of that step's 24px stub
+(`tailYears: 1`), the strip open to 2030, plus two things. The history is what
+lets each projection carry on through the axis break as one curve rather than
+restarting at it — which is also why the block's "the future" label sits inside
+its top-left corner here rather than above it: a year of plot in front of the
+block pushes its left edge under the centred chart title.
+
+**Five lines, not 99.** The chart used to draw the whole field, and every
+projection ends at the same x, so 99 line-ends were not 99 positions but one
+99-high wall at the strip's far edge — with the marks the step is about buried
+inside it. The five are `SIM_LABEL_IDS`, the ones the simulation named and the
+reader has just been watching, so the same people carry the same names across the
+step change. The other 94 are not retracted: they stay on their own projection
+curves at alpha 0, the rule every race step follows, so nothing travels across
+the canvas when the reader steps back onto the chart. One consequence to know:
+the five are chosen by WIN SHARE, and that is not the order of the projected
+finish — id 10949 lands second-nearest the centre and is not drawn. It was
+already unmarked before; the field standing behind the marks used to say so.
+
+`yClose` is the second camera degree of freedom, and it composes with `yOpen`
+rather than replacing it: `raceWindowYFit(camLeft, camRight, yOpen, yClose)`. At
+`yClose: 1` the domain is the step's own window, `[2.17, 2.67]` —
+`RACE_CLOSE_Y_MIN`/`MAX`, **read off the five it draws** rather than authored as
+constants: the best projected landing over the most remote of them, padded. So
+"the axis is floored by these five" is a statement about their data, and a
+rebuild that moves them moves the axis. (The floor reads the years the step
+DRAWS, not 2025 alone: there is a year of history on the plot, and Hechinger's
+2024 sits below Hawke's 2025.) The rule is untouched: still a pure function of
+the camera, still no step owning an axis.
+
+**That window is what puts SLJ off the chart, and it is the step's best trick.**
+He is at 2.087 today, above the top edge, so when the chart opens he is not on
+it — no dot, no line, no name. As the draw crosses the years where his own curve
+descends onto the window, the frame writer's ordinary clip (`curveEntry`) brings
+him in through the top edge. Nothing schedules his entrance and no animator
+carries it; it is a fact about the axis, asserted at module load so a data
+rebuild that moves him inside the window fails the build rather than quietly
+turning the arrival into a line that was always there.
+
+`proj` is the other, and it is the first time anything on this chart draws PAST
+the end of the data. `cam.xS` is still not rerouted — the refusal in
+`raceFutureScale`'s header stands. Instead `writeProjectionLines` composes a
+local piecewise scale (`cam.xS` up to 2025, the strip's fitted pitch beyond it),
+hands it to `sampleTrail` as its x argument, and hands it to nothing else. It is
+called from inside `writeRaceSweepFrame` for the same reason `writeGenzLines` is:
+that function stays the single placer of everything on this chart.
+
+`proj` is also the draw-on's progress, 0..1 — a playhead in YEARS, swept from the
+present out to 2030, with each line clipped to it and each dot riding the end
+(the same shape `writeGenzLines` uses for the field's arrival). It is **absent**
+on every other step rather than defaulting to 0, and that distinction is
+load-bearing: 0 is a real value here — the frame the draw begins on — so "is this
+a projection frame" is `proj !== undefined` everywhere it is asked, never a
+truthiness test. It rests at **1** on the step, which is the contract that makes
+a cold mount, a resize and the reduced-motion snap all land on the finished frame
+with no animation having run.
+
+**It has no x axis** (`xTicks: false`, a separate switch from `futureTicks`,
+which drops only the strip's years and keeps the historical ones). The
+projections' horizon is each contender's career age 40, not a calendar year, so a
+row of years under them would label the one thing on the chart that is not being
+measured. The block's own label carries the direction of time instead. A draw-on
+sweeping left to right across it is a statement about time passing, which is
+fine; nothing labels the years it crosses.
+
+**Two numbers on it are authored, not modelled**, and the code says so at both
+definitions. The simulation projects the 99 contenders and nobody else, so SLJ's
+2030 landing is `RACE_CLOSE_SLJ_END` — the chapter's own claim drawn on the axis,
+asserted at module load to sit behind every contender it draws. And the
+bootstrap's horizon is each contender's career age 40, not 2030; their endpoints
+sit at the strip's far edge because that is where the chart's future ends. See
+PRD P-27-1.
+
+**Its arrival is two beats, and the first one is the plain tween.** The five keep
+the `SIM_SLOT` trail block their win-count climbs occupy on the simulation chart,
+so the state tween morphs a line into a line — the object constancy those slots
+were shared for — landing on the draw's frame 0: every line standing on the
+present, nothing yet out on the strip, the 94 already faded out. `playRaceCloseDraw`
+is chained off that tween's `onDone`, so a reader who steps on mid-flight skips
+the draw exactly as they skip any other choreography. Scoped `revealFrom:
+["simRace"]`, so stepping back into this chart out of the outro does not replay
+it.
+
+The one thing that branch must NOT do is call `landOffChart`, which every other
+race arrival does: it preserves the race cast's dots and `RACE_TRAIL_SLOTS` only,
+so it would snap all 99 `SIM_TRAIL_SLOTS` onto the arriving layout before the
+first frame and destroy the morph the slots exist for. `raceGenzArrival` is the
+one existing branch that skips it, which is why it is the one this copies.
+
+`outro` then dissolves this chart rather than the simulation's, through the
+shared `dissolve()` helper in `layout-shared.js`, which zeroes every alpha and
+returns the buffers ALONE — the axes and the block are HTML furniture with no
+alpha to take down, so dropping them is what empties the canvas.
+
+Two renderer details it needed. The draw pass culls race dots against the data
+plot's right edge, and this step's marks sit out at `fullRight`, so the cull's
+right edge follows the step's `proj` (without it SLJ's dot survives the step
+change and vanishes on the first resize, where both states are this one) — read
+off the STEP, whose `proj` is its resting 1, never off a frame. And the block
+drops its 13% wash when it has marks inside it — the wash exists because empty
+ground read as an empty frame, and with lines in there it would only tint the
+data.
 
 **One writer per node is what makes the three casts safe to overlay.** A dot
 lives in one slot of the attr array and a line in one trail slot, so an actor in

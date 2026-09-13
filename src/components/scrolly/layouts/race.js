@@ -16,6 +16,7 @@ import {
 	RACE_SLOT,
 	SIM_SERIES,
 	SIM_SLOT,
+	SIM_LABEL_IDS,
 	SIM_TRAIL_SLOTS,
 	BACKDROP_IDS,
 	BACKDROP_SLOT,
@@ -25,6 +26,7 @@ import {
 	collapseTrail,
 	setTrailHighlight,
 	clipSeries,
+	dissolve,
 	monotoneSegments,
 	curveYAt
 } from "../layout-shared.js";
@@ -515,17 +517,31 @@ function raceBandAt(year) {
  * @param {number} camLeft @param {number} camRight
  * @param {number} [yOpen] the camera's y travel, 0 = the chapter's own window,
  *   1 = the Gen-Z window below it
+ * @param {number} [yClose] the camera's y ZOOM, 0 = wherever yOpen left it, 1 =
+ *   the CLOSING window, sized to the five contenders that step draws
  * @returns {[number, number]} the scale domain [vMin, vMax]
  */
-function raceWindowYFit(camLeft, camRight, yOpen = 0) {
+function raceWindowYFit(camLeft, camRight, yOpen = 0, yClose = 0) {
 	const base = raceChapterYFit(camLeft, camRight);
-	if (!yOpen) return base;
 	// ...and the same lerp again for the camera's y travel. Both ends move, so
 	// this is a pan and a zoom at once: the crown leaves through the top while
 	// the ground opens below it.
+	const win = yOpen
+		? [
+				base[0] + (genzYMin - base[0]) * yOpen,
+				base[1] + (genzYMax - base[1]) * yOpen
+			]
+		: base;
+	if (!yClose) return /** @type {[number, number]} */ (win);
+	// The closing window is sized to the five contenders that step draws and to
+	// nothing else (see RACE_CLOSE_Y_MIN/MAX, which are read off their own
+	// numbers). It is deliberately TIGHTER than anything else in the chapter: it
+	// is what puts SLJ — 2.087 today, above its top edge — off the plot at the
+	// axis break, so his descent onto the authored 2.55 landing is him arriving
+	// through the top rather than an animation pretending he did.
 	return [
-		base[0] + (genzYMin - base[0]) * yOpen,
-		base[1] + (genzYMax - base[1]) * yOpen
+		win[0] + (RACE_CLOSE_Y_MIN - win[0]) * yClose,
+		win[1] + (RACE_CLOSE_Y_MAX - win[1]) * yClose
 	];
 }
 
@@ -1005,9 +1021,16 @@ function raceTakeoverCallout(cam, yS) {
 // and its settle pixel-identical; keying xS off an animated frontier would put
 // the animation back inside the scale. It would also silently reroute every
 // consumer of xS — dot placement, sampleTrail, collapseTrail, the takeover ring
-// — for anything that ever reaches past RACE_DATA_END. Nothing does today, and
-// the Gen-Z steps (PRD P-21-1/P-22-1) are asking to. Read here by the future
-// ticks and the band, and by nothing else.
+// — for anything that ever reaches past RACE_DATA_END.
+//
+// One frame kind does now reach past it: the closing step's projected segments
+// (writeProjectionLines, PRD P-27-1). It gets there WITHOUT rerouting xS, by
+// composing a local piecewise scale inside that one writer and handing it to
+// sampleTrail as its x argument. The difference is containment, not taste: a
+// local is built per frame, applies to one family of polylines, and is handed to
+// nothing else, where a piecewise xS would reroute every consumer above for
+// every step and every year past 2025. Read here by the future ticks, the band
+// and that one writer, and by nothing else.
 // ---------------------------------------------------------------------------
 
 // The far end of the strip. A SCALE bound, not a camera bound — no playhead ever
@@ -1141,7 +1164,7 @@ const BAND_LABEL_LIFT = 16;
  * has to ride the CHILD for the reason spelled out on the callout's markup — an
  * animation with fill-mode `both` outranks an inline opacity for good.
  */
-function raceFutureBand(cam, frontier) {
+function raceFutureBand(cam, frontier, labelInside = false) {
 	if (!(frontier > RACE_DATA_END)) return null;
 	const { x0, right, pitch, xS } = raceFutureScale(cam);
 	if (pitch <= 0 || x0 > right - 1) return null;
@@ -1150,8 +1173,40 @@ function raceFutureBand(cam, frontier) {
 		y: cam.top,
 		width: Math.min(xS(frontier), right) - x0,
 		height: cam.bottom - cam.top,
-		label: { x: x0 + 2, y: cam.top - BAND_LABEL_LIFT }
+		// ...unless the step asks for it INSIDE the box's top-left corner. The lift
+		// above is there because the crown's own name renders just inside that
+		// corner on raceFuture; the closing step's names are all out at the strip's
+		// far edge, so the corner is free — and the lift is actively wrong there,
+		// because a year of history in front of the block pushes its left edge into
+		// the middle of the canvas, straight under the centred chart title.
+		label: labelInside
+			? { x: x0 + 6, y: cam.top + 4 }
+			: { x: x0 + 2, y: cam.top - BAND_LABEL_LIFT }
 	};
+}
+
+/**
+ * The y ladder for one frame. Ticks sit on round values and SLIDE, exactly as
+ * the x ticks travel with their years — the same fixed-scale logic. Spacing the
+ * labels evenly across the domain instead would pin them to fixed pixel rows and
+ * roll their digits on every frame of a pan, which reads as churn rather than as
+ * a camera.
+ *
+ * The ladder runs down to hundredths because the band is only ~0.037 tall
+ * padded: round tenths would leave most cameras with a single label, or none.
+ * Same idiom as the sim race's Y_STEP.
+ */
+function raceYTicks(yS, vMin, vMax) {
+	const step =
+		[0.01, 0.02, 0.05, 0.1, 0.2].find((s) => (vMax - vMin) / s <= 5) ?? 0.5;
+	const dec = step < 0.1 ? 2 : 1;
+	const y = [];
+	// stepped on an integer multiplier rather than by repeated addition, so the
+	// tick values stay exactly on the round numbers they label
+	for (let k = Math.ceil(vMin / step - 1e-9); k * step <= vMax + 1e-9; k++) {
+		y.push({ pos: yS(k * step), label: (k * step).toFixed(dec) });
+	}
+	return y;
 }
 
 // x (year) + y (avg distance) tick furniture for one frame — shared by the
@@ -1161,11 +1216,28 @@ function raceFutureBand(cam, frontier) {
 // `frontier` is how far the future strip has opened; the years past the data get
 // their positions from its fitted scale (raceFutureTicks) and land in the SAME
 // `x` array, so one renderer draws both and the two can never drift apart.
-function raceAxes(cam, yS, vMin, vMax, frontier, futureTicks = true) {
+function raceAxes(
+	cam,
+	yS,
+	vMin,
+	vMax,
+	frontier,
+	futureTicks = true,
+	xTicks = true
+) {
 	// every visible year gets its own horizontal 4-digit label — no thinning, no
 	// width branch: PX_PER_YEAR guarantees the gap. Ticks travel with their years
 	// during a pan, which is the whole point of a fixed scale.
 	const x = [];
+	// ...on every step but the closing one, which has no x axis at all. Not the
+	// same switch as `futureTicks`, which drops the STRIP's years and keeps the
+	// historical ones: this drops the row entirely, because on that chart a
+	// year is a claim the marks cannot support (the projections' horizon is each
+	// contender's career age 40, not a calendar year). The block's own label is
+	// what says which way time runs.
+	if (!xTicks) {
+		return { x: [], xBase: cam.bottom + 10, y: raceYTicks(yS, vMin, vMax) };
+	}
 	// The historical axis stops where the DATA stops. This used to run to the
 	// step's timeline end (raceMaxPlayhead), which is what put 2026-2030 on the
 	// plot at 76px each and made raceFuture five years of empty ground instead of
@@ -1183,23 +1255,7 @@ function raceAxes(cam, yS, vMin, vMax, frontier, futureTicks = true) {
 		// particular year reads this, never the text.
 		x.push({ pos, label: raceTickLabel(yr), year: yr });
 	}
-	// y ticks sit on round values and SLIDE, exactly as the x ticks travel with
-	// their years — the same fixed-scale logic. Spacing the labels evenly across
-	// the domain instead would pin them to fixed pixel rows and roll their digits
-	// on every frame of a pan, which reads as churn rather than as a camera.
-	//
-	// The ladder runs down to hundredths because the band is only ~0.037 tall
-	// padded: round tenths would leave most cameras with a single label, or none.
-	// Same idiom as the sim race's Y_STEP.
-	const step =
-		[0.01, 0.02, 0.05, 0.1, 0.2].find((s) => (vMax - vMin) / s <= 5) ?? 0.5;
-	const dec = step < 0.1 ? 2 : 1;
-	const y = [];
-	// stepped on an integer multiplier rather than by repeated addition, so the
-	// tick values stay exactly on the round numbers they label
-	for (let k = Math.ceil(vMin / step - 1e-9); k * step <= vMax + 1e-9; k++) {
-		y.push({ pos: yS(k * step), label: (k * step).toFixed(dec) });
-	}
+	const y = raceYTicks(yS, vMin, vMax);
 	// the strip's years join the historical ones in one array, so they inherit
 	// `.tick.tick-x` and `xBase` verbatim and sit on the same row by construction
 	//
@@ -1237,6 +1293,18 @@ function raceAxes(cam, yS, vMin, vMax, frontier, futureTicks = true) {
  * @property {number} [yOpen] the camera's y travel, 0 = the chapter's own
  * window, 1 = the Gen-Z window below it (see raceWindowYFit). A camera
  * parameter, not a step's, which is what keeps the axis rule pure.
+ * @property {number} [yClose] the camera's y ZOOM, 0 = wherever yOpen left it,
+ * 1 = the closing step's own window (see raceWindowYFit). A camera parameter for
+ * the same reason yOpen is.
+ * @property {number} [proj] the closing step's draw-on progress 0..1: how far
+ * out across the future strip the projections have been drawn. The one frame
+ * kind whose marks pass RACE_DATA_END (see writeProjectionLines).
+ *
+ * ABSENT on every other step, and that is load-bearing rather than incidental:
+ * 0 is a real value here (the frame the draw starts from, everything standing on
+ * the present), so "is this a projection frame" is `proj !== undefined` and never
+ * a truthiness test. It is what hands SLJ to the projection pass, so a truthiness
+ * test would let the race pass draw him for the one frame the draw begins on.
  * @property {number} [genz] the Gen-Z field's draw-on progress 0..1; 0 (or
  * absent) leaves those 99 lines off the frame entirely.
  * @property {boolean} [backdrop] draw the backdrop sample.
@@ -1442,6 +1510,316 @@ function writeBackdropLines(attrsBuf, trailBuf, cam, yS, vMin, vMax) {
 	}
 }
 
+// ---------------------------------------------------------------------------
+// The closing step's projections (PRD P-27-1) — the one family of marks on this
+// chart that lives PAST the end of the data.
+//
+// Two different kinds of number are drawn here, and the difference matters more
+// than anything else in this section:
+//
+//   The 99 contenders' endpoints are MODELLED. `projMedian` is the median of
+//   10,000 k-NN bootstrap simulations — the same runs the reader just watched
+//   replay on the simulation chart, so the line that climbed to a win count
+//   becomes the line that lands on that simulation's own answer.
+//
+//   SLJ's endpoint is AUTHORED. The simulation projects the 99 Gen Z candidates
+//   and nobody else, so there is no forecast of his to draw. RACE_CLOSE_SLJ_END
+//   is the chapter's claim — "we're counting on this happening to Samuel L.
+//   Jackson", which is what the step's own copy says out loud — drawn on the
+//   axis. It is not a prediction and nothing downstream may treat it as one.
+//
+// One more honest caveat, recorded here because the chart cannot show it: the
+// bootstrap's horizon is each contender's CAREER AGE 40, not the calendar year
+// 2030. Their endpoints sit at the strip's far edge because that is where the
+// chart's future ends, not because the model named that year.
+// ---------------------------------------------------------------------------
+
+// How much measured history the closing step keeps on the plot behind the
+// present. raceFuture's 24px stub is a fraction of a year — enough to park a dot
+// column against, not enough to see where anyone is COMING FROM, which is half
+// of what this chart claims. A year gives every line a real segment of record
+// before the break, so the projections read as a continuation of something
+// rather than as a hundred marks that start out of nowhere. Clamped on a narrow
+// viewport rather than shrinking the x scale — see raceTailPx.
+const RACE_CLOSE_TAIL_YEARS = 1;
+
+/**
+ * Where the closing step lands Samuel L. Jackson. An EDITORIAL ASSUMPTION, not a
+ * model output — see the block above.
+ *
+ * Clear of all five the step draws, and clear of them by a distance: the step's
+ * sentence is that the crown LEAVES him, and a landing inside their band says
+ * "he is overtaken by some of them" instead — as well as putting his mark under
+ * a stack of theirs, since every line on this chart ends at the same x. The
+ * value was chosen when the chart drew all 99 (it clears those too, which 2.30
+ * did not); it is kept because nothing about the sentence changed when the field
+ * came off. Asserted below rather than left to the eye.
+ */
+export const RACE_CLOSE_SLJ_END = 2.55;
+
+// How much of his measured past the stub grows out of. Three real points before
+// the break, so the ramp BENDS out of his own trajectory at the axis break
+// instead of elbowing off a single one — the knee comes free from the same
+// monotone spline every other line on this chart rides.
+const CLOSE_SLJ_STUB_FROM = RACE_DATA_END - 2;
+
+/**
+ * SLJ's line on the closing step: his real trajectory over the last years of the
+ * data, continued to the authored 2030 landing. One curve, not a measured line
+ * plus a drawn-on stub, so the join is a curve point rather than a seam.
+ */
+const CLOSE_SLJ_SEGS = monotoneSegments([
+	...story.raceSeries[SLJ].filter(([yr]) => yr >= CLOSE_SLJ_STUB_FROM),
+	[RACE_FUTURE_END, RACE_CLOSE_SLJ_END]
+]);
+
+/**
+ * ...and one per contender: their last year of measured trajectory, then their
+ * simulated median at the far edge, as ONE curve on the same monotone spline
+ * every other line on this chart rides — so a line carries on through the break
+ * instead of restarting at it, which is what the year of history is for.
+ *
+ * Worth saying plainly: past the break there are two numbers and nothing
+ * modelled in between, so the shape there is drawn, not computed. The spline is
+ * monotone, so it stays between the two endpoints and invents no wobble — but it
+ * is a continuation of the measured tangent, not a forecast of the path.
+ *
+ * Ragged, like the rest of the Gen-Z data: a contender with no film in the tail
+ * year has no point in it, and their line simply starts at the break. Every
+ * series ends on RACE_DATA_END (asserted at module load), so there is always at
+ * least that one measured point to leave from.
+ */
+const CLOSE_PROJ_SEGS = new Map(
+	story.genz.candidates.map((c) => [
+		c.id,
+		monotoneSegments([
+			...story.genzSeries[c.id].filter(
+				([yr]) => yr >= RACE_DATA_END - RACE_CLOSE_TAIL_YEARS
+			),
+			[RACE_FUTURE_END, c.projMedian]
+		])
+	])
+);
+
+/** where each of those curves starts, so a frame draws no flat stub in front of
+ * a contender who has no film in the tail year */
+const CLOSE_PROJ_FROM = new Map(
+	story.genz.candidates.map((c) => [
+		c.id,
+		Math.max(
+			RACE_DATA_END - RACE_CLOSE_TAIL_YEARS,
+			story.genzSeries[c.id].find(
+				([yr]) => yr >= RACE_DATA_END - RACE_CLOSE_TAIL_YEARS
+			)[0]
+		)
+	])
+);
+
+/**
+ * The contenders the closing step DRAWS: the five the SIMULATION named, not the
+ * seven raceGenz did, and not the whole field. The reader arrives from the
+ * simulation chart, where those five carried a dot, a name and a win share, so
+ * the same five here says "these are the people you just watched win" rather
+ * than offering a second shortlist — and five lines are five people, where the
+ * 99 this step used to draw were one 99-high wall of line-ends at the strip's
+ * far edge, since every projection lands at the same x.
+ *
+ * Chosen by WIN SHARE, which is not the same order as the projected finish: id
+ * 10949 lands second-nearest the centre (2.2127) and is not on this chart at
+ * all. That was always true — it was unmarked before — but the field standing
+ * behind the marks used to say so. Now it does not, so it is said here.
+ *
+ * The other 94 are not retracted or parked: they stay on their own projection
+ * curves at alpha 0, the same rule every race step follows (see raceLayout's
+ * NOTE), so nothing travels across the canvas to arrive when the reader steps
+ * back onto this chart from the outro.
+ */
+const CLOSE_CAST = new Set(SIM_LABEL_IDS);
+
+/** ...as the candidate records themselves, in win order */
+const CLOSE_CANDIDATES = story.genz.candidates.filter((c) =>
+	CLOSE_CAST.has(c.id)
+);
+
+/**
+ * Whoever ends the strip nearest the centre — SLJ or one of the five. The
+ * chapter's own rule (the ink means "in front"), evaluated at the one camera
+ * that has marks out at the far edge, which is what makes the crown visibly
+ * change hands. Picked from what the step DRAWS, so the ink can never land on a
+ * line that is not there.
+ */
+const CLOSE_LEAD = [
+	[SLJ, RACE_CLOSE_SLJ_END],
+	...CLOSE_CANDIDATES.map((c) => [c.id, c.projMedian])
+].sort((a, b) => a[1] - b[1])[0][0];
+
+/** the race slots the projection pass owns, so the race pass leaves them alone */
+const CLOSE_OWNED = new Set([SLJ]);
+
+/**
+ * Breathing room between the closing window's edges and the marks that set them,
+ * so the first dot and the last dot are not drawn riding the plot's edge.
+ */
+const RACE_CLOSE_Y_PAD = 0.02;
+
+/**
+ * The closing window, read off the five contenders the step draws rather than
+ * authored as a pair of constants — "the axis is floored by these five" is a
+ * statement about their data, so a rebuild that moves them moves the axis.
+ *
+ * The top is their best projected landing, which is where the whole field of
+ * lines ends up. SLJ starts ABOVE it (2.087 against ~2.17) and that is the
+ * point: see raceWindowYFit's yClose arm, and the assert by RACE_CLOSE_YCAP
+ * that keeps it true.
+ *
+ * The floor is the most remote of them over the years the step actually DRAWS,
+ * not over 2025 alone: the step keeps a year of history behind the present, and
+ * Hechinger's 2024 (2.6531) sits below Hawke's 2025 (2.641). Reading the drawn
+ * range is the same intent — the lowest of the five at the present — measured
+ * against what is on the plot.
+ */
+export const RACE_CLOSE_Y_MIN =
+	Math.min(...CLOSE_CANDIDATES.map((c) => c.projMedian)) - RACE_CLOSE_Y_PAD;
+export const RACE_CLOSE_Y_MAX =
+	Math.max(
+		...CLOSE_CANDIDATES.flatMap((c) =>
+			story.genzSeries[c.id]
+				.filter(([yr]) => yr >= RACE_DATA_END - RACE_CLOSE_TAIL_YEARS)
+				.map(([, v]) => v)
+		)
+	) + RACE_CLOSE_Y_PAD;
+
+/**
+ * One projected curve — a contender's or SLJ's — drawn out to wherever the
+ * step's draw-on has reached.
+ *
+ * SLJ and the five go through the SAME writer, where they used to have a loop
+ * each. They now answer the same question: ride the draw playhead, clip to the
+ * window, hide a dot the window isn't showing. The only thing that differs
+ * between them is which slot block their line lives in.
+ *
+ * @param {Float32Array|Float64Array} attrsBuf @param {Float32Array|Float64Array} trailBuf
+ * @param {number} id @param {any} segs the curve, through the break to 2030
+ * @param {number} from its first year on this camera
+ * @param {number} slot its trail slot
+ * @param {number} m alpha multiplier: 1 for the five and SLJ, 0 for the rest of
+ *   the field, who still ride their own curve so nothing travels to arrive
+ * @param {number} drawYr the draw-on playhead, in years
+ * @param {(yr: number) => number} projX @param {(v: number) => number} yS
+ * @param {number} vMin @param {number} vMax
+ */
+function writeProjectionCurve(
+	attrsBuf,
+	trailBuf,
+	id,
+	segs,
+	from,
+	slot,
+	m,
+	drawYr,
+	projX,
+	yS,
+	vMin,
+	vMax
+) {
+	// the dot rides the draw playhead — the line's own right-hand end — the way
+	// the Gen-Z field's dots ride their arrival, so what the reader follows out
+	// across the strip is a mark travelling rather than a line growing under a
+	// stationary one
+	const dotYr = clamp(drawYr, from, RACE_FUTURE_END);
+	const dotV = curveYAt(segs, dotYr);
+	const dx = projX(dotYr);
+	const dy = yS(dotV);
+	// a dot whose value is off the window is hidden outright, as everywhere else
+	// on this chart. It is what makes SLJ's entrance: he leaves 2025 above the
+	// window's top edge, so for the first part of the draw there is no dot and no
+	// line, and he comes in through the top as his own curve descends onto it.
+	const dotM = dotV >= vMin && dotV <= vMax ? m : 0;
+	set(
+		attrsBuf,
+		id,
+		dx,
+		dy,
+		GENZ_NAMED_DOT.r,
+		GENZ_NAMED_DOT.rgb,
+		GENZ_NAMED_DOT.alpha * dotM
+	);
+	// ...and the line is clipped to the window at both ends, which this pass used
+	// not to need: everything it drew was inside by assertion. SLJ's line crosses
+	// the top edge now, which is the step.
+	const sx1 = curveExit(segs, dotYr, from, vMin, vMax);
+	const sx0 =
+		sx1 === null ? 0 : Math.max(from, curveEntry(segs, sx1, from, vMin, vMax));
+	if (sx1 !== null && sx1 > sx0) {
+		sampleTrail(trailBuf, slot, segs, sx0, sx1, projX, yS, 0.35 * m);
+	} else {
+		collapseTrail(trailBuf, slot, dx, dy, 0.35 * dotM);
+	}
+	// after the line, never before — every trail writer zeroes this channel
+	setTrailHighlight(trailBuf, slot, id === CLOSE_LEAD ? 1 : 0);
+}
+
+/**
+ * The closing step's projected segments, written out on the future strip.
+ *
+ * Called from inside writeRaceSweepFrame for the same reason writeGenzLines is:
+ * that function stays the SINGLE placer of everything on this chart, which is
+ * what makes a settle byte-identical to its animation's last frame by
+ * construction rather than by review.
+ *
+ * The five keep their SIM_SLOT trail block — the slots their win-count climbs
+ * occupy on the simulation chart three steps earlier — so a line morphs into a
+ * line rather than one retracting while another unspools.
+ *
+ * @param {number} proj the draw-on progress 0..1
+ */
+function writeProjectionLines(attrsBuf, trailBuf, cam, yS, vMin, vMax, proj) {
+	const fs = raceFutureScale(cam);
+	// no strip, nothing to draw — the same guard the strip's own ticks take
+	if (fs.pitch <= 0) return;
+	// The ONE place the strip's fitted scale touches a mark. Piecewise in YEAR,
+	// and continuous at the break by construction: fs.x0 IS cam.xS(RACE_DATA_END).
+	// A local, handed to sampleTrail and to nothing else — see raceFutureScale's
+	// header for why this is not folded into cam.xS.
+	const projX = (yr) => (yr <= RACE_DATA_END ? cam.xS(yr) : fs.xS(yr));
+	// The draw-on playhead, in years: the present at 0, 2030 at 1. It starts at
+	// the PRESENT rather than at the camera's left edge — the beat is the future
+	// being drawn out of the record, so the year of measured history behind the
+	// break is already there when the draw begins, and what travels is the part
+	// nobody has measured.
+	const drawYr = RACE_DATA_END + (RACE_FUTURE_END - RACE_DATA_END) * proj;
+	for (const c of story.genz.candidates) {
+		writeProjectionCurve(
+			attrsBuf,
+			trailBuf,
+			c.id,
+			CLOSE_PROJ_SEGS.get(c.id),
+			Math.max(cam.camLeft, CLOSE_PROJ_FROM.get(c.id)),
+			SIM_SLOT.get(c.id),
+			CLOSE_CAST.has(c.id) ? 1 : 0,
+			drawYr,
+			projX,
+			yS,
+			vMin,
+			vMax
+		);
+	}
+	writeProjectionCurve(
+		attrsBuf,
+		trailBuf,
+		SLJ,
+		CLOSE_SLJ_SEGS,
+		Math.max(cam.camLeft, CLOSE_SLJ_STUB_FROM),
+		RACE_SLOT.get(SLJ),
+		1,
+		drawYr,
+		projX,
+		yS,
+		vMin,
+		vMax
+	);
+}
+
 /**
  * The 99 Gen-Z contenders' trajectories, on the frame's own camera and axis.
  *
@@ -1582,7 +1960,8 @@ export function writeRaceSweepFrame(
 	const [vMin, vMax] = raceWindowYFit(
 		cam.camLeft,
 		cam.camRight,
-		frame.yOpen ?? 0
+		frame.yOpen ?? 0,
+		frame.yClose ?? 0
 	);
 	const yS = (v) => lin(v, vMin, vMax, cam.top, cam.bottom);
 	// draw-on: the lines unspool leftward from the right-hand end of the data
@@ -1610,9 +1989,16 @@ export function writeRaceSweepFrame(
 		const onCamera = de >= cam.camLeft && ds <= cam.playhead;
 		const endX = cam.xS(Math.min(de, e1));
 		const edgeFade = clamp((endX - cam.left) / RACE_EDGE_FADE_PX, 0, 1);
+		// ...unless the projection pass owns this actor, which writes both his dot
+		// and his line out past the end of the data. Zeroed rather than skipped so
+		// he is also out of the lead pick below: on a frame whose marks reach 2030,
+		// "in front" is a question about where the lines END, not about the
+		// stub of history left of the break (see CLOSE_LEAD).
 		lineMs[i] =
-			(alphaOf ? alphaOf(id) : visible.has(id) ? 1 : 0) *
-			(onCamera ? edgeFade : 0);
+			frame.proj !== undefined && CLOSE_OWNED.has(id)
+				? 0
+				: (alphaOf ? alphaOf(id) : visible.has(id) ? 1 : 0) *
+					(onCamera ? edgeFade : 0);
 		// the dot rides the RIGHT END OF THE VISIBLE LINE, not the raw playhead:
 		// when the playhead is within the actor's data the two coincide (dot pinned
 		// to the plot's right edge), but once the playhead runs past the data the
@@ -1644,6 +2030,9 @@ export function writeRaceSweepFrame(
 				);
 	for (let i = 0; i < RACE_IDS.length; i++) {
 		const id = RACE_IDS[i];
+		// one writer per slot: an actor the projection pass places is not touched
+		// here at all, or the two would fight over his dot and his trail
+		if (frame.proj !== undefined && CLOSE_OWNED.has(id)) continue;
 		const isLead = id === lead;
 		const dot = raceDotSpec(isLead);
 		const segs = RACE_SEGS.get(id);
@@ -1730,11 +2119,24 @@ export function writeRaceSweepFrame(
 		writeBackdropLines(attrsBuf, trailBuf, cam, yS, vMin, vMax);
 	if (frame.genz)
 		writeGenzLines(attrsBuf, trailBuf, cam, yS, vMin, vMax, frame.genz);
+	// ...and the closing step's projections, last: they are the only marks that
+	// live out on the strip, and they own the slots they write. Tested against
+	// undefined, not for truth: 0 is a real progress there (see RaceFrame.proj).
+	if (frame.proj !== undefined)
+		writeProjectionLines(attrsBuf, trailBuf, cam, yS, vMin, vMax, frame.proj);
 
 	return {
-		axes: raceAxes(cam, yS, vMin, vMax, frontier, frame.futureTicks !== false),
+		axes: raceAxes(
+			cam,
+			yS,
+			vMin,
+			vMax,
+			frontier,
+			frame.futureTicks !== false,
+			frame.xTicks !== false
+		),
 		takeover: raceTakeoverCallout(cam, yS),
-		band: raceFutureBand(cam, frontier),
+		band: raceFutureBand(cam, frontier, frame.proj !== undefined),
 		// the RESOLVED frontier, so a caller snapshotting the live frame (see
 		// ScrollyVisual's renderFrontier) reads what was drawn rather than what
 		// was asked for
@@ -1787,6 +2189,13 @@ function raceLayout(step, yCap = Infinity) {
 				// this one reads a param before the step's declaration rather than
 				// after it.
 				yOpen: params?.yOpen ?? step.yOpen ?? 0,
+				yClose: params?.yClose ?? step.yClose ?? 0,
+				// ...and the closing step's draw-on, which rests DRAWN (proj: 1 on the
+				// step). Left undefined on every other step rather than defaulted to
+				// 0: absent means "not a projection frame", where 0 means "a
+				// projection frame with nothing drawn yet" — the frame the arrival
+				// animation starts from.
+				proj: step.proj === undefined ? undefined : (params?.proj ?? step.proj),
 				genz: step.genz ? (params?.genzShown ? 1 : 0) : 0,
 				reveal: 1
 			},
@@ -1810,7 +2219,8 @@ function raceLayout(step, yCap = Infinity) {
 			// ...and on the Gen-Z step the simulation block too: those 99 slots hold
 			// the contenders' trajectories here and their win counts four steps
 			// later, so this step must not retract what it is itself drawing.
-			if (step.genz && SIM_TRAIL_SLOTS.has(t)) return;
+			if ((step.genz || step.proj !== undefined) && SIM_TRAIL_SLOTS.has(t))
+				return;
 			if (step.backdrop && BACKDROP_TRAIL_SLOTS.has(t)) return;
 			collapseTrail(trails, t, w / 2, cam.bottom, 0);
 		});
@@ -1824,6 +2234,12 @@ function raceLayout(step, yCap = Infinity) {
 		};
 	};
 }
+
+const CLOSE_OVERLAY = {
+	yLabel: "Remoteness",
+	yTopLabel: "lower →",
+	yBottomLabel: "← higher"
+};
 
 const OVERLAY = {
 	xLabel: "Year",
@@ -2036,6 +2452,117 @@ const RACE_GENZ_YCAP = Infinity;
 	}
 }
 
+// raceClose: the story's last chart (PRD P-27-1). raceFuture's camera, with a
+// year of measured history behind the present and the strip open to 2030 — plus
+// two changes.
+//
+// `yClose: 1` puts it on a window of its own, read off the five contenders it
+// draws (RACE_CLOSE_Y_MIN/MAX) and tighter than anything else in the chapter.
+// SLJ is ABOVE its top edge today, which is what the step is: he is not on the
+// chart when it opens, and arrives through the top as his line descends onto the
+// ground the five are rising into.
+//
+// `proj` is the other: the frame draws marks out on the strip, which no other
+// frame in the chapter does (see writeProjectionLines). It rests at 1 — fully
+// drawn — so a cold mount, a resize and the reduced-motion snap all land on the
+// finished frame with no animation having run; the arrival ramps it from 0
+// (ScrollyVisual's playRaceCloseDraw).
+//
+// `lead: false` because the chapter's ink rule cannot be evaluated the usual way
+// here. raceLeadBy ranks the RACE cast at the camera's right edge, and at this
+// camera the right edge is 2030, where the only race actor is SLJ — it would
+// hand him the crown on the very frame that shows him losing it. The projection
+// pass picks the lead from where the lines END instead (CLOSE_LEAD), which is
+// the same rule applied to the marks the step actually has.
+//
+// Its subject is SLJ and the contender who takes the crown from him.
+export const RACE_CLOSE_STEP = {
+	extent: RACE_FULL_EXTENT,
+	tailYears: RACE_CLOSE_TAIL_YEARS,
+	frontier: RACE_FUTURE_END,
+	yClose: 1,
+	proj: 1,
+	// no x axis. The projections' horizon is each contender's career age 40, not
+	// a calendar year, so a row of years under them labels the one thing on this
+	// chart that is not being measured. What time does here — the present on the
+	// left, the future on the right — is said by the block instead.
+	xTicks: false,
+	lead: false,
+	highlight: [SLJ, CLOSE_LEAD]
+};
+
+// ...and the cap on who it shows: SLJ alone. Every one of the 224 race actors is
+// on scale in 2025 at a window this wide, and with a one-year tail they would
+// pile up as 200+ grey stubs in the sliver left of the axis break — at the one
+// place on the chart that has to be read. The gap the cap sits in is real and
+// asserted below: SLJ's record is 2.084 and the next-lowest race actor's is
+// 2.115.
+const RACE_CLOSE_YCAP = 2.1;
+
+// Four things the step claims, in the idiom of the Gen-Z window check above. A
+// data rebuild that breaks any of them fails here rather than shipping a chart
+// whose picture contradicts its copy.
+{
+	const visible = raceContenders(
+		RACE_FULL_EXTENT[0],
+		RACE_FULL_EXTENT[1],
+		RACE_CLOSE_YCAP
+	);
+	if (visible.size !== 1 || !visible.has(SLJ)) {
+		throw new Error(
+			`scrolly race: the closing step must show SLJ alone (got ${[...visible]})`
+		);
+	}
+	const now = curveYAt(RACE_SEGS.get(SLJ), RACE_DATA_END);
+	if (!(RACE_CLOSE_SLJ_END > now)) {
+		throw new Error(
+			`scrolly race: SLJ's closing landing ${RACE_CLOSE_SLJ_END} is not a recession from ${now}`
+		);
+	}
+	// ...and he has to LEAVE from above the window, or he is simply on the chart
+	// from the first frame and the step's whole arrival — a line coming in through
+	// the top edge — silently becomes a line that was always there
+	if (!(now < RACE_CLOSE_Y_MIN)) {
+		throw new Error(
+			`scrolly race: SLJ starts at ${now}, inside the closing window from ${RACE_CLOSE_Y_MIN}`
+		);
+	}
+	if (RACE_CLOSE_SLJ_END > RACE_CLOSE_Y_MAX) {
+		throw new Error(
+			`scrolly race: SLJ's landing ${RACE_CLOSE_SLJ_END} is below the closing window`
+		);
+	}
+	if (CLOSE_LEAD === SLJ) {
+		throw new Error("scrolly race: nobody passes SLJ on the closing step");
+	}
+	for (const c of CLOSE_CANDIDATES) {
+		// every year of every curve the step draws, not just its endpoints: the
+		// window is read off these same numbers, so this is what catches a rebuild
+		// where one of the five wanders out of the ground the other four set
+		const drawn = [
+			...story.genzSeries[c.id]
+				.filter(([yr]) => yr >= RACE_DATA_END - RACE_CLOSE_TAIL_YEARS)
+				.map(([, v]) => v),
+			c.projMedian
+		];
+		for (const v of drawn) {
+			if (!Number.isFinite(v)) {
+				throw new Error(`scrolly race: contender ${c.id} has a missing value`);
+			}
+			if (v < RACE_CLOSE_Y_MIN || v > RACE_CLOSE_Y_MAX) {
+				throw new Error(
+					`scrolly race: contender ${c.id} draws ${v}, off the closing window [${RACE_CLOSE_Y_MIN}, ${RACE_CLOSE_Y_MAX}]`
+				);
+			}
+		}
+		if (!(c.projMedian < RACE_CLOSE_SLJ_END)) {
+			throw new Error(
+				`scrolly race: contender ${c.id} ends at ${c.projMedian}, behind SLJ's ${RACE_CLOSE_SLJ_END}`
+			);
+		}
+	}
+}
+
 /**
  * The ids one state SHOWS: everyone whose line dips to its yCap somewhere in its
  * extent, i.e. everyone who comes onto its axis. Every reader goes through here,
@@ -2166,6 +2693,28 @@ export function raceFullRestPlayhead(w, h) {
 // than written twice, so the two can't drift apart.
 const RACE_FULL_LABELS = raceLabelSpec(RACE_FULL_PAN_FLOOR, RACE_DATA_END);
 
+// One layout instance for the closing chart and for the dissolve that follows
+// it, so the last two steps of the story cannot drift apart.
+const RACE_CLOSE_LAYOUT = raceLayout(RACE_CLOSE_STEP, RACE_CLOSE_YCAP);
+
+// Every line on the closing chart carries its name. It used to carry two, and
+// the reason was crowding: the five land between 2.1925 and 2.2472, which was
+// 0.055 of a 0.95 domain — under 6% of the plot's height, close enough that the
+// de-collider would have hung every one of them off a leader line. The closing
+// window is half as tall, so the same band is now ~11%, and with the field gone
+// there are six lines on the chart in total. An unnamed line among six is a
+// person the chart is pointing at without saying who.
+//
+// To the LEFT of the dot, unlike every other race step: the dot column is out at
+// the strip's far edge (fullRight), so a name to its right would run off the
+// canvas. It is also the side simRace puts its names on, so the names the reader
+// is carrying keep their side of the dot through the morph.
+const RACE_CLOSE_LABEL_IDS = [SLJ, ...CLOSE_CANDIDATES.map((c) => c.id)];
+const RACE_CLOSE_LABELS = {
+	labels: RACE_CLOSE_LABEL_IDS,
+	labelDirs: Object.fromEntries(RACE_CLOSE_LABEL_IDS.map((id) => [id, "left"]))
+};
+
 export const states = {
 	raceRecent: {
 		layout: raceLayout(RACE_RECENT_STEP, RACE_RECENT_YCAP),
@@ -2215,6 +2764,45 @@ export const states = {
 		// the camera pans down off the crown on arrival from the chapter card —
 		// see ScrollyVisual's playRaceGenzOpen
 		revealFrom: ["chapterCenters"]
+	},
+	raceClose: {
+		layout: RACE_CLOSE_LAYOUT,
+		// not the chapter's shared title: two thirds of the ink on this chart is
+		// modelled, and the axis it is drawn on runs past the end of the record
+		title: "Where the center of Hollywood could be in 2030",
+		race: RACE_CLOSE_STEP,
+		yCap: RACE_CLOSE_YCAP,
+		...RACE_CLOSE_LABELS,
+		// the chapter's overlay without its x title: there is no x axis on this
+		// step for it to name (see RACE_CLOSE_STEP's xTicks)
+		overlay: CLOSE_OVERLAY,
+		params,
+		// Two beats, and the first one is the plain tween: the five keep the trail
+		// slots their win-count climbs occupy on the simulation chart, so a line
+		// morphs into a line — the object constancy those slots were shared for —
+		// landing on the frame where every line stands on the present. The draw out
+		// to 2030 is chained off that (ScrollyVisual's raceCloseArrival), which is
+		// why it must NOT land off-chart first.
+		//
+		// Scoped to the forward arrival: stepping back out of the outro is a state
+		// change into this one, and replaying the draw there would animate the
+		// reader backwards into a beat they have already been shown.
+		revealFrom: ["simRace"]
+	},
+	outro: {
+		// the closing beat: the chart the reader is on, dissolved where it lies.
+		// Built on the SAME layout instance as raceClose so the two can never
+		// disagree about what is being faded out.
+		layout: dissolve(RACE_CLOSE_LAYOUT),
+		race: RACE_CLOSE_STEP,
+		yCap: RACE_CLOSE_YCAP,
+		// the same names the chart carries, so each one rides its dot's alpha down
+		// to nothing; dropping them from the state instead would unmount the
+		// labels the instant the step changed, leaving names blinking off above a
+		// chart still fading
+		...RACE_CLOSE_LABELS,
+		params
+		// no overlay: the axis titles are furniture on a chart that is leaving
 	},
 	raceFuture: {
 		// no yCap, same as raceFull: the whole cast, on a chart whose camera has

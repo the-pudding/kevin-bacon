@@ -145,7 +145,11 @@ export const STATE_YCAP = pick("yCap");
  * of history to keep behind the end of the data — and `frontier` is how far that
  * step's future strip rests open. Both are raceFuture's alone; see
  * raceMaxPlayhead and raceFutureScale.
- * @type {Partial<Record<LayoutState, { extent: [number, number], minPlayhead?: number, maxPlayhead?: number, tailPx?: number, frontier?: number, highlight?: number[] }>>}
+ *
+ * `proj` is the closing step's alone — its resting draw-on progress out across
+ * the future strip. Read here as a PRESENCE (`!== undefined`) rather than as a
+ * number, to ask whether a step's marks reach past the data plot's right edge.
+ * @type {Partial<Record<LayoutState, { extent: [number, number], minPlayhead?: number, maxPlayhead?: number, tailPx?: number, frontier?: number, proj?: number, highlight?: number[] }>>}
  */
 export const STATE_RACE = pick("race");
 
