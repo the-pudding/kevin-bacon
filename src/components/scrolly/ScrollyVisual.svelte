@@ -1106,6 +1106,11 @@
 	// legs say nothing about the y fit.
 	function playRaceGenzOpen(restP) {
 		if (!width || !height) return;
+		// the arrival's label gate is done: the cast is off the crowd and on the
+		// chart, so names may ride their dots again. Lifted HERE, at the top of the
+		// leg rather than at its end, so a reader who presses the button mid-pan
+		// still gets the names their contenders arrive with.
+		entryLabels = null;
 		if (reducedMotion) {
 			// defensive: the effect's snap branch normally lands on the static
 			// (already panned-down) frame before this can run
@@ -1121,7 +1126,14 @@
 				story.raceView = raceHoldView();
 				publishRaceCam();
 			},
-			{ from: raceStepVisible(RACE_FULL_STEP, Infinity), to: new Set() },
+			// No `shown` set, deliberately: the camera is what removes the crown
+			// race, not a fade. Every line either rides up and off the top edge as
+			// the window travels (curveExit ends it there, like any line chart) or
+			// is genuinely inside the ground the step lands on and stays as part of
+			// the crowd. Fading them on a phase clock instead made the field swell
+			// and dissolve in the middle of the plot, which reads as the chart
+			// giving up rather than as a camera moving away from it.
+			null,
 			GENZ_OPEN_MS * getRaceSpeedScale()
 		);
 	}
@@ -2204,6 +2216,15 @@
 			// yCap Infinity, not the step's: the step shows none of the race cast
 			// (that is the state the pan lands on), and this frame is the one before
 			// the pan, where they are all still there.
+			// The seven names ride their contenders' dots, and on this arrival those
+			// dots are still fading out of the chapter card's crowd — so without a
+			// gate the labels come up over the scatter field, naming dots that are
+			// nowhere near where they are about to be. Blank them for the flight;
+			// playRaceGenzOpen lifts the gate the moment the tween lands, by which
+			// point the contenders sit at alpha 0 and nothing shows until the
+			// reader's press brings them in. Same mechanism, and the same reason, as
+			// the race chapter's own entry (see the raceEntry branch above).
+			entryLabels = new Set();
 			const restP = raceMaxPlayhead(width, height, RACE_GENZ_STEP);
 			const startAttrs = attrs.slice();
 			const startTrails = trailTarget.slice();

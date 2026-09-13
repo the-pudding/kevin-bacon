@@ -1239,7 +1239,9 @@ function raceAxes(cam, yS, vMin, vMax, frontier, futureTicks = true) {
  * parameter, not a step's, which is what keeps the axis rule pure.
  * @property {number} [genz] the Gen-Z field's draw-on progress 0..1; 0 (or
  * absent) leaves those 99 lines off the frame entirely.
- * @property {boolean} [backdrop] draw the backdrop sample. No progress value: the
+ * @property {boolean} [backdrop] draw the backdrop sample.
+ * @property {boolean} [lead] ink the crown holder at this camera (default true).
+ * false on a step whose camera has travelled off the race entirely. No progress value: the
  * camera decides whether it is seen (see writeBackdropLines).
  * @property {number[]} [highlight] the actors this step is *about*: they are
  * guaranteed a name label even if they aren't among the nearest-to-centre cut
@@ -1628,10 +1630,18 @@ export function writeRaceSweepFrame(
 	// SHOWING — reusing dotM rather than testing the same gates again is what
 	// keeps "inked" and "on the plot" from ever disagreeing, so a frame can never
 	// ink a dot it is hiding.
-	const lead = raceLeadBy(
-		(id) => dotMs[RACE_SLOT.get(id)] > 0,
-		(id) => dotVs[RACE_SLOT.get(id)]
-	);
+	// The crown at this camera — unless the frame says there is no crown to show.
+	// The ink means "in front of the race", and a step whose camera has travelled
+	// off the race has nobody in front: left to itself this would hand the ink to
+	// whichever straggler happens to sit nearest the top of the new window, which
+	// says something false about them in the chapter's most loaded mark.
+	const lead =
+		frame.lead === false
+			? null
+			: raceLeadBy(
+					(id) => dotMs[RACE_SLOT.get(id)] > 0,
+					(id) => dotVs[RACE_SLOT.get(id)]
+				);
 	for (let i = 0; i < RACE_IDS.length; i++) {
 		const id = RACE_IDS[i];
 		const isLead = id === lead;
@@ -1985,6 +1995,8 @@ export const RACE_GENZ_STEP = {
 	frontier: RACE_FUTURE_END,
 	yOpen: 1,
 	genz: true,
+	// the camera has left the race, so no dot is "in front" — see the lead pick
+	lead: false,
 	// the backdrop, on for the whole step — the camera reveals it, see
 	// writeBackdropLines
 	backdrop: true,
@@ -1993,10 +2005,14 @@ export const RACE_GENZ_STEP = {
 	highlight: GENZ_NAMED_IDS
 };
 
-// ...and the yCap that empties the race cast. Any value below every actor's best
-// year does it (raceContenders keeps whoever dips to the cap); -Infinity says so
-// outright rather than leaving a reader to check a number against the data.
-const RACE_GENZ_YCAP = -Infinity;
+// ...and the cap on who it shows: none, the same as raceFull. The camera removes
+// the crown race on this step, not a filter — a line either rides up and off the
+// top edge as the window travels or is genuinely inside the ground the step lands
+// on, and the ~128 race actors who sit in [2.30, 3.00] today are Hollywood at that
+// remoteness as much as any sampled backdrop actor is. Capping them out would
+// mean fading lines in the middle of the plot, which reads as the chart giving up
+// rather than as a camera moving away from it.
+const RACE_GENZ_YCAP = Infinity;
 
 // The seven named contenders have to be ON the Gen-Z window, over every year the
 // step's camera can reach. They are what the step is about, and a name in the
