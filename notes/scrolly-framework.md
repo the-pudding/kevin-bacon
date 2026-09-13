@@ -620,6 +620,42 @@ while it is still on the plot rather than being cut off the moment the window
 leaves it. As on every race step the 224 stay parked on their own curves at alpha
 0, so nothing flies in from off the plot when the reader steps away.
 
+**A backdrop fills the window the pan lands on.** Retiring the race cast leaves
+the plot empty between the pan and the reader's press, which reads as a bug and
+undersells the move: `[2.30, 3.00]` holds **17,722 of the corpus's 22,530
+actors**. So a stratified sample of 279 working actors is drawn behind
+everything (`backdropSeries`, `writeBackdropLines`).
+
+It takes **no progress parameter**, and that is the whole trick: the lines are
+always written and the CAMERA decides whether they are seen. At `yOpen` 0 the
+window is the crown's `[2.05, 2.20]` and every one of them sits below it, so
+`curveExit` finds nothing on scale and each collapses onto a hidden dot; as the
+window opens downward they enter through the bottom edge on their own, exactly as
+the race cast leaves through the top. Nothing to schedule, nothing for an
+animator to carry, and a resize or reduced-motion arrival lands right because the
+frame stays a pure function of the camera. Measured across the pan: 29 race
+dots at `yOpen` 0, then 131 race + 38 backdrop, 120 backdrop, 205, 278. Never
+empty.
+
+Three depths on one monochrome chart, separated by alpha and radius alone —
+backdrop at 0.3, the 92 unnamed contenders at `raceDotSpec`'s 0.55, the seven
+named in ink. A hue for any of them would break the chapter's rule and would not
+read as depth anyway.
+
+**One writer per node is what makes the three casts safe to overlay.** A dot
+lives in one slot of the attr array and a line in one trail slot, so an actor in
+two casts would have two writers fighting over the same dot. Twelve of the
+sample's 291 were in another cast (seven race anchors — Stallone, Keaton, Frank
+Oz — and five contenders including Jenna Ortega), and the build drops them,
+leaving 279. The backdrop is a backdrop, so the other cast always wins. That
+exclusion is asserted rather than assumed.
+
+It is named BACKDROP and not FIELD because `layout-shared.js` already owns a
+`FIELD_*` vocabulary for the pull-back crowd (`FIELD_IDS`, `fieldSpot`,
+`FIELD_ALPHA`) — the hop 1–4 actors the chapter card and `hopBands` sort. Two
+unrelated "fields" in one module is a collision that reads fine until someone
+imports the wrong one.
+
 **The lookback is three years, clamped.** `tailYears: 3` pins the camera by its
 left edge the way raceFuture's `tailPx` does, and both resolve through one helper
 (`raceTailPx`) — that the ceiling and the floor return the same year is what
@@ -963,6 +999,15 @@ the four predicted-distance variants (null when a metric doesn't exist for that
 actor; layouts hide non-participants at their distance-scatter park spot —
 `parkHidden` in `layout-shared.js`). `hop` is -1 when unknown — those nodes are
 hidden in hop-coloured states.
+
+The race chart's three trajectory exports — `raceSeries` (224 anchors),
+`genzSeries` (99 contenders) and `backdropSeries` (279 sampled actors) — are all
+`top_n: 0` runs of `analysis/actor-trajectory.py`, i.e. mean distance to the
+whole giant component. The build asserts that on every one of them, because the
+same script can emit a `top_n: N` run that looks identical and is a different
+metric: `actor-trajectory-exhaustive.json` puts SLJ's 2025 at 1.6006 against the
+2.087 this chart draws. Three casts on one axis only works while all three are
+the same measurement.
 
 `scrolly-story.json` carries the non-dot data: `bacon` bucket totals, `corr`
 (prediction correlations), `quiz` pairs, race `eras` + `raceSeries`

@@ -445,6 +445,27 @@ export const SIM_LABEL_N = 5;
 export const SIM_LABEL_IDS = SIM_SERIES.slice(0, SIM_LABEL_N);
 
 /**
+ * The Gen-Z race step's backdrop: a stratified sample of working actors spread
+ * across the remoteness the contenders live on, so the camera's pan down lands
+ * on a populated plot instead of an empty one. Built in the analysis repo and
+ * already stripped of anyone another cast draws (see build-scrolly-nodes.js) —
+ * the chart's one-writer-per-node rule means this list and RACE_IDS/SIM_SERIES
+ * are disjoint by construction.
+ *
+ * Sorted, unlike SIM_SERIES: there is no rank among them and nothing labels one,
+ * so the only thing an order has to be is stable.
+ *
+ * Named BACKDROP rather than FIELD because this file already owns a FIELD_*
+ * vocabulary for something else entirely — the pull-back crowd (FIELD_IDS below,
+ * fieldSpot, FIELD_ALPHA), the hop 1-4 actors the chapter card and hopBands
+ * sort. Two unrelated "fields" on one chart module is the kind of collision that
+ * reads fine until someone imports the wrong one.
+ */
+export const BACKDROP_IDS = Object.keys(story.backdropSeries)
+	.map(Number)
+	.sort((a, b) => a - b);
+
+/**
  * The seven Gen-Z contenders the story picks out by name — the five likeliest
  * winners plus two from the remote end of the field, so the cloud reads as a
  * range rather than a shortlist.
@@ -507,6 +528,10 @@ export const TRAIL_META = [
 	// the same reason — emphasis is which lines the step labels, not a palette of
 	// 99 hues
 	...SIM_SERIES.map((id) => ({ id, rgb: CROWD, width: 1 })),
+	// the Gen-Z step's backdrop field. Grey and 1px like everything else on that
+	// chart — what sets it back is alpha, written per frame by the writer, not a
+	// colour or a weight here
+	...BACKDROP_IDS.map((id) => ({ id, rgb: CROWD, width: 1 })),
 	{ id: null, rgb: CROWD, width: 1 } // reference rule (prediction diagonal, Gen Z number line)
 ];
 export const TRAIL_SIZE = TRAIL_META.length * TRAIL_STRIDE;
@@ -528,6 +553,13 @@ export const SIM_SLOT = new Map(
  * later instead of two unrelated lines occupying two slots.
  */
 export const SIM_TRAIL_SLOTS = new Set(SIM_SLOT.values());
+export const BACKDROP_SLOT_BASE = SIM_SLOT_BASE + SIM_SERIES.length;
+/** slot -> backdrop actor */
+export const BACKDROP_SLOT = new Map(
+	BACKDROP_IDS.map((id, i) => [id, BACKDROP_SLOT_BASE + i])
+);
+/** the backdrop block, owned by the one step that draws it */
+export const BACKDROP_TRAIL_SLOTS = new Set(BACKDROP_SLOT.values());
 export const RULE_SLOT = TRAIL_META.length - 1;
 
 // ---------------------------------------------------------------------------

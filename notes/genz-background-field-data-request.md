@@ -1,5 +1,19 @@
 # Data request: a background field for the Gen Z race step
 
+> **DELIVERED 2026-09-13.** `data/actor-trajectory-field-sample.json` is built and
+> committed in the analysis repo: 291 actors, `top_n: 0`, full careers (4–56
+> points), all ending 2025. Selection is
+> `analysis/build-field-sample-candidates.py`. Neither cost escape hatch below
+> was needed — the run took 139s.
+>
+> On this side it lands as `story.backdropSeries` (**279**, not 291: twelve of
+> the sample are also race anchors or Gen Z contenders, and the chart's
+> one-writer-per-node rule means the other cast wins). One actor's 2025 value is
+> 3.0018, just outside the window — their line leaves through the bottom edge
+> like any other, which is the chart's normal behaviour, not a clip bug.
+>
+> Kept for the selection rationale; the request itself is closed.
+
 **For:** the analysis repo (`~/src/Personal/pudding-post`).
 **Wanted:** one new export, `data/actor-trajectory-field-sample.json`.
 **Why:** the `raceGenz` step's camera pans down onto an empty plot.

@@ -179,6 +179,16 @@ assert(
 	genzTrajSrc.top_n === 0,
 	`Gen Z trajectories are top_n ${genzTrajSrc.top_n}, not 0`
 );
+// ...and a background field for the same chart: a stratified sample of working
+// actors spread across the remoteness the contenders live on, so the Gen-Z step
+// lands on a populated plot rather than an empty one. Selection lives in the
+// analysis repo (analysis/build-field-sample-candidates.py) — twelve equal-width
+// slices of [2.30, 3.00], evenly spaced by rank within each, no RNG.
+const backdropTrajSrc = raw("actor-trajectory-field-sample.json");
+assert(
+	backdropTrajSrc.top_n === 0,
+	`field-sample trajectories are top_n ${backdropTrajSrc.top_n}, not 0`
+);
 // The race chart's cast: everyone who reached a year-end top 50 by avg distance
 // between 1980 and 2025, plus every era anchor (analysis/export-yearly-top-n.py
 // -> analysis/actor-trajectory.py). Not just the 15 crown-holders the era
@@ -658,6 +668,49 @@ for (const c of genz) {
 		`${nodes[c.id][1]}: trajectory 2020 ${at2020?.[1]} != mad2020 ${c.mad2020}`
 	);
 }
+
+// Background field for the Gen-Z race step, same shape as the two series above.
+//
+// Minus anyone already drawn by another cast. The chart's hard rule is ONE
+// WRITER PER NODE — a dot lives in one slot of the attr array and a line in one
+// trail slot — so an actor who is both a race anchor and a field sample would
+// have two writers fighting over the same dot and would need a second trail slot
+// for the same curve. The sample is a backdrop, so the other cast always wins:
+// seven race anchors (Stallone, Keaton, Frank Oz…) and five Gen-Z contenders
+// (Jenna Ortega, Alex Wolff…) drop out here, leaving 279.
+const backdropExclude = new Set([
+	...Object.keys(raceSeries).map(Number),
+	...genz.map((c) => c.id)
+]);
+const backdropSeries = {};
+for (const a of backdropTrajSrc.actors) {
+	const id = idOf(a.person_id);
+	if (backdropExclude.has(id)) continue;
+	backdropSeries[id] = a.trajectory
+		.filter((t) => t.in_giant && t.avg_distance != null)
+		.map((t) => [t.year, round4(t.avg_distance)]);
+}
+assert(
+	Object.keys(backdropSeries).every((id) => !backdropExclude.has(Number(id))),
+	"a field-sample actor is also drawn by another cast"
+);
+// the same two guards the other trajectory exports get: one axis, one last year
+assert(
+	backdropTrajSrc.end_year === raceSrc.end_year,
+	`field sample ends ${backdropTrajSrc.end_year}, the race cast ${raceSrc.end_year}`
+);
+assert(
+	Object.values(backdropSeries).every(
+		(s) => s.at(-1)[0] === backdropTrajSrc.end_year
+	),
+	`a field-sample series does not end on ${backdropTrajSrc.end_year}`
+);
+// A backdrop is only a backdrop if there is enough of it; below this the plot
+// reads as a handful of stray lines rather than as a crowd.
+assert(
+	Object.keys(backdropSeries).length >= 250,
+	`only ${Object.keys(backdropSeries).length} field-sample series after exclusions`
+);
 // The per-run winner sequence, so the browser can replay the simulation run by
 // run rather than only draw its summary (see layouts/sim-race.js). It is not
 // persisted in the bootstrap JSON, but it is exactly recoverable: a run's winner
@@ -790,6 +843,7 @@ const storyOut = {
 	eras,
 	raceSeries,
 	genzSeries,
+	backdropSeries,
 	careers: { ...trioAges, cohort },
 	genz: {
 		nSims: genzSrc.n_sims,

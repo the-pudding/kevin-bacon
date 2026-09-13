@@ -17,6 +17,9 @@ import {
 	SIM_SERIES,
 	SIM_SLOT,
 	SIM_TRAIL_SLOTS,
+	BACKDROP_IDS,
+	BACKDROP_SLOT,
+	BACKDROP_TRAIL_SLOTS,
 	GENZ_NAMED_IDS,
 	sampleTrail,
 	collapseTrail,
@@ -173,6 +176,19 @@ const GENZ_RANGE = new Map(
 );
 /** the seven the step names, as a set — read once per candidate per frame */
 const GENZ_NAMED = new Set(GENZ_NAMED_IDS);
+
+// The backdrop field behind them, on the same metric and the same axis again.
+// Disjoint from both casts above by construction (the build strips anyone else
+// draws), so no node and no trail slot has two writers.
+const BACKDROP_SEGS = new Map(
+	BACKDROP_IDS.map((id) => [id, monotoneSegments(story.backdropSeries[id])])
+);
+const BACKDROP_RANGE = new Map(
+	BACKDROP_IDS.map((id) => {
+		const s = story.backdropSeries[id];
+		return [id, [s[0][0], s.at(-1)[0]]];
+	})
+);
 
 // fractional year of an ISO date, so an era boundary mid-year lands between two
 // of the annual data points rather than snapping to January
@@ -1223,6 +1239,8 @@ function raceAxes(cam, yS, vMin, vMax, frontier, futureTicks = true) {
  * parameter, not a step's, which is what keeps the axis rule pure.
  * @property {number} [genz] the Gen-Z field's draw-on progress 0..1; 0 (or
  * absent) leaves those 99 lines off the frame entirely.
+ * @property {boolean} [backdrop] draw the backdrop sample. No progress value: the
+ * camera decides whether it is seen (see writeBackdropLines).
  * @property {number[]} [highlight] the actors this step is *about*: they are
  * guaranteed a name label even if they aren't among the nearest-to-centre cut
  * (see ScrollyVisual's raceLabelCut). It buys a NAME and nothing else — the only
@@ -1259,6 +1277,17 @@ export function raceDotSpec(lead = false) {
  * other 92 take raceDotSpec's field treatment unchanged.
  */
 const GENZ_NAMED_DOT = { r: 5, rgb: INK, alpha: 1 };
+
+/**
+ * ...and the backdrop field's, which has to sit UNDER both. Three depths on one
+ * monochrome chart, separated by alpha and radius alone: the backdrop at 0.3,
+ * the 92 unnamed contenders at raceDotSpec's 0.55, the seven named in ink. A
+ * hue for any of them would break the chapter's rule and would not read as depth
+ * anyway — receding is what distance looks like.
+ */
+const BACKDROP_DOT = { r: 2.5, rgb: CROWD, alpha: 0.3 };
+/** ...and its line, likewise half the contenders' 0.35 */
+const BACKDROP_TRAIL_ALPHA = 0.18;
 
 // ---------------------------------------------------------------------------
 // The lead: who is in front.
@@ -1333,6 +1362,83 @@ const lineMs = new Float64Array(RACE_IDS.length);
 // on it, so the column of dots is already moving when it crosses into view
 // instead of materialising on the edge itself.
 const GENZ_ARRIVE_LEAD = 0.06;
+
+/**
+ * The backdrop: 279 working actors spread across the window the Gen-Z step pans
+ * down onto, so the camera lands on a crowd rather than on empty axes.
+ *
+ * It takes NO progress parameter, and that is the point. These lines are always
+ * written, and the CAMERA decides whether they are seen: at yOpen 0 the window is
+ * the crown's [2.05, 2.20] and every one of them sits below it, so curveExit
+ * finds nothing on scale and each collapses onto a hidden dot. As the window
+ * opens downward they enter through the bottom edge on their own, exactly as the
+ * race cast leaves through the top. No fade to schedule, nothing for an animator
+ * to carry, and a resize or a reduced-motion arrival lands on the right frame
+ * because the frame is a pure function of the camera — the same property the
+ * whole chapter's axis rests on.
+ *
+ * @param {Float64Array} attrsBuf @param {Float64Array} trailBuf
+ * @param {ReturnType<typeof raceCamera>} cam
+ * @param {(v: number) => number} yS
+ * @param {number} vMin @param {number} vMax
+ */
+function writeBackdropLines(attrsBuf, trailBuf, cam, yS, vMin, vMax) {
+	for (const id of BACKDROP_IDS) {
+		const segs = BACKDROP_SEGS.get(id);
+		const slot = BACKDROP_SLOT.get(id);
+		const [ds, de] = BACKDROP_RANGE.get(id);
+		const dotYr = Math.min(Math.max(cam.playhead, ds), de);
+		const onCamera = de >= cam.camLeft && ds <= cam.playhead;
+		const edgeFade = clamp(
+			(cam.xS(dotYr) - cam.left) / RACE_EDGE_FADE_PX,
+			0,
+			1
+		);
+		const m = onCamera ? edgeFade : 0;
+		const dotV = curveYAt(segs, dotYr);
+		const dotM = dotV >= vMin && dotV <= vMax ? m : 0;
+		const dx = cam.xS(dotYr);
+		const dy = yS(dotV);
+		set(
+			attrsBuf,
+			id,
+			dx,
+			dy,
+			BACKDROP_DOT.r,
+			BACKDROP_DOT.rgb,
+			BACKDROP_DOT.alpha * dotM
+		);
+		if (m <= 0.002) {
+			collapseTrail(trailBuf, slot, dx, dy, 0);
+			continue;
+		}
+		const drawFloor = Math.max(cam.camLeft, ds);
+		const sx1 = curveExit(segs, dotYr, drawFloor, vMin, vMax);
+		const sx0 =
+			sx1 === null
+				? 0
+				: Math.max(
+						cam.camLeft,
+						ds,
+						curveEntry(segs, sx1, drawFloor, vMin, vMax)
+					);
+		if (sx1 !== null && sx1 > sx0) {
+			sampleTrail(
+				trailBuf,
+				slot,
+				segs,
+				sx0,
+				sx1,
+				cam.xS,
+				yS,
+				BACKDROP_TRAIL_ALPHA * m
+			);
+		} else {
+			collapseTrail(trailBuf, slot, dx, dy, BACKDROP_TRAIL_ALPHA * dotM);
+		}
+		setTrailHighlight(trailBuf, slot, 0);
+	}
+}
 
 /**
  * The 99 Gen-Z contenders' trajectories, on the frame's own camera and axis.
@@ -1609,6 +1715,9 @@ export function writeRaceSweepFrame(
 	// SINGLE placer of everything on this chart — which is what makes a settle
 	// byte-identical to its animation's last frame by construction rather than by
 	// review, for the new lines exactly as for the old ones.
+	// the backdrop first, so the contenders' lines are written over it
+	if (frame.backdrop)
+		writeBackdropLines(attrsBuf, trailBuf, cam, yS, vMin, vMax);
 	if (frame.genz)
 		writeGenzLines(attrsBuf, trailBuf, cam, yS, vMin, vMax, frame.genz);
 
@@ -1692,6 +1801,7 @@ function raceLayout(step, yCap = Infinity) {
 			// the contenders' trajectories here and their win counts four steps
 			// later, so this step must not retract what it is itself drawing.
 			if (step.genz && SIM_TRAIL_SLOTS.has(t)) return;
+			if (step.backdrop && BACKDROP_TRAIL_SLOTS.has(t)) return;
 			collapseTrail(trails, t, w / 2, cam.bottom, 0);
 		});
 		return {
@@ -1875,6 +1985,9 @@ export const RACE_GENZ_STEP = {
 	frontier: RACE_FUTURE_END,
 	yOpen: 1,
 	genz: true,
+	// the backdrop, on for the whole step — the camera reveals it, see
+	// writeBackdropLines
+	backdrop: true,
 	// the strip keeps its block and its label, but not its years — see raceAxes
 	futureTicks: false,
 	highlight: GENZ_NAMED_IDS
