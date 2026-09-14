@@ -450,6 +450,11 @@
 		if (value < prevValue && isRankState(prevState) && !isRankState(state)) {
 			story.rankGuesses = [];
 			story.rankGaveUp = false;
+			// ...and re-arms the panel's hold. `rankBarsRevealed` is a latch (it has
+			// to outlive rankFocus — see its declaration), so without this a second
+			// walk into rankFocus mounts the ladder already revealed and Bacon's bar
+			// fades up over a collapse that is still tweening underneath it.
+			rankBarsRevealed = false;
 		}
 		prevValue = value;
 	});
