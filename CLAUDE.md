@@ -19,6 +19,22 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 There is no test suite/framework configured in this project.
 
+## Tween sign-off
+
+`notes/tween-checklist.md` is the manual sign-off record for every step
+transition — the only regression net the story's motion has.
+
+- **ALWAYS** mark every affected step `[!]` (stale) in that checklist after
+  changing anything that alters what the canvas does: a `layouts/*.js` function,
+  `tween.js`, `layout-shared.js`, `ScrollyVisual.svelte`, `states.js`, a state's
+  entry/reveal/delay/ambient/camera config, an over-canvas panel, or the `<Step>`
+  registry in `Index.svelte`.
+- **ALWAYS** stale the step either side of a changed step as well — a tween has
+  two ends.
+- **ALWAYS** renumber the checklist rows when a `<Step>` is added, removed or
+  reordered.
+- **NEVER** mark a row `[x]`. Only Owen signs a row off, after looking at it.
+
 ## Architecture
 
 This is The Pudding's `svelte-starter` template (SvelteKit 2 + Svelte 5 with runes, statically exported via `@sveltejs/adapter-static`), being used here to build a step-driven data-journalism piece, "Gen Z's Kevin Bacon" (see `notes/storyboard.md` for the content/visual plan). The reader advances via a prev/next wizard, not scroll — "scrolly" in names is historical (see `notes/scrolly-framework.md`).

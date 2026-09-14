@@ -1417,3 +1417,7 @@ impossible to retrofit meaningfully after launch.
 mash Next/Previous quickly — dots retarget mid-flight (no snap-back). Check
 375px and 320px emulation, rotate, and DevTools "emulate
 prefers-reduced-motion". `npm run build` must stay green.
+
+Per-step sign-off lives in `notes/tween-checklist.md` — one row per step, with
+forwards / backwards / mobile arrivals. Anything changed here makes rows there stale;
+the rules for working out which are in `CLAUDE.md`.
