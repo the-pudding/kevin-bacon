@@ -4,6 +4,7 @@
 	import { story } from "./story.svelte.js";
 	import { nodeName, nodeRank, searchRankOptions } from "./states.js";
 	import { SLJ } from "./layout-shared.js";
+	import { recordRankGuess } from "$utils/analytics.js";
 
 	const steps = getContext("scrolly-steps");
 
@@ -31,6 +32,7 @@
 		story.rankGuesses.push(id);
 		editing = false;
 		query = "";
+		recordRankGuess({ actorId: id, correct: nodeRank(id) === 1 });
 		if (nodeRank(id) === 1) steps.advance();
 	}
 
@@ -38,6 +40,7 @@
 		story.rankGaveUp = true;
 		editing = false;
 		query = "";
+		recordRankGuess({ gaveUp: true, correct: false });
 		steps.advance();
 	}
 </script>

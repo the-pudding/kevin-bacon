@@ -10,8 +10,9 @@
 	// `panel` snippet rendered over the canvas by Index.svelte (see
 	// notes/scrolly-framework.md "Exception").
 	import { story } from "./story.svelte.js";
-	import { INTERACTIVE_IDS, nodeName, quizDone } from "./states.js";
+	import { INTERACTIVE_IDS, nodeName, nodeRank, quizDone } from "./states.js";
 	import { CROWD } from "./layout-shared.js";
+	import { recordPairPick } from "$utils/analytics.js";
 
 	/**
 	 * @type {{ visual?: { locate: (id: number) => { x: number, y: number } | null } }}
@@ -64,6 +65,14 @@
 	const pair = $derived(i < pairs.length ? pairs[i] : null);
 
 	function commit(choice) {
+		const pickedId = [pair.a, pair.b][choice];
+		const otherId = [pair.a, pair.b][1 - choice];
+		recordPairPick({
+			pairIndex: i,
+			pickedId,
+			otherId,
+			correct: nodeRank(pickedId) < nodeRank(otherId)
+		});
 		story.quizPicks[i] = choice;
 		advance();
 	}
@@ -151,6 +160,14 @@
 
 		// Reveal the real canvas dots (param re-run fades them in), and hold the
 		// flown cards in place over that fade so there's no pop, then remove them.
+		const pickedId = [a, b][choice];
+		const otherId = [a, b][1 - choice];
+		recordPairPick({
+			pairIndex: i,
+			pickedId,
+			otherId,
+			correct: nodeRank(pickedId) < nodeRank(otherId)
+		});
 		story.quizPicks[i] = choice;
 		holdTimer = setTimeout(advance, HOLD_MS);
 	}
