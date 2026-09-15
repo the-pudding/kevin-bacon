@@ -101,6 +101,27 @@
 	const EDGE_LAG_MS = TWEEN_MS * 0.75;
 	const EDGE_LAG_DELAYS = new Float64Array(DELAY_SIZE);
 	EDGE_LAG_DELAYS.fill(EDGE_LAG_MS, nodes.length);
+	/**
+	 * Per-group start delay for a trail arrival: a trail heading to alpha 0
+	 * (retiring, or simply not drawn by the landing state) holds at its live
+	 * geometry until the dots have mostly landed (the same EDGE_LAG_MS edges
+	 * use), then collapses/fades onto its target in what's left of the tween —
+	 * instead of crossfading a departing line's position and alpha across the
+	 * whole duration, which reads as the line sliding or shrinking across the
+	 * canvas before it disappears. A trail heading to a REAL alpha keeps delay
+	 * 0 and morphs over the full duration: on the race/career choreographies
+	 * that motion is the object-constancy morph the slot exists for (a
+	 * simulation line becoming a race line, say), and holding it back would
+	 * desync it from the dot riding its tip.
+	 */
+	function trailDepartDelays(target) {
+		const out = new Float64Array(TRAIL_META.length);
+		for (let t = 0; t < TRAIL_META.length; t++) {
+			if (target[t * TRAIL_STRIDE + TRAIL_POINTS * 2] <= 0)
+				out[t] = EDGE_LAG_MS;
+		}
+		return out;
+	}
 	// edges draw outward from the anchor: orient each from its lower-hop end so
 	// the line grows from Bacon toward the outer actor
 	const edgeEnds = edges.map(({ source, target }) =>
@@ -1898,7 +1919,7 @@
 				chartVeiled = false;
 				playRaceEntry(RACE_RECENT_STEP, flownIn);
 			});
-			trailTweener.to(startTrails, TWEEN_MS, 0);
+			trailTweener.to(startTrails, TWEEN_MS, 0, trailDepartDelays(startTrails));
 		});
 	});
 
@@ -2319,7 +2340,7 @@
 			tweener.to(startAttrs, TWEEN_MS, TWEEN_JITTER, stateDelays, () =>
 				playRaceGenzOpen(restP)
 			);
-			trailTweener.to(startTrails, TWEEN_MS, 0);
+			trailTweener.to(startTrails, TWEEN_MS, 0, trailDepartDelays(startTrails));
 		} else if (raceCloseArrival) {
 			// The same two beats, and the same reason this branch does not call
 			// landOffChart: that helper preserves the race cast's dots and trail
@@ -2350,7 +2371,7 @@
 			tweener.to(startAttrs, TWEEN_MS, TWEEN_JITTER, stateDelays, () =>
 				playRaceCloseDraw(restP)
 			);
-			trailTweener.to(startTrails, TWEEN_MS, 0);
+			trailTweener.to(startTrails, TWEEN_MS, 0, trailDepartDelays(startTrails));
 		} else if (entryAnim) {
 			// arrive onto the choreography's own frame 0 (its animated slots stamped
 			// over the static layout), then hand the rAF to playEntry. Like the race
@@ -2365,7 +2386,7 @@
 			tweener.to(startAttrs, TWEEN_MS, TWEEN_JITTER, stateDelays, () =>
 				playEntry(entryAnim, write, attrs, trailTarget)
 			);
-			trailTweener.to(startTrails, TWEEN_MS, 0);
+			trailTweener.to(startTrails, TWEEN_MS, 0, trailDepartDelays(startTrails));
 		} else if (stateChange) {
 			heldLabels = introduced.size ? introduced : null;
 			labelHoldUntil = performance.now() + EDGE_LAG_MS;
@@ -2375,7 +2396,12 @@
 			tweener.to(attrs, TWEEN_MS, TWEEN_JITTER, stateDelays, () =>
 				settle(stateName)
 			);
-			trailTweener.to(trailTarget, TWEEN_MS, 0, layout.trailDelays);
+			trailTweener.to(
+				trailTarget,
+				TWEEN_MS,
+				0,
+				layout.trailDelays ?? trailDepartDelays(trailTarget)
+			);
 		} else if (paramChange) {
 			// interaction: retarget quickly, no choreography (delays would make
 			// a small pan/highlight feel laggy). Still settles on completion —
