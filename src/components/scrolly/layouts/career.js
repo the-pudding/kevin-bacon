@@ -343,9 +343,11 @@ export const states = {
 		title: "Film count by career age",
 		// the comparisons have demoted into the cohort — only the hero is named
 		labels: [SWEENEY],
-		// the fan is authored to branch off the endpoint careerTrio just drew;
-		// stepping back in from simRace gets a plain tween
-		revealFrom: ["careerTrio"],
+		// the fan is authored to branch off the endpoint careerTrio just drew,
+		// which holds arriving backward from simRace too: the trio's hero and
+		// comparison lines are already drawn on that chart, so the branch point
+		// is the same endpoint either direction
+		revealFrom: ["careerTrio", "simRace"],
 		entry: { phases: COHORT_ENTRY_MS, frames: cohortEntryFrames },
 		overlay: CAREER_OVERLAY
 	}
