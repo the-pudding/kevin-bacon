@@ -240,9 +240,16 @@
 
 	// safety net for a stale/malformed URL (?step past the end of the story):
 	// value already starts at restoredStep, so this only ever corrects it back
-	// into range once stepConfigs.length is known
+	// into range once stepConfigs.length is known. That correction lands on
+	// `lone`, which coldStart would otherwise still be armed for (it was set
+	// from the same out-of-range restoredStep) — clear it so ScrollyVisual's
+	// first paint plays the pop-in instead of settling instantly, as it would
+	// for any other genuine first-ever view.
 	onMount(() => {
-		if (value >= stepConfigs.length) value = 0;
+		if (value >= stepConfigs.length) {
+			value = 0;
+			coldStart = false;
+		}
 	});
 
 	// The race chart's y-band tuner. Pulled in dynamically rather than imported at
