@@ -10,7 +10,10 @@
 	 * The next gutter goes disabled while the active step's gate is shut, so a
 	 * step that is holding the reader reads as held rather than as a dead tap —
 	 * the gutters carry no marking of their own, so the missing press tint is
-	 * the only signal available.
+	 * the only signal available. At the very last step it stays live instead:
+	 * a forward press there exits the wizard for the credits, one-way (see
+	 * `exit` on the registry) — the back gutter disappears along with the rest
+	 * of the step chrome once that happens, so there is no route back in.
 	 *
 	 * Gutters, not a full-bleed left/right split: the middle of the canvas is
 	 * where the story's own interactions live (the race scrubber's drag, the
@@ -26,8 +29,10 @@
 	const atEnd = $derived(steps.current >= steps.count - 1);
 	// $derived, not read inline: the gate closures read `story`, and those reads
 	// have to land in a tracked scope for the gutter to re-enable the moment the
-	// reader answers
-	const held = $derived(atEnd || steps.nextBlocked);
+	// reader answers. atEnd no longer holds the gutter shut — it opens the
+	// credits instead (see onTap) — so only the active step's own gate can
+	// still hold it.
+	const held = $derived(steps.nextBlocked);
 
 	function onKeydown(e) {
 		const el = e.target;
@@ -41,7 +46,10 @@
 		)
 			return;
 		if (e.key === "ArrowLeft") steps.prev();
-		else if (e.key === "ArrowRight") steps.next();
+		else if (e.key === "ArrowRight") {
+			if (atEnd) steps.exit();
+			else steps.next();
+		}
 	}
 
 	// A gutter lies over two scrollable lists (the rank ladder and the Gen Z
@@ -66,6 +74,9 @@
 		downAt = null;
 		if (dragged) return;
 		if (direction === "prev") steps.prev();
+		// forward off the last step leaves the wizard for the credits, one-way —
+		// there is nothing beyond it in stepConfigs for next()/go() to land on
+		else if (atEnd) steps.exit();
 		else steps.next();
 	}
 </script>
