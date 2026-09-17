@@ -62,7 +62,7 @@
 	);
 </script>
 
-{#if !steps.chapter}
+{#if !steps.chapter && !steps.hideBar}
 	<div
 		class="step-progress"
 		role="group"

@@ -8,7 +8,6 @@ import {
 	PULLBACK_DOT_R,
 	PULLBACK_ZOOM,
 	cardSpot,
-	fieldEdgeAlpha,
 	writeFieldCrowd,
 	galaxyBox,
 	set,
@@ -40,23 +39,15 @@ const UNIVERSE_IDS = [...FIELD_IDS, ...INTRO_IDS];
 
 /**
  * The intro fifteen (Bacon included) joining the field where they stand. They
- * keep hopSeed's landed positions (`cardSpot`) and take on the crowd's radius,
- * grey and edge ramp, so nothing about the constellation travels: the fifteen
- * simply stop being drawn as a diagram and blend into the crowd already around
- * them, Bacon shrinking and greying out among them.
+ * keep hopSeed's landed positions (`cardSpot`) and take on the crowd's radius
+ * and grey, so nothing about the constellation travels: the fifteen simply
+ * stop being drawn as a diagram and blend into the crowd already around them,
+ * Bacon shrinking and greying out among them.
  */
-function writeIntroIntoField(attrs, w, h, box) {
+function writeIntroIntoField(attrs, w, h) {
 	for (const id of INTRO_IDS) {
 		const [x, y] = cardSpot(id, w, h);
-		set(
-			attrs,
-			id,
-			x,
-			y,
-			PULLBACK_DOT_R,
-			CROWD,
-			FIELD_ALPHA * fieldEdgeAlpha(x, y, w, h, box)
-		);
+		set(attrs, id, x, y, PULLBACK_DOT_R, CROWD, FIELD_ALPHA);
 	}
 }
 
@@ -72,7 +63,7 @@ function layoutChapterCenters(nodes, w, h, _edges, _params, bleed = 0) {
 	// re-authored across the wider box — same dots, same radius, same grey, each
 	// carried out to its place in the sky by the arrival tween
 	writeFieldCrowd(attrs, w, h, PULLBACK_ZOOM, box);
-	writeIntroIntoField(attrs, w, h, box);
+	writeIntroIntoField(attrs, w, h);
 	return { attrs };
 }
 

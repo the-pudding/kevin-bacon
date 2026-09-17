@@ -32,8 +32,12 @@
 	 * step is active and advances once it returns true (the simulation's
 	 * end-of-run hand-off).
 	 *
+	 * `hideBar` drops the progress bar for this step alone — for a closing beat
+	 * (the outro) that wants the full-bleed canvas to itself, the way a chapter
+	 * card already does.
+	 *
 	 * @see notes/scrolly-framework.md
-	 * @type {{ state: import("./states.js").VisualState, params?: unknown, panel?: import("svelte").Snippet, gate?: () => boolean, skipback?: boolean, advanceon?: () => boolean, children: import("svelte").Snippet }}
+	 * @type {{ state: import("./states.js").VisualState, params?: unknown, panel?: import("svelte").Snippet, gate?: () => boolean, skipback?: boolean, advanceon?: () => boolean, hideBar?: boolean, children: import("svelte").Snippet }}
 	 */
 	let {
 		state: layoutState,
@@ -42,6 +46,7 @@
 		gate,
 		skipback,
 		advanceon,
+		hideBar,
 		children
 	} = $props();
 
@@ -52,7 +57,8 @@
 		panel,
 		gate,
 		skipback,
-		advanceon
+		advanceon,
+		hideBar
 	});
 	const active = $derived(steps.current === index);
 </script>

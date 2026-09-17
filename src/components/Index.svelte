@@ -96,8 +96,9 @@
 	 * step is active, the three gating fields documented on Step.svelte — `gate`
 	 * (the reader's Next is refused while it returns false), `skipback` (a
 	 * backward move passes through this step) and `advanceon` (the step carries
-	 * the reader on itself) — or `chapter` for a chapter card's title).
-	 * @typedef {{ state: import("$components/scrolly/states.js").VisualState, params?: Object, panel?: import("svelte").Snippet, gate?: () => boolean, skipback?: boolean, advanceon?: () => boolean, chapter?: { title: string } }} StepConfig
+	 * the reader on itself) — `hideBar` (drops the progress bar for this step
+	 * alone) — or `chapter` for a chapter card's title).
+	 * @typedef {{ state: import("$components/scrolly/states.js").VisualState, params?: Object, panel?: import("svelte").Snippet, gate?: () => boolean, skipback?: boolean, advanceon?: () => boolean, hideBar?: boolean, chapter?: { title: string } }} StepConfig
 	 * @type {StepConfig[]}
 	 */
 	const stepConfigs = $state([]);
@@ -132,7 +133,7 @@
 		stepConfigs[value ?? 0]?.skipback ? (value ?? 0) + 1 : (value ?? 0)
 	);
 
-	/** @type {{ register: (config: StepConfig) => number, current: number|undefined, count: number, chapterStarts: number[], chapter: string|null, nextBlocked: boolean, dotSteps: number[], dotStep: number, advance: () => void, go: (to: number) => void, next: () => void, prev: () => void, exited: boolean, exit: () => void }} */
+	/** @type {{ register: (config: StepConfig) => number, current: number|undefined, count: number, chapterStarts: number[], chapter: string|null, hideBar: boolean, nextBlocked: boolean, dotSteps: number[], dotStep: number, advance: () => void, go: (to: number) => void, next: () => void, prev: () => void, exited: boolean, exit: () => void }} */
 	const scrollySteps = {
 		// one object rather than positional args: a step now has six optional
 		// kinds of registration and `register(s, undefined, undefined, c)` is a
@@ -149,6 +150,9 @@
 		},
 		get chapter() {
 			return stepConfigs[value ?? 0]?.chapter?.title ?? null;
+		},
+		get hideBar() {
+			return !!stepConfigs[value ?? 0]?.hideBar;
 		},
 		// the active step's gate is shut, so the reader's Next has nothing to do —
 		// TapNav reads this to disable the right-hand gutter, so a held step reads
@@ -707,7 +711,7 @@
 							center of Hollywood.
 						</p>
 					</Step>
-					<Step state="hopSeed">
+					<Step state="hopSeed" hideBar>
 						<!-- The copy lands over the constellation pulling back: the network
 						     Bacon is in the middle of shrinks to a small thing as the line
 						     says he isn't the centre of Hollywood (see layouts/hop-bands.js).
@@ -1023,7 +1027,7 @@
 					</Step>
 					<!-- closes on an empty canvas: the chart dissolves where it stands
 					     and the last words are left on their own. -->
-					<Step state="outro">
+					<Step state="outro" hideBar>
 						<p>
 							What is far more certain is that the first female center of
 							Hollywood is on the horizon, with 65% of the wins going to women —

@@ -884,8 +884,6 @@ export const FIELD_IDS = rawNodes.nodes.reduce(
 // are meant to be indistinguishable members of the field, which is the whole
 // point of the beat — only Bacon stays darker and larger
 export const FIELD_ALPHA = 1;
-// ramp width, so a dot crossing the plot edge fades up rather than popping
-const FIELD_FADE_PX = 40;
 // How the field opens, all measured as shares of the camera's travel rather
 // than as clocks, so a scrubbed or interrupted pull-back stays consistent with
 // itself. The edge ramp alone cannot hold the opening frame clean: a dot has to
@@ -1006,13 +1004,6 @@ export function cardSpot(id, w, h) {
 		: fieldSpot(id, w, h);
 }
 
-/** the ramp that fades a dot up as it crosses the plot edge rather than popping */
-export function fieldEdgeAlpha(x, y, w, h, box = fieldBox(w, h)) {
-	const [x0, x1, y0, y1] = box;
-	const inset = Math.min(x - x0, x1 - x, y - y0, y1 - y);
-	return Math.max(0, Math.min(1, inset / FIELD_FADE_PX));
-}
-
 /**
  * @param {Set<number>} [skip] ids to leave untouched — a caller drawing some of
  * these ids itself elsewhere in the same frame, whose position/alpha this
@@ -1036,7 +1027,6 @@ export function writeFieldCrowd(
 		const [fx, fy] = fieldSpot(id, w, h, box);
 		const x = bx + (fx - bx) * k;
 		const y = by + (fy - by) * k;
-		const edge = fieldEdgeAlpha(x, y, w, h, box);
 		// this dot's own slot in the trickle: the hold, plus its place in the stagger
 		const start =
 			FIELD_OPEN_HOLD + hash01(id, 14) ** FIELD_OPEN_SKEW * FIELD_OPEN_STAGGER;
@@ -1044,6 +1034,6 @@ export function writeFieldCrowd(
 			0,
 			Math.min(1, (travel - start) / FIELD_OPEN_SHARE)
 		);
-		set(attrs, id, x, y, r, CROWD, FIELD_ALPHA * edge * opening);
+		set(attrs, id, x, y, r, CROWD, FIELD_ALPHA * opening);
 	}
 }
