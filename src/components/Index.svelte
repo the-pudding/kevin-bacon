@@ -1039,8 +1039,17 @@
 	{#if exited}
 		<!-- a slow, steady rise rather than an easing-driven "arrival" — the
 		     constant speed (linear, no in/out) is what reads as a film's credits
-		     rolling rather than a UI panel animating in -->
-		<section id="credits" in:fly={{ y: 400, duration: 4000, easing: linear }}>
+		     rolling rather than a UI panel animating in. Offset by the full
+		     viewport height (rather than a fixed px guess) so it genuinely starts
+		     below the screen on any device, not just partway up it. -->
+		<section
+			id="credits"
+			in:fly={{
+				y: (dimensions.height || 800) + 100,
+				duration: 4000,
+				easing: linear
+			}}
+		>
 			<div class="credits-content">
 				<div class="credits-block">
 					<h2>Credits</h2>
@@ -1051,7 +1060,19 @@
 				</div>
 				<div class="credits-block">
 					<h2>Author notes</h2>
-					<p class="placeholder">TODO</p>
+					<p>
+						The corpus is the IMDb top 10,000 English-language feature films by
+						user vote count. I then enriched the data with cast information from
+						the TMDB API so we can build the graph network. In total, there are
+						just over 169,000 actors in the dataset.
+					</p>
+					<p>The data for this was taken in ~March 2026.</p>
+					<p>
+						I got so carried away with this project I made <a
+							href="https://hollywood.six-degrees.app/"
+							target="_blank">a website</a
+						> focussed on Hollywood connection trivia.
+					</p>
 				</div>
 				<div class="credits-block">
 					<h2>Your results</h2>
