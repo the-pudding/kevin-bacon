@@ -28,8 +28,17 @@ import {
 	clipSeries,
 	dissolve,
 	monotoneSegments,
-	curveYAt
+	curveYAt,
+	writeFieldCrowd,
+	galaxyBox,
+	PULLBACK_ZOOM,
+	STRIDE,
+	introPosition,
+	NETWORK_INTRO_RADIUS,
+	FIELD_ALPHA
 } from "../layout-shared.js";
+import { ANCHOR_ID } from "../nodes.js";
+import { PULLBACK_ZOOM_MS } from "./hop-bands.js";
 
 // ---------------------------------------------------------------------------
 // Race chart (Past chapter): avg distance by year, one line per race actor.
@@ -2697,6 +2706,111 @@ const RACE_FULL_LABELS = raceLabelSpec(RACE_FULL_PAN_FLOOR, RACE_DATA_END);
 // it, so the last two steps of the story cannot drift apart.
 const RACE_CLOSE_LAYOUT = raceLayout(RACE_CLOSE_STEP, RACE_CLOSE_YCAP);
 
+/**
+ * The ids the closing chart actually draws, read off the alpha its frame
+ * writer left behind rather than off the step's `visible` set: that set is the
+ * race cast alone, which on this step is SLJ and nobody else (see the
+ * assertion under RACE_CLOSE_CANDIDATES), while the chart also carries the
+ * five simulated contenders through the trail slots. All of them have to ride
+ * the camera out together, so the alpha is the honest test of who is on screen.
+ */
+function outroCast(nodes, rawAttrs) {
+	/** @type {Set<number>} */
+	const cast = new Set();
+	for (const n of nodes) if (rawAttrs[n.id * STRIDE + 6] > 0) cast.add(n.id);
+	return cast;
+}
+
+/**
+ * The closing chart's own dots, `e` of the way through the pull-back: scaled
+ * about the same focal point the crowd pulls back around, and greying into
+ * that crowd as they shrink, so by the settle they are indistinguishable from
+ * the twelve thousand around them. hopSeed's beat — the fifteen greying into
+ * the field as the camera leaves them — played on the closing chart's cast.
+ *
+ * At e = 0 this reproduces the charted frame exactly, which is what lets the
+ * arrival tween fade the lines out underneath a set of dots that have not
+ * moved yet; the leg then carries them out.
+ *
+ * One writer for the animated leg and the static settle both, so the two
+ * cannot disagree about where the beat lands.
+ */
+function writeOutroCast(attrs, rawAttrs, cast, bx, by, e) {
+	const scale = 1 + (PULLBACK_ZOOM - 1) * e;
+	const crowdR = NETWORK_INTRO_RADIUS[1] * scale;
+	for (const id of cast) {
+		const i = id * STRIDE;
+		set(
+			attrs,
+			id,
+			bx + (rawAttrs[i] - bx) * scale,
+			by + (rawAttrs[i + 1] - by) * scale,
+			rawAttrs[i + 2] + (crowdR - rawAttrs[i + 2]) * e,
+			[
+				rawAttrs[i + 3] + (CROWD[0] - rawAttrs[i + 3]) * e,
+				rawAttrs[i + 4] + (CROWD[1] - rawAttrs[i + 4]) * e,
+				rawAttrs[i + 5] + (CROWD[2] - rawAttrs[i + 5]) * e
+			],
+			rawAttrs[i + 6] + (FIELD_ALPHA - rawAttrs[i + 6]) * e
+		);
+	}
+}
+
+/**
+ * outro's static frame: the closing chart's furniture gone — axes, lines,
+ * names — and its dots pulled back into the full-bleed crowd, greyed into it
+ * where the camera leaves them. Unlike hopSeed this does NOT redraw the
+ * fifteen-actor constellation (`writeNetwork`): that beat belongs to the
+ * story's opening, and reintroducing Bacon and his co-stars here would read as
+ * jumping back into the intro rather than closing on the corpus the whole
+ * story has been drawn from.
+ * @type {import("../layout-shared.js").LayoutFn}
+ */
+function layoutOutroGalaxy(nodes, w, h, edges, params, bleed = 0) {
+	const raw = RACE_CLOSE_LAYOUT(nodes, w, h, edges, params);
+	const { attrs, trails } = dissolve(RACE_CLOSE_LAYOUT)(
+		nodes,
+		w,
+		h,
+		edges,
+		params
+	);
+	const cast = outroCast(nodes, raw.attrs);
+	const [bx, by] = introPosition(ANCHOR_ID, w, h);
+	// the cast is skipped by the crowd sweep and written by the cast writer
+	// instead: they are already somewhere meaningful, and a fieldSpot of their
+	// own would fly them off the chart they are standing on
+	writeFieldCrowd(attrs, w, h, PULLBACK_ZOOM, galaxyBox(w, h, bleed), cast);
+	writeOutroCast(attrs, raw.attrs, cast, bx, by, 1);
+	return { attrs, trails };
+}
+
+/**
+ * outro's pull-back: hopSeed's bloom, with the closing chart's own cast riding
+ * the camera out in place of the intro constellation — see `layoutOutroGalaxy`
+ * for why the fifteen stay out of it.
+ *
+ * The chart's LINES are not this writer's business. They go down over the
+ * arrival tween, before the leg starts, so the reader watches the graph empty
+ * out and then the camera leave — the same two-beat shape the other line
+ * charts arrive with, not a zoom through a chart still fading.
+ *
+ * `raw`, `cast` and the focal point are struck once outside the closure,
+ * alongside `box`, for the same reason as hopSeed's own leg: a frame built
+ * against a different cast or box than the static layout settles onto would
+ * snap on landing.
+ */
+function outroGalaxyFrames(nodes, w, h, params, bleed = 0) {
+	const box = galaxyBox(w, h, bleed);
+	const raw = RACE_CLOSE_LAYOUT(nodes, w, h, null, params);
+	const cast = outroCast(nodes, raw.attrs);
+	const [bx, by] = introPosition(ANCHOR_ID, w, h);
+	return (attrs, _trails, _phase, e) => {
+		writeFieldCrowd(attrs, w, h, 1 + (PULLBACK_ZOOM - 1) * e, box, cast);
+		writeOutroCast(attrs, raw.attrs, cast, bx, by, e);
+	};
+}
+
 // Every line on the closing chart carries its name. It used to carry two, and
 // the reason was crowding: the five land between 2.1925 and 2.2472, which was
 // 0.055 of a 0.95 domain — under 6% of the plot's height, close enough that the
@@ -2790,19 +2904,30 @@ export const states = {
 		revealFrom: ["simRace"]
 	},
 	outro: {
-		// the closing beat: the chart the reader is on, dissolved where it lies.
-		// Built on the SAME layout instance as raceClose so the two can never
-		// disagree about what is being faded out.
-		layout: dissolve(RACE_CLOSE_LAYOUT),
-		race: RACE_CLOSE_STEP,
-		yCap: RACE_CLOSE_YCAP,
-		// the same names the chart carries, so each one rides its dot's alpha down
-		// to nothing; dropping them from the state instead would unmount the
-		// labels the instant the step changed, leaving names blinking off above a
-		// chart still fading
-		...RACE_CLOSE_LABELS,
-		params
+		// the closing beat: the chart the reader is on dissolves exactly where it
+		// lies — nothing on it moves — while the anonymous corpus it was drawn
+		// from blooms up around it at hopSeed's own pull-back, echoing the
+		// story's opening at its close. Built on the SAME RACE_CLOSE_LAYOUT
+		// instance as raceClose so the two can never disagree about what is
+		// being faded out.
+		layout: layoutOutroGalaxy,
+		// NO `race` descriptor, and so no `yCap` either, though the layout is
+		// still built on the closing chart. Three things follow from the state
+		// declaring itself a race step, and this beat wants none of them: the
+		// label cut seeds its keep-list from `race.highlight` and would hold
+		// SLJ's name up over an anonymous crowd whatever `labels` says
+		// (ScrollyVisual's raceLabelCut); the draw pass culls the cast to the
+		// plot rectangle, which would clip a sky authored past it; and the pan
+		// loop would answer a drag by writing a race frame straight over the
+		// galaxy (ScrollyVisual's scrubLoop).
+		params,
 		// no overlay: the axis titles are furniture on a chart that is leaving
+		//
+		// forward-only: outro is the last step, so this never actually replays on
+		// a backward arrival, but every other bespoke choreography in this file
+		// scopes itself explicitly rather than leaving it implicit
+		revealFrom: ["raceClose"],
+		entry: { phases: [PULLBACK_ZOOM_MS], frames: outroGalaxyFrames }
 	},
 	raceFuture: {
 		// no yCap, same as raceFull: the whole cast, on a chart whose camera has

@@ -131,8 +131,10 @@ function layoutHopBands(nodes, w, h, _edges, params) {
 // ---------------------------------------------------------------------------
 
 // "slowly" — the whole pull-back is one long leg, long enough that the reader
-// reads the line while the camera is still moving
-const PULLBACK_ZOOM_MS = 4000;
+// reads the line while the camera is still moving. Exported so the outro
+// state's own echo of this bloom (race.js) shares the same duration rather
+// than a second copy of the number.
+export const PULLBACK_ZOOM_MS = 4000;
 // the links are gone for the whole step: they fade out over the arrival tween,
 // in step with the names the state stops labelling
 const HOP_SEED_EDGE_FADE = 0;

@@ -1013,13 +1013,26 @@ export function fieldEdgeAlpha(x, y, w, h, box = fieldBox(w, h)) {
 	return Math.max(0, Math.min(1, inset / FIELD_FADE_PX));
 }
 
-export function writeFieldCrowd(attrs, w, h, scale, box = fieldBox(w, h)) {
+/**
+ * @param {Set<number>} [skip] ids to leave untouched — a caller drawing some of
+ * these ids itself elsewhere in the same frame, whose position/alpha this
+ * writer would otherwise overwrite with a fieldSpot placement
+ */
+export function writeFieldCrowd(
+	attrs,
+	w,
+	h,
+	scale,
+	box = fieldBox(w, h),
+	skip
+) {
 	const [bx, by] = introPosition(ANCHOR_ID, w, h);
 	const k = scale / PULLBACK_ZOOM;
 	// how far through the pull-back the camera is: 0 at full zoom, 1 at landing
 	const travel = (1 - scale) / (1 - PULLBACK_ZOOM);
 	const r = NETWORK_INTRO_RADIUS[1] * scale;
 	for (const id of FIELD_IDS) {
+		if (skip?.has(id)) continue;
 		const [fx, fy] = fieldSpot(id, w, h, box);
 		const x = bx + (fx - bx) * k;
 		const y = by + (fy - by) * k;
