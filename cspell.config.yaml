@@ -55,6 +55,8 @@ words:
   - yfit
   - ycap
   - segs
+  - supabase
+  - prerendered
   - lookback
   - pannable
   - unpannable

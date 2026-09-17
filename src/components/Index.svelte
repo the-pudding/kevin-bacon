@@ -14,6 +14,7 @@
 	import RaceRewindStart from "$components/scrolly/RaceRewindStart.svelte";
 	import GenZLinesStart from "$components/scrolly/GenZLinesStart.svelte";
 	import PairQuiz from "$components/scrolly/PairQuiz.svelte";
+	import QuizResults from "$components/results/QuizResults.svelte";
 	import useWindowDimensions from "$runes/useWindowDimensions.svelte.js";
 	import urlParams from "$utils/urlParams.js";
 	import {
@@ -1078,11 +1079,11 @@
 						> focussed on Hollywood connection trivia.
 					</p>
 				</div>
-				<div class="credits-block">
-					<h2>Your results</h2>
-					<div class="results-placeholder">TODO</div>
-					<div class="results-placeholder">TODO</div>
-				</div>
+				<!-- renders nothing at all without a Supabase project, without
+				     enough finished quiz-takers to compare against, or without a
+				     result of this reader's own — heading included, which is why
+				     the whole block lives inside the component -->
+				<QuizResults />
 			</div>
 		</section>
 	{/if}
@@ -1370,7 +1371,11 @@
 		gap: 4rem;
 	}
 
-	.credits-block {
+	/* :global because one of these blocks is QuizResults' own markup, and a
+	   scoped rule stops at the component boundary. Prefixed with #credits — the
+	   same escape hatch as .bits-infoterm above — so the blast radius is this
+	   section rather than the document. */
+	#credits :global(.credits-block) {
 		display: flex;
 		flex-direction: column;
 		align-items: center;
@@ -1380,7 +1385,7 @@
 
 	/* same halo as .chapter-card h2 — this text also sits over the drifting
 	   dot field rather than a plain background */
-	.credits-block h2 {
+	#credits :global(.credits-block h2) {
 		margin: 0;
 		font-family: var(--font-serif);
 		font-size: var(--28px, 28px);
@@ -1398,7 +1403,7 @@
 			0 0 28px var(--color-bg, #fff);
 	}
 
-	.credits-block p {
+	#credits :global(.credits-block p) {
 		margin: 0;
 		color: var(--color-fg);
 		text-shadow:
@@ -1407,11 +1412,6 @@
 			0 0 8px var(--color-bg, #fff),
 			0 0 8px var(--color-bg, #fff),
 			0 0 12px var(--color-bg, #fff);
-	}
-
-	.credits-block .placeholder {
-		font-style: italic;
-		opacity: 0.6;
 	}
 
 	/* a film credit's line: role on the left, name on the right, same halo as
@@ -1429,18 +1429,5 @@
 		text-transform: uppercase;
 		letter-spacing: 0.03em;
 		opacity: 0.7;
-	}
-
-	.results-placeholder {
-		width: 100%;
-		max-width: 480px;
-		aspect-ratio: 16 / 9;
-		border: 1px dashed var(--color-fg);
-		border-radius: 4px;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		color: var(--color-fg);
-		opacity: 0.5;
 	}
 </style>

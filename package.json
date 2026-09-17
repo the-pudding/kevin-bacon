@@ -5,12 +5,13 @@
 		"gdoc": "node tasks/fetch-google.js",
 		"style": "node tasks/style-dictionary.js",
 		"scrolly-data": "node tasks/build-scrolly-nodes.js",
+		"seed-analytics": "node tasks/seed-quiz-analytics.js",
 		"dev": "vite dev",
 		"build": "vite build",
 		"preview": "vite preview",
 		"lint": "prettier --check .",
 		"check": "svelte-check --tsconfig ./jsconfig.json",
-		"spellcheck": "cspell \"src/data/**\" \"notes/**\" \"README.md\" \"src/routes/**/*.svelte\" \"src/components/Index.svelte\" \"src/components/Header.svelte\" \"src/components/Meta.svelte\"",
+		"spellcheck": "cspell \"src/data/**\" \"notes/**\" \"README.md\" \"src/routes/**/*.svelte\" \"src/components/Index.svelte\" \"src/components/Header.svelte\" \"src/components/Meta.svelte\" \"src/components/results/*.svelte\"",
 		"format": "prettier --write .",
 		"gates": "bash scripts/run-ci-quality-gates.sh",
 		"prepare": "simple-git-hooks"
@@ -26,7 +27,8 @@
 		"src/routes/**/*.svelte": "cspell --no-must-find-files",
 		"src/components/Index.svelte": "cspell --no-must-find-files",
 		"src/components/Header.svelte": "cspell --no-must-find-files",
-		"src/components/Meta.svelte": "cspell --no-must-find-files"
+		"src/components/Meta.svelte": "cspell --no-must-find-files",
+		"src/components/results/*.svelte": "cspell --no-must-find-files"
 	},
 	"devDependencies": {
 		"@lucide/svelte": "^1.16.0",

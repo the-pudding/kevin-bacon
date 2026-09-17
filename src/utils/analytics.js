@@ -1,7 +1,9 @@
-// Write-only instrumentation for the story's quiz interactions (see
-// supabase/schema.sql). Fire-and-forget: a failed write must never block or
-// surface to the reader, since this is background recording, not a gated
-// step.
+// Instrumentation for the story's quiz interactions (see supabase/schema.sql).
+// The writes are fire-and-forget: a failed one must never block or surface to
+// the reader, since this is background recording, not a gated step. The one
+// read — fetchQuizResults, for the credits' results charts — goes through the
+// aggregating `quiz_results` function (supabase/quiz_results.sql), because the
+// tables themselves stay insert-only to `anon`.
 import { createClient } from "@supabase/supabase-js";
 import { env } from "$env/dynamic/public";
 
@@ -23,13 +25,29 @@ if (!supabase) {
 	);
 }
 
+/** Is there a Supabase project configured at all? The credits' results block
+ * hides outright without one: there is nothing to read, and nothing of the
+ * reader's was ever recorded. */
+export const analyticsEnabled = supabase !== null;
+
+/** Below this many finished quiz-takers the crowd histograms are noise dressed
+ * up as data, so the whole results block hides. Same $env/dynamic/public as the
+ * keys above, for the same reason: a missing value must not fail the build. */
+const minTakers = Number(env.PUBLIC_MIN_QUIZ_TAKERS);
+export const MIN_QUIZ_TAKERS =
+	Number.isFinite(minTakers) && minTakers > 0 ? minTakers : 50;
+
 // Per-browser id so a reader's answers can be grouped later without any PII.
 // null during prerender/SSR, where there's no localStorage and nothing to
-// record anyway (these helpers are only ever called from click handlers).
-function sessionId() {
+// record anyway (the writers are only ever called from click handlers).
+//
+// `create` is load-bearing: minting the id is a side effect of asking for it,
+// so the reader below passes false. A reader who never answered anything must
+// not be handed a permanent id by the act of reaching the credits.
+function sessionId(create = true) {
 	if (typeof window === "undefined") return null;
 	let id = localStorage.getItem(SESSION_KEY);
-	if (!id) {
+	if (!id && create) {
 		id = crypto.randomUUID();
 		localStorage.setItem(SESSION_KEY, id);
 	}
@@ -66,4 +84,24 @@ export function recordPairPick({ pairIndex, pickedId, otherId, correct }) {
 		other_id: otherId,
 		correct
 	});
+}
+
+/** Read both crowd histograms, both taker counts and — keyed by this browser's
+ * session id — the reader's own two numbers (see supabase/quiz_results.sql for
+ * the shape and for how each number is counted).
+ *
+ * The one function here that is awaited rather than fired and forgotten: the
+ * caller renders from what comes back. Story data goes in as arguments, since
+ * the database holds none of it. Returns null when there is no project
+ * configured; throws on an RPC error, for the caller to log.
+ */
+export async function fetchQuizResults({ pairCount, sljActorId = null }) {
+	if (!supabase) return null;
+	const { data, error } = await supabase.rpc("quiz_results", {
+		p_session_id: sessionId(false),
+		p_pair_count: pairCount,
+		p_slj_actor_id: sljActorId
+	});
+	if (error) throw error;
+	return data;
 }

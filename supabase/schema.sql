@@ -5,6 +5,10 @@
 -- GuessRank.svelte and PairQuiz.svelte). Write-only from the client: no
 -- select/update/delete policy is granted to `anon`, so the publishable key
 -- can only append rows.
+--
+-- The one read path is the `quiz_results` function in quiz_results.sql (a
+-- security definer aggregate behind these policies, for the credits' results
+-- charts). Run that file after this one.
 
 create table rank_guesses (
 	id uuid primary key default gen_random_uuid(),
