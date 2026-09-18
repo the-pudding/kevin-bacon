@@ -969,7 +969,7 @@ function loneEntryFrames(nodes, w, h, edges, params, bleed = NO_BLEED) {
 			const sx = (mx - gx) * p;
 			const sy = (my - gy) * p;
 			// ...and the fade that empties the frame the walk grows into. Exactly
-			// zero at u = 1, which is what makes playEntry's closing snap onto the
+			// zero at u = 1, which is what makes the runner's closing snap onto the
 			// static layout invisible: the crowd's park there is a different place,
 			// but nothing is drawn at alpha 0.
 			const fade = crowdFade(u);
@@ -1041,8 +1041,9 @@ export const states = {
 			// names; from then on the fourteen ride their own dots' alphas through
 			// the walk, exactly as they do on a cold start. Without this, Bacon's
 			// name would be up at the crowd's own alpha from the first frame,
-			// competing with the title as it fades.
-			labelsAfter: [[], [ANCHOR_ID], [], INTRO_IDS],
+			// competing with the title as it fades. Index 0 is the arrival, which
+			// this choreography owns, so it introduces nobody; then one beat per leg.
+			labelsAfter: [[], [], [ANCHOR_ID], [], INTRO_IDS],
 			// The step's prose names Bacon, so it waits until he is on his mark:
 			// through the light-up, the hold and the flight the card is empty and
 			// the reader has only the sky and the one dot in it to look at, which is

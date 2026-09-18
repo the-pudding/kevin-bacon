@@ -211,7 +211,7 @@ function layoutHopSeed(nodes, w, h, edges, _params, bleed = NO_BLEED) {
  * TWEEN_MS. Frame 0 holds networkIntro's geometry with the links already at
  * alpha 0, so the arrival tween that precedes the leg fades them out (with the
  * names) while nothing moves; frame 1 reproduces layoutHopSeed call for call, so
- * playEntry's settle is a zero-duration retarget. Only the intro slots are
+ * the runner's settle is a zero-duration retarget. Only the intro slots are
  * touched: the crowd's invisible band parks come from the static layout.
  *
  * The box is struck once from the layout's own `bleed`, outside the closure, so

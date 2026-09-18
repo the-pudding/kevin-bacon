@@ -3,9 +3,9 @@
 	/**
 	 * DEV-ONLY tuner for the race chart's choreographed animation speed: a single
 	 * multiplier over every entry draw-on and rewind leg's duration (see
-	 * getRaceSpeedScale in layouts/race.js, and its use in ScrollyVisual's
-	 * runSweepPhase/rewindMs). 1 is the originally-tuned pace, >1 slows it down,
-	 * <1 speeds it up.
+	 * getRaceSpeedScale in layouts/race.js, and `scaled` / rewindMs under its
+	 * "Choreographies"). 1 is the originally-tuned pace, >1 slows it down, <1
+	 * speeds it up.
 	 *
 	 * Unlike RacePxPerYearDev/RaceYBandDev, this needs no story revision bump:
 	 * nothing here is cached by layout — each animation reads the scale once,

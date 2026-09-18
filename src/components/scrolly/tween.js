@@ -11,6 +11,9 @@ export const easeCubicInOut = (t) =>
  *   the last frame handed to `to()`, whether it is being tweened toward or was
  *   set instantly. Read it to know where a mark is going; null before the first
  *   `to()`.
+ * @property {boolean} running a timed tween is in flight — `current` is still
+ *   easing toward `target`. False after an instant `to`, after the tween has
+ *   landed, and after `stop()`.
  * @property {(next: Float64Array, ms: number, jitter?: number, nodeDelays?: Float64Array, onDone?: (() => void) | null) => void} to
  * @property {(apply: (buf: Float32Array) => void) => void} reframe
  * @property {() => void} stop
@@ -37,6 +40,7 @@ export function createTweener(size, draw, stride = 1) {
 	let startTime = 0;
 	let duration = 0;
 	let frame = 0;
+	let running = false;
 	// fired once when the current tween settles; cleared if a new `to` supersedes
 	let onDone = null;
 
@@ -55,7 +59,10 @@ export function createTweener(size, draw, stride = 1) {
 		draw(current);
 		if (!done) {
 			frame = requestAnimationFrame(tick);
-		} else if (onDone) {
+			return;
+		}
+		running = false;
+		if (onDone) {
 			const cb = onDone;
 			onDone = null;
 			cb();
@@ -67,6 +74,7 @@ export function createTweener(size, draw, stride = 1) {
 		onDone = done;
 		target = next;
 		if (ms <= 0) {
+			running = false;
 			current.set(next);
 			draw(current);
 			if (done) {
@@ -81,6 +89,7 @@ export function createTweener(size, draw, stride = 1) {
 			delays[g] = nodeDelays ? nodeDelays[g] : hash01(g, 9) * ms * jitter;
 		}
 		startTime = performance.now();
+		running = true;
 		frame = requestAnimationFrame(tick);
 	}
 
@@ -105,14 +114,18 @@ export function createTweener(size, draw, stride = 1) {
 
 	function stop() {
 		cancelAnimationFrame(frame);
+		running = false;
 		onDone = null;
 	}
 
-	// `target` is reassigned on every `to`, so it is exposed as a getter
+	// `target` and `running` change on every `to`, so they are exposed as getters
 	return {
 		current,
 		get target() {
 			return target;
+		},
+		get running() {
+			return running;
 		},
 		to,
 		reframe,

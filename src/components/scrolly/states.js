@@ -164,74 +164,193 @@ export const STATE_RACE = pick("race");
 export const STATE_REVEAL_FROM = pick("revealFrom");
 
 /**
- * Per-state entry choreography: an animation the state plays on arrival instead
- * of a plain tween. `phases` lists each leg's duration in ms; `frames` builds a
- * writer for the current canvas (mirroring LayoutFn's signature) that stamps the
- * slots it animates straight into the live buffers for one eased leg.
- *
- * Two contracts keep the joins invisible. The last leg at e=1 must be
- * byte-identical to the static layout, so the settle has nothing to move. And
- * leg 0 at e=0 doubles as the seed frame the arrival tween lands on, so
- * everything the choreography is about to draw must be fully transparent there
- * — the tween morphs whatever the buffers already hold into the seed, and a
- * slot left visible makes the reader watch stale geometry (this state's own
- * lines, left behind by an earlier visit) animate away before it has ever been
- * drawn. A slot the DEPARTING state was already drawing is the one exception,
- * and it is not really one: `lone`'s seed carries Bacon at the title card's own
- * crowd size and grey, so the arrival tween moves him nowhere and there is no
- * stale geometry to watch. What the rule forbids is geometry appearing that the
- * reader has not been shown yet.
- *
- * Scoped by STATE_REVEAL_FROM like any other reveal. See ScrollyVisual's
- * playEntry.
- * `labelsAfter` optionally holds the names back: entry i lists the ids whose
- * labels appear once leg i finishes, so a name lands with the mark that earns
- * it instead of captioning a dot mid-flight. Declaring it hides every one of
- * the state's labels until its leg lands, including through the arrival tween.
- *
- * `edges` and `bleed` are the layout's own (see LayoutFn) and are passed for the
- * same reason AmbientAnim gets them: a leg that authors across the bled canvas
- * must strike its box from the SAME bleed as the static layout it settles onto,
- * or the last frame and the settle are different frames — and a leg that
+ * What a choreography's frame writer may hand back, applied by ScrollyVisual on
+ * every tick: `decor` is per-frame chart furniture merged over the static
+ * layout's (a panning camera's axes, the takeover callout, the future block);
+ * `camera` is the frame's camera, kept as the live camera the pan control and
+ * the next leg read; `story` is fields to publish, written only when they
+ * change (a write that changes nothing still retargets the tweener through the
+ * layout params). A writer that returns nothing publishes nothing.
+ * @typedef {Object} FrameOutput
+ * @property {Object} [decor]
+ * @property {{ playhead?: number, frontier?: number }} [camera]
+ * @property {Object} [story]
+ */
+
+/**
+ * What a choreography is planned against. `exit` is the camera of the race step
+ * the reader is leaving, snapshotted before the arriving step reset it, so a
+ * retrace starts from wherever the camera actually was; `camera` is the live
+ * one, for an ask that starts from what the reader can see. `live` is the frame
+ * on the canvas at the moment of planning and `story` the interaction state as
+ * it stands — both read untracked, so nothing a plan reads can re-run the effect
+ * that built it.
+ * @typedef {Object} ArrivalContext
+ * @property {number} w
+ * @property {number} h
+ * @property {LayoutState | null} from the state the reader is coming from
+ * @property {{ playhead: number | null, frontier: number }} exit
+ * @property {{ playhead: number, frontier: number }} camera
+ * @property {{ attrs: Float32Array, trails: Float32Array }} live
+ * @property {Object} story
+ */
+
+/**
+ * Builds a choreography's frame writer for one canvas and one arrival. The
+ * arguments up to `bleed` are a layout call's own (see LayoutFn): a leg that
  * rebuilds its state's layout to animate toward it needs the same edge table
- * that layout was built with.
+ * and the same bleed that layout was built with, or its last frame and the
+ * settle are different frames. The writer stamps the slots it animates straight
+ * into the live buffers for one eased leg and may hand back a FrameOutput.
  *
- * A writer is handed both the leg's eased progress `e` and its LINEAR elapsed
- * `ms`. Use `e` for motion authored as a share of the leg, which is nearly
+ * It is handed both the leg's eased progress `e` and its LINEAR elapsed `ms`.
+ * Use `e` for motion authored as a share of the leg, which is nearly
  * everything; `ms` is for a leg whose motion is a schedule in real time — the
  * one case today is `lone`, whose walk leg replays the delay array its own
  * layout returns, and which would be warped by the trapezoidal ease.
+ * @typedef {(nodes: import("./nodes.js").ActorNode[], w: number, h: number,
+ *   edges: import("./nodes.js").Edge[], params: Object | null,
+ *   bleed: import("./layout-shared.js").Bleed, ctx: ArrivalContext) =>
+ *   (attrs: Float64Array | Float32Array, trails: Float64Array | Float32Array,
+ *     phase: number, e: number, ms: number) => FrameOutput | void} FrameWriterFactory
+ */
+
+/**
+ * @typedef {(nodes: import("./nodes.js").ActorNode[], w: number, h: number,
+ *   edges: import("./nodes.js").Edge[], params: Object | null,
+ *   bleed: import("./layout-shared.js").Bleed, ctx: ArrivalContext) =>
+ *   (attrs: Float64Array, trails: Float64Array) => void} SeedWriterFactory
+ */
+
+/**
+ * An entry choreography: an animation a state plays on arrival instead of a
+ * plain tween. `phases` lists each leg's duration in ms — a constant, or a
+ * function of the arrival for legs whose length depends on how far the camera
+ * has to travel; a plan may return no legs at all, and the arrival then
+ * finishes at once. `frames` builds the writer (see FrameWriterFactory).
  *
- * `cardAfter` holds the step's PROSE back the way `labelsAfter` holds a name:
- * the card stays empty until that leg lands (`story.entryHeld`). For an arrival
- * that spends its first seconds finding the thing the prose is about, the words
- * would otherwise be describing an empty frame.
+ * Two contracts keep the joins invisible. Leg 0 at e = 0 is the frame the
+ * arrival lands on, so everything the choreography is about to draw must be
+ * fully transparent there — the tween morphs whatever the buffers already hold
+ * into it, and a slot left visible makes the reader watch stale geometry (this
+ * state's own lines, left behind by an earlier visit) animate away before it
+ * has ever been drawn. And the last leg at e = 1 must reproduce the layout it
+ * hands off to call for call, so the settle has nothing to move: the static
+ * layout for an entry without a `finish`, or the layout at the params `finish`
+ * publishes for one with. Both are asserted in `__tests__/contracts.spec.js`.
  *
- * `ownsArrival` says the choreography's first leg reproduces the frame the
- * reader is LEAVING, so there is nothing for an arrival tween to carry and the
- * legs take the rAF straight from the step change. It is the same t = 0 contract
- * an AmbientAnim holds, one step earlier, and it is what a leg whose motion has
- * a real-world RATE needs: an arrival tween eases its own duration, so a sky
- * that flows at one speed either side of it visibly surges through the middle.
+ * `from` scopes the entry to the states it is authored for. It defaults to the
+ * state's `revealFrom`, and a state may declare several entries for different
+ * origins (the race chart plays one pan forwards and another backwards).
+ * Arriving from anywhere else is one plain tween.
  *
- * Two things come with the flag. A state's authored `delays` can only belong to
- * a LEG (there is no arrival hop left for them to stagger), which is what `lone`
- * wants anyway. And the seed is SNAPPED rather than tweened — for the dots that
- * is the point, but it means the departing state must hold no trails, since a
- * visible one would pop off rather than fade.
+ * `labelsAfter` holds the names back: index 0 lists the ids whose labels appear
+ * once the arrival itself has landed, index i + 1 those that land with leg i,
+ * and the gate lifts entirely once the last listed beat has landed — so a name
+ * lands with the mark that earns it instead of captioning a dot mid-flight. An
+ * empty list at the last index introduces nobody and says only "hold every
+ * name until here". `cardAfter` holds the step's PROSE back the same way
+ * (`story.entryHeld`), until leg `cardAfter` lands: for an arrival that spends
+ * its first seconds finding the thing the prose is about, the words would
+ * otherwise be describing an empty frame.
+ *
+ * `ownsArrival` says leg 0 at e = 0 reproduces the frame the reader is LEAVING,
+ * so there is nothing for an arrival tween to carry and the legs take the rAF
+ * straight from the step change. It is what a leg whose motion has a real-world
+ * RATE needs — an arrival tween eases its own duration, so a sky that flows at
+ * one speed either side of it visibly surges through the middle — and what a
+ * camera pan picking up from the previous step's camera needs. Two things come
+ * with it: a state's authored `delays` can only belong to a LEG, and the seed is
+ * SNAPPED rather than tweened, so the departing state must hold no trails a snap
+ * would pop off rather than fade.
+ *
+ * `hold` parks the arrival on a frame of its own until the story lets it go:
+ * `frame` writes that frame over copies of the live buffers and `until` is the
+ * gate, read reactively. The rank list's collapse into the race chart is the
+ * one user — the canvas holds a copy of what the HTML overlay is showing and
+ * moves only once the overlay has stood down. `veil` hides the chart furniture
+ * (title, axes, callouts) from the arrival until the legs begin, and
+ * `arrivalJitter` overrides the arrival tween's hashed per-node stagger — 0 for
+ * a flight whose top-to-bottom order the reader is meant to read.
+ *
+ * `seed` replaces leg 0's frame 0 as the arrival target, for the one case the
+ * two must differ: the race draw-on's dots arrive already lit out of the rank
+ * list, but its trails must arrive at alpha 0 or a previous visit's curves fade
+ * in as they squeeze onto the present edge.
+ *
+ * `finish` ends the choreography through the story instead of a snap onto the
+ * static layout: handed the story and the last frame's camera (undefined if no
+ * leg ran), it publishes the params the last frame is the layout for — the race
+ * chapter's camera hold — and the param retarget that follows moves nothing and
+ * settles the state.
  *
  * @typedef {Object} EntryAnim
- * @property {number[]} phases
+ * @property {number[] | ((ctx: ArrivalContext) => number[])} phases
+ * @property {FrameWriterFactory} frames
+ * @property {LayoutState[]} [from]
  * @property {number[][]} [labelsAfter]
  * @property {number} [cardAfter]
  * @property {boolean} [ownsArrival]
- * @property {(nodes: import("./nodes.js").ActorNode[], w: number, h: number,
- *   edges: import("./nodes.js").Edge[], params?: Object, bleed?: number) =>
- *   (attrs: Float64Array, trails: Float64Array, phase: number, e: number,
- *     ms: number) => void} frames
- * @type {Partial<Record<LayoutState, EntryAnim>>}
+ * @property {boolean} [veil]
+ * @property {number} [arrivalJitter]
+ * @property {{ until: (story: Object) => boolean, frame: SeedWriterFactory }} [hold]
+ * @property {SeedWriterFactory} [seed]
+ * @property {(story: Object, camera?: { playhead: number, frontier: number }) => void} [finish]
  */
-export const STATE_ENTRY = pick("entry");
+
+/**
+ * Per-state entry choreographies, one or more per state (see EntryAnim.from);
+ * `entryFor` picks the one an arrival plays.
+ * @type {Partial<Record<LayoutState, EntryAnim[]>>}
+ */
+export const STATE_ENTRIES = Object.fromEntries(
+	Object.entries(REGISTRY)
+		.filter(([, def]) => def.entry !== undefined)
+		.map(([key, def]) => [
+			key,
+			Array.isArray(def.entry) ? def.entry : [def.entry]
+		])
+);
+
+/**
+ * The entry choreography `state` plays when arriving from `from`, or undefined
+ * for a plain tween: the first of its entries whose scope — its own `from`,
+ * else the state's `revealFrom`, else any origin — includes `from`.
+ * @param {LayoutState} state
+ * @param {LayoutState | null | undefined} from
+ * @returns {EntryAnim | undefined}
+ */
+export function entryFor(state, from) {
+	const entries = STATE_ENTRIES[state];
+	if (!entries) return undefined;
+	const revealFrom = REGISTRY[state].revealFrom;
+	return entries.find((entry) => {
+		const scope = entry.from ?? revealFrom;
+		return !scope || scope.includes(from);
+	});
+}
+
+/**
+ * A reader's ask: an animation the active state plays when a StartButton
+ * requests it by name (see request() in story.svelte.js). The same legs as an
+ * EntryAnim — `phases`, `frames` and `finish` mean the same — planned against
+ * the live camera rather than an arrival. `start` puts the story in the state
+ * the run begins from (the simulation's playhead back to zero); a plan with no
+ * legs is a dropped ask (the rewind pressed on a chart already at its
+ * waypoint). While it runs `story.running` names it, and a state change
+ * abandons it like any choreography.
+ * @typedef {Object} RequestAnim
+ * @property {number[] | ((ctx: ArrivalContext) => number[])} phases
+ * @property {FrameWriterFactory} frames
+ * @property {(story: Object) => void} [start]
+ * @property {(story: Object, camera?: { playhead: number, frontier: number }) => void} [finish]
+ */
+
+/**
+ * Per-state requests, keyed by the name a StartButton asks for.
+ * @type {Partial<Record<LayoutState, Record<string, RequestAnim>>>}
+ */
+export const STATE_REQUESTS = pick("requests");
 
 /**
  * Per-state ambient loop: an unbounded per-frame writer that runs for as long as

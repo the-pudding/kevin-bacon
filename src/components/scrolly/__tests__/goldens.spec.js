@@ -7,7 +7,13 @@ import { STATES } from "../states.js";
 import { SIM_N_SIMS } from "../layouts/sim-race.js";
 import { INTRO_IDS } from "../nodes.js";
 import { SLJ } from "../layout-shared.js";
-import { BOXES, buildLayout, hashOf, layoutParamsFor } from "./helpers.js";
+import {
+	BOXES,
+	buildLayout,
+	hashOf,
+	layoutParamsFor,
+	storyWith
+} from "./helpers.js";
 
 // the static params the <Step> tags in Index.svelte declare
 const STEP_PARAMS = {
@@ -43,7 +49,7 @@ function variants(state) {
 	for (const step of STEP_PARAMS[state] ?? [undefined]) {
 		add(layoutParamsFor(state, step));
 		for (const overrides of INTERACTIONS) {
-			add(layoutParamsFor(state, step, overrides));
+			add(layoutParamsFor(state, step, storyWith(overrides)));
 		}
 	}
 	return [...seen.entries()];

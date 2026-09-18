@@ -51,7 +51,8 @@ function layoutRank(nodes, w, h, _edges, params) {
 	// depart FROM when the race chapter places it on its curve — but the race
 	// arrival doesn't glide anyone out of the bar: it freezes the whole rank scene
 	// where it stands, fades it out in place, and draws the chart on fresh (see
-	// playRaceEntry). So the exclusion bought nothing, and once the cast grew to
+	// the draw-on entry in layouts/race.js). So the exclusion bought nothing, and
+	// once the cast grew to
 	// the full top-50 field it cost the bar 18% of its hop-1 dots — the
 	// best-connected actors are exactly the ones the race chart tracks.
 	for (const n of nodes) {

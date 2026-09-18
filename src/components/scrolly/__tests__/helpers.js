@@ -7,11 +7,14 @@ import { makeNodes } from "../nodes.js";
 import { STATES, STATE_PARAMS } from "../states.js";
 import { story } from "../story.svelte.js";
 import {
+	ATTR_SIZE,
+	TRAIL_SIZE,
 	NO_BLEED,
 	PLOT_BOTTOM_BESIDE,
 	PLOT_BOTTOM_STACKED,
 	setPlotBottomFrac
 } from "../layout-shared.js";
+import { RACE_DATA_END } from "../layouts/race.js";
 
 export const { nodes, edges } = makeNodes();
 
@@ -45,13 +48,16 @@ export const BOXES = [
 	}
 ];
 
+/** the story's resting defaults with `overrides` applied — a plain copy, so a
+ * test can hand it to a `start`/`finish` hook and read back what it wrote */
+export const storyWith = (overrides) => ({ ...story, ...overrides });
+
 /**
  * What ScrollyVisual hands a layout: the state's selector plucks the interaction
- * fields it reads from the story state (here, the resting defaults, or those
- * defaults with `overrides` applied) merged with the step's static params.
+ * fields it reads from the story (the resting defaults, or `s` when given)
+ * merged with the step's static params.
  */
-export function layoutParamsFor(state, stepParams, overrides) {
-	const s = overrides ? { ...story, ...overrides } : story;
+export function layoutParamsFor(state, stepParams, s = story) {
 	return STATE_PARAMS[state]?.(s, stepParams) ?? stepParams ?? null;
 }
 
@@ -60,6 +66,35 @@ export function buildLayout(state, box, params = layoutParamsFor(state)) {
 	setPlotBottomFrac(box.plotFrac);
 	return STATES[state](nodes, box.w, box.h, edges, params, box.bleed);
 }
+
+/**
+ * The context a choreography is planned against (ArrivalContext in states.js),
+ * as ScrollyVisual would build it: by default the reader arrives from nowhere
+ * in particular with no race camera to pick up, and the live camera rests on
+ * the present.
+ */
+export function arrivalContext(box, options = {}) {
+	const exit = options.exit ?? { playhead: null, frontier: RACE_DATA_END };
+	return {
+		w: box.w,
+		h: box.h,
+		from: options.from ?? null,
+		exit,
+		camera: options.camera ?? {
+			playhead: exit.playhead ?? RACE_DATA_END,
+			frontier: exit.frontier
+		},
+		live: {
+			attrs: new Float32Array(ATTR_SIZE),
+			trails: new Float32Array(TRAIL_SIZE)
+		},
+		story: options.story ?? story
+	};
+}
+
+/** a choreography's leg durations for one arrival (see EntryAnim.phases) */
+export const phasesOf = (anim, ctx) =>
+	typeof anim.phases === "function" ? anim.phases(ctx) : anim.phases;
 
 /** a short content hash of a typed array's bytes */
 export const hashOf = (arr) =>

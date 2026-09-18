@@ -11,35 +11,17 @@
 	} from "./galaxy-highlight.js";
 	import {
 		writeRaceSweepFrame,
-		raceVisibleSpan,
 		racePanBounds,
 		racePlot,
-		raceStepVisible,
-		raceDotSpec,
+		racePanFrame,
 		getRacePxPerYear,
-		getRaceSpeedScale,
 		RACE_RECENT_EXTENT,
-		RACE_RECENT_STEP,
-		RACE_RECENT_VISIBLE,
-		RACE_RECENT_LEAD,
 		RACE_REWIND_WAYPOINT_YEAR,
-		RACE_FULL_STEP,
-		RACE_FUTURE_STEP,
-		RACE_GENZ_STEP,
-		RACE_CLOSE_STEP,
-		RACE_FUTURE_END,
 		RACE_DATA_END,
 		raceMaxPlayhead,
 		RACE_CAST,
-		RACE_TRAIL_SLOTS,
-		RACE_LABEL_TOP,
-		raceFullRestPlayhead
+		RACE_LABEL_TOP
 	} from "./layouts/race.js";
-	import {
-		writeSimFrame,
-		simNamesDue,
-		SIM_N_SIMS
-	} from "./layouts/sim-race.js";
 	import {
 		ATTR_SIZE,
 		DELAY_SIZE,
@@ -57,7 +39,8 @@
 		STATE_RACE,
 		STATE_PARAMS,
 		STATE_REVEAL_FROM,
-		STATE_ENTRY,
+		entryFor,
+		STATE_REQUESTS,
 		STATE_AMBIENT,
 		STATE_TRACKED,
 		TRAIL_SIZE,
@@ -74,11 +57,9 @@
 		PLOT_BOTTOM_BESIDE,
 		PLOT_BOTTOM_STACKED,
 		NO_BLEED,
-		set,
 		EDGE_GREY,
 		EDGE_HIGHLIGHT,
-		INK,
-		ORDER_OF
+		INK
 	} from "./layout-shared.js";
 	import { story } from "./story.svelte.js";
 	import { MediaQuery } from "svelte/reactivity";
@@ -210,46 +191,6 @@
 		return target;
 	}
 
-	// -- Race path animator ("time machine") -------------------------------------
-	// A third rAF writer. Unlike the two tweeners it does NOT lerp between two
-	// endpoints: each frame it evaluates the race layout at a moving window and
-	// writes the race cast's dots + their trails straight into the live tweener
-	// buffers, then repaints. Entry choreography draws the actors' lines on from
-	// the present edge. See delivery-plan Stage 4.
-	const SWEEP_MS = 4000;
-	// px/sec the camera pans during a rewind leg (playRaceRewind/playRaceReverse/
-	// playRaceFullEntry/playRaceFullReverse) — one consistent on-screen speed for
-	// every leg, rather than the fixed SWEEP_MS duration those legs used to
-	// share regardless of how many years they cover (19yr and 12yr legs at the
-	// same duration read as two different speeds). Deriving the duration from
-	// distance also keeps that speed constant if pxPerYear is retuned live (see
-	// RacePxPerYearDev) — the pixel distance a leg travels is `years *
-	// getRacePxPerYear()`, so a wider x scale gets a proportionally longer pan
-	// instead of covering the same time in more pixels (which is what made the
-	// rewind look like it sped up when pxPerYear doubled).
-	const REWIND_PX_PER_SEC = 300;
-	const REWIND_MS_MIN = 1200;
-	const REWIND_MS_MAX = 6000;
-	// every duration below (this one and SWEEP_MS, via runSweepPhase's default
-	// `ms` param) is multiplied by getRaceSpeedScale() — see its definition in
-	// layouts/race.js for why a plain function call rather than a cached value.
-	function rewindMs(fromP, toP) {
-		const px = Math.abs(toP - fromP) * getRacePxPerYear();
-		const scale = getRaceSpeedScale();
-		return Math.min(
-			REWIND_MS_MAX * scale,
-			Math.max(REWIND_MS_MIN * scale, (px / REWIND_PX_PER_SEC) * 1000 * scale)
-		);
-	}
-	// How long raceFuture's second leg takes to open the future strip.
-	//
-	// A duration rather than a px/sec like every other leg, because this leg moves
-	// no camera. The distance its frontier covers is the strip's own width — ~313px
-	// on a desktop, ~60px on a phone — so held to a constant speed the phone would
-	// open in 200ms and the desktop in a second, which is the opposite of a
-	// consistent beat. Scaled by getRaceSpeedScale like every other race animation,
-	// so RaceSpeedDev still tunes the whole chapter at once.
-	const FUTURE_OPEN_MS = 1400;
 	// trapezoidal speed profile (ported from the reference _animate): R = ramp
 	// fraction at each end, V = cruise speed so integrated progress is exactly 1.
 	// The phase ramps to zero velocity at each end so the draw-on lands softly.
@@ -261,141 +202,12 @@
 			: p > 1 - SWEEP_R
 				? 1 - (SWEEP_V * (1 - p) * (1 - p)) / (2 * SWEEP_R)
 				: SWEEP_V * (p - SWEEP_R / 2);
-	// The three race frame builders. All of them hold the state's content extent
-	// fixed — only the camera (playhead) or the reveal moves — so what's shown, the
-	// y-fit and the x scale are constant for a whole phase.
-	//
-	// draw-on entry: the camera stands still at the resting playhead while the
-	// lines unspool leftward across the visible span, so e=1 is byte-identical to
-	// the static layout (both sample exactly [camLeft, playhead]).
-	// (`step` is the state's race descriptor from STATE_RACE — its extent AND its
-	// highlight, so an animated frame dims exactly what its settle dims.)
-	const entryFrame = (step) => (e) => ({
-		...step,
-		playhead: step.extent[1],
-		reveal: e
-	});
-	// rewind (chained after the draw-on, in two legs — see playRaceEntry/
-	// playRaceRewind): a camera pan back through time from fromP to toP. At a
-	// fixed px-per-year this is a pure translation by construction — dots stay
-	// pinned to the plot's right edge (see writeRaceSweepFrame's dotYr) while the
-	// ticks and curves slide beneath them.
-	const rewindFrame = (step, legExtent, fromP, toP) => (e) => ({
-		...step,
-		extent: legExtent,
-		playhead: fromP + (toP - fromP) * e
-	});
-	// The content extent a leg runs under: every year the camera will put on the
-	// plot across the whole pan, whichever direction it travels. Held constant for
-	// the leg (rather than tracking the moving camera) so what the leg shows, its
-	// y fit and its tick range can't change under the reader mid-pan — the same
-	// reason every other frame builder above fixes its extent.
-	const raceLegExtent = (fromP, toP) =>
-		/** @type {[number, number]} */ ([
-			Math.min(fromP, toP) - raceVisibleSpan(width, height),
-			Math.max(fromP, toP)
-		]);
-	// raceFuture leg 0 — "fast-forward to the present". The same pure translation
-	// rewindFrame does, with the strip explicitly SHUT: RACE_FUTURE_STEP carries
-	// its own resting frontier (so a cold mount and the reduced-motion snap land
-	// on the finished state), and the spread would otherwise open the block on
-	// the pan's very first frame.
-	const futurePanFrame = (legExtent, fromP, toP) => (e) => ({
-		...RACE_FUTURE_STEP,
-		extent: legExtent,
-		playhead: fromP + (toP - fromP) * e,
-		frontier: RACE_DATA_END
-	});
-	// raceFuture leg 1 — "the future opens". NOT a camera move: the camera is
-	// parked and only the frontier advances, which is why this leg's duration is
-	// a constant rather than rewindMs (there are no years of pan to derive a
-	// px/sec from). The extent stays the STEP's, not the leg extent leg 0 ran
-	// under, because e = 1 has to reproduce the static settle and the settle's
-	// extent is the step's.
-	const futureOpenFrame = (restP, fromF, toF) => (e) => ({
-		...RACE_FUTURE_STEP,
-		playhead: restP,
-		frontier: fromF + (toF - fromF) * e
-	});
-	// raceGenz leg 1 — "the camera pans down". Also not a camera move in x: the
-	// playhead is parked and only yOpen travels, so the lines hold still while the
-	// axis under them opens onto the Gen-Z window (see raceWindowYFit). A constant
-	// duration for the same reason futureOpenFrame has one — no years of pan to
-	// derive a px/sec from. The strip stays open throughout: the reader arrived
-	// looking at it and it is not what this leg is about.
-	const genzOpenFrame = (restP) => (e) => ({
-		...RACE_GENZ_STEP,
-		playhead: restP,
-		yOpen: e,
-		genz: 0
-	});
-	// raceGenz leg 2 — "the Gen Z field arrives", the reader's own press. The
-	// camera is settled on both axes and only the arrival playhead moves, so e = 1
-	// is byte-identical to the static layout with `genzShown` set, which is what
-	// the settle then lands on.
-	const genzDrawFrame = (restP) => (e) => ({
-		...RACE_GENZ_STEP,
-		playhead: restP,
-		yOpen: 1,
-		genz: e
-	});
-	// raceClose — "the projections are drawn out of the present". The camera is
-	// parked on both axes and only `proj` travels, so e = 1 is byte-identical to
-	// the static layout (RACE_CLOSE_STEP rests at proj 1) and the settle has
-	// nothing left to move. A constant duration for the same reason
-	// futureOpenFrame has one: no years of pan to derive a px/sec from.
-	const closeDrawFrame = (restP) => (e) => ({
-		...RACE_CLOSE_STEP,
-		playhead: restP,
-		proj: e
-	});
-	// reader-driven pan / settled hold: the camera at one playhead year
-	const panFrame = (step) => (playhead) => ({ ...step, playhead });
-	// the one state whose arrival plays the draw-on entry (scoped by revealFrom)
-	const RACE_ENTRY_STATE = "raceRecent";
-	// (RACE_RECENT_VISIBLE — what raceRecent shows at its extent, and so the set
-	// the draw-on reveals from its first frame — comes from race.js: the rank
-	// list's collapsed nodes need the same set, so there is one definition.)
-	// how far into a phase a departing actor is fully gone. Departures finish EARLY
-	// rather than riding the whole phase for the way it reads: the modern crowd drops
-	// away first, leaving the actors the step is about. (This used to be a
-	// correctness rule too — the axis was fitted per step, so a line still fading at
-	// the end of a pan could be drawn outside the plot the leg was landing on. The
-	// axis is now fitted to the camera rather than to a cast, and an off-scale dot is
-	// hidden by the frame writer's own gate, so only the aesthetic reason is left.)
-	const SHOWN_DEPART_END = 0.35;
-	// how far into raceRecent's draw-on its actors fade fully in. Short, relative
-	// to the 4s sweep — they should read as "arriving" once the rank crowd has
-	// cleared, not as a second slow reveal riding the whole draw-on
-	const SHOWN_ARRIVE_END = 0.15;
-	// per-frame alpha for one sweep phase. `shown` is {from, to}: what the step
-	// being left showed and what the landing step shows — NOT cast membership,
-	// which is RACE_CAST on every race step. Actors the landing step adds fade in
-	// over the phase, ones it drops fade out over SHOWN_DEPART_END, everyone else
-	// rides at full strength, so a visibility change glides across the phase
-	// instead of popping when the settle layout's filter kicks in.
-	const shownAlpha = (shown, e) =>
-		shown &&
-		((id) =>
-			shown.to.has(id)
-				? shown.from.has(id)
-					? 1
-					: e
-				: shown.from.has(id)
-					? Math.max(0, 1 - e / SHOWN_DEPART_END)
-					: 0);
-	// the one state whose arrival plays the rewind's second and final leg (scoped
-	// by revealFrom) — see playRaceFullEntry
+	// the two race states singled out below: raceFull's resting camera is the
+	// rewind's waypoint, and both it and raceFuture carry the "why 1980?" term on
+	// their axis. Every other race-chapter behaviour is the state's own
+	// declaration in layouts/race.js.
 	const RACE_FULL_STATE = "raceFull";
-	// the chapter's last step: the same chart with the camera carried forward past
-	// the end of the data — see playRaceFuture
 	const RACE_FUTURE_STATE = "raceFuture";
-	// ...and the prediction chapter's opening beat, which brings that chart back
-	// and pans it down off the crown onto the Gen-Z field — see playRaceGenzOpen
-	const RACE_GENZ_STATE = "raceGenz";
-	// ...and the story's last chart, which draws its projections out of the
-	// present across the future strip — see playRaceCloseDraw
-	const RACE_CLOSE_STATE = "raceClose";
 	// per-frame smoothing factor for the pan glide: renderPlayhead moves this
 	// fraction of the remaining distance to the target each frame (exponential
 	// ease-out — feels like a weighted reel). Reduced motion uses 1 (snap).
@@ -463,74 +275,6 @@
 		};
 		sweepRaf = requestAnimationFrame(step);
 	}
-	// run one eased race phase; map(e) → the frame; onDone chains the next; `shown`
-	// ({from, to} Sets of who each end of the leg shows) fades visibility changes
-	// over the phase (see shownAlpha) — or, for a phase with nothing prior to
-	// compare against (the entry draw-on's first arrival), a plain
-	// `(e) => (id) => alpha` function of its own. Every frame publishes its camera
-	// into renderPlayhead, so a later leg (or a reader's grab) continues from
-	// wherever this one actually got to. Nothing here says anything about the y
-	// axis: writeRaceSweepFrame fits it to the camera of the frame it is given, so
-	// a leg's axis follows its own pan and lands on its settle's by construction.
-	function runSweepPhase(
-		map,
-		yCap,
-		onDone,
-		shown = null,
-		ms = SWEEP_MS * getRaceSpeedScale()
-	) {
-		const alphaAt =
-			typeof shown === "function" ? shown : (e) => shownAlpha(shown, e);
-		runPhase(
-			ms,
-			(e) => {
-				const { axes, takeover, band, frontier, cam } = writeRaceSweepFrame(
-					tweener.current,
-					trailTweener.current,
-					width,
-					height,
-					map(e),
-					yCap,
-					alphaAt(e)
-				);
-				renderPlayhead = cam.playhead;
-				renderFrontier = frontier;
-				// `band` must be in this spread, not just `axes`/`takeover`: the render
-				// effect writes the arriving state's STATIC decor before the first rAF
-				// tick, so without it raceFuture's fully-open block would sit over the
-				// chart for the whole of leg 0's pan
-				decor = { ...decor, axes, takeover, band };
-			},
-			onDone
-		);
-	}
-	// Single-writer handoff into a race leg. A sweep's frame writer stamps only
-	// the cast's dots and their trail slots (writeRaceSweepFrame), so a leg that
-	// takes the rAF off a tween still in flight strands every OTHER slot wherever
-	// that tween had got to, for the whole leg — for a reader stepping faster than
-	// the tweens run, that means the chapter they came from (and, from a fast
-	// enough start, the intro network's links) hanging over the chart. Land those
-	// slots on the arriving layout, which is where the settle puts them anyway —
-	// so an uninterrupted arrival moves nothing — and keep the live cast values,
-	// leaving the sweep's own first frame the only thing that changes.
-	function landOffChart(attrs, trails) {
-		const frame = attrs.slice();
-		for (const id of RACE_CAST) {
-			const i = id * STRIDE;
-			for (let k = 0; k < STRIDE; k++) frame[i + k] = tweener.current[i + k];
-		}
-		const trailFrame = trails.slice();
-		for (const slot of RACE_TRAIL_SLOTS) {
-			const i = slot * TRAIL_STRIDE;
-			for (let k = 0; k < TRAIL_STRIDE; k++) {
-				trailFrame[i + k] = trailTweener.current[i + k];
-			}
-		}
-		tweener.to(frame, 0);
-		trailTweener.to(trailFrame, 0);
-		tweener.stop();
-		trailTweener.stop();
-	}
 
 	// pan glide: one rAF loop that eases `renderPlayhead` toward the input target
 	// (story.scrubYear) and writes the panned frame each tick, so a year change
@@ -566,7 +310,7 @@
 			trailTweener.current,
 			width,
 			height,
-			panFrame(raceStep)(renderPlayhead),
+			racePanFrame(raceStep, renderPlayhead),
 			STATE_YCAP[stateName]
 		);
 		renderFrontier = frontier;
@@ -709,8 +453,8 @@
 	// stands every animation down straight away
 	const motionQuery = new MediaQuery("(prefers-reduced-motion: reduce)", false);
 	const reducedMotion = $derived(motionQuery.current);
-	// True while a choreography owns the rAF instead of the tweeners — a race path
-	// animator (playRaceEntry), a generic entry (playEntry), or a state's ambient
+	// True while a choreography owns the rAF instead of the tweeners — legs
+	// (runLegs — an entry or a reader's ask) or a state's ambient
 	// drift (playAmbient); the render effect steps aside and drawScene tracks live
 	// endpoints.
 	//
@@ -940,551 +684,103 @@
 		return { x: rect.left + t.x, y: rect.top + t.y };
 	}
 
-	// Race-chapter entry: draw the actors' lines on across the visible span,
-	// landing on the static race frame. The render effect first tweens the buffers
-	// onto the empty e=0 frame (dots pinned at the present edge, lines undrawn),
-	// so this owns the rAF straight from there — no pre-roll. Skippable (a state
-	// change abandons the sweep) and reduced-motion safe. The draw-on settles on
-	// the present-day view and stops there — it does not remove any information,
-	// so it needs no reader consent. The rewind's first leg (panning the camera
-	// back from the present through time) only starts once the reader presses
-	// Start (see the raceRewindNonce effect below, and RaceRewindStart.svelte).
-	/**
-	 * @param {any} step
-	 * @param {boolean} flownIn whether the arrival tween already flew the cast in
-	 *   from the rank list (see the raceEntry branch of the render effect), so
-	 *   they are on screen at full strength before the draw-on starts
-	 */
-	function playRaceEntry(step, flownIn) {
-		if (!width || !height) return;
-		// the arrival's label gate is done: from here the cast fades in at its
-		// chart spot, so the names can ride those dots again (see the raceEntry
-		// branch of the render effect)
+	// What a frame writer hands back (FrameOutput in states.js): per-frame chart
+	// furniture, the camera it drew, and story fields to publish. Applied on
+	// every tick of every choreography, so a leg that pans the camera keeps the
+	// axes, the callout and the live playhead in step with the dots. `story`
+	// writes go through an equality check: a write that changes nothing still
+	// invalidates the layout params and would retarget the tweener mid-run.
+	/** @type {{ playhead: number, frontier: number } | null} */
+	let lastCamera = null;
+	function applyFrame(out) {
+		if (!out) return;
+		if (out.decor) decor = { ...decor, ...out.decor };
+		if (out.camera) {
+			if (out.camera.playhead != null) renderPlayhead = out.camera.playhead;
+			if (out.camera.frontier != null) renderFrontier = out.camera.frontier;
+			lastCamera = { playhead: renderPlayhead, frontier: renderFrontier };
+		}
+		if (out.story) {
+			for (const [key, value] of Object.entries(out.story)) {
+				if (story[key] !== value) story[key] = value;
+			}
+		}
+	}
+
+	// The context a choreography is planned against (ArrivalContext in
+	// states.js). Built inside the render effect or a request's untracked run,
+	// so the story it hands over is read untracked: nothing a plan reads can
+	// re-run the effect that built it.
+	const arrivalContext = (from) => ({
+		w: width,
+		h: height,
+		from,
+		exit: { playhead: raceExitPlayhead, frontier: raceExitFrontier },
+		camera: { playhead: renderPlayhead, frontier: renderFrontier },
+		live: { attrs: tweener.current, trails: trailTweener.current },
+		story
+	});
+	const phasesOf = (anim, ctx) =>
+		typeof anim.phases === "function" ? anim.phases(ctx) : anim.phases;
+
+	// Names introduced by beat `beat` of a choreography — 0 is the arrival, i + 1
+	// is leg i (see EntryAnim.labelsAfter). The gate lifts entirely once the last
+	// listed beat has landed.
+	function introduceLabels(anim, beat) {
+		const after = anim.labelsAfter;
+		if (!after || !entryLabels || beat >= after.length) return;
+		for (const id of after[beat]) entryLabels.add(id);
+		if (beat === after.length - 1) entryLabels = null;
+	}
+
+	// The end of a choreography. One with a `finish` hands off through the story:
+	// its last frame is the layout at the params it publishes (a race camera hold,
+	// the simulation's playhead), so the param retarget that follows moves
+	// nothing and settles. One without lands on the static layout it was authored
+	// onto and settles here — which is also where the state's ambient begins.
+	function finishChoreography(anim, finalAttrs, finalTrails) {
+		sweeping = false;
+		camPanning = false;
 		entryLabels = null;
-		const finalView = { playhead: step.extent[1] };
-		if (reducedMotion) {
-			// defensive: the effect's reduced-motion branch normally jumps before
-			// this runs, so the draw-on is skipped and we land on the static frame
-			story.raceView = finalView;
-			return;
+		story.entryHeld = false;
+		if (story.running !== null) story.running = null;
+		if (anim.finish) {
+			anim.finish(story, lastCamera ?? undefined);
+		} else {
+			tweener.to(finalAttrs, 0);
+			trailTweener.to(finalTrails, 0);
+			settle(stateName);
 		}
-		// single-writer discipline: stop the generic writers before the sweep owns
-		// the rAF; on completion pin the chart via raceView, which triggers one
-		// param-tween settle. The sweep shows only raceRecent's contenders
-		// (RACE_RECENT_VISIBLE), so its frames always agree with the yCap-
-		// filtered static layouts and nobody pops out at the settle.
-		//
-		// alpha is a plain fade-in over SHOWN_ARRIVE_END, not shownAlpha's from/to
-		// comparison — every contender here is arriving fresh (there is no prior
-		// membership to compare against), so they should tween in rather than pop
-		// straight to full strength on this phase's first frame. Unless the arrival
-		// already flew them here out of the rank list: they are visible dots that
-		// have just landed, and dipping them back to nothing to re-fade would blink
-		// the whole cast off.
-		const arrive = (e) => (id) =>
-			RACE_RECENT_VISIBLE.has(id)
-				? flownIn
-					? 1
-					: Math.min(1, e / SHOWN_ARRIVE_END)
-				: 0;
-		tweener.stop();
-		trailTweener.stop();
-		sweeping = true;
-		runSweepPhase(
-			entryFrame(step),
-			STATE_YCAP[RACE_ENTRY_STATE],
-			() => {
-				sweeping = false;
-				story.raceView = finalView;
-				publishRaceCam();
-			},
-			arrive
-		);
-	}
-
-	// Race-chapter rewind, leg 1: fired by the raceRewindNonce effect below, once
-	// the reader presses Start. Pans the camera back from the present to
-	// RACE_REWIND_WAYPOINT_YEAR and stops there, within raceRecent — the second
-	// leg (playRaceFullEntry) continues the same pan on from wherever this one
-	// got to when the reader arrives at raceFull, so the "camera moving back in
-	// time" motion is visible in two beats instead of happening all at once. At a
-	// fixed px-per-year the leg is pure x-translation — the camera can never zoom.
-	//
-	// `toStep`/`toCap` describe the LANDING state: the leg fades out actors who
-	// stop being contenders there (and fades in any who start), so its last frame
-	// matches the yCap-filtered static settle exactly instead of dropping them in
-	// one pop. The frame's own extent is the leg's camera travel instead, so the
-	// visible line always runs right up to the dot mid-pan; the visible set is
-	// passed in, so that wider extent never leaks into it.
-	//
-	// Says nothing about the y axis: it is fitted to each frame's own camera, so
-	// it pans with the leg and arrives on the settle's axis by construction.
-	function playRaceRewind(fromP, toP, toStep, toCap) {
-		if (!width || !height) return;
-		const finalView = { playhead: toP };
-		if (reducedMotion) {
-			story.raceView = finalView;
-			story.raceRewinding = false;
-			return;
-		}
-		// starts from a frame showing raceRecent's set (the entry draw-on)
-		const shown = {
-			from: RACE_RECENT_VISIBLE,
-			// raceStepVisible, not raceContenders: it is the single reader of a step's
-			// visible set, so anyone the landing step drops fades out across the leg
-			// like any other departure instead of popping at the settle
-			to: raceStepVisible(toStep, toCap)
-		};
-		sweeping = true;
-		camPanning = true;
-		runSweepPhase(
-			rewindFrame(toStep, raceLegExtent(fromP, toP), fromP, toP),
-			STATE_YCAP[RACE_ENTRY_STATE],
-			() => {
-				sweeping = false;
-				camPanning = false;
-				story.raceView = finalView;
-				story.raceRewinding = false;
-				publishRaceCam();
-			},
-			shown,
-			rewindMs(fromP, toP)
-		);
-	}
-
-	// Race-chapter arrival at raceFull from raceRecent: no scripted pan — the
-	// reader lands with the camera already resting on RACE_REWIND_WAYPOINT_YEAR
-	// (2006, SLJ's takeover) and RaceScrubber usable immediately, rather than
-	// watching a forced rewind before getting control. Kept as a function
-	// (rather than inlined at the call site) because publishRaceCam() has to be
-	// called after renderPlayhead is set, matching every other settle path.
-	function playRaceFullEntry() {
-		if (!width || !height) return;
-		renderPlayhead = RACE_REWIND_WAYPOINT_YEAR;
-		story.raceView = { playhead: RACE_REWIND_WAYPOINT_YEAR };
 		publishRaceCam();
 	}
 
-	// The rewind run backwards, played when the reader steps back from raceFull to
-	// raceRecent, so going back retraces the pan that brought them here instead of
-	// cutting to a tween. It lands on RACE_REWIND_WAYPOINT_YEAR, which is where
-	// raceRecent rests once its own leg-1 choreography has run — so stepping
-	// forward again replays leg 2 from the same place the first pass did.
-	//
-	// Starts from `raceExitPlayhead` — raceFull's camera, snapshotted before the
-	// state-change effect reset it — so Prev out of a reader's own pan (or out of
-	// leg 2 mid-flight) reverses from wherever the camera actually is, instead of
-	// jumping to raceFull's resting year first.
-	function playRaceReverse() {
-		if (!width || !height) return;
-		const fromP = raceExitPlayhead ?? raceFullRestPlayhead(width, height);
-		const toP = RACE_REWIND_WAYPOINT_YEAR;
-		const finalView = { playhead: toP };
-		// no reducedMotion guard: the render effect's snap branch takes that case
-		// before any arrival branch runs
-		if (fromP >= toP) {
-			// the camera already sits at or ahead of the waypoint — on a viewport
-			// wide enough for that, playRaceFullEntry skipped leg 2 too, so there is
-			// no motion to retrace
-			story.raceView = finalView;
-			publishRaceCam();
-			return;
-		}
-		// the mirror of leg 2's fade: the whole cast raceFull shows drops back to
-		// the field raceRecent does, over the same early departure window
-		const shown = {
-			from: raceStepVisible(RACE_FULL_STEP, STATE_YCAP[RACE_FULL_STATE]),
-			to: RACE_RECENT_VISIBLE
-		};
-		sweeping = true;
-		camPanning = true;
-		runSweepPhase(
-			rewindFrame(RACE_RECENT_STEP, raceLegExtent(fromP, toP), fromP, toP),
-			STATE_YCAP[RACE_ENTRY_STATE],
-			() => {
-				sweeping = false;
-				camPanning = false;
-				story.raceView = finalView;
-				publishRaceCam();
-			},
-			shown,
-			rewindMs(fromP, toP)
-		);
-	}
-
-	// The chapter's last arrival, in TWO LEGS.
-	//
-	// Leg 0, "fast-forward to the present": the camera leaves the past and pans
-	// forward until one year of history is all that is left on the plot, so the
-	// lines slide off to the left and every dot comes to rest in a column just
-	// inside the left edge — at FULL opacity, which is PRD P-11-1. The ramp that
-	// used to grey the whole cast out (writeRaceSweepFrame's edgeFade) is exactly
-	// one year long, so parking one year inside the data is where it reaches 1.
-	// Nothing caps the lines: at a fixed px-per-year the pan is a pure
-	// translation, and each line already ends at its actor's own last data year.
-	//
-	// Leg 1, "the future opens": the camera is PARKED and a frontier advances
-	// across the plot width the pan left over, growing the future block and
-	// bringing its ticks in behind it (P-11-2). Chained off leg 0's onDone, the
-	// way playRaceEntry chains into playRaceRewind — not a STATE_ENTRY, because
-	// the race chapter needs writeRaceSweepFrame's per-frame `decor` payload (the
-	// axes, the takeover, and now the band) and playEntry has no channel for it.
-	//
-	// `sweeping` is raised once here and cleared once, at the end of leg 1: cleared
-	// at the join, a render-effect run landing in between would fall into its
-	// catch-all `to(attrs, 0)` and snap the chart mid-choreography. Nothing
-	// publishes raceView or calls publishRaceCam at the join either — both would
-	// re-enter the render effect with a param change mid-chain.
-	//
-	// Skippability comes free from the rAF: stopSweep during leg 0 cancels it,
-	// onDone never fires, and leg 1 never starts.
-	//
-	// Starts from `raceExitPlayhead` for the same reason every other leg does: the
-	// reader may have panned raceFull anywhere before pressing Next.
-	function playRaceFuture() {
-		if (!width || !height) return;
-		const restP = raceMaxPlayhead(width, height, RACE_FUTURE_STEP);
-		const fromP = raceExitPlayhead ?? RACE_REWIND_WAYPOINT_YEAR;
-		// no reducedMotion guard: the render effect's snap branch takes that case
-		// before any arrival branch runs, and lands straight on the fully-open
-		// state (RACE_FUTURE_STEP.frontier is what makes that true)
-		sweeping = true;
-		if (fromP >= restP) {
-			// no pan left to play. Unlike every other leg's early-out this must not
-			// return — the strip opening is the step's whole subject, not a flourish
-			// on the way in. (Unreachable in practice: restP is past the present,
-			// which is raceFull's own pan ceiling, on any canvas wider than ~200px.)
-			playRaceFutureOpen(restP);
-			return;
-		}
-		camPanning = true;
-		runSweepPhase(
-			futurePanFrame(raceLegExtent(fromP, restP), fromP, restP),
-			STATE_YCAP[RACE_FUTURE_STATE],
-			() => {
-				// the camera has stopped; only the frontier moves from here
-				camPanning = false;
-				playRaceFutureOpen(restP);
-			},
-			// no `shown`: raceFull and raceFuture both show the whole cast, so
-			// there is nothing to fade in or out across the leg
-			null,
-			rewindMs(fromP, restP)
-		);
-	}
-
-	// Leg 1 on its own, so leg 0's early-out can reach it.
-	function playRaceFutureOpen(restP) {
-		runSweepPhase(
-			futureOpenFrame(restP, RACE_DATA_END, RACE_FUTURE_END),
-			STATE_YCAP[RACE_FUTURE_STATE],
-			() => {
-				sweeping = false;
-				story.raceView = raceHoldView();
-				publishRaceCam();
-			},
-			null,
-			FUTURE_OPEN_MS * getRaceSpeedScale()
-		);
-	}
-
-	// Both legs retraced, in reverse order, when the reader steps back from
-	// raceFuture to raceFull: the strip closes, then the camera pans back to
-	// RACE_REWIND_WAYPOINT_YEAR (where raceFull rests by every path, so stepping
-	// forward again replays leg 0 from where it first started).
-	//
-	// The closing leg is skipped when the strip isn't open — a reader who stepped
-	// back during leg 0 has nothing to close, and playing it anyway would hold a
-	// motionless chart for a beat before the pan. That is what raceExitFrontier is
-	// for: the frontier needs the same snapshot the playhead gets, or a step back
-	// out of a half-open block would close it from full width and jump.
-	function playRaceFutureReverse() {
-		if (!width || !height) return;
-		const fromP =
-			raceExitPlayhead ?? raceMaxPlayhead(width, height, RACE_FUTURE_STEP);
-		const fromF = raceExitFrontier;
-		const toP = RACE_REWIND_WAYPOINT_YEAR;
-		const finalView = { playhead: toP };
-		const panBack = () => {
-			// mirrored guard: this leg travels backwards, so it is a camera already
-			// at or behind the waypoint that has nothing to retrace
-			if (fromP <= toP) {
-				sweeping = false;
-				story.raceView = finalView;
-				publishRaceCam();
-				return;
-			}
-			camPanning = true;
-			runSweepPhase(
-				// RACE_FULL_STEP, not RACE_FUTURE_STEP: the leg is landing on
-				// raceFull, so its highlight has to be the one the settle uses. Its
-				// frame carries no frontier, so the strip stays shut for the whole pan
-				// — the block has already closed by the time this runs.
-				rewindFrame(RACE_FULL_STEP, raceLegExtent(fromP, toP), fromP, toP),
-				STATE_YCAP[RACE_FULL_STATE],
-				() => {
-					sweeping = false;
-					camPanning = false;
-					story.raceView = finalView;
-					publishRaceCam();
-				},
-				null,
-				rewindMs(fromP, toP)
-			);
-		};
-		sweeping = true;
-		if (!(fromF > RACE_DATA_END)) {
-			panBack();
-			return;
-		}
-		runSweepPhase(
-			// parked at `fromP`, wherever the camera actually is — a reader who
-			// stepped back during leg 0 has both a shut strip and an off-rest camera
-			futureOpenFrame(fromP, fromF, RACE_DATA_END),
-			STATE_YCAP[RACE_FUTURE_STATE],
-			panBack,
-			null,
-			// proportional to how far it actually has to close, so stepping back out
-			// of a half-open block doesn't take as long as a full one
-			FUTURE_OPEN_MS *
-				getRaceSpeedScale() *
-				((fromF - RACE_DATA_END) / (RACE_FUTURE_END - RACE_DATA_END))
-		);
-	}
-
-	// -- The Gen Z step ----------------------------------------------------------
-	// Two beats, one automatic and one the reader asks for.
-	//
-	// The camera pan down (leg 1) is an ARRIVAL choreography, but unlike every
-	// race animator above it there is no race frame to pan from: this step
-	// arrives from a chapter card, so the crowd has to fly onto the chart first.
-	// The ordinary arrival tween does that — it is aimed at leg 1's frame 0
-	// (yOpen 0, no Gen Z lines: the chart the reader left at the end of the race
-	// chapter) by the raceGenz branch of the render effect, which then fires this
-	// off its onDone. Exactly the shape playRaceEntry is given by the rank
-	// chapter's flight, and for the same reason.
-	const GENZ_OPEN_MS = 2200;
-	// ...and the arrival, which is slower than the pan by design: 99 actors
-	// travelling in from the left is the thing the reader pressed a button to
-	// watch. It is a real journey across the plot rather than a reveal, so it
-	// wants the time — the dots enter at the left edge and ride their own curves
-	// into the present.
-	const GENZ_DRAW_MS = 2600;
-
-	// Leg 1: the axis travels from the chapter's own window down onto the Gen-Z
-	// one, and the whole race cast retires as it goes — `shown` is {everyone, no
-	// one}, so the crown fades out over the first third of the leg while it is
-	// still on the plot, rather than being cut off the moment the window leaves
-	// it. That empty landing frame is also the step's STATIC frame
-	// (RACE_GENZ_STEP's yCap is below the field), so the settle has nothing to do.
-	//
-	// Says nothing about the axis itself: `yOpen` is a camera parameter and
-	// raceWindowYFit reads it off each frame's own camera, so the last frame and
-	// the settle agree by construction — the same property that lets the rewind
-	// legs say nothing about the y fit.
-	function playRaceGenzOpen(restP) {
-		if (!width || !height) return;
-		// the arrival's label gate is done: the cast is off the crowd and on the
-		// chart, so names may ride their dots again. Lifted HERE, at the top of the
-		// leg rather than at its end, so a reader who presses the button mid-pan
-		// still gets the names their contenders arrive with.
-		entryLabels = null;
-		if (reducedMotion) {
-			// defensive: the effect's snap branch normally lands on the static
-			// (already panned-down) frame before this can run
-			story.raceView = raceHoldView();
-			return;
-		}
-		sweeping = true;
-		runSweepPhase(
-			genzOpenFrame(restP),
-			STATE_YCAP[RACE_GENZ_STATE],
-			() => {
-				sweeping = false;
-				story.raceView = raceHoldView();
-				publishRaceCam();
-			},
-			// No `shown` set, deliberately: the camera is what removes the crown
-			// race, not a fade. Every line either rides up and off the top edge as
-			// the window travels (curveExit ends it there, like any line chart) or
-			// is genuinely inside the ground the step lands on and stays as part of
-			// the crowd. Fading them on a phase clock instead made the field swell
-			// and dissolve in the middle of the plot, which reads as the chart
-			// giving up rather than as a camera moving away from it.
-			null,
-			GENZ_OPEN_MS * getRaceSpeedScale()
-		);
-	}
-
-	// Leg 2: the reader's press. Same discipline as playSimRun — land both
-	// tweeners first, raise `sweeping` so the render effect steps aside, and let a
-	// state change abandon the run for free (stopSweep clears the flag the button
-	// reads, or it would stay disabled for a reader who steps back).
-	//
-	// The end-of-run write is the single publish, exactly as simRuns is: the last
-	// frame IS the static layout with `genzShown` set, so handing off to the
-	// reactive path leaves nothing to move — and it is what the step's `advanceon`
-	// is watching, so the story carries itself on from here.
-	function playGenzLines() {
-		if (!width || !height) return;
-		if (reducedMotion) {
-			story.genzLinesDrawing = false;
-			story.genzLinesShown = true;
-			return;
-		}
-		stopSweep();
-		if (tweener.target) tweener.to(tweener.target, 0);
-		if (trailTweener.target) trailTweener.to(trailTweener.target, 0);
+	// One leg after another on the shared rAF (runPhase), each frame written
+	// straight into the live buffers and its output published. Single-writer
+	// discipline throughout: the tweeners are stopped first and `sweeping` makes
+	// the render effect step aside; a state change's stopSweep abandons the run;
+	// and a choreography on the race chart owns the camera (camPanning), so a
+	// choreographed pan is never fought by the scrubber mid-motion.
+	function runLegs(anim, write, ctx, finalAttrs, finalTrails) {
+		const phases = phasesOf(anim, ctx);
 		tweener.stop();
 		trailTweener.stop();
 		sweeping = true;
-		story.genzLinesDrawing = true;
-		const restP = raceMaxPlayhead(width, height, RACE_GENZ_STEP);
-		runSweepPhase(
-			genzDrawFrame(restP),
-			STATE_YCAP[RACE_GENZ_STATE],
-			() => {
-				sweeping = false;
-				story.genzLinesDrawing = false;
-				story.genzLinesShown = true;
-				story.raceView = raceHoldView();
-				publishRaceCam();
-			},
-			null,
-			GENZ_DRAW_MS * getRaceSpeedScale()
-		);
-	}
-
-	// -- The closing chart's draw-on --------------------------------------------
-	// The projections travel out of the present to 2030. Slower than the future
-	// strip merely opening (FUTURE_OPEN_MS): there the reader is watching empty
-	// ground appear, here they are watching six lines cross it and change places,
-	// and the crown changing hands is the last thing the story says.
-	const CLOSE_DRAW_MS = 2600;
-
-	// Leg 1 of a two-beat arrival, and the only leg with an animator. The ordinary
-	// state tween plays first, aimed by the raceClose branch of the render effect
-	// at this leg's frame 0 — every line standing on the present, the 94
-	// contenders the step does not draw already faded out — and fires this off its
-	// onDone. Exactly the shape playRaceGenzOpen is given, and for the same reason.
-	//
-	// Says nothing about the axis: the closing window is a camera parameter
-	// (yClose) that this leg never touches, so every frame and the settle agree by
-	// construction. SLJ's entrance is not scheduled here either — he leaves 2025
-	// above the window's top edge, so the frame writer's own clip is what brings
-	// him in through the top as the draw passes the year his line descends onto
-	// the plot.
-	function playRaceCloseDraw(restP) {
-		if (!width || !height) return;
-		if (reducedMotion) {
-			// defensive: the effect's snap branch normally lands on the static
-			// (fully drawn) frame before this can run
-			story.raceView = raceHoldView();
-			return;
-		}
-		sweeping = true;
-		runSweepPhase(
-			closeDrawFrame(restP),
-			STATE_YCAP[RACE_CLOSE_STATE],
-			() => {
-				sweeping = false;
-				story.raceView = raceHoldView();
-				publishRaceCam();
-			},
-			// no `shown` set: the race cast is not on this chart at all (the step's
-			// yCap leaves SLJ alone, and the projection pass owns him), and the
-			// contenders the step drops are already gone by frame 0
-			null,
-			CLOSE_DRAW_MS * getRaceSpeedScale()
-		);
-	}
-
-	// -- Simulation replay -------------------------------------------------------
-	// Reader-triggered, unlike every choreography above it: SimRunner bumps
-	// story.simRunNonce and this replays the 10,000 recorded simulation runs as a
-	// moving playhead, writing the chart straight into the live buffers each frame
-	// (same single-writer discipline as startScrub). ~3s, eased by the shared
-	// trapezoid so the counts land softly on their finals.
-	const SIM_MS = 3000;
-
-	function playSimRun() {
-		if (!width || !height) return;
-		// under reduced motion there is no run to watch — hand the settled chart
-		// straight to the reactive layout path, which snaps
-		if (reducedMotion) {
-			story.simRuns = SIM_N_SIMS;
-			return;
-		}
-		stopSweep();
-		if (tweener.target) tweener.to(tweener.target, 0);
-		if (trailTweener.target) trailTweener.to(trailTweener.target, 0);
-		tweener.stop();
-		trailTweener.stop();
-		sweeping = true;
-		story.simNames = 0;
-		story.simRunning = true;
-		runPhase(
-			SIM_MS,
-			(e) => {
-				const played = e * SIM_N_SIMS;
-				const { axes } = writeSimFrame(
-					tweener.current,
-					trailTweener.current,
-					width,
-					height,
-					played
-				);
-				decor = { ...decor, axes };
-				// the one thing the replay publishes while it runs: the names come in
-				// one at a time part-way through, and the layout can't see the
-				// playhead. Only on the runs a name is due — a per-frame write would
-				// retarget the tweener mid-run
-				const due = simNamesDue(played);
-				if (due !== story.simNames) story.simNames = due;
-			},
-			() => {
-				// the last frame IS the settled layout (both go through writeSimFrame),
-				// so publishing the playhead hands off to the reactive path with
-				// nothing left to move — and leaves the chart where a step back to
-				// this state will find it
-				sweeping = false;
-				story.simRunning = false;
-				story.simRuns = SIM_N_SIMS;
-			}
-		);
-	}
-
-	// Generic entry choreography (STATE_ENTRY): play the state's legs back to
-	// back, each writing its animated slots straight into the live buffers, then
-	// settle onto the static layout. Same shape as the race animators above —
-	// single-writer discipline (stop the tweeners first, `sweeping` makes the
-	// render effect step aside), skippable (a state change calls stopSweep), and
-	// bypassed entirely under reduced motion by the effect's snap branch. The
-	// final leg is authored to land on the static frame, so the settle is a
-	// zero-duration retarget with nothing to move.
-	function playEntry(anim, write, finalAttrs, finalTrails) {
-		if (!width || !height) return;
-		tweener.stop();
-		trailTweener.stop();
-		sweeping = true;
+		camPanning = !!raceStep;
+		lastCamera = null;
+		introduceLabels(anim, 0);
 		const runLeg = (i) => {
-			if (i >= anim.phases.length) {
-				sweeping = false;
-				entryLabels = null;
-				story.entryHeld = false;
-				tweener.to(finalAttrs, 0);
-				trailTweener.to(finalTrails, 0);
+			if (i >= phases.length) {
+				finishChoreography(anim, finalAttrs, finalTrails);
 				return;
 			}
 			runPhase(
-				anim.phases[i],
-				(e, ms) => write(tweener.current, trailTweener.current, i, e, ms),
+				phases[i],
+				(e, ms) =>
+					applyFrame(write(tweener.current, trailTweener.current, i, e, ms)),
 				() => {
-					// the actors this leg was about are now on the chart, so their
-					// names land with it (see EntryAnim.labelsAfter)
-					for (const id of anim.labelsAfter?.[i] ?? []) entryLabels.add(id);
-					// and what the step's prose was waiting for is on screen now, so
-					// the card can speak (see EntryAnim.cardAfter)
+					introduceLabels(anim, i + 1);
+					// what the step's prose was waiting for is on screen now, so the
+					// card can speak (see EntryAnim.cardAfter)
 					if (i === anim.cardAfter) story.entryHeld = false;
 					runLeg(i + 1);
 				}
@@ -1493,11 +789,157 @@
 		runLeg(0);
 	}
 
+	// The arrival tween onto a choreography's frame 0, then its legs — which only
+	// start if the tween lands: a superseding tween (Next mid-flight) drops the
+	// callback, so a reader who steps on skips the choreography like any other.
+	// `arrivalJitter` is the state's own (see EntryAnim).
+	function startArrival(p) {
+		const jitter = p.anim.arrivalJitter ?? TWEEN_JITTER;
+		tweener.to(p.startAttrs, TWEEN_MS, jitter, p.stateDelays, () => {
+			chartVeiled = false;
+			runLegs(p.anim, p.write, p.ctx, p.finalAttrs, p.finalTrails);
+		});
+		tweenTrails(p.startTrails, TWEEN_MS);
+	}
+
+	// An arrival that plays an entry choreography (EntryAnim in states.js). The
+	// legs' frame 0 — stamped over the static layout by the writer, or by the
+	// entry's own `seed` — is what the arrival lands on; a plan with no legs
+	// finishes at once. Then one of three ways in: the choreography owns the
+	// arrival and its legs take the rAF straight from the step change; it holds
+	// on a frame of its own until the story opens the way (`hold`, fired by the
+	// effect on pendingArrival); or the ordinary arrival tween carries the buffers
+	// onto frame 0 and hands over on its onDone. Only reached with real motion —
+	// reduced motion and resize take the render effect's snap branch first.
+	function arrive(anim, from, attrs, trailTarget, stateDelays) {
+		const ctx = arrivalContext(from);
+		const phases = phasesOf(anim, ctx);
+		const write = anim.frames(
+			nodes,
+			width,
+			height,
+			edges,
+			layoutParams,
+			bleed,
+			ctx
+		);
+		// no name is on the chart until its beat lands, and the step card waits
+		// for the leg that earns it
+		if (anim.labelsAfter) entryLabels = new Set();
+		if (anim.cardAfter != null) story.entryHeld = true;
+		if (phases.length === 0) {
+			lastCamera = null;
+			finishChoreography(anim, attrs, trailTarget);
+			return;
+		}
+		const startAttrs = attrs.slice();
+		const startTrails = trailTarget.slice();
+		if (anim.seed) {
+			anim.seed(
+				nodes,
+				width,
+				height,
+				edges,
+				layoutParams,
+				bleed,
+				ctx
+			)(startAttrs, startTrails);
+		} else {
+			write(startAttrs, startTrails, 0, 0, 0);
+		}
+		const pending = {
+			anim,
+			write,
+			ctx,
+			startAttrs,
+			startTrails,
+			stateDelays,
+			finalAttrs: attrs,
+			finalTrails: trailTarget
+		};
+		if (anim.ownsArrival) {
+			// frame 0 IS the departing frame, so this snap moves nothing, and the
+			// legs own the rAF from the step change at whatever rate they author
+			tweener.to(startAttrs, 0);
+			trailTweener.to(startTrails, 0);
+			runLegs(anim, write, ctx, attrs, trailTarget);
+			return;
+		}
+		chartVeiled = !!anim.veil;
+		if (!anim.hold) {
+			startArrival(pending);
+			return;
+		}
+		// park on the hold frame — invisible under whatever is covering it — and
+		// wait for the story to open the way. The flight is armed here rather than
+		// run here so the canvas can never be moving while the HTML the reader is
+		// watching isn't.
+		const holdAttrs = new Float64Array(tweener.current);
+		const holdTrails = new Float64Array(trailTweener.current);
+		anim.hold.frame(
+			nodes,
+			width,
+			height,
+			edges,
+			layoutParams,
+			bleed,
+			ctx
+		)(holdAttrs, holdTrails);
+		tweener.to(holdAttrs, 0);
+		trailTweener.to(holdTrails, 0);
+		pendingArrival = pending;
+	}
+
+	// A reader's ask (RequestAnim in states.js): the active state's
+	// `requests[kind]`, run from wherever the canvas is. Lands any tween still in
+	// flight first — the writer stamps only the slots it animates, so a tween
+	// stopped mid-flight would strand every other dot where it had got to — and
+	// abandons a pending or running arrival, gates included, so an ask that lands
+	// before the chapter's own arrival has finished supersedes it cleanly. A plan
+	// with no legs is a dropped ask. Under reduced motion the last frame is
+	// written and the finish published, so the layout path snaps onto the same
+	// end state the run would have reached.
+	function playRequest(kind, anim) {
+		if (!width || !height) return;
+		const ctx = arrivalContext(prevState);
+		const phases = phasesOf(anim, ctx);
+		if (phases.length === 0) return;
+		anim.start?.(story);
+		stopSweep();
+		if (tweener.running) tweener.to(tweener.target, 0);
+		if (trailTweener.running) trailTweener.to(trailTweener.target, 0);
+		pendingArrival = null;
+		chartVeiled = false;
+		entryLabels = null;
+		story.entryHeld = false;
+		const write = anim.frames(
+			nodes,
+			width,
+			height,
+			edges,
+			layoutParams,
+			bleed,
+			ctx
+		);
+		if (reducedMotion) {
+			const last = phases.length - 1;
+			lastCamera = null;
+			applyFrame(
+				write(tweener.current, trailTweener.current, last, 1, phases[last])
+			);
+			anim.finish?.(story, lastCamera ?? undefined);
+			publishRaceCam();
+			return;
+		}
+		story.running = kind;
+		runLegs(anim, write, ctx, tweener.target, trailTweener.target);
+	}
+
 	// A state's ambient drift (STATE_AMBIENT): unlike an entry choreography this
 	// never ends, so there is no final leg and no settle to land on — the arrival
 	// has already settled, and the writer's own t = 0 frame is what it landed on,
 	// so the first tick redraws that frame and the join moves nothing. Same
-	// single-writer discipline as playEntry (tweeners stopped, `sweeping` makes the
+	// single-writer discipline as runLegs (tweeners stopped, `sweeping` makes the
 	// render effect step aside) and the same skippability: a state change calls
 	// stopSweep, and the next arrival tween then snapshots `current`, so the dots
 	// fly on from wherever the drift had them rather than snapping back.
@@ -1895,10 +1337,10 @@
 		});
 	});
 
-	// A cold mount straight into raceFull skips playRaceFullEntry entirely
-	// (that only plays on a forward arrival from raceRecent, per the effect
-	// above), so story.raceView is left null and raceLayout's own fallback
-	// (extent[1], i.e. 2025) settles the chart on the wrong camera. This effect
+	// Nothing else sets raceFull's camera — its arrival is a plain tween, and a
+	// cold mount straight into it (the step restored from the URL) has had no
+	// arrival at all — so story.raceView is left null and raceLayout's own
+	// fallback (extent[1], i.e. 2025) puts the chart on the wrong camera. This effect
 	// seeds the real rest playhead as soon as width/height are known — unlike
 	// the effect above, it tracks width/height reactively (not via untrack), so
 	// it still fires once they're measured even if that happens after mount.
@@ -1962,125 +1404,42 @@
 		if (story.scrubbing) untrack(() => camPanning || startScrub());
 	});
 
-	// Simulation replay: SimRunner asks for a run by bumping the nonce. Watched as
-	// a counter, not a flag, so pressing Start again re-runs — and so the reset back
-	// to nonce 0 isn't itself a request. Declared before the render effect for the
-	// same reason as the scrub trigger above: it has to win the flush, or the
-	// playhead's own param change would tween the chart on before the run starts.
-	let simNonceSeen = 0;
+	// A reader's ask: a StartButton bumps `story.request` (see request() in
+	// story.svelte.js) and the active state's `requests[kind]` plays. Watched as a
+	// counter, so a second press of the same kind is a fresh ask and the reset
+	// back to nonce 0 is not one; gated on the active state, so a press whose
+	// step the reader has already left is a no-op. Declared before the render
+	// effect so it wins the flush: it has to own the rAF before a param change
+	// the ask itself makes (the simulation's playhead reset) would tween the
+	// chart on. Everything else about the run is the state's own declaration.
+	let requestSeen = 0;
 	$effect(() => {
-		const nonce = story.simRunNonce;
-		if (nonce === simNonceSeen) return;
-		simNonceSeen = nonce;
-		if (nonce === 0 || stateName !== "simRace") return;
-		untrack(playSimRun);
+		const { kind, nonce } = story.request;
+		if (nonce === requestSeen) return;
+		requestSeen = nonce;
+		const anim = STATE_REQUESTS[stateName]?.[kind];
+		if (nonce === 0 || !anim) return;
+		untrack(() => playRequest(kind, anim));
 	});
 
-	// Gen Z lines: GenZLinesStart asks for the draw-on the same way, gated to its
-	// own state. Nothing else about it differs — the run publishes its own end,
-	// and the step's `advanceon` is what carries the reader on.
-	let genzNonceSeen = 0;
+	// An arrival held on a frame until the story lets it go (EntryAnim.hold): the
+	// rank list's collapse into the race chart, where the canvas parks on a copy
+	// of what the HTML overlay is showing and must not move until that overlay
+	// has stood down. `$state.raw`, because the payload is buffers, which must
+	// not be proxied — and reactive so this fires on whichever lands last, the
+	// gate opening or the arrival arming; waiting only on the gate would strand
+	// the canvas on the hold frame for good on any arrival that finds it already
+	// open. Cleared by every render pass, so a state change mid-hold disarms it.
+	/** @type {{ anim: import("./states.js").EntryAnim, write: Function, ctx: import("./states.js").ArrivalContext, startAttrs: Float64Array, startTrails: Float64Array, stateDelays: Float64Array, finalAttrs: Float64Array, finalTrails: Float64Array } | null} */
+	let pendingArrival = $state.raw(null);
 	$effect(() => {
-		const nonce = story.genzLinesNonce;
-		if (nonce === genzNonceSeen) return;
-		genzNonceSeen = nonce;
-		if (nonce === 0 || stateName !== RACE_GENZ_STATE) return;
-		untrack(playGenzLines);
-	});
-
-	// Race rewind: RaceRewindStart asks for the backwards pan by bumping this
-	// nonce, the same pattern as the sim trigger above. Gated on RACE_ENTRY_STATE
-	// so a stray press after the reader has moved on is a no-op.
-	//
-	// It starts from the LIVE camera, not the resting view: `renderPlayhead` is
-	// reset to the step's resting year on every arrival and then written by every
-	// sweep frame, so an ask that lands mid-pan (a Next pressed during the entry
-	// draw-on, or during the retrace back from raceFull) continues from where the
-	// reader can see the camera, instead of snapping it back to the present first.
-	// It also means a chart already parked at the waypoint has no pan left to
-	// play: asking again would otherwise run a full REWIND_MS_MIN of zero travel
-	// and blink the takeover callout off for the duration (it hides on
-	// `raceRewinding`). So the second ask a step back and forth produces is
-	// dropped here rather than guarded at each caller.
-	//
-	// The asker advances the step as it asks (see RaceRewindStart's comment), so
-	// this effect and the render effect below can land in the same flush. It also
-	// means a dropped ask still moves the reader: advance() bypasses the step's
-	// gate, so there is no way to be stranded on the Start step. Single-writer
-	// discipline still applies here exactly as it does at every other
-	// playRaceRewind call site: stopSweep() so the arrival choreography this
-	// interrupts hands the rAF over instead of driving frames alongside the pan
-	// (playRaceEntry, and playRaceReverse on the way back, both own sweepRaf), and
-	// stop the tweeners — without that, the render effect's own default tween
-	// (same-state step change, nothing else matches) would keep writing the buffers
-	// this sweep is writing, corrupting the frame the reader sees for the rest of
-	// the chapter.
-	let raceRewindNonceSeen = 0;
-	$effect(() => {
-		const nonce = story.raceRewindNonce;
-		if (nonce === raceRewindNonceSeen) return;
-		raceRewindNonceSeen = nonce;
-		if (nonce === 0 || stateName !== RACE_ENTRY_STATE) return;
+		const pending = pendingArrival;
+		if (!pending) return;
+		const open = pending.anim.hold.until(story);
 		untrack(() => {
-			const fromP = renderPlayhead;
-			if (fromP <= RACE_REWIND_WAYPOINT_YEAR) return;
-			story.raceRewinding = true;
-			stopSweep();
-			tweener.stop();
-			trailTweener.stop();
-			// An ask that lands before the chapter's own arrival has finished
-			// supersedes it, and the tweener.stop() above has just dropped the
-			// flight's completion callback (see tween.js) — so lift the two gates
-			// that callback would have lifted, and disarm a flight still waiting on
-			// the rank list's collapse. Without this the rest of the chapter draws
-			// with no axis furniture and no names: the render effect resets both, but
-			// nothing re-runs it while the reader stays inside raceRecent.
-			raceFlight = null;
-			chartVeiled = false;
-			entryLabels = null;
-			playRaceRewind(
-				fromP,
-				RACE_REWIND_WAYPOINT_YEAR,
-				RACE_RECENT_STEP,
-				STATE_YCAP[RACE_ENTRY_STATE]
-			);
-		});
-	});
-
-	// The race chapter's flight, armed by the raceEntry branch and fired when the
-	// rank list has finished collapsing its bars into nodes and taken its overlay
-	// down (story.rankCollapsed — RankBars owns that clock, since it is the one
-	// that knows when its own transitions have landed). Until then the canvas is
-	// parked on the collapsed frame, holding a copy of exactly what the reader is
-	// looking at.
-	//
-	// Declared before the render effect for the same reason as the two triggers
-	// above: it has to win the flush. Cleared by every render pass, so a state
-	// change (Next/Prev mid-collapse) disarms it and the flag can only ever fire
-	// the flight it was armed for.
-	//
-	// The arm is itself reactive ($state.raw — raw because the payload is buffers,
-	// which must not be proxied), so this fires on whichever of the two lands last:
-	// the flag going up, or the arrival arming. Waiting only on the flag would
-	// strand the canvas on the collapsed frame for good on any arrival that finds
-	// the list already collapsed, with no overlay left to hide it.
-	/** @type {{startAttrs: Float64Array, startTrails: Float64Array, stateDelays: Float64Array, flownIn: boolean} | null} */
-	let raceFlight = $state.raw(null);
-	$effect(() => {
-		const collapsed = story.rankCollapsed;
-		const flight = raceFlight;
-		untrack(() => {
-			if (!collapsed || !flight || stateName !== RACE_ENTRY_STATE) return;
-			const { startAttrs, startTrails, stateDelays, flownIn } = flight;
-			raceFlight = null;
-			// jitter 0, not TWEEN_JITTER: the flight is the list re-spacing into the
-			// chart, and a hashed per-node start would scramble the top-to-bottom
-			// order that is the whole thing the reader is meant to read out of it
-			tweener.to(startAttrs, TWEEN_MS, 0, stateDelays, () => {
-				chartVeiled = false;
-				playRaceEntry(RACE_RECENT_STEP, flownIn);
-			});
-			tweenTrails(startTrails, TWEEN_MS);
+			if (!open || pending !== pendingArrival) return;
+			pendingArrival = null;
+			startArrival(pending);
 		});
 	});
 
@@ -2173,12 +1532,9 @@
 			stopSweep();
 			sweeping = false;
 			if (story.scrubbing) untrack(() => (story.scrubbing = false));
-			// a replay the reader stepped away from is over, however far it got —
-			// leave its controls usable if they step back
-			if (story.simRunning) untrack(() => (story.simRunning = false));
-			if (story.genzLinesDrawing)
-				untrack(() => (story.genzLinesDrawing = false));
-			if (story.raceRewinding) untrack(() => (story.raceRewinding = false));
+			// a run the reader stepped away from is over, however far it got —
+			// leave its button usable if they step back
+			if (story.running !== null) untrack(() => (story.running = null));
 		}
 		if (resized) {
 			const dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -2326,68 +1682,19 @@
 		const stateDelays =
 			(playReveal ? delays : null) ??
 			(stateName === TITLE_GALAXY_STATE ? EDGE_UNISON_DELAYS : EDGE_LAG_DELAYS);
-		// race-chapter arrival (forward, from a revealFrom origin): play the draw-on
-		// entry choreography instead of a plain state tween. Only reached with real
-		// animation — reduced motion/resize are handled by the branch below.
-		const raceEntry =
-			stateChange && playReveal && stateName === RACE_ENTRY_STATE;
-		// race-chapter arrival at raceFull (forward, from raceRecent): play the
-		// rewind's second and final leg instead of a plain state tween. Unconditional
-		// — the leg starts from `raceExitPlayhead`, so it continues the pan from
-		// wherever raceRecent's camera actually was, whether that is the waypoint its
-		// own leg 1 parked on, a point mid-flight if the reader read faster than the
-		// choreography, the present if they never pressed Start, or the waypoint a
-		// backward step retraced to — see playRaceFullEntry
-		const raceFullEntryArrival =
-			stateChange && playReveal && stateName === RACE_FULL_STATE;
-		// race-chapter arrival at raceRecent going BACKWARDS, from raceFull: retrace
-		// the rewind instead of tweening. Distinct from raceEntry above, which needs
-		// prevState in revealFrom (rankReveal) and so can never also match here.
-		const raceReverseArrival =
-			stateChange &&
-			stateName === RACE_ENTRY_STATE &&
-			prevState === RACE_FULL_STATE;
-		// race-chapter arrival at raceFuture (forward, from raceFull): run the same
-		// pan the other way, out past the end of the data — see playRaceFuture.
-		const raceFutureArrival =
-			stateChange && playReveal && stateName === RACE_FUTURE_STATE;
-		// the prediction chapter's opening beat: the race chart comes back and the
-		// camera pans down off the crown. Unlike every race arrival above it this
-		// one comes from a CHAPTER CARD, so there is no race frame to pan from —
-		// the arrival tween flies the cast onto the chart first and the pan is
-		// chained off its onDone (see the branch below).
-		const raceGenzArrival =
-			stateChange && playReveal && stateName === RACE_GENZ_STATE;
-		// the story's last chart: the projections are drawn out of the present.
-		// Same two-beat shape as raceGenz — the arrival tween morphs the simulation's
-		// lines onto the present and the draw is chained off it — and scoped by
-		// revealFrom to the forward arrival from simRace, so stepping back out of
-		// the outro does not replay it.
-		const raceCloseArrival =
-			stateChange && playReveal && stateName === RACE_CLOSE_STATE;
-		// ...and that leg retraced, stepping BACKWARDS from raceFuture to raceFull.
-		// Disjoint from raceFullEntryArrival above by construction: that one needs
-		// playReveal, and raceFull's revealFrom is ["raceRecent"], so an arrival
-		// from raceFuture can never satisfy it.
-		const raceFutureReverseArrival =
-			stateChange &&
-			stateName === RACE_FULL_STATE &&
-			prevState === RACE_FUTURE_STATE;
-		// any other state that declares an entry choreography (STATE_ENTRY),
-		// played on a forward arrival from a revealFrom origin
-		const entryAnim =
-			stateChange && playReveal ? STATE_ENTRY[stateName] : undefined;
+		// the entry choreography this arrival plays, if the state declares one for
+		// where the reader is coming from (see entryFor)
+		const entryAnim = stateChange ? entryFor(stateName, prevState) : undefined;
 		// drop any gate a previous choreography left behind — an arrival tween
-		// superseded before its onDone fired never reaches playEntry's settle, and
-		// a stale gate would hide the new state's names for good. Re-armed below
-		// only if this arrival actually plays an entry. The step card's own gate
-		// goes with it, and for the same reason — a choreography the reader taps
-		// through must not leave the next step's prose held back.
+		// superseded before its onDone fired never reaches its legs, and a stale
+		// gate would hide the new state's names for good. Re-armed below only if
+		// this arrival actually plays an entry. The step card's own gate goes with
+		// it, and for the same reason — a choreography the reader taps through
+		// must not leave the next step's prose held back. Likewise an arrival a
+		// previous pass left waiting on its hold.
 		entryLabels = null;
 		story.entryHeld = false;
-		// likewise disarm any race flight a previous pass left waiting on the rank
-		// list's collapse — re-armed below only by the raceEntry branch itself
-		raceFlight = null;
+		pendingArrival = null;
 		// the names this arrival introduces, for the wait-for-your-dot hold (see
 		// heldLabels); armed below only on a plain state tween, so it never fights
 		// a choreography's own labelsAfter clock
@@ -2401,269 +1708,15 @@
 		// list's flight, or a backwards step out of the next one) legitimately
 		// carries the cast across the canvas, so the cull stays down for it.
 		racePlotCulling = !!STATE_RACE[prevState] && !!STATE_RACE[stateName];
+		const from = prevState;
 		prevState = stateName;
 		prevParamsKey = paramsKey;
 		if (resized || reducedMotion) {
 			tweener.to(attrs, 0);
 			trailTweener.to(trailTarget, 0);
 			settle(stateName);
-		} else if (raceEntry) {
-			// arrive onto the empty draw-on frame (the entry-window contenders
-			// pinned at the present edge, lines not yet drawn), then draw the
-			// lines on. The
-			// arrival tween's onDone fires playRaceEntry only if uninterrupted — a
-			// superseding tween (Next mid-flight) drops it (see tween.js `to`).
-			const startAttrs = attrs.slice();
-			const startTrails = trailTarget.slice();
-			// axes for this seed frame aren't written into decor here — the very
-			// first rAF tick of playRaceEntry's sweep does that (outside this
-			// effect), moments later; doing it here too would make this effect
-			// read (via decor's spread) the same decor it's reactively driven by.
-			// Called only to collapse every race trail to invisible (reveal 0) —
-			// its dot placements are overwritten below. Alpha is a flat zero, not
-			// the phase's own cast alpha: a collapsed trail still carries a stroke
-			// alpha, and this arrival TWEENS onto the seed frame, so any non-zero
-			// value fades the lines in before the draw-on has drawn anything. On a
-			// re-entry (the reader stepped back to the rank chapter and forward
-			// again) the buffer still holds the previous visit's curve geometry, so
-			// that fade-in reads as the real lines, already drawn, squeezing toward
-			// the present edge. The draw-on writes its own alphas from its first
-			// frame (see playRaceEntry's `arrive`), so nothing is lost by holding
-			// the seed at zero.
-			writeRaceSweepFrame(
-				startAttrs,
-				startTrails,
-				width,
-				height,
-				entryFrame(RACE_RECENT_STEP)(0),
-				STATE_YCAP[RACE_ENTRY_STATE],
-				() => 0
-			);
-			// The same seed frame written a second time, at full strength, purely so
-			// each cast dot's own settled alpha can be read out of it below — the
-			// write above zeroes them, which is what the trails need.
-			const litAttrs = new Float64Array(ATTR_SIZE);
-			writeRaceSweepFrame(
-				litAttrs,
-				new Float64Array(TRAIL_SIZE),
-				width,
-				height,
-				entryFrame(RACE_RECENT_STEP)(0),
-				STATE_YCAP[RACE_ENTRY_STATE],
-				() => 1
-			);
-			// Where the rank list had each actor: RankBars publishes its row
-			// geometry (story.rankListRows) and ORDER_OF gives every actor its row,
-			// so the canvas can take over the very node each bar collapsed into
-			// instead of the cast appearing out of nothing on the chart. The
-			// previous step is HTML, but its rows have positions in the canvas's own
-			// coordinate space, which is all a departure point needs. Untracked: the
-			// list republishes this as the reader scrolls, and this effect must not
-			// re-run on it.
-			//
-			// Ranks past the bottom of the panel — most of the cast; the list shows
-			// the top 250 and only ~20 rows fit — depart from its bottom edge, at
-			// alpha 0, rather than from hundreds of rows down. Two reasons, and they
-			// are the same reason: the reader never saw those rows, so there is no
-			// node to hand over, and the panel isn't covering that band, so anything
-			// parked down there is drawn straight over the step's prose. They fade in
-			// off the edge instead, reading as a stream up out of the list.
-			const rows = untrack(() => story.rankListRows);
-			const rowY = (id) => rows.top + ORDER_OF.get(id) * rows.pitch;
-			// `attrs` parks the whole non-race corpus (the rank chapter's hop
-			// crowd) at its distance-scatter spot, alpha 0 — the position a later
-			// scatter chapter needs so ITS reveal doesn't teleport — and the write
-			// above places the race cast at their real chart spot. The crowd is
-			// still fully visible in the rank bar right now (for many of them, ~85%
-			// under 10 films, that scatter spot sits off the left edge), and gliding
-			// straight there drags a mass of opaque dots across the whole canvas
-			// while they fade. Freeze everyone who isn't in the cast where they
-			// stand instead and fade the rank scene out in place; the raceRecent
-			// settle (story.raceView, once the choreography lands) then retargets
-			// the hidden crowd onto its real scatter spot with nothing to see.
-			//
-			// The cast itself is written as the node its bar collapsed into — the
-			// same spot (the bar's centre), the same radius, colour and alpha the
-			// chart gives it (raceDotSpec, the definition RankBars' HTML circle also
-			// reads). That is the whole point of the handoff: when the overlay
-			// stands down, the canvas underneath is holding the identical nodes, so
-			// the swap has nothing to show. It also means nothing about a dot
-			// changes on the flight that follows — only where it sits.
-			// a Float64 copy, not tweener.current.slice(): the live buffer is
-			// Float32, and this is handed straight back to to() as a target frame
-			const collapsedAttrs = new Float64Array(tweener.current);
-			for (let i = 0, id = 0; i < EDGE_BASE; i += STRIDE, id++) {
-				if (rows && RACE_RECENT_VISIBLE.has(id)) {
-					const dot = raceDotSpec(id === RACE_RECENT_LEAD);
-					const y = rowY(id);
-					const offList = y > rows.bottom;
-					set(
-						collapsedAttrs,
-						id,
-						rows.cx,
-						offList ? rows.bottom : y,
-						dot.r,
-						dot.rgb,
-						offList ? 0 : dot.alpha
-					);
-					startAttrs[i + 6] = litAttrs[i + 6];
-					continue;
-				}
-				for (let k = 0; k < 6; k++) startAttrs[i + k] = collapsedAttrs[i + k];
-				startAttrs[i + 6] = 0;
-				collapsedAttrs[i + 6] = 0;
-			}
-			// The intro network's links go with them. The loop above hides everyone
-			// who isn't the cast, but it walks node slots only, so a reader who got
-			// here faster than those links could fade would keep them — drawn
-			// between two live dots — right through the flight.
-			for (let i = EDGE_BASE; i < ATTR_SIZE; i += STRIDE) {
-				collapsedAttrs[i + 1] = 0;
-			}
-			// ...and hold the chart furniture back until the overlay has gone, so
-			// the axes don't draw up behind a rank list that is still on screen.
-			chartVeiled = true;
-			// The race names ride their dots, so without a gate both spend the
-			// flight travelling up the canvas with them. Blank them for it;
-			// playRaceEntry lifts the gate once the cast is on the chart.
-			entryLabels = new Set();
-			// Stage 1 is not ours: the list is collapsing its bars into those nodes
-			// as HTML, over the top of this. Snap the canvas onto the collapsed frame
-			// — invisible, since the panel is opaque and covers this band — and wait
-			// for the overlay to stand down (story.rankCollapsed, which is also what
-			// unmounts it). The flight is armed here rather than run here so that the
-			// canvas can never be moving while the HTML the reader is watching isn't.
-			tweener.to(collapsedAttrs, 0);
-			trailTweener.to(startTrails, 0);
-			raceFlight = {
-				startAttrs,
-				startTrails,
-				stateDelays,
-				flownIn: Boolean(rows)
-			};
-		} else if (raceFullEntryArrival) {
-			// no seed frame needed — the rewind sweep recomputes attrs from scratch
-			// every frame via writeRaceSweepFrame, so it can start from raceRecent's
-			// live camera (raceExitPlayhead) rather than an assumed year, and the axis
-			// comes with it.
-			landOffChart(attrs, trailTarget);
-			playRaceFullEntry();
-		} else if (raceReverseArrival) {
-			// the same leg backwards, also picking its camera up from raceExitPlayhead
-			landOffChart(attrs, trailTarget);
-			playRaceReverse();
-		} else if (raceFutureArrival) {
-			// the chapter's last pan, forwards past the end of the data — no seed
-			// frame for the same reason as raceFullEntryArrival above
-			landOffChart(attrs, trailTarget);
-			playRaceFuture();
-		} else if (raceFutureReverseArrival) {
-			landOffChart(attrs, trailTarget);
-			playRaceFutureReverse();
-		} else if (raceGenzArrival) {
-			// Two beats on one arrival. This one is the ordinary tween, but aimed at
-			// the pan's frame 0 rather than at the static layout: the same chart the
-			// reader left at the end of the race chapter — the crown window, the
-			// whole cast, the future strip already open — which is what the camera
-			// then travels away from. The static layout is where beat two LANDS, so
-			// it cannot also be what beat one arrives on.
-			//
-			// yCap Infinity, not the step's: the step shows none of the race cast
-			// (that is the state the pan lands on), and this frame is the one before
-			// the pan, where they are all still there.
-			// The seven names ride their contenders' dots, and on this arrival those
-			// dots are still fading out of the chapter card's crowd — so without a
-			// gate the labels come up over the scatter field, naming dots that are
-			// nowhere near where they are about to be. Blank them for the flight;
-			// playRaceGenzOpen lifts the gate the moment the tween lands, by which
-			// point the contenders sit at alpha 0 and nothing shows until the
-			// reader's press brings them in. Same mechanism, and the same reason, as
-			// the race chapter's own entry (see the raceEntry branch above).
-			entryLabels = new Set();
-			const restP = raceMaxPlayhead(width, height, RACE_GENZ_STEP);
-			const startAttrs = attrs.slice();
-			const startTrails = trailTarget.slice();
-			writeRaceSweepFrame(
-				startAttrs,
-				startTrails,
-				width,
-				height,
-				{ ...RACE_GENZ_STEP, playhead: restP, yOpen: 0, genz: 0, reveal: 1 },
-				Infinity
-			);
-			// onDone only fires on an uninterrupted tween, so a reader who steps on
-			// mid-flight skips the pan exactly as they skip any other choreography
-			tweener.to(startAttrs, TWEEN_MS, TWEEN_JITTER, stateDelays, () =>
-				playRaceGenzOpen(restP)
-			);
-			tweenTrails(startTrails, TWEEN_MS);
-		} else if (raceCloseArrival) {
-			// The same two beats, and the same reason this branch does not call
-			// landOffChart: that helper preserves the race cast's dots and trail
-			// slots only, and the five contenders' lines live in the SIMULATION's
-			// trail block — the slots their win-count climbs occupy on the chart the
-			// reader is arriving from. Landing off-chart would snap those slots onto
-			// the arriving layout before the first frame and destroy the line-into-
-			// line morph they are shared for, which is the whole point of beat one.
-			//
-			// Beat one is therefore the ordinary tween, aimed at the draw's frame 0:
-			// every line standing on the present with nothing yet out on the strip,
-			// and the 94 contenders this step does not draw already at alpha 0 on
-			// their own curves. yCap is the step's own — unlike raceGenz, nothing
-			// about who is on this chart changes across the two beats.
-			const restP = raceMaxPlayhead(width, height, RACE_CLOSE_STEP);
-			const startAttrs = attrs.slice();
-			const startTrails = trailTarget.slice();
-			writeRaceSweepFrame(
-				startAttrs,
-				startTrails,
-				width,
-				height,
-				{ ...RACE_CLOSE_STEP, playhead: restP, proj: 0, reveal: 1 },
-				STATE_YCAP[RACE_CLOSE_STATE]
-			);
-			// onDone only fires on an uninterrupted tween, so a reader who steps on
-			// mid-flight skips the draw exactly as they skip any other choreography
-			tweener.to(startAttrs, TWEEN_MS, TWEEN_JITTER, stateDelays, () =>
-				playRaceCloseDraw(restP)
-			);
-			tweenTrails(startTrails, TWEEN_MS);
 		} else if (entryAnim) {
-			// arrive onto the choreography's own frame 0 (its animated slots stamped
-			// over the static layout), then hand the rAF to playEntry. Like the race
-			// entry, the arrival tween's onDone only fires if uninterrupted, so a
-			// reader who hits Next mid-flight skips the choreography.
-			// no name is on the chart yet; each leg introduces its own as it lands
-			if (entryAnim.labelsAfter) entryLabels = new Set();
-			// and the step card, held until the leg that earns it (see cardAfter)
-			if (entryAnim.cardAfter != null) story.entryHeld = true;
-			const write = entryAnim.frames(
-				nodes,
-				width,
-				height,
-				edges,
-				layoutParams,
-				bleed
-			);
-			const startAttrs = attrs.slice();
-			const startTrails = trailTarget.slice();
-			write(startAttrs, startTrails, 0, 0, 0);
-			if (entryAnim.ownsArrival) {
-				// Frame 0 IS the departing frame (see EntryAnim), so this snap moves
-				// nothing — and the legs then own the rAF from the step change, at
-				// whatever rate they author, instead of watching an eased tween run in
-				// front of them. Skippability is unchanged: the `sweeping` guard at the
-				// top of this effect abandons a running choreography exactly as a
-				// superseding tween used to drop this callback.
-				tweener.to(startAttrs, 0);
-				trailTweener.to(startTrails, 0);
-				playEntry(entryAnim, write, attrs, trailTarget);
-			} else {
-				tweener.to(startAttrs, TWEEN_MS, TWEEN_JITTER, stateDelays, () =>
-					playEntry(entryAnim, write, attrs, trailTarget)
-				);
-				tweenTrails(startTrails, TWEEN_MS);
-			}
+			arrive(entryAnim, from, attrs, trailTarget, stateDelays);
 		} else if (stateChange) {
 			heldLabels = introduced.size ? introduced : null;
 			labelHoldUntil = performance.now() + EDGE_LAG_MS;
@@ -2882,27 +1935,27 @@
 				     race layout emits `takeover`, and the wholesale decor write above
 				     clears it on every other state, so this needs no state gate. Its
 				     geometry rides the per-frame payload next to `axes` (see
-				     runSweepPhase/scrubLoop), so the note stays glued to the crossing
+				     applyFrame/scrubLoop), so the note stays glued to the crossing
 				     through a pan instead of freezing the way a `notes` entry would.
 				     The wrapper carries the mount fade and the payload's own `alpha`
 				     rides each child, because the two must MULTIPLY: an animation with
 				     fill-mode `both` outranks an inline opacity for good, so putting
 				     both on one element would leave the cull ramp with no effect.
 
-				     `story.raceRewinding` is what holds it back until the Start rewind
+				     `story.running` — the rewind's ask — is what holds it back until the Start rewind
 				     has landed. The pan brings the crossing on camera with about a
 				     third of its travel still to go, and without this the note mounted
 				     there and then rode ~270px across the plot to its resting spot:
 				     fine for an 11px ring, seasick for a block of prose. So it waits,
 				     and the wrapper's fade-in is then the only motion it makes.
-				     `raceRewinding` and not `story.settled`, which is the usual
+				     `running` and not `story.settled`, which is the usual
 				     wait-for-the-reveal gate: both race steps share one state, so
 				     `settled` is already open when Start fires, and raceFull's arrival
-				     never sets it at all (playRaceFullEntry snaps rather than tweens).
+				     never sets it at all (it is a plain tween onto its resting camera).
 				     Not `camPanning`/`sweeping` either — a reader's scrub raises both,
 				     and the note should track the crossing through a drag, not blink on
 				     every grab. This flag names exactly the one animation in question. -->
-				{#if decor?.takeover && !story.raceRewinding}
+				{#if decor?.takeover && story.running !== "rewind"}
 					{@const t = decor.takeover}
 					{@const arrowD = `M ${t.arrow.ax} ${t.arrow.ay} L ${t.arrow.bx} ${t.arrow.by}`}
 					<div class="callout fade-in">

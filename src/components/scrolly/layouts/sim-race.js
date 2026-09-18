@@ -217,6 +217,37 @@ const simLabelText = () =>
 
 const simParams = (s) => ({ runs: s.simRuns ?? 0, names: s.simNames ?? 0 });
 
+// The replay the reader asks for (a RequestAnim, see states.js): the 10,000
+// runs play left to right as a moving playhead, each frame written straight
+// into the live buffers through the same writer the settled layout uses, so
+// the run's last frame IS the layout it settles onto. ~3s, eased by the
+// runner's shared trapezoid so the counts land softly on their finals.
+//
+// `start` puts the chart back to zero, so a second press replays from the
+// origin (the recorded sequence never changes, so a replay is not a resample).
+// `finish` publishes the playhead — the single write that hands the chart to
+// the layout path with nothing left to move, and what a step back to this
+// state finds. The names come in one at a time part-way through and are the
+// one thing published WHILE it runs: the layout never sees the live playhead,
+// and a per-frame write would retarget the tweener mid-run, so ScrollyVisual
+// writes them only when a new one is due.
+const SIM_MS = 3000;
+const replay = {
+	phases: [SIM_MS],
+	start: (s) => {
+		s.simRuns = 0;
+		s.simNames = 0;
+	},
+	frames: (_nodes, w, h) => (attrs, trails, _phase, e) => {
+		const played = e * SIM_N_SIMS;
+		const { axes } = writeSimFrame(attrs, trails, w, h, played);
+		return { decor: { axes }, story: { simNames: simNamesDue(played) } };
+	},
+	finish: (s) => {
+		s.simRuns = SIM_N_SIMS;
+	}
+};
+
 export const states = {
 	simRace: {
 		layout: layoutSimRace,
@@ -225,8 +256,8 @@ export const states = {
 		// SIM_NAME_STAGGER), once the field has pulled apart. `names` is what brings
 		// them in during the replay itself, whose playhead the layout never sees —
 		// the animation writes the canvas directly, so `runs` stays 0 until it
-		// finishes (see ScrollyVisual's playSimRun); a settled chart, arrived at
-		// however, shows all of them
+		// finishes (see `replay` above); a settled chart, arrived at however, shows
+		// all of them
 		labels: (p) =>
 			SIM_LABEL_IDS.slice(
 				0,
@@ -244,6 +275,7 @@ export const states = {
 		overlay: {
 			xLabel: "Simulations run",
 			yLabel: "Wins"
-		}
+		},
+		requests: { run: replay }
 	}
 };

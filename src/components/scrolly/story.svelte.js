@@ -36,29 +36,27 @@ export const story = $state({
 	 * the chart's playhead. 0 = the reader hasn't pressed Start yet. Written once
 	 * per run (0 or all of them), never per frame: the animation writes the canvas
 	 * buffers directly, and a per-frame write here would retarget the tweener
-	 * mid-run (see ScrollyVisual's playSimRun). Also zeroed — with `simNames`, by
-	 * resetSimRace() below — when the reader walks into the chapter again, so the
-	 * step has a race to watch rather than the finished chart */
+	 * mid-run (see the simulation's request in layouts/sim-race.js). Also zeroed —
+	 * with `simNames`, by resetSimRace() below — when the reader walks into the
+	 * chapter again, so the step has a race to watch rather than the finished
+	 * chart */
 	simRuns: 0,
-	/** simulation race: a replay is in flight. ScrollyVisual owns this write;
-	 * SimRunner only reads it, to disable its buttons */
-	simRunning: false,
-	/** simulation race: bumped by SimRunner to ask for a replay. A counter rather
-	 * than a boolean so pressing Start again re-runs from zero */
-	simRunNonce: 0,
 	/** simulation race: how many of the leaders' names the replay has reached (see
 	 * SIM_NAMES_AT / simNamesDue — they arrive one at a time, in win order).
-	 * Written by ScrollyVisual, a handful of times per run, because the layout
-	 * never sees the live playhead: `simRuns` is only published when a run ends */
+	 * Published by the replay's frames, a handful of times per run, because the
+	 * layout never sees the live playhead: `simRuns` is only published when a run
+	 * ends */
 	simNames: 0,
-	/** Gen Z race step: bumped by GenZLinesStart to ask for the 99 contenders'
-	 * trajectories to draw in. A counter rather than a boolean, same reason as
-	 * simRunNonce — ScrollyVisual owns the animation, this only requests it,
-	 * gated to the raceGenz state */
-	genzLinesNonce: 0,
-	/** Gen Z race step: the draw-on is in flight. ScrollyVisual owns this write;
-	 * GenZLinesStart only reads it, to disable its button */
-	genzLinesDrawing: false,
+	/** a reader's ask for one of the active state's `requests` (see RequestAnim
+	 * in states.js): `kind` names it and `nonce` counts asks, so a second press
+	 * of the same button is a fresh ask and the reset back to nothing is not one.
+	 * Written by request() below; ScrollyVisual plays it */
+	request: { kind: null, nonce: 0 },
+	/** the kind of request whose animation is in flight, else null. ScrollyVisual
+	 * owns this write; a StartButton reads it to go quiet while its own run
+	 * plays. Cleared by a state change that abandons the run, so a reader who
+	 * steps away mid-run finds the button live if they come back */
+	running: null,
 	/** Gen Z race step: the lines are drawn. The step's one layout param — it
 	 * rests with the field NOT on the chart, so the reader's press is what puts it
 	 * there — and what the step's `advanceon` watches, so the draw carries the
@@ -120,14 +118,6 @@ export const story = $state({
 	 * reader steps back into the rank chapter. No layout's params selector reads
 	 * it, so writing it mid-transition can never retarget a tween */
 	rankCollapsed: false,
-	/** race chart: bumped by RaceRewindStart to ask for the raceRecent rewind's
-	 * first leg (the backwards camera pan). A counter, not a boolean, for
-	 * the same reason as simRunNonce — ScrollyVisual owns the animation, this only
-	 * requests it, gated to the raceRecent state */
-	raceRewindNonce: 0,
-	/** race chart: true while the rewind's first leg is in flight, written by
-	 * ScrollyVisual; RaceRewindStart only reads it, to disable its button */
-	raceRewinding: false,
 	/** race chart: optional `{ playhead }` camera override; null = the active race
 	 * state rests at the right-hand end of its content extent. It is the *hold*
 	 * target written once when the reader releases a pan (ScrollyVisual owns the
@@ -157,30 +147,17 @@ export const story = $state({
 	racePxPerYearRev: 0
 });
 
-// -- Asking for the two reader-triggered animations --------------------------
-// One caller each: the Start button in the step's own panel, which is the only
-// way past that step (see `gate` in Step.svelte). The nonce protocol is written
-// down once, here, rather than retyped at the call site.
+// -- Asking for a reader-triggered animation ---------------------------------
+// One caller: the StartButton in the step's own panel, which is the only way
+// past that step (see `gate` in Step.svelte). What plays is the active state's
+// own declaration (`requests[kind]`, see RequestAnim in states.js); this only
+// records the ask.
 
-/** Ask ScrollyVisual for the race chapter's backwards pan (see raceRewindNonce).
- * ScrollyVisual decides whether there is any pan left to play. */
-export function requestRaceRewind() {
-	story.raceRewindNonce += 1;
-}
-
-/** Ask ScrollyVisual to play the 10,000 recorded simulation runs from zero — the
- * playhead reset and the nonce together are the request (see simRuns /
- * simRunNonce for why both writes land in one flush). */
-export function requestSimRun() {
-	story.simRuns = 0;
-	story.simRunNonce += 1;
-}
-
-/** Ask ScrollyVisual to draw the Gen Z field onto the race chart (see
- * genzLinesNonce). A counter like the two above, though this one never replays:
- * the draw is the step's only payoff and the story moves on when it lands. */
-export function requestGenzLines() {
-	story.genzLinesNonce += 1;
+/** Ask ScrollyVisual to play the active state's request `kind` — the rewind,
+ * the simulation replay, the Gen Z draw-on. The state decides whether there is
+ * anything left to play. */
+export function request(kind) {
+	story.request = { kind, nonce: story.request.nonce + 1 };
 }
 
 /** Put the Gen Z race step back to the state that asks to be started: the camera
@@ -189,7 +166,6 @@ export function requestGenzLines() {
  * re-asks rather than showing the finished chart. */
 export function resetGenzLines() {
 	story.genzLinesShown = false;
-	story.genzLinesDrawing = false;
 }
 
 /** Put the simulation race back to the state that asks to be started: no runs
@@ -197,8 +173,8 @@ export function resetGenzLines() {
  * selectors fall back to `simNames` whenever `simRuns` is below the threshold
  * (see layouts/sim-race.js) — zeroing the playhead alone would draw all five
  * winners on a chart collapsed back to the origin. Called from Index's
- * navigate() on a forward arrival into the chapter from outside it; playSimRun
- * zeroes `simNames` itself, which is why requestSimRun above need not. */
+ * navigate() on a forward arrival into the chapter from outside it; the replay's
+ * own `start` (layouts/sim-race.js) zeroes both before a run. */
 export function resetSimRace() {
 	story.simRuns = 0;
 	story.simNames = 0;

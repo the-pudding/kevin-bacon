@@ -233,7 +233,7 @@ const CAREER_ENTRY_MS = [1200, 1100];
  * and "here's where it could go from there" read as two beats instead of one
  * static chart. The final leg at e=1 reproduces the static layout call for call
  * (same monotone segments, same sample window, same alphas), so the settle has
- * nothing left to move. See STATE_ENTRY in states.js.
+ * nothing left to move. See EntryAnim in states.js.
  */
 function careerEntryFrames(nodes, w, h) {
 	const { rideTip, forkX, forkY } = lineDrawer(nodes, w, h);
@@ -292,7 +292,7 @@ const COHORT_STAGGER = 0.5;
  *
  * The final frame reproduces the static layout call for call (same clipped
  * series, same segments, same full sample window, same alpha), so the settle has
- * nothing left to move. See STATE_ENTRY in states.js.
+ * nothing left to move. See EntryAnim in states.js.
  */
 function cohortEntryFrames(nodes, w, h) {
 	const { growLine, forkX, forkY } = lineDrawer(nodes, w, h);
@@ -333,8 +333,9 @@ export const states = {
 			phases: CAREER_ENTRY_MS,
 			frames: careerEntryFrames,
 			// each name lands with the line that earns it, rather than labelling a
-			// dot the reader hasn't been told anything about yet
-			labelsAfter: [[SWEENEY], [DENIRO, CHASE]]
+			// dot the reader hasn't been told anything about yet: nobody on the
+			// arrival, the hero with leg 0, the comparisons with leg 1
+			labelsAfter: [[], [SWEENEY], [DENIRO, CHASE]]
 		},
 		overlay: CAREER_OVERLAY
 	},

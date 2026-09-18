@@ -10,9 +10,7 @@
 	import GuessRank from "$components/scrolly/GuessRank.svelte";
 	import RankBars from "$components/scrolly/RankBars.svelte";
 	import RaceScrubber from "$components/scrolly/RaceScrubber.svelte";
-	import SimRunner from "$components/scrolly/SimRunner.svelte";
-	import RaceRewindStart from "$components/scrolly/RaceRewindStart.svelte";
-	import GenZLinesStart from "$components/scrolly/GenZLinesStart.svelte";
+	import StartButton from "$components/scrolly/StartButton.svelte";
 	import PairQuiz from "$components/scrolly/PairQuiz.svelte";
 	import QuizResults from "$components/results/QuizResults.svelte";
 	import useWindowDimensions from "$runes/useWindowDimensions.svelte.js";
@@ -22,7 +20,7 @@
 		resetSimRace,
 		resetGenzLines
 	} from "$components/scrolly/story.svelte.js";
-	import { quizDone, STATE_ENTRY } from "$components/scrolly/states.js";
+	import { quizDone, entryFor } from "$components/scrolly/states.js";
 	import { routeSummary } from "$components/scrolly/intro-routes.js";
 	import {
 		CYCLE_ORDER,
@@ -215,7 +213,7 @@
 		},
 		// Deliberately NOT routed through go() below: this is the in-chapter
 		// nudge a step's own control gives itself once its interaction is done
-		// (GuessRank on a correct guess or a give-up, RaceRewindStart's button,
+		// (GuessRank on a correct guess or a give-up, the rewind's StartButton,
 		// and the effect watching a gated step's `advanceon`). Every one of them
 		// moves within a chapter, so none crosses a transition navigate() cares
 		// about — and sending them through go() would put them straight into the
@@ -391,7 +389,8 @@
 		// out not to play one (reduced motion, a resize) ScrollyVisual drops it on
 		// the same flush, so the hold lasts a frame and nothing waits on it.
 		story.entryHeld =
-			to > value && STATE_ENTRY[stepConfigs[to]?.state]?.cardAfter != null;
+			to > value &&
+			entryFor(stepConfigs[to]?.state, currentState)?.cardAfter != null;
 		// arriving at the quiz backwards means the reader has already been through
 		// it, so reveal every pair instead of re-asking (see story.svelte.js).
 		// Arriving forwards re-arms the question — and with it the step's gate.
@@ -695,7 +694,7 @@
 							class="race-scrubber-panel"
 							style="bottom: {overlayHeight + 12}px"
 						>
-							<RaceRewindStart />
+							<StartButton kind="rewind" label="Start" advance />
 						</div>
 					{/snippet}
 					<!-- raceFull pan control: drag surface + year slider over the plot. Only
@@ -730,7 +729,7 @@
 							class="race-scrubber-panel"
 							style="bottom: {overlayHeight + 12}px"
 						>
-							<SimRunner />
+							<StartButton kind="run" label="Start" />
 						</div>
 					{/snippet}
 					<!-- the Gen Z field arriving on the race chart: the same Start-button
@@ -743,7 +742,7 @@
 							class="race-scrubber-panel"
 							style="bottom: {overlayHeight + 12}px"
 						>
-							<GenZLinesStart />
+							<StartButton kind="genzLines" label="Show Gen Z actors" />
 						</div>
 					{/snippet}
 					<!-- TITLE CARD -->
@@ -943,7 +942,7 @@
 					</Step>
 
 					<!-- Start is the only way on, and it advances as it asks for the pan
-				     (RaceRewindStart) — the rewind is choreographed to play ACROSS
+				     (the rewind's StartButton) — the rewind is choreographed to play ACROSS
 				     the step change onto the view the next step describes -->
 					<Step state="raceRecent" panel={raceStartPanel} gate={NEVER} skipback>
 						<p>
@@ -1068,7 +1067,8 @@
 						panel={genzLinesPanel}
 						gate={NEVER}
 						skipback
-						advanceon={() => story.genzLinesShown && !story.genzLinesDrawing}
+						advanceon={() =>
+							story.genzLinesShown && story.running !== "genzLines"}
 					>
 						<p>
 							We now have everything we need to predict Gen Z's Kevin Bacon
@@ -1113,7 +1113,7 @@
 						panel={simPanel}
 						gate={NEVER}
 						skipback
-						advanceon={() => story.simRuns > 0 && !story.simRunning}
+						advanceon={() => story.simRuns > 0 && story.running !== "run"}
 					>
 						<p>
 							To achieve a stable result, we'll run the simulation 10,000 times

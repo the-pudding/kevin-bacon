@@ -137,19 +137,32 @@ flow is a pure function of the clock and the bands read that clock rather than
 guessing where it left the crowd (`departureColumn`, see "Chapter cards").
 Letting a crowd fly in is only a problem when where it flies from is arbitrary.
 
-**Entry choreographies (`STATE_ENTRY`).** When a state's arrival needs an
-animation the tweener can't express — a draw-on, a fan opening, a slow camera
-pull-back — it declares `entry: { phases, frames, labelsAfter? }` and
-ScrollyVisual's `playEntry` runs the legs back to back on its own rAF, each leg
-writing its animated slots straight into the live tween buffers. Three contracts:
-frame 0 of leg 0 is what the ordinary arrival tween lands on (so anything the
-choreography draws must already be right, or invisible, there); the last leg's
-frame 1 must reproduce the static layout call for call, so the settle has nothing
-to move; and it must be skippable — a reader who steps on mid-flight supersedes
-the arrival tween, whose `onDone` is then dropped, so the choreography never
-starts. Reduced motion and resize bypass it via the snap branch. Examples:
-`careerTrio`/`careerMany`'s line draw-ons (`layouts/career.js`) and `hopSeed`'s
-zoom-out (`layouts/hop-bands.js`).
+**Entry choreographies (`STATE_ENTRIES`, `entryFor`).** When a state's arrival
+needs an animation the tweener can't express — a draw-on, a fan opening, a
+camera pan, a slow pull-back — it declares one or more `entry` choreographies
+(`EntryAnim` in `states.js`: `phases`, `frames`, and the optional `from`,
+`labelsAfter`, `cardAfter`, `ownsArrival`, `hold`, `seed`, `veil`, `finish`),
+and ScrollyVisual's `arrive` / `runLegs` play the legs back to back on the
+shared rAF, each leg writing its animated slots straight into the live tween
+buffers and publishing what it drew (`FrameOutput`: per-frame decor, the camera,
+story fields). Three contracts: frame 0 of leg 0 is what the arrival lands on
+(so anything the choreography draws must already be right, or invisible,
+there); the last leg's frame 1 must reproduce the layout it hands off to call
+for call — the static layout, or the layout at the params its `finish`
+publishes — so the settle has nothing to move; and it must be skippable — a
+reader who steps on mid-flight supersedes the arrival tween, whose `onDone` is
+then dropped, so the legs never start. Reduced motion and resize bypass it via
+the snap branch. Both frame contracts are asserted for every declared entry in
+`__tests__/contracts.spec.js`. Examples: `careerTrio`/`careerMany`'s line
+draw-ons (`layouts/career.js`), `hopSeed`'s zoom-out (`layouts/hop-bands.js`),
+and every camera move on the race chart (`layouts/race.js`, "Choreographies").
+
+**Requests (`STATE_REQUESTS`).** The same legs, started by the reader instead of
+an arrival: a state declares `requests: { kind: RequestAnim }`, a `StartButton`
+asks for one by name through `request(kind)` (`story.svelte.js`), and
+ScrollyVisual's `playRequest` runs it from the live camera, naming it in
+`story.running` while it plays. The rewind, the Gen Z draw-on and the
+simulation replay are the three.
 
 **Ambient loops (`STATE_AMBIENT`).** What an entry choreography is to an arrival,
 this is to the pause after it: a state declares `ambient: { frames }` and, once its
@@ -157,7 +170,7 @@ arrival has settled, `ScrollyVisual`'s `playAmbient` runs the writer on `runLoop
 — `runPhase`'s unbounded twin, no duration, no easing, no `onDone` — writing
 straight into the live tween buffers under the same single-writer discipline.
 
-`STATE_ENTRY`'s pair of contracts collapses to one here, because there is no last
+An entry's pair of frame contracts collapses to one here, because there is no last
 leg to land: **at t = 0 the writer must reproduce the static layout call for
 call**, so the loop's first tick redraws exactly the frame the arrival landed on
 and the join moves nothing. Hold it by construction rather than by review — the
@@ -168,9 +181,9 @@ frame it is joining rather than nudging it.
 The writer is handed the same arguments a layout call takes — `nodes, w, h,
 edges, params, bleed` — precisely because rebuilding its own static layout is the
 normal way to get that base, and any argument it rebuilt with a different value
-would give it a different frame from the one the arrival landed on. (`EntryAnim`
-takes no `edges`: a leg authors its frames from scratch rather than offsetting
-one.)
+would give it a different frame from the one the arrival landed on. (An entry's
+writer factory takes the same arguments, plus the arrival it is planned against
+— see `ArrivalContext` in `states.js`.)
 
 Two more things follow from it having no end. The offset must be measured from a
 **stored base**, never read back out of the buffer it is writing, or the motion
@@ -814,19 +827,19 @@ gutter. `drawScene` lifts the whole de-collided set as a body when it overflows
 the plot floor — scoped to `tailPx` steps, so no step whose names sit
 safely in the gutter changes behaviour.
 
-Arrival and departure are `playRaceFuture` / `playRaceFutureReverse`, the latter
-retracing both legs in reverse order (the block closes, then the camera pans
-back) and skipping the closing beat when `raceExitFrontier` says the strip was
-never open. The frontier is snapshotted on the way out exactly as the playhead
-is, so stepping back out of a half-open block closes it from there rather than
-jumping to full width first. The legs run forwards, since `rewindFrame` only
-interpolates `fromP → toP` and a fixed px-per-year makes either direction a pure
-translation.
+Arrival and departure are the `openFuture` / `closeFuture` entries in
+`layouts/race.js`, the latter retracing both legs in reverse order (the block
+closes, then the camera pans back) and skipping the closing beat when the exit
+camera (`ArrivalContext.exit`) says the strip was never open. The frontier is
+snapshotted on the way out exactly as the playhead is, so stepping back out of a
+half-open block closes it from there rather than jumping to full width first.
+The legs run forwards, since `rewindFrame` only interpolates `fromP → toP` and a
+fixed px-per-year makes either direction a pure translation.
 
 The step's resting frontier lives on `RACE_FUTURE_STEP` rather than only in the
 animation, which is what makes a cold mount, a resize and the reduced-motion snap
-all land directly on the fully-open state — the same contract a `STATE_ENTRY`'s
-last leg has to meet, discharged by construction.
+all land directly on the fully-open state — the same contract an entry's last
+leg has to meet, discharged by construction.
 
 **The Gen Z field (`raceGenz`).** The prediction chapter opens by bringing this
 chart back one more time and then leaving the crown behind. Three beats on one
@@ -966,17 +979,17 @@ PRD P-27-1.
 the `SIM_SLOT` trail block their win-count climbs occupy on the simulation chart,
 so the state tween morphs a line into a line — the object constancy those slots
 were shared for — landing on the draw's frame 0: every line standing on the
-present, nothing yet out on the strip, the 94 already faded out. `playRaceCloseDraw`
-is chained off that tween's `onDone`, so a reader who steps on mid-flight skips
-the draw exactly as they skip any other choreography. Scoped `revealFrom:
-["simRace"]`, so stepping back into this chart out of the outro does not replay
-it.
+present, nothing yet out on the strip, the 94 already faded out. The
+`drawProjections` entry's leg is chained off that tween's `onDone`, so a reader
+who steps on mid-flight skips the draw exactly as they skip any other
+choreography. Scoped `revealFrom: ["simRace"]`, so stepping back into this chart
+out of the outro does not replay it.
 
-The one thing that branch must NOT do is call `landOffChart`, which every other
-race arrival does: it preserves the race cast's dots and `RACE_TRAIL_SLOTS` only,
-so it would snap all 99 `SIM_TRAIL_SLOTS` onto the arriving layout before the
-first frame and destroy the morph the slots exist for. `raceGenzArrival` is the
-one existing branch that skips it, which is why it is the one this copies.
+The one thing this entry must NOT do is own its arrival (`ownsArrival`), as the
+race chart's other arrivals out of a race step do: that snaps onto the leg's
+frame 0, which would land all 99 `SIM_TRAIL_SLOTS` on the arriving layout before
+the first frame and destroy the morph the slots exist for. `raceGenz` arrives the
+same way, for the same reason.
 
 `outro` then dissolves this chart rather than the simulation's, through the
 shared `dissolve()` helper in `layout-shared.js`, which zeroes every alpha and
@@ -1055,15 +1068,15 @@ rests with the field NOT on the chart, so the press is what puts it there, and a
 resize or a reduced-motion arrival lands on whichever of the two frames the flag
 says.
 
-**The simulation race (`simRace`), a reader-driven animation.** The one
-choreography a reader starts rather than an arrival: `SimRunner` (a `panel`
-snippet) bumps `story.simRunNonce`, and `ScrollyVisual`'s `playSimRun` replays
-the 10,000 recorded simulation runs over `SIM_MS` (3s) on the shared `runPhase`
-rAF spine, writing `writeSimFrame` straight into the live tween buffers under
-the same single-writer discipline as `startScrub` (land each tweener's target
-first, `sweeping = true`, so a state change's `stopSweep` abandons the run for
-free — and clears `story.simRunning`, or the buttons would stay disabled for a
-reader who steps back).
+**The simulation race (`simRace`), a reader-driven animation.** A choreography
+the reader starts rather than an arrival: the step's `StartButton` asks for
+`run`, and the state's `requests.run` (`layouts/sim-race.js`) replays the 10,000
+recorded simulation runs over `SIM_MS` (3s) on the shared `runPhase` rAF spine,
+writing `writeSimFrame` straight into the live tween buffers under the same
+single-writer discipline as `startScrub` (land each tweener's target first,
+`sweeping = true`, so a state change's `stopSweep` abandons the run for free —
+and clears `story.running`, or the button would stay disabled for a reader who
+steps back).
 
 Unlike the race chapter there is no camera: `[0, nSims]` is mapped to the plot
 width, so the whole simulation fits any viewport with nothing to pan, and the y
@@ -1080,8 +1093,8 @@ writer is the settled layout's only path too, so a run's last frame IS the state
 it settles onto — the end of a run just publishes `story.simRuns`,
 with nothing left to move. The playhead is deliberately NOT published per frame:
 `simRuns` is a layout param, so a per-frame write would retarget the tweener
-mid-run. `simRunning` is a param as well, purely so the labels can come in for a
-replay whose playhead the layout never sees.
+mid-run. `simNames` is the param that lets the labels come in for a replay whose
+playhead the layout never sees.
 
 The data behind it is the real per-run winner sequence (`story.genz.runs`), not a
 resample: `tasks/build-scrolly-nodes.js` recovers it from the analysis repo's
@@ -1096,7 +1109,7 @@ full width; `story.simNames` (how many are due) is the one thing a run publishes
 while it is in flight, because the layout never sees the live playhead — and it
 is written only on the runs a name is actually due, not per frame.
 
-One control, `SimRunner`: Start, then Replay, which winds back to zero and
+One control, a `StartButton`: Start, and a second press winds back to zero and
 re-runs. Nothing around it is conditional on the run, deliberately: a panel's
 `bottom` is measured from the step card's height, so a line of copy that
 disappears when the reader presses the button shortens the card, moves the
@@ -1789,7 +1802,7 @@ on a wide viewport (resting 44).
 
 The leg's last job is to empty the frame the walk grows into: crowd alpha is
 scaled by `crowdFade`, which holds full to `APPROACH_HOLD` and smoothsteps to
-exactly zero at the end. `playEntry`'s closing snap onto the static layout then
+exactly zero at the end. The runner's closing snap onto the static layout then
 moves them to a different park under alpha 0, which is invisible, and `WALK`
 never touches those slots again.
 
@@ -2160,10 +2173,11 @@ Three things the handoff depends on:
 
 - **The panel owns the clock.** It is the only party that knows when its own
   transitions have landed, so it publishes the one moment (`story.rankCollapsed`)
-  and ScrollyVisual only waits — its flight is _armed_ by the arrival
-  (`raceFlight`) and fired by the flag, so the canvas can never be moving while
-  the HTML the reader is watching is not. Every render pass disarms it, so a
-  reader who steps on mid-collapse skips the flight like any other choreography.
+  and ScrollyVisual only waits — its flight is _held_ by the arrival (the
+  entry's `hold`, parked in `pendingArrival`) and released by the flag, so the
+  canvas can never be moving while the HTML the reader is watching is not. Every
+  render pass disarms it, so a reader who steps on mid-collapse skips the flight
+  like any other choreography.
 - **The panel's box is frozen for it.** `.rank-bars-panel` is sized off
   `stepsHeight`, and raceRecent's prose is shorter than rankReveal's, so
   `Index.svelte` holds the last height a rank step measured (`rankPanelBottom`).

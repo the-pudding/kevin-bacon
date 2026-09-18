@@ -7,13 +7,15 @@ import {
 	STATE_PULSE,
 	STATE_TRACKED,
 	STATE_REVEAL_FROM,
-	STATE_ENTRY,
+	STATE_ENTRIES,
+	STATE_REQUESTS,
 	STATE_AMBIENT,
 	STATE_RACE,
-	STATE_TITLE
+	STATE_TITLE,
+	entryFor
 } from "../states.js";
 import { NODE_COUNT } from "../nodes.js";
-import { layoutParamsFor } from "./helpers.js";
+import { BOXES, arrivalContext, layoutParamsFor, phasesOf } from "./helpers.js";
 
 const names = Object.keys(STATES);
 // what ScrollyVisual tracks out of the attr array each frame — the only ids
@@ -26,6 +28,18 @@ const tracked = new Set([
 const isNodeId = (id) => Number.isInteger(id) && id >= 0 && id < NODE_COUNT;
 const resolve = (spec, state) =>
 	typeof spec === "function" ? spec(layoutParamsFor(state)) : spec;
+const ctx = arrivalContext(BOXES[1]);
+
+function expectWellFormedLegs(anim, where) {
+	expect(anim.frames, where).toBeTypeOf("function");
+	const phases = phasesOf(anim, ctx);
+	expect(Array.isArray(phases), `${where} phases`).toBe(true);
+	for (const ms of phases) {
+		expect(Number.isFinite(ms) && ms > 0, `${where} phase ${ms}`).toBe(true);
+	}
+	if (anim.finish) expect(anim.finish, where).toBeTypeOf("function");
+	return phases;
+}
 
 describe("state registry", () => {
 	test("every state has a layout function", () => {
@@ -40,27 +54,65 @@ describe("state registry", () => {
 	});
 
 	test("entry choreographies are well formed", () => {
-		for (const [state, entry] of Object.entries(STATE_ENTRY)) {
-			expect(entry.frames, state).toBeTypeOf("function");
-			expect(entry.phases.length, state).toBeGreaterThan(0);
-			for (const ms of entry.phases) {
-				expect(Number.isFinite(ms) && ms > 0, `${state} phase ${ms}`).toBe(
-					true
-				);
-			}
-			if (entry.labelsAfter) {
-				expect(entry.labelsAfter.length, state).toBeLessThanOrEqual(
-					entry.phases.length
-				);
-				for (const id of entry.labelsAfter.flat()) {
-					expect(tracked.has(id), `${state} labelsAfter ${id}`).toBe(true);
+		for (const [state, entries] of Object.entries(STATE_ENTRIES)) {
+			for (const entry of entries) {
+				const phases = expectWellFormedLegs(entry, state);
+				for (const origin of entry.from ?? []) {
+					expect(names, `${state} from`).toContain(origin);
 				}
-			}
-			if (entry.cardAfter != null) {
-				expect(entry.cardAfter, state).toBeGreaterThanOrEqual(0);
-				expect(entry.cardAfter, state).toBeLessThan(entry.phases.length);
+				if (entry.labelsAfter) {
+					// one beat for the arrival, then one per leg
+					expect(entry.labelsAfter.length, state).toBeLessThanOrEqual(
+						phases.length + 1
+					);
+					for (const id of entry.labelsAfter.flat()) {
+						expect(tracked.has(id), `${state} labelsAfter ${id}`).toBe(true);
+					}
+				}
+				if (entry.cardAfter != null) {
+					expect(entry.cardAfter, state).toBeGreaterThanOrEqual(0);
+					expect(entry.cardAfter, state).toBeLessThan(phases.length);
+				}
+				if (entry.hold) {
+					expect(entry.hold.until, state).toBeTypeOf("function");
+					expect(entry.hold.frame, state).toBeTypeOf("function");
+				}
+				if (entry.seed) expect(entry.seed, state).toBeTypeOf("function");
 			}
 		}
+	});
+
+	test("each declared origin resolves to the entry authored for it", () => {
+		for (const [state, entries] of Object.entries(STATE_ENTRIES)) {
+			for (const entry of entries) {
+				const scope = entry.from ?? STATE_REVEAL_FROM[state];
+				if (!scope) continue;
+				for (const origin of scope) {
+					expect(entryFor(state, origin), `${state} <- ${origin}`).toBe(entry);
+				}
+			}
+		}
+		// the race chart's two-way pans, as the story is authored
+		expect(entryFor("raceRecent", "rankReveal")?.hold).toBeDefined();
+		expect(entryFor("raceRecent", "raceFull")?.ownsArrival).toBe(true);
+		expect(entryFor("raceFull", "raceRecent")).toBeUndefined();
+		expect(entryFor("raceFull", "raceFuture")?.ownsArrival).toBe(true);
+		expect(entryFor("raceFuture", "raceFull")?.ownsArrival).toBe(true);
+		expect(entryFor("raceGenz", "chapterCenters")).toBeDefined();
+		expect(entryFor("raceGenz", "careerTrio")).toBeUndefined();
+	});
+
+	test("requests are well formed", () => {
+		for (const [state, requests] of Object.entries(STATE_REQUESTS)) {
+			for (const [kind, anim] of Object.entries(requests)) {
+				expectWellFormedLegs(anim, `${state}.${kind}`);
+				if (anim.start) expect(anim.start, kind).toBeTypeOf("function");
+			}
+		}
+		// the three Start buttons the story mounts
+		expect(STATE_REQUESTS.raceRecent?.rewind).toBeDefined();
+		expect(STATE_REQUESTS.raceGenz?.genzLines).toBeDefined();
+		expect(STATE_REQUESTS.simRace?.run).toBeDefined();
 	});
 
 	test("ambient loops declare a frame writer", () => {
