@@ -133,13 +133,29 @@
 	// is there to hide who's who, and there's nothing left to hide on them.
 	const known = $derived(new Set([ANCHOR_ID, ...story.rankGuesses]));
 
+	// Whether this mount is a RESUMPTION of a ladder the reader has already been
+	// shown, rather than the reveal they just earned. The forward path always
+	// mounts back on rankFocus, with `reveal` still false and the answer still
+	// hidden, so the two cases separate cleanly on where `reveal` stood at the
+	// first render: true here means the panel was built straight onto the answer
+	// — a reload past the guess (?step=7), or stepping back into the chapter out
+	// of the race, which takes the overlay down on arrival (story.rankCollapsed)
+	// and so leaves nothing to step back into but a fresh one.
+	//
+	// Everything the reveal is staged out of is skipped for that reader: the
+	// row-in hold and the count-up below both play under a panel that is opaque
+	// within 400ms, so replaying them is a second and a half of blank page over a
+	// canvas they can no longer see either. Read once, at init — a prop, so it
+	// must not be tracked.
+	const resumed = reveal;
+
 	// the rank the cascade below has revealed up to (0 = nothing beyond
 	// `known`). `rows` is already in rank order, so "revealed up to rank N" and
 	// "the first N rows" are the same thing — no per-id bookkeeping needed.
 	// Giving up advances into rankReveal exactly like a correct guess does
 	// (see GuessRank's giveUp), so it drives the very same cascade below —
 	// there's no separate instant path for it.
-	let revealUpTo = $state(0);
+	let revealUpTo = $state(resumed ? rows.length : 0);
 	const isKnown = (id, rank) => known.has(id) || rank <= revealUpTo;
 
 	/** @type {HTMLUListElement | undefined} */
@@ -160,7 +176,9 @@
 	// it as a reader-driven scroll (see the guard below)
 	let fontsReady = $state(false);
 
-	// Marks the staged entrance (`row-in`, below) as played out. A row's
+	// Marks the staged entrance (`row-in`, below) as played out — true from the
+	// start on a resumption, whose rows are all `known` on the first frame and so
+	// have no entrance left to play. A row's
 	// `animation` property is `none` while `.known` and `row-in …` while not —
 	// stepping rankReveal back to rankFocus drops `.known` from every row that
 	// isn't Bacon or a guess, which flips that property from `none` back to
@@ -169,7 +187,7 @@
 	// list vanishing and reappearing. Once this is true the `:not(.entered)`
 	// selector below no longer matches, so a later `known` change is the plain
 	// opacity transition `.rows li` already carries, not a fresh animation.
-	let entered = $state(false);
+	let entered = $state(resumed);
 
 	// The collapse clock. This panel owns it — it is the one that knows when its
 	// own transitions have finished — and publishes the single moment the canvas
@@ -208,15 +226,6 @@
 		});
 	});
 
-	// distinguishes a genuine forward arrival at the reveal from a cold mount
-	// already past it (e.g. ?step=7, or a reload on raceRecent) — the cascade
-	// effect's first run happens before this flips true, so that case reads as
-	// "nothing to animate into" and reveals everything at once instead.
-	let mounted = $state(false);
-	onMount(() => {
-		mounted = true;
-	});
-
 	// Cascades revealUpTo from 0 to rows.length in rank order once the reader
 	// actually arrives at the reveal AND the scroll-to-#1 (the $effect.pre
 	// below) has actually landed — waiting on a flat timer in parallel with
@@ -251,7 +260,7 @@
 		revealStarted = true;
 
 		if (
-			!mounted ||
+			resumed ||
 			!list ||
 			window.matchMedia("(prefers-reduced-motion: reduce)").matches
 		) {
@@ -292,7 +301,10 @@
 	});
 
 	onMount(() => {
-		if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+		if (
+			resumed ||
+			window.matchMedia("(prefers-reduced-motion: reduce)").matches
+		) {
 			entered = true;
 			return;
 		}

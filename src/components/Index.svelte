@@ -247,9 +247,20 @@
 	// true: the panel outlives rankFocus (see rankHandoff above), and re-checking
 	// story.settled live would hide it again the moment the reader reaches
 	// rankReveal, where settled no longer reads "rankFocus".
+	//
+	// That wait is owed to one arrival only, though: the collapse the panel would
+	// otherwise cover before the reader has seen it land. A panel that comes up on
+	// rankReveal instead has no collapse underneath to wait for — it is either a
+	// reload already past the guess (?step=7) or the reader stepping back into the
+	// chapter out of the race, which takes the overlay down on arrival
+	// (story.rankCollapsed) and so has to rebuild it. Neither will ever see
+	// `story.settled` read "rankFocus" again, so the hold was permanent: the
+	// ladder sat at opacity 0 for good, over a canvas carrying nothing but Bacon's
+	// bar — which this panel is placed to cover (see layouts/rank.js).
 	let rankBarsRevealed = $state(false);
 	$effect(() => {
-		if (story.settled === "rankFocus") rankBarsRevealed = true;
+		if (story.settled === "rankFocus" || currentState === "rankReveal")
+			rankBarsRevealed = true;
 	});
 	// the overlay is up through the rank chapter, and for the collapse that opens
 	// raceRecent — until the nodes are the canvas's (see RankBars' `collapse`)
