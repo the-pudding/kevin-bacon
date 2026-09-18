@@ -24,6 +24,12 @@
 	const showSearch = $derived(!story.rankGaveUp && (guess == null || editing));
 	const solved = $derived(guess != null && nodeRank(guess) === 1);
 
+	// Both handlers below record the guess LAST, after the state write and the
+	// step move. It is background instrumentation called straight from a click:
+	// anything it throws (blocked site data makes localStorage throw on touch —
+	// see $utils/analytics.js) would otherwise land between naming #1 and the
+	// advance it earns, leaving the reader on a step whose gate only their own
+	// correct guess opens.
 	function pick(id) {
 		// re-picking an earlier guess moves it back to the end, so the last entry
 		// is always the one the list focuses on
@@ -32,16 +38,17 @@
 		story.rankGuesses.push(id);
 		editing = false;
 		query = "";
-		recordRankGuess({ actorId: id, correct: nodeRank(id) === 1 });
-		if (nodeRank(id) === 1) steps.advance();
+		const correct = nodeRank(id) === 1;
+		if (correct) steps.advance();
+		recordRankGuess({ actorId: id, correct });
 	}
 
 	function giveUp() {
 		story.rankGaveUp = true;
 		editing = false;
 		query = "";
-		recordRankGuess({ gaveUp: true, correct: false });
 		steps.advance();
+		recordRankGuess({ gaveUp: true, correct: false });
 	}
 </script>
 

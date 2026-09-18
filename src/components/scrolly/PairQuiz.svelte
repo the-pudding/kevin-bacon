@@ -64,17 +64,25 @@
 
 	const pair = $derived(i < pairs.length ? pairs[i] : null);
 
+	// Recording the answer and moving the reader on come FIRST, and the analytics
+	// write goes last, on both paths through this component. It is background
+	// instrumentation reached from a click handler: anything it throws (blocked
+	// site data makes localStorage throw on touch — see $utils/analytics.js) lands
+	// in the middle of the pick, and with the order the other way round it took
+	// the reader's answer with it. `pairIndex` is captured before advance(), which
+	// moves `i` on.
 	function commit(choice) {
 		const pickedId = [pair.a, pair.b][choice];
 		const otherId = [pair.a, pair.b][1 - choice];
+		const pairIndex = i;
+		story.quizPicks[i] = choice;
+		advance();
 		recordPairPick({
-			pairIndex: i,
+			pairIndex,
 			pickedId,
 			otherId,
 			correct: nodeRank(pickedId) < nodeRank(otherId)
 		});
-		story.quizPicks[i] = choice;
-		advance();
 	}
 
 	function advance() {
@@ -162,14 +170,16 @@
 		// flown cards in place over that fade so there's no pop, then remove them.
 		const pickedId = [a, b][choice];
 		const otherId = [a, b][1 - choice];
+		const pairIndex = i;
+		story.quizPicks[i] = choice;
+		holdTimer = setTimeout(advance, HOLD_MS);
+		// last, for the reason on commit() above
 		recordPairPick({
-			pairIndex: i,
+			pairIndex,
 			pickedId,
 			otherId,
 			correct: nodeRank(pickedId) < nodeRank(otherId)
 		});
-		story.quizPicks[i] = choice;
-		holdTimer = setTimeout(advance, HOLD_MS);
 	}
 </script>
 

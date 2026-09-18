@@ -46,12 +46,24 @@ export const MIN_QUIZ_TAKERS =
 // not be handed a permanent id by the act of reaching the credits.
 function sessionId(create = true) {
 	if (typeof window === "undefined") return null;
-	let id = localStorage.getItem(SESSION_KEY);
-	if (!id && create) {
-		id = crypto.randomUUID();
-		localStorage.setItem(SESSION_KEY, id);
+	// Touching localStorage THROWS where site data is blocked — Safari private
+	// browsing, "block all cookies", a good few in-app browsers — rather than
+	// returning null. That throw used to reach the click handler that called
+	// this and take the reader's answer down with it (the write that records the
+	// pick came after the analytics call), so the quiz re-asked the same pair and
+	// its gate never opened. A reader whose browser won't hold an id is a reader
+	// who records nothing, which is the same `null` this already returns during
+	// prerender; it is never a reason to break the story.
+	try {
+		let id = localStorage.getItem(SESSION_KEY);
+		if (!id && create) {
+			id = crypto.randomUUID();
+			localStorage.setItem(SESSION_KEY, id);
+		}
+		return id;
+	} catch {
+		return null;
 	}
-	return id;
 }
 
 function insert(table, row) {
