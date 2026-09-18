@@ -31,6 +31,7 @@ import {
 	curveYAt,
 	writeFieldCrowd,
 	galaxyBox,
+	NO_BLEED,
 	PULLBACK_ZOOM,
 	STRIDE,
 	introPosition,
@@ -2779,7 +2780,7 @@ function writeOutroCast(attrs, rawAttrs, cast, bx, by, e) {
  * story has been drawn from.
  * @type {import("../layout-shared.js").LayoutFn}
  */
-function layoutOutroGalaxy(nodes, w, h, edges, params, bleed = 0) {
+function layoutOutroGalaxy(nodes, w, h, edges, params, bleed = NO_BLEED) {
 	const raw = RACE_CLOSE_LAYOUT(nodes, w, h, edges, params);
 	const { attrs, trails } = dissolve(RACE_CLOSE_LAYOUT)(
 		nodes,
@@ -2813,7 +2814,7 @@ function layoutOutroGalaxy(nodes, w, h, edges, params, bleed = 0) {
  * against a different cast or box than the static layout settles onto would
  * snap on landing.
  */
-function outroGalaxyFrames(nodes, w, h, params, bleed = 0) {
+function outroGalaxyFrames(nodes, w, h, params, bleed = NO_BLEED) {
 	const box = galaxyBox(w, h, bleed);
 	const raw = RACE_CLOSE_LAYOUT(nodes, w, h, null, params);
 	const cast = outroCast(nodes, raw.attrs);

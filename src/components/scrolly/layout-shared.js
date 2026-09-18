@@ -16,9 +16,32 @@ import story from "$data/scrolly-story.json";
 // blends the stroke grey → EDGE_HIGHLIGHT and thickens it; see setEdge)
 export const STRIDE = 7;
 export const EDGE_BASE = NODE_COUNT * STRIDE;
-export const ATTR_SIZE = (NODE_COUNT + EDGE_COUNT) * STRIDE;
-// one delay slot per node, then one per edge
-export const DELAY_SIZE = NODE_COUNT + EDGE_COUNT;
+
+/**
+ * Spare edge slots past the baked ones, for links whose ENDPOINTS are chosen at
+ * runtime rather than at build time — the chapter card's highlight spokes (see
+ * galaxy-highlight.js), which fan out from whichever actor the beat is on.
+ *
+ * The baked edges are a fixed table: `edgeEnds` in ScrollyVisual binds slot e to
+ * one node pair at module load, so a link between an arbitrary pair has nowhere
+ * to live. Rather than a second line-drawing path with its own colour, weight,
+ * draw-on and fade rules, the pool lets a runtime link rent a slot and be drawn
+ * by the SAME loop as the constellation's — which already reads both endpoints
+ * out of the live buffer every frame, and so follows dots that are moving.
+ *
+ * This is also the spoke count the most prolific actor in the cast gets, so the
+ * pool is full exactly when the beat is at its densest and can never be asked
+ * for more — galaxy-highlight.js asserts that at module load rather than
+ * clamping, so an over-large spoke range is a startup error and not a silently
+ * shortened fan.
+ */
+export const GALAXY_LINK_MAX = 80;
+/** edge-slot index of the pool's first slot (the baked edges occupy 0..EDGE_COUNT) */
+export const GALAXY_LINK_BASE = EDGE_COUNT;
+
+export const ATTR_SIZE = (NODE_COUNT + EDGE_COUNT + GALAXY_LINK_MAX) * STRIDE;
+// one delay slot per node, then one per edge (pool included)
+export const DELAY_SIZE = NODE_COUNT + EDGE_COUNT + GALAXY_LINK_MAX;
 export const edgeIndex = (e) => EDGE_BASE + e * STRIDE;
 
 /**
@@ -175,8 +198,26 @@ export const TITLE_BAND = 26;
 
 // charts live in the top ~3/5 of the canvas — the step card owns the bottom,
 // and the x-axis ticks + axis label (drawn ~32px below this line) need to clear
-// the tallest step cards too, so keep the plot clear of the bottom ~40%
-export const plotBottom = (h) => h * 0.6;
+// the tallest step cards too, so keep the plot clear of the bottom ~40%.
+//
+// BESIDE the prose (a wide viewport — see Index.svelte's side-by-side rule) the
+// step card is not over the canvas at all, so the only thing left to clear is
+// the axis furniture and the plot takes nearly the whole column.
+//
+// It is a module variable rather than a seventh layout argument because
+// `plotBottom(h)` is read from ten layout modules and from the render path,
+// none of which are handed the page's layout mode — the same idiom
+// `setRaceDevBands` uses for the dev curve. ScrollyVisual owns the setter AND
+// puts the fraction in its layout cache key, which is what stops a chart built
+// for one mode being handed back in the other: `w` changes with the mode today,
+// so the key would usually miss anyway, but relying on that would make this a
+// coincidence rather than a rule.
+export const PLOT_BOTTOM_STACKED = 0.6;
+export const PLOT_BOTTOM_BESIDE = 0.86;
+let plotBottomFrac = PLOT_BOTTOM_STACKED;
+export const setPlotBottomFrac = (frac) => (plotBottomFrac = frac);
+export const plotBottomFraction = () => plotBottomFrac;
+export const plotBottom = (h) => h * plotBottomFrac;
 
 export const lin = (v, d0, d1, r0, r1) =>
 	r0 + ((v - d0) / (d1 - d0)) * (r1 - r0);
@@ -351,11 +392,14 @@ const DOT_KEY_STRIDE = 4096;
  * strip needs that period is plainly visible: the dots comb into a repeating
  * wave every few columns. An integer bit-mix (the lowbias32 finaliser) has no
  * such period, and nothing else in the story jitters hard enough to care.
+ *
+ * Exported for the highlight beat's spoke picker, which walks a candidate
+ * counter by one per attempt and so hits exactly the periodicity above.
  * @param {number} key
  * @param {number} salt
  * @returns {number} 0–1
  */
-function dotHash(key, salt) {
+export function dotHash(key, salt) {
 	let h = (key ^ Math.imul(salt, 0x9e3779b1)) >>> 0;
 	h = Math.imul(h ^ (h >>> 16), 0x21f0aaad) >>> 0;
 	h = Math.imul(h ^ (h >>> 15), 0x735a2d97) >>> 0;
@@ -1013,21 +1057,42 @@ const fieldBox = (w, h) => [MARGIN, w - MARGIN, MARGIN, plotBottom(h)];
 export const GALAXY_SPREAD = 1.46;
 
 /**
+ * How far the canvas ELEMENT extends past the reading column, per side, in the
+ * CSS pixels every layout is authored in. Two numbers rather than one because
+ * the column is only centred in the viewport while the prose sits over it: in
+ * the side-by-side layout the column is a half of the screen and the canvas
+ * reaches much further out on one side than the other.
+ *
+ * Only five places do arithmetic on it — `galaxyCentre`, `galaxyBox`,
+ * `targetHolds` in galaxy-highlight, and ScrollyVisual's render transform and
+ * clear rect. Every other layout takes it as an opaque value and forwards it,
+ * which is why widening it from a scalar to a pair costs those five and nothing
+ * else.
+ * @typedef {{ l: number, r: number }} Bleed
+ */
+/** @type {Bleed} */
+export const NO_BLEED = { l: 0, r: 0 };
+
+/**
  * The middle of the bled canvas — the point `galaxyBox` is struck about, and so
  * the point the sky spreads out from. It is also the flow's VANISHING POINT: the
  * crowd streams outward from here, and it has to be the same centre the field
  * was authored about or the sky drifts off to one side as it flies. Factored out
  * rather than written twice for that reason.
+ *
+ * It is the middle of the SCREEN, not of the column, and stays so when the two
+ * differ: a chapter card fills the viewport, so a vanishing point sitting in the
+ * half the charts use would fly the sky off toward one edge.
  * @returns {[number, number]}
  */
-export const galaxyCentre = (w, h, bleed) => [
-	(-bleed + (w + bleed)) / 2,
+export const galaxyCentre = (w, h, bleed = NO_BLEED) => [
+	(-bleed.l + (w + bleed.r)) / 2,
 	(-TITLE_BAND + h) / 2
 ];
 
-export const galaxyBox = (w, h, bleed) => {
+export const galaxyBox = (w, h, bleed = NO_BLEED) => {
 	const [cx, cy] = galaxyCentre(w, h, bleed);
-	const kx = ((w + bleed * 2) / 2) * GALAXY_SPREAD;
+	const kx = ((w + bleed.l + bleed.r) / 2) * GALAXY_SPREAD;
 	const ky = ((h + TITLE_BAND) / 2) * GALAXY_SPREAD;
 	return [cx - kx, cx + kx, cy - ky, cy + ky];
 };
@@ -1069,7 +1134,11 @@ export const FLIGHT_CYCLE_MS = 26000;
 // faintest — so it happens behind a fade at both ends rather than in the open.
 // The same window is applied to the static field (see writeFieldCrowd), which is
 // what keeps the loop's first tick identical to the frame it joins.
-const FLIGHT_FADE = 0.12;
+//
+// Exported because the highlight beat has to know it: an actor picked while it is
+// inside either ramp would be named as it fades, so `galaxy-highlight.js` keeps
+// its cast and its spoke targets clear of both ends of the trip.
+export const FLIGHT_FADE = 0.12;
 
 /**
  * The flow's clock, in ms since the running flight began — the ONE piece of live
@@ -1277,12 +1346,18 @@ export function writeFieldCrowd(
 
 /**
  * How far a sky pixel travels when the crowd funnels back into the reading
- * column — the ratio between `galaxyBox` and the plot's own `fieldBox`, which
- * share a centre, so the handoff off a chapter card is a uniform contraction.
+ * column — the ratio between `galaxyBox` and the plot's own `fieldBox`, so the
+ * handoff off a chapter card is a uniform contraction.
  *
- * Because the flow's magnification is about that same centre, it commutes with
- * this: a dot's live sky position contracted by this ratio is exactly where the
- * same dot would be if the whole flow had been authored in the column.
+ * The two boxes share a centre only while the column is centred in the viewport.
+ * Side by side with the prose they do not, and the contraction becomes that same
+ * scale about the sky's centre followed by a translation onto the column's
+ * (`departureColumn` applies both). The commute survives it: the flow's
+ * magnification `m` is struck about the sky's centre `c`, so contracting then
+ * translating gives `s·m·(p − c) + f`, and flowing a contracted dot about the
+ * column's centre `f` gives `m·(s·(p − c) + f − f) + f` — the same point. A
+ * dot's live sky position put through this is still exactly where that dot would
+ * be if the whole flow had been authored in the column.
  */
 export function skyToColumn(w, h, bleed) {
 	const [x0, x1] = galaxyBox(w, h, bleed);
@@ -1351,7 +1426,7 @@ export const isIntroActor = (id) => INTRO_SET.has(id);
  * @returns {import("./states.js").AmbientAnim["frames"]}
  */
 export function makeFlight(layoutFn, ids) {
-	return (nodes, w, h, edges, params, bleed = 0) => {
+	return (nodes, w, h, edges, params, bleed = NO_BLEED) => {
 		const { attrs: base } = layoutFn(nodes, w, h, edges, params, bleed);
 		const box = galaxyBox(w, h, bleed);
 		const [cx, cy] = galaxyCentre(w, h, bleed);

@@ -9,6 +9,7 @@ import {
 	cardSpot,
 	writeFieldCrowd,
 	galaxyBox,
+	NO_BLEED,
 	makeFlight,
 	fieldDepth,
 	depthSize,
@@ -18,6 +19,7 @@ import {
 	set,
 	parkHidden
 } from "../layout-shared.js";
+import { withGalaxyHighlight } from "../galaxy-highlight.js";
 
 // ---------------------------------------------------------------------------
 // Chapter cards: a title beat between chapters, with the corpus drifting behind
@@ -72,7 +74,7 @@ function writeIntroIntoField(attrs, w, h) {
 }
 
 /** @type {import("../layout-shared.js").LayoutFn} */
-function layoutChapterCenters(nodes, w, h, _edges, _params, bleed = 0) {
+function layoutChapterCenters(nodes, w, h, _edges, _params, bleed = NO_BLEED) {
 	const attrs = new Float64Array(ATTR_SIZE);
 	// the sky: the canvas and well past it on every side, so the crowd thins out
 	// across something bigger than the screen rather than tiling it
@@ -91,11 +93,22 @@ function layoutChapterCenters(nodes, w, h, _edges, _params, bleed = 0) {
 export const states = {
 	chapterCenters: {
 		layout: layoutChapterCenters,
-		// no labels and no pulse: the card names a chapter, not an actor
-		//
+		// No pulse, and no labels STANDING STILL: the card names a chapter, not an
+		// actor, and the static frame it arrives on is an anonymous crowd. The
+		// names arrive with the motion instead — once the sky is flowing, the
+		// highlight beat picks one well-known actor out of it at a time (see
+		// galaxy-highlight.js). An empty set rather than no declaration at all,
+		// because the beat's own per-frame cut in ScrollyVisual is what names
+		// anybody; this says the resting card names nobody, which is also what
+		// holds the ambient loop's t = 0 contract.
+		labels: () => [],
 		// the fifteen fly with the crowd here, and only here: this is the one
 		// galaxy state where they have stopped being a constellation, so holding
 		// them still would pick them back out of the sky they just joined
-		ambient: { frames: makeFlight(layoutChapterCenters, UNIVERSE_IDS) }
+		ambient: {
+			frames: withGalaxyHighlight(
+				makeFlight(layoutChapterCenters, UNIVERSE_IDS)
+			)
+		}
 	}
 };

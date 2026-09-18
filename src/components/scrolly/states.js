@@ -31,6 +31,7 @@ import { states as predictionStates } from "./layouts/prediction.js";
 import { states as careerStates } from "./layouts/career.js";
 import { states as simRaceStates } from "./layouts/sim-race.js";
 import { states as chapterStates } from "./layouts/chapters.js";
+import { GALAXY_CAST } from "./galaxy-highlight.js";
 
 // re-exported so ScrollyVisual.svelte can keep importing everything from
 // this one module; the actual definitions live in layout-shared.js
@@ -260,7 +261,12 @@ export const STATE_LABEL_DIRS = pick("labelDirs");
  */
 export const STATE_LABEL_TEXT = pick("labelText");
 
-/** every id a dynamic STATE_LABELS function could return (for frame tracking) */
+/**
+ * every id a dynamic STATE_LABELS function could return (for frame tracking).
+ * The galaxy cast is here rather than in `chapterCenters`'s own `labels`, which
+ * returns nothing: the beat's name is chosen per FRAME, inside drawScene, and an
+ * id with no tracked entry has no label element to show.
+ */
 export const STATE_TRACKED = [
 	SLJ,
 	HANKS,
@@ -268,7 +274,8 @@ export const STATE_TRACKED = [
 	DENIRO,
 	CAGE,
 	...QUIZ_IDS,
-	...story.genz.candidates.map((c) => c.id)
+	...story.genz.candidates.map((c) => c.id),
+	...GALAXY_CAST
 ];
 
 /** ids the interactive step-card components need (see story.svelte.js) */

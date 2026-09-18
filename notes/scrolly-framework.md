@@ -35,10 +35,12 @@ line's P50/P10 toggle) re-run the current layout via params — see
 | `src/components/scrolly/nodes.js`             | Real data: `makeNodes()` → `{ nodes, edges }` decoded from `src/data/scrolly-nodes.json` (built by `npm run scrolly-data`). 22,530 `ActorNode`s (`id, pid, name, hop, films, avgDistance, rank`); node 0 is the anchor (Kevin Bacon), ids 0–14 are the curated intro network in reveal order (`INTRO_IDS`), edges are the 18 intro edges (`[sourceId, targetId, [[title, year], …]]` — **every** corpus film linking the pair, newest first; two of the eighteen have more than one). Also exports `ANCHOR_ID`, `INTRO_LAYOUT` (baked 860×680 planar intro coords) and `hash01(id, salt)` — deterministic per-node randomness used everywhere (never `Math.random`, which would flicker between renders).                                             |
 | `src/components/scrolly/tween.js`             | `createTweener(size, draw, stride)` → `{ current, to, stop }`. One rAF loop lerping a flat `Float64Array` from the _currently rendered_ values to a target. `to(next, ms, jitter, nodeDelays?)`. Vanilla (hand-rolled `easeCubicInOut`), no d3.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
 | `src/components/scrolly/layout-shared.js`     | Geometry/color constants, attr/trail helpers (`set`, `setEdge`, `setTrail`, `collapseTrail`, `clipSeries`), named-actor id lookups (`SLJ`, `HANKS`, …), and the `LayoutFn`/`LayoutResult`/`Note`/`Tick` JSDoc typedefs — everything shared across more than one chapter.                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| `src/components/scrolly/galaxy-highlight.js`  | The chapter card's highlight beat: `withGalaxyHighlight(frames)` wraps a galaxy state's flight so that every `GALAXY_BEAT_MS` one prolific actor is inked, named and fanned with spokes. Owns the derived `GALAXY_CAST`, the beat schedule, the visibility gate that decides who can be lit, and the published `galaxyHighlight` / `galaxyLinks` the annotation layer and `edgeEnds` read. Draws nothing itself — the spokes rent the attr array's edge pool.                                                                                                                                                                                                                                                                                         |
 | `src/components/scrolly/layouts/*.js`         | One module per story chapter (`intro`, `hop-bands`, `chapters`, `rank`, `race`, `scatters`, `prediction`, `career`, `sim-race`, `genz-line`). Each exports a `states` object mapping state key → `{ layout, labels?, params?, pulse?, revealFrom?, entry?, overlay? }` (`revealFrom` scopes the layout's `delays` choreography to specific prior states — arriving from any other state is one plain tween) — everything about one state colocated in one object, instead of spread across parallel top-level maps.                                                                                                                                                                                                                                   |
 | `src/components/scrolly/states.js`            | Thin aggregator: merges every chapter's `states` object into one registry and derives the public `STATES`/`STATE_LABELS`/`STATE_PARAMS`/`STATE_PULSE`/`OVERLAYS` exports from it, plus `STATE_TRACKED`, `INTERACTIVE_IDS`, and the `nodeName`/`nodeRank`/`nodeAvgDistance` lookups. This is still the only module other files import from.                                                                                                                                                                                                                                                                                                                                                                                                            |
 | `src/components/scrolly/Step.svelte`          | One story step: prose in the slot, visual state declared on the tag (`<Step state="lone">…</Step>`). Calls `register({ state, params, panel, gate, skipback, advanceon })` in document order on the `"scrolly-steps"` context provided by `Index.svelte`; renders its prose only while active — no hand-numbered step indices anywhere. `panel` is an optional snippet rendered over the canvas while the step is active (see "Exception" under interaction patterns); the last three gate the step (see "Required: interaction / drop-off points").                                                                                                                                                                                                  |
 | `src/components/scrolly/Chapter.svelte`       | A chapter card: a step whose whole content is a title (`<Chapter state="chapterCenters" title="…" />`). Registers `{ state, chapter: { title } }` the same way, but renders **nothing** — see "Chapter cards" below.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| `src/components/scrolly/Splash.svelte`        | The title card: step 0, the piece's name and one line of how-to-move over the same sky the chapter cards rest on (`<Splash state="titleGalaxy">` with `title` / `cta` snippets). Registers `{ state, hideBar, splash: { title, cta } }` and renders **nothing**, for the same reason `Chapter.svelte` does not — see "Title card" below.                                                                                                                                                                                                                                                                                                                                                                                                              |
 | `src/components/scrolly/TapNav.svelte`        | The step driver: two tap gutters running the full height of the layout at its far edges, plus ArrowLeft/ArrowRight. Both call `go()` on the `"scrolly-steps"` context, so a tap gets exactly what a key does: the gated steps' refusal, the backward skip past them, and everything `navigate()` prepares on arrival. The next gutter is disabled while the active step's gate is shut. Gutters rather than a full-bleed tap split because the middle of the canvas carries the story's own interactions; anything that must stay tappable _through_ a gutter is lifted to `--z-tap-above` (the ladder is commented on `.scrolly-layout`). They carry no arrow or marking — the press tint is the only feedback, so nothing competes with the charts. |
 | `src/components/scrolly/StepProgress.svelte`  | Position, as one dot per beat with the chapters divided by a hairline tick. A beat is not always a step: chapter cards claim no dot, and a gated interaction step shares its payoff's dot (`dotSteps` / `dotStep` on the registry). Indicator only — it takes no pointer events, so a tap over it falls through to the gutter beneath; jumping would land a reader past the gated steps. Segments derive from any registered step carrying a `chapter`, so adding a step or a chapter re-segments the bar with no edit.                                                                                                                                                                                                                               |
 | `src/components/scrolly/ScrollyVisual.svelte` | Canvas host wired into `Index.svelte` as `<ScrollyVisual state={…} />` (a state name, not a step number). Owns dpr scaling, resize, reduced-motion, the HTML overlay, and the `$effect` that reacts to state changes.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
@@ -259,6 +261,153 @@ arrives onto its own frame 0 first, and through that arrival the static layout i
 not where the dots are heading — aim at it and every link detaches from its dots.
 While the choreography itself owns the frame (`sweeping`) it writes positions
 straight into `current` and its target is stale, so edges track both **live** dots.
+
+**The chapter card's highlight beat** (`galaxy-highlight.js`) rides on that last
+sentence. Every `GALAXY_BEAT_MS` the card picks one prolific actor out of the
+flowing crowd, inks and enlarges them, names them, and fans spokes from them
+across the sky — more spokes for more films. It is an **illustration**: there is
+no corpus co-star graph in this repo (the data carries eighteen baked edges, all
+inside the intro constellation), so the spokes go to arbitrary dots and claim
+nothing but the count. `withGalaxyHighlight(frames)` wraps the state's flight.
+
+Four things are worth knowing before touching it.
+
+**It is a function of the flight's clock, not a timer.** A `setInterval` writing
+`story` — the way step 1's actor tour drives itself — cannot work here: the render
+effect's `sweeping` guard returns early on a param change while an ambient loop
+owns the frame, so nothing would move, and `sweeping` must not become `$state`
+(above). The ambient writer already holds the rAF, the buffers and an elapsed
+`t`, so the beat index is just `Math.floor(t / GALAXY_BEAT_MS)`. The t = 0
+contract then holds by construction, because the beat's envelope opens at zero:
+the card arrives anonymous, which is exactly what its static layout draws.
+
+**Spokes rent edge slots.** `GALAXY_LINK_MAX` spare groups sit past the baked
+edges in the attr array (`GALAXY_LINK_BASE` is the first), and `galaxyLinks.ends`
+is their endpoint table, mutated per beat — `edgeEnds` in ScrollyVisual holds
+those very arrays. So spokes are drawn by the same loop as the constellation's
+links, with its progress draw-on, its alpha, its grey, and its habit of reading
+both endpoints out of the live buffer, which is what makes them follow dots that
+are moving. No second line-drawing path exists, and a departing card fades the
+pool out through the ordinary state tween, since every other layout leaves those
+slots at zero.
+
+**The name is a per-frame label cut**, beside `raceLabelCut`. `chapterCenters`
+declares `labels: () => []` — the resting card names nobody — and the cast goes in
+`STATE_TRACKED`, so each has a label element. `drawScene` then reads the
+published `galaxyHighlight.id` and shows that one. The name needs no opacity
+plumbing of its own because a label already rides its dot's alpha, which the beat
+raises; and it tracks the dot across the sky because `tracked` is rebuilt from
+the buffer every frame. `stopSweep` clears the published beat, or a name would
+outlive the flight that was showing it.
+
+**Nothing may repeat, and that is not a nicety.** Eligibility persists: an
+actor's usable window is ~13s against a 5s beat, so a well-placed actor stays
+well-placed for two or three beats running. Take the first eligible one from a
+start index that merely advances by one — the first build did — and the same
+person is picked over and over; a reader really does get John Cusack three times
+in a row, which reads as broken rather than as random. The start index is
+therefore hashed per beat, and the last `GALAXY_NO_REPEAT` focuses are excluded
+outright. The hash alone is not enough, because with only a few candidates a
+random start still lands on one of the same few; the exclusion is what
+guarantees a new face. It costs candidates, and so silence — see below.
+
+**Who can be lit is a much narrower question than it looks**, and it is what
+sizes `GALAXY_CAST_N`. A dot has to hold its place for the whole beat: inside the
+flight's entry/exit window (or it fades or wraps mid-beat), and inside the frame
+at both ends of the beat — which is checkable exactly rather than sampled,
+because the flow is radial about `galaxyCentre`, so a dot's beat-end position is
+its current one scaled by `beatGrowth`. A rectangle plus a straight radial
+segment means both endpoints inside puts the whole trip inside. The **focus** is
+held to the reading column, not the bled canvas, because its name is HTML in
+`.annotations` (`inset: 0`, `overflow: hidden`) and a name belonging to a dot out
+in the bleed is clipped away — while **targets** only have to hold the canvas,
+which is most of what lets a spoke cross the whole frame. The flow spends most of
+a trip carrying a dot past the column, so a given actor qualifies only ~4% of the
+time. Ninety candidates bring the share of beats that find nobody to ~3% on a
+desktop against the gate alone, and ~6% once the no-repeat window has taken its
+cut (~1% on a phone, where there is no bleed and the column is the canvas). A
+beat with no actor draws nothing, and that is a real answer rather than a
+failure — there is deliberately no second-choice actor, because a name the reader
+cannot see is worse than no name, and a quiet beat is only the card as it was
+before any of this existed.
+
+**What the beat weights is nodes, not lines.** The spokes stay the plain network
+grey — `setEdge`'s highlight channel is left at zero on purpose, because a fan of
+dozens of weighted lines becomes a black web over a chapter title. The emphasis
+goes on the dots instead, in three tiers: the focus at full ink, opaque and
+`GALAXY_FOCUS_R_MULT` times its flight radius; its connected dots part-way to ink
+(`GALAXY_TARGET_INK`) at `GALAXY_TARGET_ALPHA`, deliberately unnamed, and
+deliberately **the same size as they already were**; and the crowd as it was.
+Measured mid-beat that reads as rgb 34 / rgb 156 / rgb 187 at alphas 1.0 / 0.75 /
+~0.3, with the connected dots' radii sitting inside the crowd's own range.
+
+Leaving a target's radius alone is the rule worth keeping, not a matter of taste:
+radius is how this sky says DEPTH. `depthSize` spreads the crowd's radius by each
+dot's own distance, so a dot swollen for being connected is a dot lying about
+where it stands, and a whole fan of them pulls the volume flat exactly where the
+beat is trying to show it off. Only the focus is exempt, because there is one of
+it and it is the thing being pointed at.
+
+Alpha is nudged relative to whatever the flight just wrote, which is safe because
+the flight rewrites it every frame. **Colour is not**, and it is the one channel
+with a bookkeeping cost: nothing resets a target's colour per
+frame, so it is written absolutely from the constants (a relative blend would
+darken the same dot again every tick until it went black), and the outgoing
+targets are handed back to the crowd's grey on each beat change — the cast has a
+standing per-frame reset, but a spoke's far end can be any dot in the sky.
+
+**The fan draws at the speed of a crow flying through the volume** — one speed,
+not one duration, and over REAL distance rather than screen distance. This is the
+part that makes the sky's depth legible, so it is worth being precise about.
+
+Three candidates, in the order they were tried. A shared 0–1 progress makes long
+lines travel faster so they all land together, which reads as the fan being
+inflated. A constant rate over screen distance fixes that but still flattens the
+sky, because it treats a dot that merely _looks_ close as close. A constant rate
+over the distance _through the volume_ is the one that says out loud what the
+projection cannot: a spoke reaching from the near plane to the far one takes its
+time however short it looks, and two dots that are genuinely neighbours are
+joined at once even when the camera has flung them to opposite sides of the
+frame.
+
+`worldSpot` recovers those real positions. The flow is a perspective projection —
+screen offset is lateral offset times `SKY_FAR / z` — so dividing that back out
+gives the lateral offset, which is fixed for a dot's whole trip since it flies
+straight at the camera, and the trip fraction gives the depth. All three axes end
+up in entry-plane pixels. The consequence to hold on to is that **screen distance
+stops predicting draw time**: two dots at the near plane on opposite sides of the
+frame are only a quarter as far apart as two that look equally separated at the
+far plane, because at four times the distance the same angular gap spans four
+times as much. Measured, draw time correlates 0.9998 with real distance and only
+0.52 with screen distance.
+
+`GALAXY_DEPTH_SPAN` is the exchange rate between "far away" and "off to one
+side" — effectively the camera's focal length, and the knob for how hard depth
+bites. `GALAXY_DRAW_WIDTHS_PER_S` is the rate itself, given as a share of the
+sky's width per second rather than in px/ms so that it means the same thing on
+every viewport; the volume is about a third the width of a phone's frame, so a
+fixed px rate would draw the same fan twice as fast there. Each spoke's length is
+fixed at the moment its beat begins rather than re-measured as the flow pulls the
+ends apart, which is what keeps every ramp monotone.
+
+Everything the beat writes is scaled by its envelope, which is what leaves **no**
+trace at e = 0: a constant anywhere in here — an alpha, a highlight, a colour —
+puts a value into the resting frame that the static layout does not produce, and
+the t = 0 contract is byte equality on the edge region rather than a claim about
+pixels.
+
+Measured, since none of it shows in one frame: the t = 0 contract lands at one
+Float32 ULP for all three galaxy states with the edge region bit-identical; over
+900 beats per card, on both a desktop and a phone viewport, there is not one
+back-to-back repeat, not one repeat within four beats, and all ninety of the cast
+get a turn; no focus is ever off canvas or faded, no spoke ever loses an end, no
+target repeats within a fan, and spoke counts stay inside `[GALAXY_SPOKES_MIN,
+GALAXY_LINK_MAX]`; 60,657 simulated strokes carry no non-finite coordinate, no
+endpoint that is not a real node, and none rooted anywhere but the named actor;
+after 200 beats not one dot in the field is left holding ink it was lent as a
+spoke's far end; no spoke's draw progress ever goes backwards across a beat
+(20,000 samples); the field is still stationary at 2,396–2,509 dots on canvas;
+and flight plus beat costs 0.088ms a frame against the flight's own 0.04ms.
 
 Current states, in story order: `lone` (the intro constellation grows out of
 Bacon here, as the step's own entry pop-in) · `networkIntro` (the grown
@@ -1057,10 +1206,10 @@ just a panel.
 
 **The card drops the reading column, and so does the step that feeds it.** Every
 state carrying a chart is drawn inside `#scrolly`'s 700px measure, because a
-chart wider than the prose it belongs to stops being readable. The two states
-that carry no chart — `hopSeed`'s pull-back and `chapterCenters`, plus `outro` —
-author their crowd across `galaxyBox` instead: the viewport edge to edge and
-from the top of the screen down, then inflated past it about its own centre by
+chart wider than the prose it belongs to stops being readable. The four states
+that carry no chart — `titleGalaxy`, `hopSeed`'s pull-back, `chapterCenters` and
+`outro` — author their crowd across `galaxyBox` instead: the viewport edge to
+edge and from the top of the screen down, then inflated past it about its own centre by
 `GALAXY_SPREAD`, so the reader gets the corpus as something too big for the page
 exactly where the argument pauses. Nothing fades the crowd at the screen edges —
 a vignette there would draw the boundary the full bleed exists to hide.
@@ -1113,20 +1262,77 @@ boxed step, where the field stops at `plotBottom` and the marks sit on white.
 
 The mechanism is `bleed`, threaded from `ScrollyVisual` as the last argument to
 every `LayoutFn` (and to `AmbientAnim.frames`): how far the canvas extends past
-`w` on each side. The canvas element is styled `100vw` and centred, while the
-drawing origin is pushed back onto `.visual`'s left edge by the render
-transform, so `w`/`h` still mean the column and **every other layout is
-unaffected** — only one that deliberately authors outside `[0, w]` sees any
-difference. Three consequences worth knowing:
+`w`, as a `{ l, r }` PAIR. The canvas element is styled `100vw` and pinned to the
+viewport's left edge, while the drawing origin is pushed back onto `.visual`'s
+left edge by the render transform, so `w`/`h` still mean the column and **every
+other layout is unaffected** — only one that deliberately authors outside
+`[0, w]` sees any difference.
 
-- `bleed` is part of the layout cache key. `w`/`h` are pinned to the column, so
-  two different screen widths produce the same `w:h` and would otherwise share
-  one cached sky.
-- `drawScene` clears `[-bleed, w + bleed]`, not `[0, w]`.
+It is a pair rather than a scalar because the column is centred in the viewport
+only in the stacked layout. Side by side with the prose (see below) the column is
+one half of the screen, and a single number cannot say which side the rest of the
+canvas is on. It is also MEASURED, off `.visual`'s own rect, rather than derived
+from `canvasWidth - width`: that difference gives the total and never the split.
+Only five places do arithmetic on it — `galaxyCentre`, `galaxyBox`,
+`targetHolds`, and the render transform and clear rect — and every other layout
+takes it as an opaque value and forwards it, which is what keeps the pair cheap.
+Passing the old scalar where a pair is expected is silent and total: `bleed.l` on
+a number is `undefined`, so `galaxyBox` returns a NaN x extent, every dot in a
+galaxy state is placed at NaN and the sky renders empty while the y extent, the
+title and every non-galaxy state look perfectly normal.
+
+Four consequences worth knowing:
+
+- `bleed` is part of the layout cache key, both halves of it. `w`/`h` are pinned
+  to the column, so two different screen widths produce the same `w:h` and would
+  otherwise share one cached sky.
+- `bleed` is not `$state`, for the reason `sweeping` is not: it says where the
+  canvas element sits, which is not something the story is showing. It is
+  measured at the top of the render effect and the element's own `left` is
+  written from it in the same place, so there is one reader and one writer and no
+  reactive round trip. A move is folded into `resized`, so it re-fits the backing
+  store exactly as a width change does.
+- `drawScene` clears `[-bleed.l, w + bleed.r]`, not `[0, w]`.
 - `.visual` is no longer `overflow: hidden` (the canvas has to escape it); the
   clipping moved to `.annotations`, which is what wanted it. `.visual` itself is
   untouched otherwise — it is still the box every panel, hit target and label is
   positioned against, and every hit test measures it.
+
+**Beside, rather than over (>= 1200px).** The story is authored mobile first: the
+prose is a card lying across the bottom of the canvas, and every chart keeps the
+bottom 40% of the box clear for it (`plotBottom`). Past `BESIDE_MIN_W` in
+`Index.svelte` there is room for the two abreast, so the prose takes a column of
+its own on the LEFT, the canvas takes the right, and the charts take that 40%
+back. The split is held on `.scrolly-layout` as two unitless numbers,
+`--prose-frac` / `--visual-frac`, because three rules have to agree on it: the
+visual's left inset, the prose's right inset, and the full-bleed cards, which
+have to undo the first from inside a box only `--visual-frac` of the layout wide.
+
+The width is not the point and is close to a wash — the visual column at this
+breakpoint is about what the 700px measure was already giving a chart. **The
+height is what the charts never had**, and it is the whole reason to do it.
+
+Two things carry it, and they are deliberately in different places.
+`PLOT_BOTTOM_BESIDE` (0.86, against 0.6 stacked) is a module variable in
+`layout-shared.js` with a setter, rather than a seventh argument, because
+`plotBottom(h)` is read from ten layout modules and from the render path and none
+of them is handed the page's layout mode — the same idiom the dev band editor
+uses. `ScrollyVisual` owns the setter, called at the top of the render effect
+from its `beside` prop, AND puts the fraction in the layout cache key. The key is
+what makes it a rule rather than a coincidence: `w` changes with the mode too, so
+the key would usually miss anyway.
+
+The breakpoint itself is stated twice — a `@media` rule and `BESIDE_MIN_W` — and
+has to be kept in step by hand, because a breakpoint cannot be read back out of
+CSS and the render path needs the boolean rather than the layout.
+
+Known, and not yet retuned: `raceFuture` and `raceClose` give the future strip
+whatever plot width the pan leaves over, which was right when five years at
+76px/yr could not fit at any viewport the 700px container allowed. On the wider
+column the strip takes most of the plot and the chart reads as one large empty
+block. The fix is a real design decision rather than a constant — at this width
+the strip could finally carry the chapter's own fixed scale instead of being
+fitted — so it is left for a pass of its own.
 
 **`TITLE_BAND` is the same move upward.** `.scrolly-visual` sits `--title-band`
 (26px) below the top of the window, to keep each chart's title clear of the dot
@@ -1223,6 +1429,52 @@ layout's own geometry, as step 1's caption and `introBottom` do. Note the title
 stays inside the reading column while the dots run past it on both sides; the sky
 is full-bleed, the words are not.
 
+## Title card
+
+Step 0 is a title card: `<Splash state="titleGalaxy">`, the piece's name over the
+corpus drawn as a sky, and one line naming the control that moves the story. It is
+registered in document order like every other step, so leaving it is the reader's
+first use of the very press the line has just taught them, and every later step's
+index shifts by itself.
+
+It borrows `Chapter.svelte`'s arrangement wholesale — the component registers and
+renders nothing, `Index.svelte` renders the card from `stepConfigs[value].splash`
+inside a stable `{#if}` so it can transition out, and it fades on the chapter
+card's own timings (`chapterFade.js`) so opening the story and opening a chapter
+are visibly the same move. Two things are its own:
+
+**The copy arrives as snippets, and says a different thing per screen.** `title`
+and `cta` are snippets rather than strings so the words live in `Index.svelte`
+beside the story's other prose. The CTA carries both sentences and hides one by
+width (`.on-narrow` / `.on-wide`, `display: none` rather than opacity, so the
+reader is told one thing once): a thumb at the edge of a phone, an arrow key at a
+desk. Both controls are always live — only the wording changes. The card also
+MARKS the target: `.splash-cue` is an arrow filling the right-hand tap gutter,
+sized off the same `--tap-gutter` `TapNav` sizes its button from, and it is the
+only marking either gutter ever carries anywhere in the story. It is why the card
+is the one thing measured off the gutters rather than the reading column
+(`padding: 0 var(--tap-gutter)`) — a title running under that arrow would have
+the reader reading the instruction through the word it points at.
+
+**`titleGalaxy` is the sky with the story's opening beat withheld.** It is the
+crowd every other galaxy state draws — `writeFieldCrowd` at the landed camera,
+across `galaxyBox`, flying on `makeFlight` — and, like `outro`, it leaves the
+fifteen-actor constellation out: that is the opening BEAT, and a title card
+already carrying Bacon and his co-stars would spend it before the reader has
+tapped anything. There is no highlight beat either (`labels: []`), because a name
+cycling under the title would be the second thing on screen asking to be read.
+
+What the fifteen get instead is a park: their `lone` constellation marks at zero
+radius and zero alpha, which is **exactly** the seed frame `ScrollyVisual` builds
+on a first paint. That is what lets `lone` list `titleGalaxy` in its `revealFrom`
+and play the authored pop-in walk on the arrival off the card — measured, not
+assumed: every one of the fifteen sits at exactly the position `lone` gives it,
+with the radii, the alphas and the edge slots all at zero too. The card adds
+only the crowd behind them, which carries no delay and so collapses back toward
+Bacon over the first leg: the camera diving into the sky and landing on the
+constellation it is about to grow. Every other arrival at `lone` is the reader
+stepping back into it with the network already grown, and stays one plain tween.
+
 ## How to add a state
 
 1. Pick the chapter module it belongs to under `layouts/` (or add a new one for
@@ -1239,12 +1491,14 @@ Use `hash01(n.id, <new salt>)` for any per-node scatter/jitter — pick an unuse
 salt integer. Taken so far: 3–8 across layouts, 9 in `tween.js`, 14 in
 `writeFieldCrowd`'s trickle, 21 for a dot's phase in the sky's flow, 22 for the
 band column of a dot that is off the canvas when it leaves a chapter card.
-(10–13 and 15–20 were the flat galaxy's spot, depth and per-dot drift; the flow
-replaced all of them, so they are free. Reuse them only deliberately — a dot's
-old orbit phase is not a fresh scatter.) The sky's own entry spots use `dotHash`,
-not this: the trip index walks the salt by one on every wrap, and stepping a sine
-hash's input by a constant steps its phase by a constant, so a dot would re-enter
-on a slow march across the sky instead of somewhere new.
+(10–13, 15–16 and 18–20 were the flat galaxy's spot, depth and per-dot drift; the
+flow replaced all of them, so they are free. Reuse them only deliberately — a
+dot's old orbit phase is not a fresh scatter.) 17 is the highlight beat's spoke
+draw. The sky's own entry spots use `dotHash`, not this: the trip index walks the
+salt by one on every wrap, and stepping a sine hash's input by a constant steps
+its phase by a constant, so a dot would re-enter on a slow march across the sky
+instead of somewhere new. The beat's spoke picker uses `dotHash` for exactly the
+same reason — its candidate counter also walks by one.
 
 ## Data
 

@@ -12,6 +12,7 @@ import {
 	writeFieldCrowd,
 	makeFlight,
 	galaxyBox,
+	NO_BLEED,
 	cardSpot,
 	flowSpot,
 	skyFlight,
@@ -81,15 +82,18 @@ const HOP_SHARE = hopShareLabels(hopFractions(ANCHOR_ID));
  */
 function departureColumn(id, w, h, skyBox, contraction) {
 	if (isIntroActor(id)) return cardSpot(id, w, h)[0];
+	// contract about the SKY's centre, land on the COLUMN's. The two are the same
+	// point while the prose sits over the canvas and differ once it sits beside
+	// it; the flow commutes with either, see skyToColumn.
 	const cx = (skyBox[0] + skyBox[1]) / 2;
 	const col =
-		cx + (flowSpot(id, w, h, skyBox, skyFlight.t)[0] - cx) * contraction;
+		w / 2 + (flowSpot(id, w, h, skyBox, skyFlight.t)[0] - cx) * contraction;
 	if (Math.abs(col - w / 2) <= w / 2 - MARGIN) return col;
 	return MARGIN + hash01(id, 22) * (w - MARGIN * 2);
 }
 
 /** @type {import("../layout-shared.js").LayoutFn} */
-function layoutHopBands(nodes, w, h, _edges, params, bleed = 0) {
+function layoutHopBands(nodes, w, h, _edges, params, bleed = NO_BLEED) {
 	const seed = params?.seed;
 	const attrs = new Float64Array(ATTR_SIZE);
 	const delays = new Float64Array(DELAY_SIZE);
@@ -188,7 +192,7 @@ export const PULLBACK_ZOOM_MS = 4000;
 const HOP_SEED_EDGE_FADE = 0;
 
 /** @type {import("../layout-shared.js").LayoutFn} */
-function layoutHopSeed(nodes, w, h, edges, _params, bleed = 0) {
+function layoutHopSeed(nodes, w, h, edges, _params, bleed = NO_BLEED) {
 	const { attrs } = layoutHopBands(nodes, w, h, edges, { seed: true }, bleed);
 	// no focus: whatever route the reader lit up on networkIntro releases as the
 	// camera pulls back, because the step is about the network as a whole again
@@ -215,7 +219,7 @@ function layoutHopSeed(nodes, w, h, edges, _params, bleed = 0) {
  * call — a frame built against a different box would snap the sky inward on
  * settle.
  */
-function zoomOutFrames(nodes, w, h, _params, bleed = 0) {
+function zoomOutFrames(nodes, w, h, _params, bleed = NO_BLEED) {
 	const box = galaxyBox(w, h, bleed);
 	return (attrs, _trails, _phase, e) => {
 		const scale = 1 + (PULLBACK_ZOOM - 1) * e;

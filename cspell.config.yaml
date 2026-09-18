@@ -76,6 +76,7 @@ words:
   - tiempos
   - pullback
   - graying
+  - mult
 ignorePaths:
   - node_modules
   - build

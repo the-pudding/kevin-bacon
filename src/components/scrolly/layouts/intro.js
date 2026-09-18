@@ -12,6 +12,10 @@ import {
 	introPosition,
 	writeFieldCrowd,
 	galaxyBox,
+	NO_BLEED,
+	makeFlight,
+	FIELD_IDS,
+	PULLBACK_ZOOM,
 	NETWORK_INTRO_RADIUS
 } from "../layout-shared.js";
 import { routesTo, routeActors } from "../intro-routes.js";
@@ -172,7 +176,7 @@ export function writeNetwork(
 
 // The full intro frame: the constellation, with every other node parked at the
 // scatter spot a later chapter wants it at (alpha 0).
-function buildNetworkAttrs(nodes, w, h, focus, bleed = 0) {
+function buildNetworkAttrs(nodes, w, h, focus, bleed = NO_BLEED) {
 	const attrs = new Float64Array(ATTR_SIZE);
 	const introSet = new Set(INTRO_IDS);
 	for (const n of nodes) {
@@ -221,7 +225,7 @@ function buildHits(nodes, pos, focus) {
 }
 
 /** @type {import("../layout-shared.js").LayoutFn} */
-function layoutLone(nodes, w, h, edges, _params, bleed = 0) {
+function layoutLone(nodes, w, h, edges, _params, bleed = NO_BLEED) {
 	const delays = new Float64Array(DELAY_SIZE);
 
 	// index edges by unordered endpoint pair so paths can look them up by name
@@ -285,7 +289,7 @@ function layoutLone(nodes, w, h, edges, _params, bleed = 0) {
 }
 
 /** @type {import("../layout-shared.js").LayoutFn} */
-function layoutNetworkIntro(nodes, w, h, _edges, params, bleed = 0) {
+function layoutNetworkIntro(nodes, w, h, _edges, params, bleed = NO_BLEED) {
 	// The network is already fully grown by the time the reader lands here (see
 	// `lone`'s pop-in above), so this state is a static settle: same geometry,
 	// just picking out a route once the reader taps an actor.
@@ -295,19 +299,61 @@ function layoutNetworkIntro(nodes, w, h, _edges, params, bleed = 0) {
 	return { attrs, hits };
 }
 
+/**
+ * The splash: the corpus as a sky, with nobody on it. Same galaxy the chapter
+ * cards and the outro rest on — `writeFieldCrowd` at the landed camera, spread
+ * across `galaxyBox` — so the story opens on the picture it closes on.
+ *
+ * The fifteen are NOT drawn, for the same reason `outro` leaves them out: the
+ * constellation is the story's opening BEAT, and a title card that already had
+ * Bacon and his co-stars on it would spend that beat before the reader has
+ * tapped anything. They are seeded instead exactly where `lone` starts them —
+ * on their constellation marks at zero radius and zero alpha — which is what
+ * makes the step forward out of this card byte-identical to the first-paint
+ * frame the pop-in walk was authored from (see `lone`'s `revealFrom`).
+ * @type {import("../layout-shared.js").LayoutFn}
+ */
+function layoutTitleGalaxy(nodes, w, h, _edges, _params, bleed = NO_BLEED) {
+	const attrs = new Float64Array(ATTR_SIZE);
+	// unreachable actors have no place in a crowd of degrees of separation —
+	// parked where every other galaxy state parks them, so they never move
+	for (const n of nodes) if (n.hop < 0) parkHidden(attrs, n, w, h);
+	writeFieldCrowd(attrs, w, h, PULLBACK_ZOOM, galaxyBox(w, h, bleed));
+	for (const id of INTRO_IDS) {
+		const [x, y] = introPosition(id, w, h);
+		set(attrs, id, x, y, 0, CROWD, 0);
+	}
+	// edges are left at the array's zeros — no draw progress, no alpha — which
+	// is the same nothing `lone`'s seed frame starts its lines from
+	return { attrs };
+}
+
 export const states = {
+	titleGalaxy: {
+		layout: layoutTitleGalaxy,
+		// the title card names the piece, not an actor: the sky it sits on is
+		// anonymous, and stays that way (no highlight beat — a name cycling under
+		// the title would be the second thing on screen asking to be read)
+		labels: [],
+		ambient: { frames: makeFlight(layoutTitleGalaxy, FIELD_IDS) }
+	},
 	lone: {
 		layout: layoutLone,
 		labels: INTRO_IDS,
 		pulse: ANCHOR_ID,
-		// The walk above is this state's first-paint pop-in, and ScrollyVisual
-		// plays it from the seeded zero frame only on that first paint. Every
-		// other arrival is the reader stepping BACK here, with the network
+		// The walk above plays on exactly two arrivals, and they are the same
+		// frame: this state's first paint (ScrollyVisual seeds every node at zero
+		// radius/alpha), and the step forward off the title card, which parks the
+		// fifteen at that identical seed (see `layoutTitleGalaxy`). What the card
+		// adds is the crowd behind them, which carries no delay and so collapses
+		// back toward Bacon over the first leg — the camera diving into the sky
+		// and landing on the constellation it is about to grow.
+		//
+		// Every OTHER arrival is the reader stepping BACK here, with the network
 		// already grown — replaying the delays would hold each actor (and the
 		// name riding its dot's alpha) wherever the interrupted tween left it
-		// for up to ten seconds. No forward arrival exists to author for, so the
-		// list is empty: a return is one plain tween.
-		revealFrom: []
+		// for up to ten seconds.
+		revealFrom: ["titleGalaxy"]
 	},
 	networkIntro: {
 		layout: layoutNetworkIntro,

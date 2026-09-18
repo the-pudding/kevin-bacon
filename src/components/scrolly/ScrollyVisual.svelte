@@ -5,6 +5,11 @@
 	import { createTweener } from "./tween.js";
 	import { createLabelDecollider } from "./label-decollide.js";
 	import {
+		galaxyHighlight,
+		galaxyLinks,
+		resetGalaxyHighlight
+	} from "./galaxy-highlight.js";
+	import {
 		writeRaceSweepFrame,
 		raceVisibleSpan,
 		racePanBounds,
@@ -64,6 +69,11 @@
 		MARGIN,
 		TITLE_BAND,
 		plotBottom,
+		plotBottomFraction,
+		setPlotBottomFrac,
+		PLOT_BOTTOM_BESIDE,
+		PLOT_BOTTOM_STACKED,
+		NO_BLEED,
 		set,
 		EDGE_GREY,
 		EDGE_HIGHLIGHT,
@@ -75,12 +85,13 @@
 	import InfoTerm from "$components/ui/InfoTerm.svelte";
 
 	// undefined until the <Step> registry has populated (first client render)
-	/** @type {{ state: import("./states.js").VisualState, params?: Object, stepsHeight?: number, coldStart?: boolean }} */
+	/** @type {{ state: import("./states.js").VisualState, params?: Object, stepsHeight?: number, coldStart?: boolean, beside?: boolean }} */
 	let {
 		state: stateName,
 		params,
 		stepsHeight = 0,
-		coldStart = false
+		coldStart = false,
+		beside = false
 	} = $props();
 
 	const TAKEOVER_NOTE =
@@ -133,9 +144,21 @@
 	}
 	// edges draw outward from the anchor: orient each from its lower-hop end so
 	// the line grows from Bacon toward the outer actor
-	const edgeEnds = edges.map(({ source, target }) =>
-		nodes[source].hop <= nodes[target].hop ? [source, target] : [target, source]
-	);
+	//
+	// The baked edges first, then the runtime pool (see GALAXY_LINK_MAX): the
+	// chapter card's highlight spokes pick their endpoints per beat, so their
+	// pairs cannot be a build-time table like the constellation's. These are the
+	// pool's own arrays, mutated in place by the beat's writer, so this table sees
+	// each beat's pairs without being rebuilt — and every pool slot the beat isn't
+	// using sits at alpha 0, which the draw loop skips before it reads a pair.
+	const edgeEnds = [
+		...edges.map(({ source, target }) =>
+			nodes[source].hop <= nodes[target].hop
+				? [source, target]
+				: [target, source]
+		),
+		...galaxyLinks.ends
+	];
 	// every id any state labels or pulses — tracked out of the attr array each
 	// frame so the HTML annotations stay glued to their dots mid-tween.
 	// Dynamic label and pulse states (function values) declare their possible
@@ -387,6 +410,12 @@
 		if (skyFlying) {
 			skyFlying = false;
 			layoutCache.clear();
+			// The beat went with the flight. Its spokes fade out through the ordinary
+			// departure tween (the next state's layout leaves the pool at zero), but
+			// the name is not in the buffer — it is read straight off the published
+			// beat — so without this the card's last actor would still be named over
+			// whatever the reader stepped onto.
+			resetGalaxyHighlight();
 		}
 	}
 	// the rAF spine every entry choreography rides: run `frame(eased)` for `ms`,
@@ -601,7 +630,7 @@
 		if (layoutParams?.playhead != null) {
 			return STATES[name](nodes, w, h, edges, layoutParams, bleed);
 		}
-		const key = `${name}:${w}:${h}:${bleed}:${JSON.stringify(layoutParams) ?? ""}`;
+		const key = `${name}:${w}:${h}:${bleed.l}:${bleed.r}:${plotBottomFraction()}:${JSON.stringify(layoutParams) ?? ""}`;
 		let result = layoutCache.get(key);
 		if (!result) {
 			result = STATES[name](nodes, w, h, edges, layoutParams, bleed);
@@ -616,14 +645,45 @@
 	let width = $state(0);
 	let height = $state(0);
 	// The canvas's own width, which is the VIEWPORT's, not `.visual`'s: the canvas
-	// bleeds past the 700px column so a chapter card can fill the screen (see the
+	// bleeds past the reading column so a chapter card can fill the screen (see the
 	// render transform below and layout-shared's galaxyBox). Measured rather than
 	// taken from the 100vw it is styled with, so what the layouts get is what the
 	// browser actually laid out.
 	let canvasWidth = $state(0);
-	// how far the canvas sticks out past `.visual` on EACH side, in the CSS pixels
-	// every layout is authored in
-	const bleed = $derived(Math.max(0, (canvasWidth - width) / 2));
+	/**
+	 * How far the canvas ELEMENT sticks out past `.visual`, per side, in the CSS
+	 * pixels every layout is authored in. Two numbers rather than one because the
+	 * column is centred in the viewport only while the prose sits OVER it: beside
+	 * the prose it is one half of the screen and the canvas reaches much further
+	 * out on one side than the other.
+	 *
+	 * It has to be MEASURED, not derived from `canvasWidth - width`: that
+	 * difference says how much bleed there is altogether and never which side of
+	 * the column it is on.
+	 *
+	 * Deliberately NOT `$state`, for the reason `sweeping` is not (see below): it
+	 * describes where the canvas element sits, which is not something the story is
+	 * showing. It is measured at the top of the render effect, immediately before
+	 * the layout is built, and the canvas element's own offset is written from it
+	 * in the same place — one reader, one writer, no reactive round trip to make
+	 * the effect that sets it re-run. `resized` carries it, so the backing store
+	 * re-fits on a move exactly as it does on a width change.
+	 * @type {import("./layout-shared.js").Bleed}
+	 */
+	let bleed = NO_BLEED;
+
+	/**
+	 * Re-measure the column's offset in the viewport. Returns whether it moved, so
+	 * the render effect can fold it into `resized`.
+	 */
+	function measureBleed() {
+		if (!container) return false;
+		const l = Math.max(0, container.getBoundingClientRect().left);
+		const r = Math.max(0, canvasWidth - width - l);
+		if (bleed.l === l && bleed.r === r) return false;
+		bleed = { l, r };
+		return true;
+	}
 	// live, so DevTools' emulation (and a reader changing the OS setting mid-story)
 	// stands every animation down straight away
 	const motionQuery = new MediaQuery("(prefers-reduced-motion: reduce)", false);
@@ -1450,6 +1510,17 @@
 		);
 	}
 
+	// The galaxy beat's one name, reused rather than rebuilt: like raceLabelCut
+	// this is decided per FRAME, and the per-frame writers on this path document
+	// themselves as allocating nothing.
+	const galaxyShownSet = new Set();
+	/** the chapter card's highlight beat names exactly the actor it is on */
+	function galaxyLabelCut() {
+		galaxyShownSet.clear();
+		galaxyShownSet.add(galaxyHighlight.id);
+		return galaxyShownSet;
+	}
+
 	/**
 	 * The race labels one FRAME shows: the step's own subject, then the labelled
 	 * dots nearest the centre of Hollywood, up to RACE_LABEL_TOP in all.
@@ -1525,7 +1596,12 @@
 		// `.visual`'s top left corner, so clearing [0, width] x [0, height] would
 		// leave the chapter card's sky smeared across the bleed and the title band
 		// for the rest of the story
-		ctx.clearRect(-bleed, -TITLE_BAND, width + bleed * 2, height + TITLE_BAND);
+		ctx.clearRect(
+			-bleed.l,
+			-TITLE_BAND,
+			width + bleed.l + bleed.r,
+			height + TITLE_BAND
+		);
 		// trails under everything: race/career lines, prediction diagonal. An INKED
 		// line (the race chart's leader — see setTrailHighlight) is held back to a
 		// second pass so the crown is drawn over the field rather than buried under
@@ -1633,7 +1709,14 @@
 		// set having to know which camera the reader is on; because it reads the
 		// dots the frame just wrote, it also slides continuously as the camera pans
 		// instead of resolving in one jump at the settle.
-		const shown = raceStep ? raceLabelCut(attrs) : labelIds;
+		// The galaxy beat is the other per-frame cut: `chapterCenters` declares no
+		// names at all, and the flight's writer says who the beat is on as it
+		// writes each frame, so the card's one name can only be resolved here.
+		const shown = raceStep
+			? raceLabelCut(attrs)
+			: galaxyHighlight.id != null
+				? galaxyLabelCut()
+				: labelIds;
 		const nextTracked = TRACKED_IDS.map((id) => ({
 			id,
 			name: labelTexts[id] ?? nodes[id].name,
@@ -2017,8 +2100,19 @@
 		// draws the old geometry for the rest of its life — and an ambient loop has
 		// no rest of its life, so it would never recover. The snap branch below
 		// re-fits, and settle() restarts the ambient at the new size.
+		// the plot's share of the column is a property of the PAGE's layout, not of
+		// any one state, so it is set here — once, before any layout is built —
+		// rather than threaded through ten layout modules. `beside` is a prop, so
+		// this effect already re-runs when the breakpoint flips.
+		setPlotBottomFrac(beside ? PLOT_BOTTOM_BESIDE : PLOT_BOTTOM_STACKED);
+		// where the column sits in the viewport, which a width change does not
+		// always imply: beside the prose the column can keep its width and move
+		const bleedMoved = measureBleed();
 		const resized =
-			width !== prevW || height !== prevH || canvasWidth !== prevCanvasW;
+			width !== prevW ||
+			height !== prevH ||
+			canvasWidth !== prevCanvasW ||
+			bleedMoved;
 		if (sweeping) {
 			if (stateName === prevState && !resized) return;
 			stopSweep();
@@ -2034,7 +2128,8 @@
 		if (resized) {
 			const dpr = Math.min(window.devicePixelRatio || 1, 2);
 			// The backing store spans the bled canvas — wider than `.visual` by
-			// `bleed` on each side, taller by TITLE_BAND above it — but the ORIGIN
+			// `bleed.l` to its left and `bleed.r` to its right, taller by
+			// TITLE_BAND above it — but the ORIGIN
 			// stays on `.visual`'s top left corner: shifting the transform by the
 			// same two amounts is what keeps every layout's coordinates meaning the
 			// same screen pixels they always did, so only a layout that deliberately
@@ -2042,10 +2137,16 @@
 			// sees any difference. `height` itself is never adjusted: it is the
 			// measured box, and making it depend on the band would put the band in
 			// `resized` below and snap every tween the band's value crossed.
+			// pin the element to the viewport's left edge. It is written here rather
+			// than in CSS because only this path knows where the column landed, and
+			// the element is already being sized imperatively two lines down — a
+			// custom property set from a $state would make the effect that measures
+			// it depend on its own output.
+			canvas.style.left = `${-bleed.l}px`;
 			canvas.width = canvasWidth * dpr;
 			canvas.height = (height + TITLE_BAND) * dpr;
 			ctx = canvas.getContext("2d");
-			ctx.setTransform(dpr, 0, 0, dpr, bleed * dpr, TITLE_BAND * dpr);
+			ctx.setTransform(dpr, 0, 0, dpr, bleed.l * dpr, TITLE_BAND * dpr);
 			prevW = width;
 			prevH = height;
 			prevCanvasW = canvasWidth;
@@ -2773,13 +2874,19 @@
 		height: 100%;
 	}
 
-	/* Full-bleed, centred on the reading column rather than sized by it, and
-	   reaching up through the title band as well: a chapter card's crowd fills
-	   the screen, and a canvas clipped to the 700px column — or stopping where
+	/* Full-bleed, pinned to the VIEWPORT rather than sized by the reading column,
+	   and reaching up through the title band as well: a chapter card's crowd fills
+	   the screen, and a canvas clipped to the column — or stopping where
 	   .scrolly-visual starts, --title-band below the top of the window — could
 	   only ever draw a rectangle of dots in the middle of it. The drawing origin
 	   is put back on this box's top left corner by the render transform, so
-	   every other state is unaffected — see the `bleed` derived and TITLE_BAND.
+	   every other state is unaffected — see `bleed` and TITLE_BAND.
+
+	   `left` is a placeholder: the render path writes it from the measured bleed
+	   on every re-fit (see the resize branch). It used to be `left: 50%` with a
+	   -50% translate, which pins the canvas to the COLUMN's centre — right only
+	   while the column is itself centred in the viewport, which it is not once the
+	   prose sits beside it rather than over it.
 
 	   .visual's own height stays out of this deliberately: it is bound to
 	   `height`, which sizes the backing store, so growing it would resize the
@@ -2792,8 +2899,7 @@
 		display: block;
 		position: absolute;
 		top: calc(-1 * var(--title-band));
-		left: 50%;
-		transform: translateX(-50%);
+		left: 0;
 		width: 100vw;
 		height: calc(100% + var(--title-band));
 	}

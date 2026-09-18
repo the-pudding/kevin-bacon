@@ -4,6 +4,7 @@
 	import ScrollyVisual from "$components/scrolly/ScrollyVisual.svelte";
 	import Step from "$components/scrolly/Step.svelte";
 	import Chapter from "$components/scrolly/Chapter.svelte";
+	import Splash from "$components/scrolly/Splash.svelte";
 	import TapNav from "$components/scrolly/TapNav.svelte";
 	import StepProgress from "$components/scrolly/StepProgress.svelte";
 	import GuessRank from "$components/scrolly/GuessRank.svelte";
@@ -77,6 +78,17 @@
 	// an empty chart) on every refresh regardless of which step it lands on
 	let coldStart = $state(restoredStep !== null && restoredStep > 0);
 	let dimensions = new useWindowDimensions();
+
+	// Beside, rather than over. Below this width the prose is a card lying across
+	// the bottom of the canvas; past it the two sit side by side and the charts
+	// take back the 40% of the box they were keeping clear for it.
+	//
+	// Kept in step with the `@media` rule at the bottom of this file BY HAND: a
+	// breakpoint cannot be read back out of CSS, and the render path needs the
+	// boolean rather than the layout (see ScrollyVisual's `beside` prop, which is
+	// what sets the plot's share of the column).
+	const BESIDE_MIN_W = 1200;
+	const beside = $derived(dimensions.width >= BESIDE_MIN_W);
 	// ScrollyVisual instance, for the pair-quiz panel's locate() flight targets
 	/** @type {ScrollyVisual | undefined} */
 	let visual = $state();
@@ -99,8 +111,9 @@
 	 * (the reader's Next is refused while it returns false), `skipback` (a
 	 * backward move passes through this step) and `advanceon` (the step carries
 	 * the reader on itself) — `hideBar` (drops the progress bar for this step
-	 * alone) — or `chapter` for a chapter card's title).
-	 * @typedef {{ state: import("$components/scrolly/states.js").VisualState, params?: Object, panel?: import("svelte").Snippet, gate?: () => boolean, skipback?: boolean, advanceon?: () => boolean, hideBar?: boolean, chapter?: { title: string } }} StepConfig
+	 * alone) — `chapter` for a chapter card's title, or `splash` for the title
+	 * card's own name-and-how-to-move pair).
+	 * @typedef {{ state: import("$components/scrolly/states.js").VisualState, params?: Object, panel?: import("svelte").Snippet, gate?: () => boolean, skipback?: boolean, advanceon?: () => boolean, hideBar?: boolean, chapter?: { title: string }, splash?: { title: import("svelte").Snippet, cta: import("svelte").Snippet } }} StepConfig
 	 * @type {StepConfig[]}
 	 */
 	const stepConfigs = $state([]);
@@ -118,8 +131,10 @@
 		stepConfigs.reduce((out, c, i) => (c.chapter ? [...out, i] : out), [])
 	);
 
-	// Which steps own a dot on the progress bar. A chapter card isn't a step the
-	// bar claims a dot for, and neither is a gated interaction step: it and the
+	// Which steps own a dot on the progress bar. Neither the title card nor a
+	// chapter card is a step the bar claims a dot for — the reader has arrived
+	// at the story, not moved through it — and neither is a gated
+	// interaction step: it and the
 	// step that reads out its answer are one beat to the reader (they cannot
 	// arrive at the second without passing the first, and stepping back skips
 	// straight over it), so they share the successor's dot rather than making
@@ -127,7 +142,7 @@
 	// downstream counts steps by hand.
 	const dotSteps = $derived(
 		stepConfigs.reduce(
-			(out, c, i) => (c.chapter || c.skipback ? out : [...out, i]),
+			(out, c, i) => (c.splash || c.chapter || c.skipback ? out : [...out, i]),
 			[]
 		)
 	);
@@ -390,6 +405,10 @@
 	// dissolving into the crowd underneath reads first, and leaves briskly — it
 	// must be gone before the next step starts sorting the field into bands.
 	const activeChapter = $derived(stepConfigs[value ?? 0]?.chapter);
+	// the title card, rendered from the registry for exactly the reasons a
+	// chapter's title is (see Splash.svelte) — and on the same fade, so opening
+	// the story and opening a chapter are visibly the same move
+	const activeSplash = $derived(stepConfigs[value ?? 0]?.splash);
 	// cubicInOut is the same curve the dot tweener eases on (tween.js's
 	// easeCubicInOut), so the title arrives on the motion the canvas is already
 	// moving to
@@ -523,6 +542,7 @@
 					params={exited ? undefined : stepConfigs[value ?? 0]?.params}
 					{coldStart}
 					{stepsHeight}
+					{beside}
 				/>
 				{#if !exited}
 					<!-- The rank ladder, mounted here rather than as a step's panel (the
@@ -570,6 +590,30 @@
 							out:fade={chapterOut}
 						>
 							<h2>{activeChapter.title}</h2>
+						</div>
+					{/if}
+					<!-- the title card. Same stable-{#if} arrangement as the chapter
+				     card above and for the same reason (see Splash.svelte); the
+				     arrow cue is a sibling rather than part of the card because it
+				     belongs to the right-hand tap gutter, not to the centred column
+				     the title and its line sit in. -->
+					{#if activeSplash}
+						<div
+							class="splash-card"
+							style="height: {chapterHeight}px"
+							in:fade={chapterIn}
+							out:fade={chapterOut}
+						>
+							<h1>{@render activeSplash.title()}</h1>
+							<p class="splash-cta">{@render activeSplash.cta()}</p>
+						</div>
+						<div
+							class="splash-cue"
+							aria-hidden="true"
+							in:fade={chapterIn}
+							out:fade={chapterOut}
+						>
+							→
 						</div>
 					{/if}
 					<!-- dev-only y-band tuner. Mounted outside stepConfigs so it spans the
@@ -669,6 +713,28 @@
 							<GenZMovers />
 						</div>
 					{/snippet}
+					<!-- TITLE CARD -->
+					<!-- Step 0: the piece's name over the same sky the chapter cards
+					     and the credits rest on, and one line teaching the only
+					     control the story has. Stepping off it is that control's first
+					     use, and the constellation grows out of the sky it leaves (see
+					     `titleGalaxy` / `lone`'s revealFrom in layouts/intro.js).
+
+					     The CTA says a different thing depending on the screen, because
+					     the mechanism a reader reaches for is different: a thumb at the
+					     edge of a phone, an arrow key at a desk. Both are always live —
+					     only the wording changes. -->
+					<Splash state="titleGalaxy">
+						{#snippet title()}
+							Gen Z's Kevin Bacon
+						{/snippet}
+						{#snippet cta()}
+							<span class="on-narrow">Tap the right of the screen to begin</span
+							>
+							<span class="on-wide">Press the right arrow key to begin</span>
+						{/snippet}
+					</Splash>
+
 					<!-- PRESENT -->
 					<Step state="lone">
 						<p>
@@ -744,7 +810,16 @@
 					     their places, which is the line the reader has just read. It rests
 					     there drifting (the framework's one ambient loop) until they step
 					     on, and the field then sorts itself into the hop bands. -->
-					<Chapter state="chapterCenters" title="The centers of Hollywood" />
+					<!-- castFrom: where this card joins the highlight beat's cycle of
+					     well-known actors. The flight's clock restarts on every arrival,
+					     so without a different offset per card all three would open on
+					     the same actor and a reader who taps briskly would meet nobody
+					     else. Spaced a third of GALAXY_CAST_N apart. -->
+					<Chapter
+						state="chapterCenters"
+						title="The centers of Hollywood"
+						params={{ castFrom: 0 }}
+					/>
 
 					<!-- hopBands' prose waits for the bands to actually land (story.settled)
 				     rather than mounting the moment the step becomes active — the crowd
@@ -872,6 +947,7 @@
 					<Chapter
 						state="chapterCenters"
 						title="The makings of a center of Hollywood"
+						params={{ castFrom: 30 }}
 					/>
 					<Step state="scatterCenters" params={{ showFilms: true }}>
 						<p>
@@ -945,6 +1021,7 @@
 					<Chapter
 						state="chapterCenters"
 						title="Predicting the next center of Hollywood"
+						params={{ castFrom: 60 }}
 					/>
 					<!-- The race chart comes back for one beat, and the camera pans down
 				     off the crown onto the stretch of remoteness the contenders
@@ -1349,6 +1426,143 @@
 			0 0 28px var(--color-bg, #fff);
 	}
 
+	/* The title card, in the same centred box as a chapter's — see .chapter-card
+	   for why the layer takes no pointer events: the canvas underneath is the
+	   tap gutters' ground, and the card's whole instruction is to use them. */
+	.splash-card {
+		position: absolute;
+		top: 0;
+		left: 0;
+		right: 0;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		gap: 1.75rem;
+		/* The one card measured off the tap gutters rather than the reading
+		   column: it is the only screen that MARKS them (.splash-cue), and a
+		   title running under that mark would have the reader reading the
+		   instruction through the word it is pointing at. The type wraps earlier
+		   for it, which on a phone is what turns the name into a poster. */
+		padding: 0 var(--tap-gutter);
+		pointer-events: none;
+	}
+
+	/* The piece's name. Same face and treatment as a chapter title (see
+	   .chapter-card h2 for why it is the serif, uppercased and tracked out) at
+	   the one size in the story allowed to be display type — this is the only
+	   heading that is not a break between two things the reader is reading.
+	   Tracking comes back in a little from the chapter's 0.03em: uppercase
+	   serifs need the air at 28px and start to fall apart at 64. */
+	.splash-card h1 {
+		margin: 0;
+		font-family: var(--font-serif);
+		font-size: clamp(var(--32px, 2rem), 12vw, var(--64px, 4rem));
+		font-weight: 400;
+		line-height: 1.02;
+		letter-spacing: 0.02em;
+		text-transform: uppercase;
+		text-align: center;
+		text-wrap: balance;
+		color: var(--color-fg);
+		/* the same halo the chapter title carries, opened up for the larger face */
+		text-shadow:
+			0 0 10px var(--color-bg, #fff),
+			0 0 10px var(--color-bg, #fff),
+			0 0 20px var(--color-bg, #fff),
+			0 0 20px var(--color-bg, #fff),
+			0 0 36px var(--color-bg, #fff),
+			0 0 36px var(--color-bg, #fff);
+	}
+
+	/* The one line of instruction. Set in the mono at the names' size, like every
+	   other piece of machine-voice in the story (the tour caption, the chart
+	   labels) — it is the interface talking, not the author. */
+	.splash-cta {
+		margin: 0;
+		font-family: var(--font-mono);
+		font-size: var(--14px, 0.875rem);
+		line-height: 1.3;
+		text-align: center;
+		text-wrap: balance;
+		color: var(--color-fg);
+		opacity: 0.75;
+		text-shadow:
+			0 0 4px var(--color-bg, #fff),
+			0 0 4px var(--color-bg, #fff),
+			0 0 8px var(--color-bg, #fff),
+			0 0 8px var(--color-bg, #fff),
+			0 0 12px var(--color-bg, #fff);
+	}
+
+	/* Which sentence the reader gets. Width, not pointer type: the ask is about
+	   which control is within reach, and a narrow window on a desktop is one a
+	   reader has already made small enough that the edge is the nearer target.
+	   display:none rather than opacity so the unused sentence is out of the
+	   accessibility tree too — the reader is told one thing, once. */
+	.on-wide {
+		display: none;
+	}
+
+	@media (min-width: 40rem) {
+		.on-narrow {
+			display: none;
+		}
+
+		.on-wide {
+			display: inline;
+		}
+	}
+
+	/* Where the tap goes. The sentence says "the right of the screen"; this is
+	   that place, marked — the cue fills the right-hand gutter exactly (the same
+	   --tap-gutter TapNav sizes its button from), so the reader is pointed at the
+	   strip that actually answers. It is the only marking either gutter ever
+	   carries, and it leaves with the card. */
+	.splash-cue {
+		position: absolute;
+		top: 0;
+		right: 0;
+		bottom: 0;
+		width: var(--tap-gutter);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		font-family: var(--font-mono);
+		font-size: var(--24px, 1.5rem);
+		color: var(--color-fg);
+		opacity: 0.5;
+		/* over the gutter it points at, but never catching the press it is asking
+		   for — the button underneath has to get it */
+		pointer-events: none;
+		z-index: var(--z-tap-above);
+		text-shadow:
+			0 0 6px var(--color-bg, #fff),
+			0 0 6px var(--color-bg, #fff),
+			0 0 12px var(--color-bg, #fff),
+			0 0 12px var(--color-bg, #fff);
+		animation: splash-nudge 2.6s ease-in-out infinite;
+	}
+
+	/* a nudge, not a bounce: the arrow leans the way the story goes and settles
+	   back, so it reads as a direction rather than as something demanding a tap */
+	@keyframes splash-nudge {
+		0%,
+		100% {
+			transform: translateX(0);
+		}
+
+		50% {
+			transform: translateX(5px);
+		}
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.splash-cue {
+			animation: none;
+		}
+	}
+
 	.scrolly-steps {
 		position: absolute;
 		left: 0;
@@ -1383,6 +1597,55 @@
 	/* the credits: plain document flow below #scrolly, over the fixed
 	   .scrolly-visual.exited backdrop drifting behind it (z-index: -1 there
 	   is what leaves this in front with no z-index of its own needed) */
+	/* BESIDE, RATHER THAN OVER (>= BESIDE_MIN_W — kept in step with the constant
+	   in the script by hand). Up to here the prose is a card lying across the
+	   bottom of the canvas, and every chart keeps the bottom 40% of the box clear
+	   for it. Past here there is room for the two abreast, so the prose takes a
+	   column of its own and the charts take that 40% back — which is the actual
+	   win, because the visual column at this breakpoint is about as wide as the
+	   700px measure was giving them anyway. The height is what the charts never
+	   had. See PLOT_BOTTOM_BESIDE in layout-shared.js for the other half of it.
+
+	   The split is held as two unitless numbers so the three rules that need it
+	   cannot drift apart — the visual's left inset, the prose's right inset, and
+	   the full-bleed cards, which have to undo the first one from inside a box
+	   that is only --visual-frac of the layout wide. */
+	@media (min-width: 75rem) {
+		#scrolly {
+			max-width: 1400px;
+		}
+
+		.scrolly-layout {
+			--prose-frac: 40;
+			--visual-frac: 60;
+		}
+
+		.scrolly-visual {
+			left: calc(var(--prose-frac) * 1%);
+		}
+
+		/* no longer over the canvas, so it is centred in its own column rather
+		   than pinned to the bottom of the layout. `.exited` is untouched by all
+		   of this: `.scrolly-visual.exited` outranks the rule above on
+		   specificity, so the credits backdrop still goes full-screen. */
+		.scrolly-steps {
+			top: 50%;
+			right: calc(var(--visual-frac) * 1%);
+			bottom: auto;
+			transform: translateY(-50%);
+		}
+
+		/* A full-bleed state's title belongs to the SCREEN, not to the charts'
+		   half of it: the sky behind these two runs edge to edge, so a title
+		   centred in the visual column would sit off to one side of the very
+		   picture it is meant to be in the middle of. Both layers are
+		   pointer-events: none, so reaching back across the prose costs nothing. */
+		.chapter-card,
+		.splash-card {
+			left: calc(var(--prose-frac) / var(--visual-frac) * -100%);
+		}
+	}
+
 	#credits {
 		max-width: 700px;
 		margin: 0 auto;

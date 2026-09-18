@@ -18,11 +18,18 @@
 	 * `stepConfigs[value].chapter`, inside a stable {#if} block Svelte can
 	 * transition both ways.
 	 *
+	 * `params` reaches the canvas state exactly as <Step>'s does — the cards share
+	 * one state (`chapterCenters`), so it is the only way to tell them apart. The
+	 * galaxy highlight beat uses it to give each card a different starting point
+	 * in the cast, since the flight's clock restarts at every arrival and all
+	 * three would otherwise open on the same actor.
+	 *
 	 * @see notes/scrolly-framework.md
-	 * @type {{ state: import("./states.js").VisualState, title: string }}
+	 * @type {{ state: import("./states.js").VisualState, title: string,
+	 *   params?: Object }}
 	 */
-	let { state: layoutState, title } = $props();
+	let { state: layoutState, title, params } = $props();
 
 	const steps = getContext("scrolly-steps");
-	steps.register({ state: layoutState, chapter: { title } });
+	steps.register({ state: layoutState, params, chapter: { title } });
 </script>
