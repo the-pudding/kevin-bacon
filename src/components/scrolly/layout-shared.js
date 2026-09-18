@@ -157,6 +157,22 @@ export const EDGE_GREY = [120, 120, 120]; // network links at rest
 export const EDGE_HIGHLIGHT = INK;
 
 export const MARGIN = 32;
+
+/**
+ * px of strip reserved above the canvas box for each chart's title, between the
+ * progress bar and the canvas's own MARGIN clearance. This is the source of the
+ * `--title-band` custom property, which Index.svelte sets from it — canvas can't
+ * read CSS custom properties, and the render path needs the number.
+ *
+ * The canvas ELEMENT bleeds up into the strip (see ScrollyVisual's render
+ * transform), which is why it is a constant and not a per-state or measured
+ * value: the backing store is rebuilt on resize, and a band that moved between
+ * states would resize the canvas on exactly the transitions that animate.
+ * Coordinates are unaffected — the origin is pushed back down by the same
+ * amount, so only `galaxyBox` reaches into the strip.
+ */
+export const TITLE_BAND = 26;
+
 // charts live in the top ~3/5 of the canvas — the step card owns the bottom,
 // and the x-axis ticks + axis label (drawn ~32px below this line) need to clear
 // the tallest step cards too, so keep the plot clear of the bottom ~40%
@@ -945,19 +961,20 @@ const FIELD_KEEPOUT =
 const fieldBox = (w, h) => [MARGIN, w - MARGIN, MARGIN, plotBottom(h)];
 
 /**
- * The chapter card's rect: the whole bled canvas, edge to edge and top to
- * bottom. A card carries no chart and no step prose, so nothing needs the
- * margins or the bottom 40% that `fieldBox` keeps clear — the crowd is the
- * picture, and boxing it into the column reads as a rectangle of dots rather
- * than a sky.
+ * The chapter card's rect: the whole bled canvas, edge to edge and from the top
+ * of the screen down. A card carries no chart and no step prose, so nothing
+ * needs the margins or the bottom 40% that `fieldBox` keeps clear — the crowd
+ * is the picture, and boxing it into the column reads as a rectangle of dots
+ * rather than a sky.
  *
  * `bleed` is how far the canvas extends past the 700px reading column on each
- * side (see ScrollyVisual's render transform), so negative x and x past `w` are
- * both on screen. Everything else keeps `fieldBox`: the pull-back and hopBands
- * share the column, and widening theirs would spread the bands' rain across the
- * whole viewport too.
+ * side, and TITLE_BAND how far it extends above the box (see ScrollyVisual's
+ * render transform), so negative x, x past `w` and negative y are all on screen.
+ * Everything else keeps `fieldBox`: the pull-back and hopBands share the column,
+ * and widening theirs would spread the bands' rain across the whole viewport
+ * too.
  */
-export const galaxyBox = (w, h, bleed) => [-bleed, w + bleed, 0, h];
+export const galaxyBox = (w, h, bleed) => [-bleed, w + bleed, -TITLE_BAND, h];
 
 /**
  * Where one actor stands when the pull-back has landed — the single definition of

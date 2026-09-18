@@ -62,6 +62,7 @@
 	} from "./states.js";
 	import {
 		MARGIN,
+		TITLE_BAND,
 		plotBottom,
 		set,
 		EDGE_GREY,
@@ -1493,10 +1494,11 @@
 		if (!ctx) return;
 		const attrs = tweener.current;
 		const trailAttrs = trailTweener.current;
-		// past the column on both sides: the origin sits on `.visual`'s left edge,
-		// so clearing [0, width] would leave the chapter card's sky smeared across
-		// the bleed for the rest of the story
-		ctx.clearRect(-bleed, 0, width + bleed * 2, height);
+		// past the column on both sides and above its top edge: the origin sits on
+		// `.visual`'s top left corner, so clearing [0, width] x [0, height] would
+		// leave the chapter card's sky smeared across the bleed and the title band
+		// for the rest of the story
+		ctx.clearRect(-bleed, -TITLE_BAND, width + bleed * 2, height + TITLE_BAND);
 		// trails under everything: race/career lines, prediction diagonal. An INKED
 		// line (the race chart's leader — see setTrailHighlight) is held back to a
 		// second pass so the crown is drawn over the field rather than buried under
@@ -2004,15 +2006,19 @@
 		}
 		if (resized) {
 			const dpr = Math.min(window.devicePixelRatio || 1, 2);
-			// The backing store spans the bled canvas, but the ORIGIN stays on
-			// `.visual`'s left edge: shifting the transform by `bleed` is what keeps
-			// every layout's coordinates meaning the same screen pixels they always
-			// did, so only a layout that deliberately authors outside [0, width] —
-			// the chapter card's sky — sees any difference.
+			// The backing store spans the bled canvas — wider than `.visual` by
+			// `bleed` on each side, taller by TITLE_BAND above it — but the ORIGIN
+			// stays on `.visual`'s top left corner: shifting the transform by the
+			// same two amounts is what keeps every layout's coordinates meaning the
+			// same screen pixels they always did, so only a layout that deliberately
+			// authors outside [0, width] x [0, height] — the chapter card's sky —
+			// sees any difference. `height` itself is never adjusted: it is the
+			// measured box, and making it depend on the band would put the band in
+			// `resized` below and snap every tween the band's value crossed.
 			canvas.width = canvasWidth * dpr;
-			canvas.height = height * dpr;
+			canvas.height = (height + TITLE_BAND) * dpr;
 			ctx = canvas.getContext("2d");
-			ctx.setTransform(dpr, 0, 0, dpr, bleed * dpr, 0);
+			ctx.setTransform(dpr, 0, 0, dpr, bleed * dpr, TITLE_BAND * dpr);
 			prevW = width;
 			prevH = height;
 			prevCanvasW = canvasWidth;
@@ -2740,11 +2746,17 @@
 		height: 100%;
 	}
 
-	/* Full-bleed, centred on the reading column rather than sized by it: a
-	   chapter card's crowd fills the screen, and a canvas clipped to the 700px
-	   column could only ever draw a rectangle of dots in the middle of it. The
-	   drawing origin is put back on this box's left edge by the render
-	   transform, so every other state is unaffected — see the `bleed` derived.
+	/* Full-bleed, centred on the reading column rather than sized by it, and
+	   reaching up through the title band as well: a chapter card's crowd fills
+	   the screen, and a canvas clipped to the 700px column — or stopping where
+	   .scrolly-visual starts, --title-band below the top of the window — could
+	   only ever draw a rectangle of dots in the middle of it. The drawing origin
+	   is put back on this box's top left corner by the render transform, so
+	   every other state is unaffected — see the `bleed` derived and TITLE_BAND.
+
+	   .visual's own height stays out of this deliberately: it is bound to
+	   `height`, which sizes the backing store, so growing it would resize the
+	   canvas. Only the canvas element grows.
 
 	   100vw is exact here because the page is a single 100svh section with no
 	   vertical scrollbar to take a gutter out of it; the width the layouts use
@@ -2752,11 +2764,11 @@
 	canvas {
 		display: block;
 		position: absolute;
-		top: 0;
+		top: calc(-1 * var(--title-band));
 		left: 50%;
 		transform: translateX(-50%);
 		width: 100vw;
-		height: 100%;
+		height: calc(100% + var(--title-band));
 	}
 
 	/* the labels stay inside the reading column: a name is set against the prose

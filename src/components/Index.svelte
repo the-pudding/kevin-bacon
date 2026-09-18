@@ -28,6 +28,7 @@
 		CYCLE_ORDER,
 		introBottom
 	} from "$components/scrolly/layouts/intro.js";
+	import { TITLE_BAND } from "$components/scrolly/layout-shared.js";
 	import RouteFilms from "$components/scrolly/RouteFilms.svelte";
 	import InfoTerm from "$components/ui/InfoTerm.svelte";
 	import { MediaQuery } from "svelte/reactivity";
@@ -493,7 +494,7 @@
 			class:exited
 			style="--viewport-height: {dimensions.height
 				? `${dimensions.height}px`
-				: '100svh'}"
+				: '100svh'}; --title-band: {TITLE_BAND}px"
 		>
 			<div
 				class="scrolly-visual"
@@ -1121,9 +1122,10 @@
 		height: var(--viewport-height);
 		--tap-gutter: clamp(56px, 12%, 88px);
 		--progress-band: 30px;
-		/* space for each chart's title, between the dot bar and the canvas's own
-		   MARGIN-based top clearance (see layout-shared.js) */
-		--title-band: 26px;
+		/* --title-band — space for each chart's title, between the dot bar and the
+		   canvas's own MARGIN-based top clearance — is set inline above, from
+		   TITLE_BAND in layout-shared.js: the render path needs the same number,
+		   and canvas can't read CSS custom properties. */
 	}
 
 	/* Full-height, stable canvas: its size must NOT track the step text height,
@@ -1147,10 +1149,21 @@
 	   longer a step's chart confined to this one-viewport box — it becomes a
 	   fixed backdrop behind the credits, drifting on regardless of where the
 	   page is scrolled. .scrolly-layout collapses to no height alongside this
-	   (below) so the credits section sits directly under #scrolly in flow. */
+	   (below) so the credits section sits directly under #scrolly in flow.
+
+	   The box keeps the same --title-band offset and the same height it had
+	   docked — only its containing block changes. Anything else moves the
+	   drawing origin: inset: 0 here would lift it by the band, carrying every
+	   dot up with it on the step into the credits, and the 26px of extra height
+	   would resize the canvas and snap the crowd there rather than tween it.
+	   The band is still covered — the canvas element bleeds up through it (see
+	   ScrollyVisual's canvas rule), which is the whole point of the bleed. */
 	.scrolly-visual.exited {
 		position: fixed;
-		inset: 0;
+		top: var(--title-band);
+		right: 0;
+		bottom: 0;
+		left: 0;
 		z-index: -1;
 	}
 

@@ -996,10 +996,11 @@ just a panel.
 state carrying a chart is drawn inside `#scrolly`'s 700px measure, because a
 chart wider than the prose it belongs to stops being readable. The two states
 that carry no chart — `hopSeed`'s pull-back and `chapterCenters` — author their
-crowd across `galaxyBox` instead: the whole viewport, edge to edge and top to
-bottom, so the reader gets the corpus as something too big for the page exactly
-where the argument pauses. `fieldEdgeAlpha`'s 40px ramp becomes the vignette at
-the screen edges.
+crowd across `galaxyBox` instead: the whole viewport, edge to edge and from the
+top of the screen down, so the reader gets the corpus as something too big for
+the page exactly where the argument pauses. Nothing fades the crowd at the
+screen edges — a vignette there would draw the boundary the full bleed exists to
+hide.
 
 `hopSeed` sharing the card's box is what makes the step onto the card a no-op.
 Both write the same crowd through `writeFieldCrowd` at `PULLBACK_ZOOM` against
@@ -1033,6 +1034,27 @@ difference. Three consequences worth knowing:
   clipping moved to `.annotations`, which is what wanted it. `.visual` itself is
   untouched otherwise — it is still the box every panel, hit target and label is
   positioned against, and every hit test measures it.
+
+**`TITLE_BAND` is the same move upward.** `.scrolly-visual` sits `--title-band`
+(26px) below the top of the window, to keep each chart's title clear of the dot
+bar, so the canvas box stops short of the screen's top edge and a full-bleed
+crowd stopped there with it. The canvas element is pulled up through the band
+and grown by it (`top: calc(-1 * var(--title-band))`, `height: calc(100% +
+var(--title-band))`), the backing store is `height + TITLE_BAND` tall, and the
+transform pushes the origin back down by `TITLE_BAND` — the exact vertical twin
+of `bleed`, with the same result: `h` still means the box, and only `galaxyBox`
+reaches into the strip (`y0 = -TITLE_BAND`). `drawScene` clears from
+`-TITLE_BAND` for the reason it clears from `-bleed`.
+
+The band is a **constant**, defined once as `TITLE_BAND` in `layout-shared.js`
+and set from there onto `.scrolly-layout` as `--title-band` by `Index.svelte` —
+never measured, and never varied per state. `height` is bound to `.visual`'s
+`clientHeight` and sits inside `resized`, which stops any sweep and takes the
+instant-snap branch; a band that changed between states (say, only on states
+that carry a title) would resize the canvas on exactly the transitions that
+animate. That was tried, and it snapped outro's 4s pull-back on arrival from
+`raceClose`. Nothing in the render path may make `width`, `height` or
+`canvasWidth` depend on the band.
 
 The intro fifteen are the exception that stays put: `cardSpot` gives them
 `introPosition` at `PULLBACK_ZOOM` — hopSeed's landed camera — and only their
