@@ -828,6 +828,18 @@ export function raceMaxPlayhead(w, h, step) {
 	return step.maxPlayhead ?? step.extent[1];
 }
 
+/**
+ * Where a step's camera RESTS: its own declared `restPlayhead`, else the last
+ * year it may rest on. The static layout (raceLayout) and the live camera's
+ * reset (race-camera.js) both read it, so a state change, a cold mount and a
+ * resize all put the chart on the same year.
+ * @param {number} w @param {number} h
+ * @param {{extent: [number, number], restPlayhead?: number, maxPlayhead?: number, tailPx?: number, tailYears?: number}} step
+ */
+export function raceRestPlayhead(w, h, step) {
+	return step.restPlayhead ?? raceMaxPlayhead(w, h, step);
+}
+
 // The most of the data plot a step's tail of history may take, leaving the rest
 // for the future strip beside it. Only `tailYears` is clamped by it: `tailPx` is
 // already a pixel budget its author has sized against the plot.
@@ -2196,7 +2208,7 @@ function raceLayout(step, yCap = Infinity) {
 			h,
 			{
 				...step,
-				playhead: params?.playhead ?? raceMaxPlayhead(w, h, step),
+				playhead: params?.playhead ?? raceRestPlayhead(w, h, step),
 				// the step's own resting frontier, so a COLD MOUNT, a RESIZE and the
 				// reduced-motion snap all land on the fully-open strip with nothing
 				// left to play — the same contract an entry's last leg has to
@@ -2362,6 +2374,12 @@ export const RACE_RECENT_STEP = { extent: RACE_RECENT_EXTENT, highlight: [SLJ, H
 export const RACE_FULL_STEP = {
 	extent: RACE_FULL_EXTENT,
 	minPlayhead: RACE_FULL_PAN_FLOOR,
+	// Its resting camera is the rewind's waypoint, not its extent's end: every
+	// arrival path settles here — the retrace out of raceFuture pans back to it,
+	// the forward step out of raceRecent lands on it, a cold mount opens on it —
+	// so the reader always has the slider immediately usable from the same year,
+	// and the crossing raceRecent's second step is about is still on the plot.
+	restPlayhead: RACE_REWIND_WAYPOINT_YEAR,
 	highlight: [HACKMAN]
 };
 // raceFuture: raceFull's chart with the camera run forward to the present, and a

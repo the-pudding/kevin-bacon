@@ -14,7 +14,7 @@ import {
 import { TRAIL_SIZE, TRAIL_STRIDE, TRAIL_POINTS } from "../layout-shared.js";
 import {
 	writeRaceSweepFrame,
-	raceMaxPlayhead,
+	raceRestPlayhead,
 	RACE_DATA_END,
 	RACE_FUTURE_END
 } from "../layouts/race.js";
@@ -228,7 +228,7 @@ describe("race steps: the resting frame is a fixed point of the frame writer", (
 				// the frame the static layout rests on (mirrors raceLayout)
 				const frame = {
 					...step,
-					playhead: raceMaxPlayhead(box.w, box.h, step),
+					playhead: raceRestPlayhead(box.w, box.h, step),
 					frontier: step.frontier ?? RACE_DATA_END,
 					yOpen: step.yOpen ?? 0,
 					yClose: step.yClose ?? 0,
