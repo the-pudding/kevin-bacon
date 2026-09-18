@@ -8,7 +8,7 @@ function getXY(node) {
 // TODO top and bottom
 export default function keepWithinBox(node, params = {}) {
 	function check({ width }) {
-		const { top, left, right, bottom } = node.getBoundingClientRect();
+		const { left, right } = node.getBoundingClientRect();
 		let transform;
 		const [x, y] = getXY(node);
 		const w = right - left;

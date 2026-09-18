@@ -23,7 +23,7 @@ const fetchGoogle = async ({ id, gid }) => {
 		const str = JSON.stringify(parsed, null, 2);
 		return str;
 	} catch (err) {
-		throw new Error(err);
+		throw new Error(`fetch failed for ${id}`, { cause: err });
 	}
 };
 

@@ -1,6 +1,6 @@
 import loadImage from "./loadImage.js";
 
-const getPixels = ({ data }) => {
+const getPixels = ({ data, width }) => {
 	const output = [];
 	for (let index = 0; index < data.length; index += 4) {
 		const i = Math.floor(index / 4);

@@ -5,7 +5,6 @@
 	let {
 		items = [], // Array of { value, label, icon? }
 		type = "single", // "single" | "multiple"
-		variant = "default", // "default" | "spaced",
 		required = false,
 		class: className = "",
 		value = $bindable(),

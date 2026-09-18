@@ -76,7 +76,6 @@
 	<div class="race-scrubber">
 		<!-- pointer-only enhancement over the accessible Slider below; hidden from AT
 		     (the Slider is the operable, keyboard-driven control) -->
-		<!-- svelte-ignore a11y_no_static_element_interactions -->
 		<div
 			class="drag-surface"
 			aria-hidden="true"

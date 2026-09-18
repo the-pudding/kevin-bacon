@@ -11,7 +11,6 @@
 	import RankBars from "$components/scrolly/RankBars.svelte";
 	import RaceScrubber from "$components/scrolly/RaceScrubber.svelte";
 	import SimRunner from "$components/scrolly/SimRunner.svelte";
-	import GenZMovers from "$components/scrolly/GenZMovers.svelte";
 	import RaceRewindStart from "$components/scrolly/RaceRewindStart.svelte";
 	import GenZLinesStart from "$components/scrolly/GenZLinesStart.svelte";
 	import PairQuiz from "$components/scrolly/PairQuiz.svelte";
@@ -747,14 +746,6 @@
 							<GenZLinesStart />
 						</div>
 					{/snippet}
-					<!-- the Monte Carlo reshuffle: a dumbbell row per contender, opaque over
-				     the simulation race it reads out. The whole close sits on that one
-				     chart, so this panel is the only thing that changes for its step. -->
-					{#snippet moversPanel()}
-						<div class="movers-panel" style="bottom: {overlayHeight + 12}px">
-							<GenZMovers />
-						</div>
-					{/snippet}
 					<!-- TITLE CARD -->
 					<!-- Step 0: the piece's name over the same sky the chapter cards
 					     and the credits rest on, and one line teaching the only
@@ -1332,23 +1323,6 @@
 		}
 	}
 
-	/* the Monte Carlo movers list: opaque over the race chart, so the dumbbell
-	   rows are the only chart on screen for their step. Unlike the rank panel it
-	   starts at the very top of the canvas — it replaces the chart outright
-	   rather than sitting under something, so any gap would leak the axis ticks
-	   of the chart underneath. No delay on the fade, unlike the rank panel: that
-	   one waits for a canvas collapse to finish underneath it, and this step's
-	   canvas never changes (every step around it is simRace too), so a delay here
-	   would just be dead time on arrival. */
-	.movers-panel {
-		position: absolute;
-		top: 0;
-		left: 0;
-		right: 0;
-		background: var(--color-bg);
-		animation: panel-in 0.3s ease both;
-	}
-
 	/* raceFull scrubber: spans the plot region above the step card (inline
 	   `bottom`). Transparent — the drag surface sits over the live canvas; only
 	   the slider control at its bottom edge is opaque. */
@@ -1376,7 +1350,6 @@
 		}
 
 		.rank-bars-panel.revealed,
-		.movers-panel,
 		.rank-focus-text {
 			animation: none;
 		}

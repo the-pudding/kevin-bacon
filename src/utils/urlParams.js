@@ -1,5 +1,5 @@
 function get(key) {
-	const name = key.replace(/[\[]/, "\\[").replace(/[\]]/, "\\]");
+	const name = key.replace(/[[]/, "\\[").replace(/[\]]/, "\\]");
 	const regex = new RegExp(`[\\?&]${name}=([^&#]*)`);
 	const results = regex.exec(window.location.search);
 	return results === null
@@ -20,8 +20,8 @@ function set(key, value) {
 
 	// If the "search" string exists, then build params from it
 	if (urlQueryString) {
-		const updateRegex = new RegExp(`([\?&])${key}[^&]*`);
-		const removeRegex = new RegExp(`([\?&])${key}=[^&;]+[&;]?`);
+		const updateRegex = new RegExp(`([?&])${key}[^&]*`);
+		const removeRegex = new RegExp(`([?&])${key}=[^&;]+[&;]?`);
 
 		// Remove param if value is empty
 		if (typeof value === "undefined" || value === null || value === "") {

@@ -9,11 +9,10 @@ const isReady = () => {
 		storage.setItem(x, x);
 		storage.removeItem(x);
 		hasStorage = true;
-	} catch (e) {
+	} catch {
 		hasStorage = false;
-	} finally {
-		return hasStorage;
 	}
+	return hasStorage;
 };
 
 const remove = (key) => {

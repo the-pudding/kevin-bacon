@@ -28,7 +28,7 @@ async function lookup(test) {
 		const json = await request.json();
 		return json;
 	} catch (err) {
-		throw new Error(err);
+		throw new Error("locate: lookup failed", { cause: err });
 	}
 }
 

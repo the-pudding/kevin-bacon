@@ -23,10 +23,12 @@
 					{#each route.hops as hop, h (h)}
 						<li>
 							<!-- the films of one hop, comma-joined: a hop is one link however
-							     many films made it, so they belong on one line -->
+							     many films made it, so they belong on one line. The separator's
+								     space is an entity: Svelte drops a literal trailing space at
+								     the end of an element -->
 							<p class="films">
 								{#each hop.films as film, f (film.title)}{#if f}<span
-											class="sep">{", "}</span
+											class="sep">,&#32;</span
 										>{/if}<cite>{film.title}</cite>{#if film.year}<span
 											class="year">&nbsp;({film.year})</span
 										>{/if}{/each}
