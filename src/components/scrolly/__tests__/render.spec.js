@@ -1,14 +1,11 @@
 import { describe, expect, test, vi } from "vitest";
+import { STRIDE, ATTR_SIZE, set, setEdge } from "../attr-buffer.js";
 import {
-	STRIDE,
-	ATTR_SIZE,
 	TRAIL_SIZE,
 	TRAIL_META,
-	set,
-	setEdge,
 	setTrailPoints,
 	setTrailHighlight
-} from "../layout-shared.js";
+} from "../trails.js";
 import { drawDots, drawEdges, drawTrails } from "../render.js";
 
 // A 2D context that records what is drawn, and a Path2D that records its arcs

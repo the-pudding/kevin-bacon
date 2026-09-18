@@ -3,7 +3,7 @@
 	import { getContext } from "svelte";
 	import { story } from "./story.svelte.js";
 	import { nodeName, nodeRank, searchRankOptions } from "./states.js";
-	import { SLJ } from "./layout-shared.js";
+	import { SLJ } from "./cast.js";
 	import { recordRankGuess } from "$utils/analytics.js";
 
 	const steps = getContext("scrolly-steps");

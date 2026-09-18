@@ -1,17 +1,11 @@
 import story from "$data/scrolly-story.json";
+import { ATTR_SIZE, set } from "../attr-buffer.js";
+import { SWEENEY, DENIRO, CHASE } from "../cast.js";
+import { CROWD, BLUE } from "../palette.js";
+import { MARGIN, plotBottom, lin } from "../plot.js";
+import { scatterPosition } from "../scatter-scales.js";
 import {
-	ATTR_SIZE,
 	TRAIL_SIZE,
-	MARGIN,
-	plotBottom,
-	lin,
-	set,
-	scatterPosition,
-	CROWD,
-	BLUE,
-	SWEENEY,
-	DENIRO,
-	CHASE,
 	SWEENEY_SLOT,
 	DENIRO_SLOT,
 	CHASE_SLOT,
@@ -23,7 +17,7 @@ import {
 	monotoneSegments,
 	sampleTrail,
 	curveYAt
-} from "../layout-shared.js";
+} from "../trails.js";
 
 // ---------------------------------------------------------------------------
 // Career lines (Future chapter): cumulative films by career age. Colour roles
@@ -100,7 +94,7 @@ function careerFrame(nodes, w, h) {
 }
 
 function careerLayout(showCohort) {
-	/** @type {import("../layout-shared.js").LayoutFn} */
+	/** @type {import("../layout-types.js").LayoutFn} */
 	return function layoutCareer(nodes, w, h) {
 		const attrs = new Float64Array(ATTR_SIZE);
 		const trails = new Float64Array(TRAIL_SIZE);

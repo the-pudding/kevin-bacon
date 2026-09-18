@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { ATTR_SIZE, set } from "../layout-shared.js";
+import { ATTR_SIZE, set } from "../attr-buffer.js";
 import {
 	createLabelStacker,
 	raceLabelCut,

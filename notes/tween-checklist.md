@@ -52,7 +52,7 @@ from what changed:
 
   step either side of each of them (a tween has two ends).
 
-- **shared machinery** — `tween.js`, `layout-shared.js`, `ScrollyVisual.svelte`,
+- **shared machinery** — `tween.js`, the layout modules (`attr-buffer.js`, `plot.js`, `trails.js`, `sky.js` and their siblings), `ScrollyVisual.svelte` and its modules,
 
   `states.js` → the whole table.
 

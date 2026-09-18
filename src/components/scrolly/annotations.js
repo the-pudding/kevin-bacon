@@ -2,7 +2,7 @@
 // tracked entries the HTML labels ride, and the vertical de-collision that
 // keeps beside-dot names apart. Pure functions over the frame buffer plus one
 // small stateful stacker; nothing here touches the DOM or the story.
-import { STRIDE } from "./layout-shared.js";
+import { STRIDE } from "./attr-buffer.js";
 import { createLabelDecollider } from "./label-decollide.js";
 
 /**

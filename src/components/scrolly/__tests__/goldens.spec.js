@@ -6,7 +6,7 @@ import { describe, expect, test } from "vitest";
 import { STATES } from "../states.js";
 import { SIM_N_SIMS } from "../layouts/sim-race.js";
 import { INTRO_IDS } from "../nodes.js";
-import { SLJ } from "../layout-shared.js";
+import { SLJ } from "../cast.js";
 import {
 	BOXES,
 	buildLayout,

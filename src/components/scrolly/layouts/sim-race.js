@@ -1,24 +1,18 @@
 import story from "$data/scrolly-story.json";
 import rawNodes from "$data/scrolly-nodes.json";
+import { ATTR_SIZE, set } from "../attr-buffer.js";
+import { SIM_SERIES, SIM_LABEL_N, SIM_LABEL_IDS } from "../cast.js";
+import { CROWD, INK } from "../palette.js";
+import { MARGIN, plotBottom, lin } from "../plot.js";
+import { scatterPosition } from "../scatter-scales.js";
 import {
-	ATTR_SIZE,
 	TRAIL_SIZE,
 	TRAIL_POINTS,
 	TRAIL_META,
-	MARGIN,
-	plotBottom,
-	lin,
-	set,
-	scatterPosition,
 	setTrailPoints,
 	collapseTrail,
-	CROWD,
-	INK,
-	SIM_SERIES,
-	SIM_LABEL_N,
-	SIM_LABEL_IDS,
 	SIM_SLOT_BASE
-} from "../layout-shared.js";
+} from "../trails.js";
 
 // ---------------------------------------------------------------------------
 // Simulation race: the reader presses Start and the 10,000 recorded simulation
@@ -177,7 +171,7 @@ export function writeSimFrame(attrs, trails, w, h, runs) {
 	return { axes: simAxes(w, plot, xS, yS) };
 }
 
-/** @type {import("../layout-shared.js").LayoutFn} */
+/** @type {import("../layout-types.js").LayoutFn} */
 function layoutSimRace(nodes, w, h, _edges, params) {
 	const attrs = new Float64Array(ATTR_SIZE);
 	const trails = new Float64Array(TRAIL_SIZE);

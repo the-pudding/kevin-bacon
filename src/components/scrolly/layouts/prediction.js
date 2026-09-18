@@ -1,20 +1,15 @@
+import { ATTR_SIZE, set } from "../attr-buffer.js";
+import { SLJ } from "../cast.js";
+import { CROWD, RED, BLUE } from "../palette.js";
+import { MARGIN, plotBottom, lin } from "../plot.js";
+import { scatterPosition } from "../scatter-scales.js";
 import {
-	ATTR_SIZE,
 	TRAIL_SIZE,
-	MARGIN,
-	plotBottom,
-	lin,
-	set,
-	scatterPosition,
-	CROWD,
-	RED,
-	BLUE,
-	SLJ,
 	TRAIL_META,
 	RULE_SLOT,
 	setTrail,
 	collapseTrail
-} from "../layout-shared.js";
+} from "../trails.js";
 import { QUIZ_IDS, QUIZ_LABEL_DIRS } from "./scatters.js";
 
 // ---------------------------------------------------------------------------
@@ -38,7 +33,7 @@ const PRED_FIELDS = {
 	all: "predAll"
 };
 
-/** @type {import("../layout-shared.js").LayoutFn} */
+/** @type {import("../layout-types.js").LayoutFn} */
 function layoutPredScatter(nodes, w, h, _edges, params) {
 	const mode = params?.mode ?? "film";
 	const field = PRED_FIELDS[mode];

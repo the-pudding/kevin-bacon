@@ -1,24 +1,22 @@
 import { INTRO_IDS } from "../nodes.js";
+import { ATTR_SIZE, set } from "../attr-buffer.js";
+import { FIELD_IDS } from "../cast.js";
+import { PULLBACK_DOT_R, PULLBACK_ZOOM } from "../intro-geometry.js";
+import { CROWD } from "../palette.js";
+import { NO_BLEED } from "../plot.js";
+import { parkHidden } from "../scatter-scales.js";
 import {
-	ATTR_SIZE,
-	CROWD,
 	FIELD_ALPHA,
-	FIELD_IDS,
-	PULLBACK_DOT_R,
-	PULLBACK_ZOOM,
 	cardSpot,
 	writeFieldCrowd,
 	galaxyBox,
-	NO_BLEED,
 	makeFlight,
 	fieldDepth,
 	depthSize,
 	depthFade,
 	flightWindow,
-	skyFrac,
-	set,
-	parkHidden
-} from "../layout-shared.js";
+	skyFrac
+} from "../sky.js";
 import { withGalaxyHighlight } from "../galaxy-highlight.js";
 
 // ---------------------------------------------------------------------------
@@ -73,7 +71,7 @@ function writeIntroIntoField(attrs, w, h) {
 	}
 }
 
-/** @type {import("../layout-shared.js").LayoutFn} */
+/** @type {import("../layout-types.js").LayoutFn} */
 function layoutChapterCenters(nodes, w, h, _edges, _params, bleed = NO_BLEED) {
 	const attrs = new Float64Array(ATTR_SIZE);
 	// the sky: the canvas and well past it on every side, so the crowd thins out

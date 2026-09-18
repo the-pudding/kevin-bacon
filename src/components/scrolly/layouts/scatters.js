@@ -1,20 +1,13 @@
 import story from "$data/scrolly-story.json";
+import { ATTR_SIZE, set } from "../attr-buffer.js";
+import { SLJ, CAGE, idOf, GENZ_NAMED_IDS } from "../cast.js";
+import { CROWD, INK } from "../palette.js";
+import { MARGIN, plotBottom, lin } from "../plot.js";
 import {
-	ATTR_SIZE,
-	MARGIN,
-	plotBottom,
-	lin,
-	set,
 	scatterPosition,
 	deLogFilms,
-	FILM_MIN_SHOWN,
-	CROWD,
-	INK,
-	SLJ,
-	CAGE,
-	idOf,
-	GENZ_NAMED_IDS
-} from "../layout-shared.js";
+	FILM_MIN_SHOWN
+} from "../scatter-scales.js";
 
 // ---------------------------------------------------------------------------
 // Films scatters: shared log-films x-axis, swappable y metric. Non-participants
@@ -24,7 +17,7 @@ import {
 
 /**
  * @param {Object} cfg
- * @param {(n: import("../layout-shared.js").ActorNode) => number|null} cfg.yOf
+ * @param {(n: import("../nodes.js").ActorNode) => number|null} cfg.yOf
  * @param {boolean} [cfg.invert] smaller value = higher up (avg-distance charts)
  * @param {number} [cfg.tickStep] y ticks at even steps of the metric (default 0.5)
  * @param {Map<number, { rgb: number[], r: number, alpha?: number }>} [cfg.highlights]
@@ -112,7 +105,7 @@ export const QUIZ_IDS = QUIZ_PAIRS.flatMap((p) => [p.a, p.b]);
 // per state, no supporting-cast dots, no on-canvas callouts — the facts live
 // in the step prose. SLJ takes the default red highlight.
 
-/** @type {import("../layout-shared.js").LayoutFn} */
+/** @type {import("../layout-types.js").LayoutFn} */
 const layoutScatterCenters = (nodes, w, h, _edges, params) => {
 	// the pair step hands the subject over to Portman and Kendrick — they are
 	// the two extremes the prose points at, so SLJ drops back into the cloud.
@@ -157,7 +150,7 @@ export const QUIZ_LABEL_DIRS = {
 	// Harrison Ford, Colin Firth, Rupert Grint, Mahershala Ali: underneath
 };
 
-/** @type {import("../layout-shared.js").LayoutFn} */
+/** @type {import("../layout-types.js").LayoutFn} */
 function layoutScatterQuiz(nodes, w, h, _edges, params) {
 	const highlights = new Map();
 	const picks = params?.picks ?? {};
@@ -187,7 +180,7 @@ const DEG_SCATTER_HIGHLIGHTS = new Map([
 const DEG_SCATTER_FLOOR = Math.log(20);
 const DEG_SCATTER_CEIL = Math.log(68);
 
-/** @type {import("../layout-shared.js").LayoutFn} */
+/** @type {import("../layout-types.js").LayoutFn} */
 const layoutDegScatter = (nodes, w, h) =>
 	filmsScatter(nodes, w, h, {
 		yOf: (n) => n.top50,
@@ -238,7 +231,7 @@ const inGenzWindow = (n) =>
 // side, so the decollider never has to nudge one and no leader stubs are drawn;
 // it stays as insurance rather than the mechanism.
 //
-// WHO the seven are lives in layout-shared as GENZ_NAMED_IDS, because the race
+// WHO the seven are lives in cast.js as GENZ_NAMED_IDS, because the race
 // chart's Gen-Z step names the same seven and the two must not be able to drift
 // apart. What lives here is only where each name sits relative to its dot, which
 // is a fact about THIS frame's crowding — on the race chart every name goes in
@@ -333,7 +326,7 @@ function genzFrame(nodes, w, h) {
 // crowd on the step scatterGenZ arrives from. The zoom is the only thing that
 // moves them, which is what the old off-canvas parking was arranging by hand.
 
-/** @type {import("../layout-shared.js").LayoutFn} */
+/** @type {import("../layout-types.js").LayoutFn} */
 function layoutScatterGenZ(nodes, w, h) {
 	const result = avgScatter(nodes, w, h, GENZ_HIGHLIGHTS);
 	const { attrs } = result;

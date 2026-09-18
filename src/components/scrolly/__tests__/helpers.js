@@ -6,14 +6,14 @@ import { createHash } from "node:crypto";
 import { makeNodes } from "../nodes.js";
 import { STATES, STATE_PARAMS } from "../states.js";
 import { story } from "../story.svelte.js";
+import { ATTR_SIZE } from "../attr-buffer.js";
 import {
-	ATTR_SIZE,
-	TRAIL_SIZE,
 	NO_BLEED,
 	PLOT_BOTTOM_BESIDE,
 	PLOT_BOTTOM_STACKED,
 	setPlotBottomFrac
-} from "../layout-shared.js";
+} from "../plot.js";
+import { TRAIL_SIZE } from "../trails.js";
 import { RACE_DATA_END } from "../layouts/race.js";
 
 export const { nodes, edges } = makeNodes();
@@ -21,7 +21,7 @@ export const { nodes, edges } = makeNodes();
 /**
  * The canvas boxes: a phone, the reading column with the prose stacked over it
  * on a wide screen, and the same column beside the prose. `bleed` is how far the
- * canvas element reaches past the column on each side (see layout-shared's
+ * canvas element reaches past the column on each side (see plot.js's
  * Bleed), which is what puts the chapter cards' sky off the column.
  */
 export const BOXES = [

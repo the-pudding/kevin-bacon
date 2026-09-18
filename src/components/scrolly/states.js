@@ -1,15 +1,6 @@
 import rawNodes from "$data/scrolly-nodes.json";
 import story from "$data/scrolly-story.json";
 import {
-	STRIDE,
-	EDGE_BASE,
-	ATTR_SIZE,
-	DELAY_SIZE,
-	edgeIndex,
-	TRAIL_POINTS,
-	TRAIL_STRIDE,
-	TRAIL_META,
-	TRAIL_SIZE,
 	SLJ,
 	HANKS,
 	STREEP,
@@ -17,7 +8,7 @@ import {
 	CAGE,
 	BY_RANK,
 	RANK_TOP_N
-} from "./layout-shared.js";
+} from "./cast.js";
 import { states as introStates } from "./layouts/intro.js";
 import { states as hopBandsStates } from "./layouts/hop-bands.js";
 import { states as rankStates } from "./layouts/rank.js";
@@ -33,23 +24,9 @@ import { states as simRaceStates } from "./layouts/sim-race.js";
 import { states as chapterStates } from "./layouts/chapters.js";
 import { GALAXY_CAST } from "./galaxy-highlight.js";
 
-// re-exported so ScrollyVisual.svelte can keep importing everything from
-// this one module; the actual definitions live in layout-shared.js
-export {
-	STRIDE,
-	EDGE_BASE,
-	ATTR_SIZE,
-	DELAY_SIZE,
-	edgeIndex,
-	TRAIL_POINTS,
-	TRAIL_STRIDE,
-	TRAIL_META,
-	TRAIL_SIZE
-};
-
 /**
- * @typedef {import("./layout-shared.js").Note} Note
- * @typedef {import("./layout-shared.js").LayoutFn} LayoutFn
+ * @typedef {import("./layout-types.js").Note} Note
+ * @typedef {import("./layout-types.js").LayoutFn} LayoutFn
  */
 
 // Each chapter module under ./layouts/ exports a `states` object mapping
@@ -210,7 +187,7 @@ export const STATE_REVEAL_FROM = pick("revealFrom");
  * layout returns, and which would be warped by the trapezoidal ease.
  * @typedef {(nodes: import("./nodes.js").ActorNode[], w: number, h: number,
  *   edges: import("./nodes.js").Edge[], params: Object | null,
- *   bleed: import("./layout-shared.js").Bleed, ctx: ArrivalContext) =>
+ *   bleed: import("./plot.js").Bleed, ctx: ArrivalContext) =>
  *   (attrs: Float64Array | Float32Array, trails: Float64Array | Float32Array,
  *     phase: number, e: number, ms: number) => FrameOutput | void} FrameWriterFactory
  */
@@ -218,7 +195,7 @@ export const STATE_REVEAL_FROM = pick("revealFrom");
 /**
  * @typedef {(nodes: import("./nodes.js").ActorNode[], w: number, h: number,
  *   edges: import("./nodes.js").Edge[], params: Object | null,
- *   bleed: import("./layout-shared.js").Bleed, ctx: ArrivalContext) =>
+ *   bleed: import("./plot.js").Bleed, ctx: ArrivalContext) =>
  *   (attrs: Float64Array, trails: Float64Array) => void} SeedWriterFactory
  */
 

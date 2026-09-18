@@ -26,7 +26,7 @@
 		CYCLE_ORDER,
 		introBottom
 	} from "$components/scrolly/layouts/intro.js";
-	import { TITLE_BAND } from "$components/scrolly/layout-shared.js";
+	import { TITLE_BAND } from "$components/scrolly/plot.js";
 	import RouteFilms from "$components/scrolly/RouteFilms.svelte";
 	import InfoTerm from "$components/ui/InfoTerm.svelte";
 	import { MediaQuery } from "svelte/reactivity";
@@ -1245,7 +1245,7 @@
 		--progress-band: 30px;
 		/* --title-band — space for each chart's title, between the dot bar and the
 		   canvas's own MARGIN-based top clearance — is set inline above, from
-		   TITLE_BAND in layout-shared.js: the render path needs the same number,
+		   TITLE_BAND in plot.js: the render path needs the same number,
 		   and canvas can't read CSS custom properties. */
 	}
 
@@ -1619,7 +1619,7 @@
 	   column of its own and the charts take that 40% back — which is the actual
 	   win, because the visual column at this breakpoint is about as wide as the
 	   700px measure was giving them anyway. The height is what the charts never
-	   had. See PLOT_BOTTOM_BESIDE in layout-shared.js for the other half of it.
+	   had. See PLOT_BOTTOM_BESIDE in plot.js for the other half of it.
 
 	   The prose column is a FIXED measure, not a share of the layout, and it is
 	   sized at what a phone gives the same words (a 390-430px viewport less the

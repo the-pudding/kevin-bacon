@@ -88,7 +88,7 @@
 <style>
 	/* A small strip hung under the chart, below where RaceYBandDev sits (64%) so
 	   both can be open at once without overlapping, and clear of the plot's own
-	   x-axis labels (plotBottom is 60% of canvas height, see layout-shared.js). */
+	   x-axis labels (plotBottom is 60% of canvas height, see plot.js). */
 	.px-dev {
 		position: absolute;
 		left: 0;

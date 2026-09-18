@@ -1,17 +1,14 @@
 import { ANCHOR_ID, hash01 } from "../nodes.js";
+import { ATTR_SIZE, set } from "../attr-buffer.js";
+import { HOP_RGB, HOP_DOT_ALPHA, INK } from "../palette.js";
+import { MARGIN } from "../plot.js";
 import {
-	ATTR_SIZE,
-	MARGIN,
-	set,
-	parkHidden,
-	HOP_RGB,
-	HOP_DOT_ALPHA,
-	INK,
 	RANK_BAR_H,
 	RANK_DOT_D,
 	hopDotSlots,
 	hopFractions
-} from "../layout-shared.js";
+} from "../rank-geometry.js";
+import { parkHidden } from "../scatter-scales.js";
 
 // ---------------------------------------------------------------------------
 // Rank chapter (present): the canvas's only job now is the handoff from
@@ -26,7 +23,7 @@ import {
 // below) — only ever visible for a frame or two on first mount
 const BACON_Y = MARGIN + 40;
 
-/** @type {import("../layout-shared.js").LayoutFn} */
+/** @type {import("../layout-types.js").LayoutFn} */
 function layoutRank(nodes, w, h, _edges, params) {
 	const attrs = new Float64Array(ATTR_SIZE);
 	// RankBars reports the box its centered row's bar actually occupies
@@ -38,7 +35,7 @@ function layoutRank(nodes, w, h, _edges, params) {
 	const maxBarW = bar?.w ?? w - MARGIN * 2;
 
 	// Bacon's own corpus hop shares and dot lattice — the exact points his
-	// RankBars row draws (layout-shared.js), not an approximation of them, so
+	// RankBars row draws (rank-geometry.js), not an approximation of them, so
 	// the frame this tween settles on is the frame the panel then fades over.
 	const slots = hopDotSlots(hopFractions(ANCHOR_ID), maxBarW, ANCHOR_ID);
 

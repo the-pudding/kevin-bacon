@@ -3,17 +3,10 @@
 // then the dots, then the leader lines that tie a nudged name back to its dot.
 // Pure over (ctx, buffers): it reads nothing reactive and owns no state beyond
 // the two scratch collections it reuses so a frame allocates nothing.
-import {
-	STRIDE,
-	EDGE_BASE,
-	TRAIL_STRIDE,
-	TRAIL_POINTS,
-	TRAIL_META,
-	TITLE_BAND,
-	EDGE_GREY,
-	EDGE_HIGHLIGHT,
-	INK
-} from "./layout-shared.js";
+import { STRIDE, EDGE_BASE } from "./attr-buffer.js";
+import { EDGE_GREY, EDGE_HIGHLIGHT, INK } from "./palette.js";
+import { TITLE_BAND } from "./plot.js";
+import { TRAIL_STRIDE, TRAIL_POINTS, TRAIL_META } from "./trails.js";
 
 const TAU = Math.PI * 2;
 // one Path2D per (quantised rgb, alpha bucket): batches ~1k dots into a
@@ -29,7 +22,7 @@ const inkedTrails = [];
  * would leave the chapter card's sky smeared across the bleed and the title
  * band for the rest of the story.
  * @param {CanvasRenderingContext2D} ctx
- * @param {import("./layout-shared.js").Bleed} bleed
+ * @param {import("./plot.js").Bleed} bleed
  */
 export function clearCanvas(ctx, w, h, bleed) {
 	ctx.clearRect(-bleed.l, -TITLE_BAND, w + bleed.l + bleed.r, h + TITLE_BAND);

@@ -1,54 +1,52 @@
 import story from "$data/scrolly-story.json";
+import { ATTR_SIZE, EDGE_BASE, set, dissolve, STRIDE } from "../attr-buffer.js";
 import {
-	ATTR_SIZE,
-	TRAIL_SIZE,
-	EDGE_BASE,
-	TRAIL_STRIDE,
-	TRAIL_POINTS,
 	ORDER_OF,
-	MARGIN,
-	INK,
-	plotBottom,
-	lin,
-	CROWD,
 	SLJ,
 	HACKMAN,
-	set,
-	scatterPosition,
 	RACE_IDS,
-	TRAIL_META,
-	RACE_SLOT,
 	SIM_SERIES,
-	SIM_SLOT,
 	SIM_LABEL_IDS,
-	SIM_TRAIL_SLOTS,
 	BACKDROP_IDS,
-	BACKDROP_SLOT,
-	BACKDROP_TRAIL_SLOTS,
 	GENZ_NAMED_IDS,
-	sampleTrail,
-	collapseTrail,
-	setTrailHighlight,
-	clipSeries,
-	dissolve,
-	monotoneSegments,
-	curveYAt,
+	FIELD_IDS
+} from "../cast.js";
+import {
+	PULLBACK_ZOOM,
+	introPosition,
+	NETWORK_INTRO_RADIUS
+} from "../intro-geometry.js";
+import { INK, CROWD } from "../palette.js";
+import { MARGIN, plotBottom, lin, NO_BLEED } from "../plot.js";
+import { scatterPosition } from "../scatter-scales.js";
+import {
 	writeFieldCrowd,
 	galaxyBox,
-	NO_BLEED,
-	PULLBACK_ZOOM,
-	STRIDE,
-	introPosition,
-	NETWORK_INTRO_RADIUS,
 	FIELD_ALPHA,
-	FIELD_IDS,
 	makeFlight,
 	fieldDepth,
 	depthSize,
 	depthFade,
 	flightWindow,
 	skyFrac
-} from "../layout-shared.js";
+} from "../sky.js";
+import {
+	TRAIL_SIZE,
+	TRAIL_STRIDE,
+	TRAIL_POINTS,
+	TRAIL_META,
+	RACE_SLOT,
+	SIM_SLOT,
+	SIM_TRAIL_SLOTS,
+	BACKDROP_SLOT,
+	BACKDROP_TRAIL_SLOTS,
+	sampleTrail,
+	collapseTrail,
+	setTrailHighlight,
+	clipSeries,
+	monotoneSegments,
+	curveYAt
+} from "../trails.js";
 import { ANCHOR_ID } from "../nodes.js";
 import { PULLBACK_ZOOM_MS } from "./hop-bands.js";
 
@@ -1970,7 +1968,7 @@ function writeGenzLines(attrsBuf, trailBuf, cam, yS, vMin, vMax, reveal) {
  * cast across a phase, so the final frame's visibility matches the static state
  * it settles onto instead of everyone popping at the settle. Omitted → the
  * frame's own visible set at full strength, everyone else hidden.
- * @returns {{axes: {x: import("../layout-shared.js").Tick[], xBase:number, y: import("../layout-shared.js").Tick[]}, takeover: import("../layout-shared.js").TakeoverCallout|null, band: import("../layout-shared.js").FutureBand|null, frontier: number, cam: ReturnType<typeof raceCamera>, yS: (v:number)=>number, visible: Set<number>, lead: number}}
+ * @returns {{axes: {x: import("../layout-types.js").Tick[], xBase:number, y: import("../layout-types.js").Tick[]}, takeover: import("../layout-types.js").TakeoverCallout|null, band: import("../layout-types.js").FutureBand|null, frontier: number, cam: ReturnType<typeof raceCamera>, yS: (v:number)=>number, visible: Set<number>, lead: number}}
  */
 export function writeRaceSweepFrame(
 	attrsBuf,
@@ -2188,7 +2186,7 @@ export function writeRaceSweepFrame(
  * contenders it is about (see RaceFrame.highlight)
  */
 function raceLayout(step, yCap = Infinity) {
-	/** @type {import("../layout-shared.js").LayoutFn} */
+	/** @type {import("../layout-types.js").LayoutFn} */
 	return function layoutRace(nodes, w, h, _edges, params) {
 		const attrs = new Float64Array(ATTR_SIZE);
 		const trails = new Float64Array(TRAIL_SIZE);
@@ -2800,7 +2798,7 @@ function writeOutroCast(attrs, rawAttrs, cast, bx, by, e) {
  * story's opening, and reintroducing Bacon and his co-stars here would read as
  * jumping back into the intro rather than closing on the corpus the whole
  * story has been drawn from.
- * @type {import("../layout-shared.js").LayoutFn}
+ * @type {import("../layout-types.js").LayoutFn}
  */
 function layoutOutroGalaxy(nodes, w, h, edges, params, bleed = NO_BLEED) {
 	const raw = RACE_CLOSE_LAYOUT(nodes, w, h, edges, params);

@@ -1,25 +1,24 @@
 import rawNodes from "$data/scrolly-nodes.json";
 import {
-	CROWD,
-	INK,
 	STRIDE,
-	TITLE_BAND,
-	FIELD_IDS,
-	FLIGHT_CYCLE_MS,
-	FLIGHT_FADE,
 	GALAXY_LINK_BASE,
 	GALAXY_LINK_MAX,
+	setEdge
+} from "./attr-buffer.js";
+import { FIELD_IDS } from "./cast.js";
+import { dotHash } from "./nodes.js";
+import { CROWD, INK } from "./palette.js";
+import { TITLE_BAND, NO_BLEED, lin } from "./plot.js";
+import {
+	FLIGHT_CYCLE_MS,
+	FLIGHT_FADE,
 	SKY_FAR,
 	SKY_NEAR,
-	dotHash,
 	galaxyBox,
-	NO_BLEED,
 	galaxyCentre,
-	lin,
-	setEdge,
 	skyFrac,
 	skyMag
-} from "./layout-shared.js";
+} from "./sky.js";
 
 // ---------------------------------------------------------------------------
 // The chapter card's highlight beat: one well-known actor at a time picked out

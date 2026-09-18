@@ -11,7 +11,7 @@
 	// notes/scrolly-framework.md "Exception").
 	import { story } from "./story.svelte.js";
 	import { INTERACTIVE_IDS, nodeName, nodeRank, quizDone } from "./states.js";
-	import { CROWD } from "./layout-shared.js";
+	import { CROWD } from "./palette.js";
 	import { recordPairPick } from "$utils/analytics.js";
 
 	/**

@@ -106,3 +106,24 @@ export function makeNodes() {
 	}));
 	return { nodes, edges };
 }
+
+/**
+ * The dot lattice's own nudge, in place of `hash01`. hash01 is a sine hash, so
+ * stepping its input by a constant — which walking the lattice column by column
+ * does — steps the sine's phase by a constant too. At the jitter width the
+ * strip needs that period is plainly visible: the dots comb into a repeating
+ * wave every few columns. An integer bit-mix (the lowbias32 finaliser) has no
+ * such period, and nothing else in the story jitters hard enough to care.
+ *
+ * Exported for the highlight beat's spoke picker, which walks a candidate
+ * counter by one per attempt and so hits exactly the periodicity above.
+ * @param {number} key
+ * @param {number} salt
+ * @returns {number} 0–1
+ */
+export function dotHash(key, salt) {
+	let h = (key ^ Math.imul(salt, 0x9e3779b1)) >>> 0;
+	h = Math.imul(h ^ (h >>> 16), 0x21f0aaad) >>> 0;
+	h = Math.imul(h ^ (h >>> 15), 0x735a2d97) >>> 0;
+	return ((h ^ (h >>> 15)) >>> 0) / 4294967296;
+}

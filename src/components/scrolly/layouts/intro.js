@@ -10,21 +10,25 @@ import {
 	DELAY_SIZE,
 	edgeIndex,
 	STRIDE,
-	TITLE_BAND,
-	HOP_RGB,
-	CROWD,
-	INK,
 	set,
 	setEdge,
-	pairKey,
-	parkHidden,
+	pairKey
+} from "../attr-buffer.js";
+import { FIELD_IDS } from "../cast.js";
+import {
 	introPosition,
+	PULLBACK_ZOOM,
+	PULLBACK_DOT_R,
+	NETWORK_INTRO_RADIUS
+} from "../intro-geometry.js";
+import { HOP_RGB, CROWD, INK } from "../palette.js";
+import { TITLE_BAND, NO_BLEED } from "../plot.js";
+import { parkHidden } from "../scatter-scales.js";
+import {
 	writeFieldCrowd,
 	galaxyBox,
 	galaxyCentre,
-	NO_BLEED,
 	makeFlight,
-	FIELD_IDS,
 	FIELD_ALPHA,
 	skyFlight,
 	skyFrac,
@@ -36,11 +40,8 @@ import {
 	depthFade,
 	flightWindow,
 	SKY_FAR,
-	SKY_NEAR,
-	PULLBACK_ZOOM,
-	PULLBACK_DOT_R,
-	NETWORK_INTRO_RADIUS
-} from "../layout-shared.js";
+	SKY_NEAR
+} from "../sky.js";
 import { routesTo, routeActors } from "../intro-routes.js";
 import {
 	withGalaxyHighlight,
@@ -337,7 +338,7 @@ const INTRO_DELAYS = buildIntroDelays();
 const INTRO_WALK_MS =
 	INTRO_DELAYS.reduce((m, d) => Math.max(m, d), 0) + INTRO_LINE_MS;
 
-/** @type {import("../layout-shared.js").LayoutFn} */
+/** @type {import("../layout-types.js").LayoutFn} */
 function layoutLone(nodes, w, h, _edges, _params, bleed = NO_BLEED) {
 	return {
 		attrs: buildNetworkAttrs(nodes, w, h, null, bleed).attrs,
@@ -345,7 +346,7 @@ function layoutLone(nodes, w, h, _edges, _params, bleed = NO_BLEED) {
 	};
 }
 
-/** @type {import("../layout-shared.js").LayoutFn} */
+/** @type {import("../layout-types.js").LayoutFn} */
 function layoutNetworkIntro(nodes, w, h, _edges, params, bleed = NO_BLEED) {
 	// The network is already fully grown by the time the reader lands here (see
 	// `lone`'s pop-in above), so this state is a static settle: same geometry,
@@ -499,7 +500,7 @@ function withAnchorInSky(framesFn) {
  * chapter cards' highlight beat (see the state below), which picks its actors
  * out of FIELD_IDS — a set that excludes all fifteen by construction, so the
  * beat can neither name him early nor hang a spoke off him.
- * @type {import("../layout-shared.js").LayoutFn}
+ * @type {import("../layout-types.js").LayoutFn}
  */
 function layoutTitleGalaxy(nodes, w, h, _edges, _params, bleed = NO_BLEED) {
 	const attrs = new Float64Array(ATTR_SIZE);

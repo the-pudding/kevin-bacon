@@ -32,10 +32,6 @@
 		RACE_LABEL_TOP
 	} from "./layouts/race.js";
 	import {
-		ATTR_SIZE,
-		DELAY_SIZE,
-		STRIDE,
-		EDGE_BASE,
 		STATES,
 		OVERLAYS,
 		STATE_LABELS,
@@ -51,12 +47,15 @@
 		entryFor,
 		STATE_REQUESTS,
 		STATE_AMBIENT,
-		STATE_TRACKED,
+		STATE_TRACKED
+	} from "./states.js";
+	import { ATTR_SIZE, DELAY_SIZE, STRIDE, EDGE_BASE } from "./attr-buffer.js";
+	import {
 		TRAIL_SIZE,
 		TRAIL_STRIDE,
 		TRAIL_POINTS,
 		TRAIL_META
-	} from "./states.js";
+	} from "./trails.js";
 	import {
 		MARGIN,
 		TITLE_BAND,
@@ -66,7 +65,7 @@
 		PLOT_BOTTOM_BESIDE,
 		PLOT_BOTTOM_STACKED,
 		NO_BLEED
-	} from "./layout-shared.js";
+	} from "./plot.js";
 	import { story } from "./story.svelte.js";
 
 	// undefined until the <Step> registry has populated (first client render)
@@ -267,7 +266,7 @@
 	// (STATE_PARAMS selector), so an interaction re-runs the current layout.
 	//
 	// The one exception is a layout that receives the crowd off a galaxy state and
-	// so reads the sky's live clock (layout-shared's skyFlight). The whole cache is
+	// so reads the sky's live clock (sky.js's skyFlight). The whole cache is
 	// dropped when a flight stops rather than that key being made to carry a time:
 	// the clock moves every frame, a key that tracked it would never hit, and a
 	// flight stops a handful of times in a read-through. See the choreographer's
@@ -337,7 +336,7 @@
 	let height = $state(0);
 	// The canvas's own width, which is the VIEWPORT's, not `.visual`'s: the canvas
 	// bleeds past the reading column so a chapter card can fill the screen (see the
-	// render transform below and layout-shared's galaxyBox). Measured rather than
+	// render transform below and sky.js's galaxyBox). Measured rather than
 	// taken from the 100vw it is styled with, so what the layouts get is what the
 	// browser actually laid out.
 	let canvasWidth = $state(0);
@@ -359,7 +358,7 @@
 	 * is written from it in the same place — one reader, one writer, no reactive
 	 * round trip to make the effect that sets it re-run. `resized` carries it, so
 	 * the backing store re-fits on a move exactly as it does on a width change.
-	 * @type {import("./layout-shared.js").Bleed}
+	 * @type {import("./plot.js").Bleed}
 	 */
 	let bleed = NO_BLEED;
 	let ctx = null;
@@ -450,7 +449,7 @@
 	/** @type {import("./annotations.js").TrackedLabel[]} */
 	let tracked = $state([]);
 	// static per-state chart furniture (ticks/callouts/legend) from the layout result
-	/** @type {{ axes?: { x?: import("./layout-shared.js").Tick[], y?: import("./layout-shared.js").Tick[], xBase?: number, yBase?: number }, notes?: import("./states.js").Note[], takeover?: import("./layout-shared.js").TakeoverCallout|null, band?: import("./layout-shared.js").FutureBand|null, legend?: import("./layout-shared.js").LegendItem[], legendY?: number, hits?: import("./layout-shared.js").Hit[] } | null} */
+	/** @type {{ axes?: { x?: import("./layout-types.js").Tick[], y?: import("./layout-types.js").Tick[], xBase?: number, yBase?: number }, notes?: import("./states.js").Note[], takeover?: import("./layout-types.js").TakeoverCallout|null, band?: import("./layout-types.js").FutureBand|null, legend?: import("./layout-types.js").LegendItem[], legendY?: number, hits?: import("./layout-types.js").Hit[] } | null} */
 	let decor = $state(null);
 	// true while an arrival is clearing the previous scene off the canvas before
 	// its own chart may appear: the axis furniture (ticks, callouts, legend, axis

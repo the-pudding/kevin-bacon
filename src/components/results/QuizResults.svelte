@@ -14,7 +14,7 @@
 		MIN_QUIZ_TAKERS
 	} from "$utils/analytics.js";
 	import { INTERACTIVE_IDS, nodeName } from "$components/scrolly/states.js";
-	import { SLJ } from "$components/scrolly/layout-shared.js";
+	import { SLJ } from "$components/scrolly/cast.js";
 	import ResultBars from "./ResultBars.svelte";
 
 	const PAIR_COUNT = INTERACTIVE_IDS.quiz.length;

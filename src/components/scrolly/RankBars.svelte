@@ -4,21 +4,18 @@
 	import rawNodes from "$data/scrolly-nodes.json";
 	import { story } from "./story.svelte.js";
 	import { ANCHOR_ID } from "./nodes.js";
+	import { BY_RANK, SLJ, RANK_TOP_N } from "./cast.js";
+	import { HOP_RGB, HOP_DOT_ALPHA } from "./palette.js";
 	import {
-		BY_RANK,
-		HOP_RGB,
-		SLJ,
-		RANK_TOP_N,
 		RANK_BAR_H,
 		RANK_DOT_D,
 		RANK_COLLAPSE_MS,
 		RANK_BAND_GAP,
-		HOP_DOT_ALPHA,
 		hopBandBoxes,
 		hopDotSlots,
 		hopFractions,
 		hopShareLabels
-	} from "./layout-shared.js";
+	} from "./rank-geometry.js";
 	import {
 		raceDotSpec,
 		RACE_RECENT_VISIBLE,

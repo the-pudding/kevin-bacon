@@ -1,0 +1,136 @@
+// Who is who: the named actors the story picks out, the ranked order over the
+// sample, and the casts each chart draws — the race actors, the simulation's
+// contenders, the Gen-Z backdrop, the seven the story names, and the crowd the
+// sky flies. One list per cast, so "the same actors" is true by construction
+// rather than by two lists agreeing.
+import rawNodes from "$data/scrolly-nodes.json";
+import story from "$data/scrolly-story.json";
+import { INTRO_IDS } from "./nodes.js";
+
+const ID_BY_PID = new Map(rawNodes.nodes.map((n, id) => [n[0], id]));
+
+export const idOf = (pid) => {
+	const id = ID_BY_PID.get(pid);
+	if (id === undefined) throw new Error(`scrolly states: unknown pid ${pid}`);
+	return id;
+};
+
+export const SLJ = idOf(2231);
+
+export const HANKS = idOf(31);
+
+export const STREEP = idOf(5064);
+
+export const DENIRO = idOf(380);
+
+export const HACKMAN = idOf(193);
+
+export const CAGE = idOf(2963);
+
+export const OLDMAN = idOf(64);
+
+export const KIDMAN = idOf(2227);
+
+export const CGM = story.genz.candidates[0].id;
+
+export const SWEENEY = idOf(115440);
+
+export const CHASE = idOf(54812);
+
+// ranked order over the sample (ranks are corpus-global and sparse — plot by
+// sampled order, never raw rank; see notes/scrolly-framework.md)
+export const BY_RANK = rawNodes.nodes
+	.map((n, id) => ({ id, rank: n[5] }))
+	.sort((a, b) => a.rank - b.rank);
+
+export const ORDER_OF = new Map(BY_RANK.map((n, i) => [n.id, i]));
+
+// how many top-ranked actors RankBars renders — shared with the rank-guess
+// search so a search result is never outside the visible/scrollable list
+export const RANK_TOP_N = 250;
+
+/** one line per contender, in win order */
+export const SIM_SERIES = story.genz.candidates.map((c) => c.id);
+
+/** how many of the leaders carry a name beside their dot. Every line is the same
+ * grey (see TRAIL_META), so a name is what makes a line followable — and 99
+ * names down one edge is a wall of text rather than a legend. */
+export const SIM_LABEL_N = 5;
+
+/** the contenders whose line carries their name */
+export const SIM_LABEL_IDS = SIM_SERIES.slice(0, SIM_LABEL_N);
+
+/**
+ * The Gen-Z race step's backdrop: a stratified sample of working actors spread
+ * across the remoteness the contenders live on, so the camera's pan down lands
+ * on a populated plot instead of an empty one. Built in the analysis repo and
+ * already stripped of anyone another cast draws (see build-scrolly-nodes.js) —
+ * the chart's one-writer-per-node rule means this list and RACE_IDS/SIM_SERIES
+ * are disjoint by construction.
+ *
+ * Sorted, unlike SIM_SERIES: there is no rank among them and nothing labels one,
+ * so the only thing an order has to be is stable.
+ *
+ * Named BACKDROP rather than FIELD because this file already owns a FIELD_*
+ * vocabulary for something else entirely — the pull-back crowd (FIELD_IDS below,
+ * fieldSpot, FIELD_ALPHA), the hop 1-4 actors the chapter card and hopBands
+ * sort. Two unrelated "fields" on one chart module is the kind of collision that
+ * reads fine until someone imports the wrong one.
+ */
+export const BACKDROP_IDS = Object.keys(story.backdropSeries)
+	.map(Number)
+	.sort((a, b) => a - b);
+
+/**
+ * The seven Gen-Z contenders the story picks out by name — the five likeliest
+ * winners plus two from the remote end of the field, so the cloud reads as a
+ * range rather than a shortlist.
+ *
+ * Declared here rather than in either chart because BOTH draw them: the films
+ * scatter (`layouts/scatters.js`, where each also carries a hand-tuned label
+ * side) and the race chart's Gen-Z step (`layouts/race.js`, where every name
+ * sits to the right of its dot like every other race label). One list is what
+ * makes "the same seven" true by construction instead of by two lists agreeing.
+ *
+ * Keyed by TMDB id deliberately, NOT by position in the win-sorted field: a
+ * rebuild that reorders the candidates should throw in `idOf` rather than
+ * silently rename the people the story is about.
+ */
+export const GENZ_NAMED_IDS = [
+	idOf(56734), // Chloë Grace Moretz
+	idOf(1767250), // Ariana Greenblatt
+	idOf(1903874), // Maya Hawke
+	idOf(1428070), // Isabela Merced
+	idOf(2099497), // Fred Hechinger
+	idOf(1590797), // Sadie Sink
+	idOf(2034418) // Jacob Elordi
+];
+
+export const RACE_IDS = Object.keys(story.raceSeries)
+	.map(Number)
+	.sort((a, b) => a - b);
+
+/**
+ * The crowd that arrives as the camera pulls back: every actor the corpus can
+ * place at hop 1–4 — the exact set hopBands is about to sort into rows, so the
+ * bands sort the crowd the reader just met rather than swapping it for a bigger
+ * one. Unreachable actors (hop -1) stay out: they have no band to land in.
+ *
+ * The intro fifteen are excluded: they are drawn by the constellation writer,
+ * and including them would drag them out of the graph into the field.
+ */
+const INTRO_SET = new Set(INTRO_IDS);
+
+export const FIELD_IDS = rawNodes.nodes.reduce(
+	(ids, n, id) =>
+		n[2] >= 1 && n[2] <= 4 && !INTRO_SET.has(id) ? (ids.push(id), ids) : ids,
+	/** @type {number[]} */ ([])
+);
+
+/**
+ * Is this one of the intro fifteen — the exception `cardSpot` already makes, and
+ * the one the contraction above has to make too? They stand at
+ * `introPosition(PULLBACK_ZOOM)` in both boxes and are outside the flow
+ * entirely, so nothing about them funnels when the sky does.
+ */
+export const isIntroActor = (id) => INTRO_SET.has(id);

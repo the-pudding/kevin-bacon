@@ -46,7 +46,7 @@
 		setRaceDevBands,
 		setRaceDevFixedYMin
 	} from "./layouts/race.js";
-	import { monotoneSegments, curveYAt } from "./layout-shared.js";
+	import { monotoneSegments, curveYAt } from "./trails.js";
 
 	const STORE_KEY = "kb-race-y-band-points";
 	const HIDDEN_KEY = "kb-race-y-band-hidden";
@@ -507,7 +507,7 @@
 
 <style>
 	/* A full-width strip hung just under the chart. The race plot bottom is 60% of
-	   the canvas height (plotBottom in layout-shared.js) and its x labels sit 10px
+	   the canvas height (plotBottom in plot.js) and its x labels sit 10px
 	   below that, so 64% clears both. It is anchored by its TOP and sized by its
 	   content, so it leaves the foot of the page uncovered; what it does cover is
 	   the story copy, the right thing to lose while tuning. */

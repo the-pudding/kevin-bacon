@@ -1,28 +1,20 @@
 import { ANCHOR_ID, hash01 } from "../nodes.js";
+import { ATTR_SIZE, DELAY_SIZE, set } from "../attr-buffer.js";
+import { FIELD_IDS, isIntroActor } from "../cast.js";
+import { NETWORK_HOP_DELAY_MS, PULLBACK_ZOOM } from "../intro-geometry.js";
+import { HOP_RGB, HOP_DOT_ALPHA } from "../palette.js";
+import { MARGIN, plotBottom, NO_BLEED } from "../plot.js";
+import { hopFractions, hopShareLabels } from "../rank-geometry.js";
+import { parkHidden } from "../scatter-scales.js";
 import {
-	ATTR_SIZE,
-	DELAY_SIZE,
-	MARGIN,
-	plotBottom,
-	HOP_RGB,
-	HOP_DOT_ALPHA,
-	NETWORK_HOP_DELAY_MS,
-	PULLBACK_ZOOM,
-	FIELD_IDS,
 	writeFieldCrowd,
 	makeFlight,
 	galaxyBox,
-	NO_BLEED,
 	cardSpot,
 	flowSpot,
 	skyFlight,
-	skyToColumn,
-	isIntroActor,
-	hopFractions,
-	hopShareLabels,
-	set,
-	parkHidden
-} from "../layout-shared.js";
+	skyToColumn
+} from "../sky.js";
 import { writeNetwork } from "./intro.js";
 
 // ---------------------------------------------------------------------------
@@ -92,7 +84,7 @@ function departureColumn(id, w, h, skyBox, contraction) {
 	return MARGIN + hash01(id, 22) * (w - MARGIN * 2);
 }
 
-/** @type {import("../layout-shared.js").LayoutFn} */
+/** @type {import("../layout-types.js").LayoutFn} */
 function layoutHopBands(nodes, w, h, _edges, params, bleed = NO_BLEED) {
 	const seed = params?.seed;
 	const attrs = new Float64Array(ATTR_SIZE);
@@ -191,7 +183,7 @@ export const PULLBACK_ZOOM_MS = 4000;
 // in step with the names the state stops labelling
 const HOP_SEED_EDGE_FADE = 0;
 
-/** @type {import("../layout-shared.js").LayoutFn} */
+/** @type {import("../layout-types.js").LayoutFn} */
 function layoutHopSeed(nodes, w, h, edges, _params, bleed = NO_BLEED) {
 	const { attrs } = layoutHopBands(nodes, w, h, edges, { seed: true }, bleed);
 	// no focus: whatever route the reader lit up on networkIntro releases as the

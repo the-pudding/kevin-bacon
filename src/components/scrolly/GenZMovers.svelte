@@ -3,7 +3,7 @@
 	import { tick } from "svelte";
 	import rawNodes from "$data/scrolly-nodes.json";
 	import story from "$data/scrolly-story.json";
-	import { deLogFilms } from "./layout-shared.js";
+	import { deLogFilms } from "./scatter-scales.js";
 
 	// The Future chapter's reshuffle: a dumbbell row per contender, showing where
 	// the 10,000-sim Monte Carlo moved them. Two dots on one rank axis — where the

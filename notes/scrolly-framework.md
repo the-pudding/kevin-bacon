@@ -34,7 +34,16 @@ line's P50/P10 toggle) re-run the current layout via params — see
 | --------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `src/components/scrolly/nodes.js`             | Real data: `makeNodes()` → `{ nodes, edges }` decoded from `src/data/scrolly-nodes.json` (built by `npm run scrolly-data`). 22,530 `ActorNode`s (`id, pid, name, hop, films, avgDistance, rank`); node 0 is the anchor (Kevin Bacon), ids 0–14 are the curated intro network in reveal order (`INTRO_IDS`), edges are the 18 intro edges (`[sourceId, targetId, [[title, year], …]]` — **every** corpus film linking the pair, newest first; two of the eighteen have more than one). Also exports `ANCHOR_ID`, `INTRO_LAYOUT` (baked 860×680 planar intro coords) and `hash01(id, salt)` — deterministic per-node randomness used everywhere (never `Math.random`, which would flicker between renders).                                             |
 | `src/components/scrolly/tween.js`             | `createTweener(size, draw, stride)` → `{ current, to, stop }`. One rAF loop lerping a flat `Float64Array` from the _currently rendered_ values to a target. `to(next, ms, jitter, nodeDelays?)`. Vanilla (hand-rolled `easeCubicInOut`), no d3.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
-| `src/components/scrolly/layout-shared.js`     | Geometry/color constants, attr/trail helpers (`set`, `setEdge`, `setTrail`, `collapseTrail`, `clipSeries`), named-actor id lookups (`SLJ`, `HANKS`, …), and the `LayoutFn`/`LayoutResult`/`Note`/`Tick` JSDoc typedefs — everything shared across more than one chapter.                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| `src/components/scrolly/attr-buffer.js`       | The frame buffer: `STRIDE`, `EDGE_BASE`, the edge pool, `ATTR_SIZE`/`DELAY_SIZE`, and the writers `set`, `setEdge`, plus `dissolve` (a layout with every alpha taken to zero).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| `src/components/scrolly/palette.js`           | The canvas palette — rgb values of the CSS tokens — and `HOP_DOT_ALPHA`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| `src/components/scrolly/plot.js`              | Plot geometry: `MARGIN`, `TITLE_BAND`, the plot's share of the column (`setPlotBottomFrac` / `plotBottom`), `lin`, and the `Bleed` typedef with `NO_BLEED`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| `src/components/scrolly/cast.js`              | Who is who: the named actors (`SLJ`, `HANKS`, …), `BY_RANK`/`ORDER_OF`, and every chart's cast list (`RACE_IDS`, `SIM_SERIES`, `BACKDROP_IDS`, `GENZ_NAMED_IDS`, `FIELD_IDS`).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| `src/components/scrolly/rank-geometry.js`     | The rank hop-breakdown bar's lattice (`hopBandBoxes`, `hopDotSlots`, `hopFractions`, `hopShareLabels`), shared by the canvas handoff and RankBars' HTML.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| `src/components/scrolly/scatter-scales.js`    | The films scatters' shared scales (`scatterPosition`, `FILM_*`, `AVG_*`, `deLogFilms`) and `parkHidden`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| `src/components/scrolly/trails.js`            | Trail slots (`TRAIL_META`, `RACE_SLOT`, `SIM_SLOT`, …) and writers (`sampleTrail`, `setTrail`, `setTrailPoints`, `collapseTrail`, `setTrailHighlight`) over a monotone-cubic curve (`monotoneSegments`, `curveYAt`, `clipSeries`).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| `src/components/scrolly/intro-geometry.js`    | The intro constellation's fit (`introFrame`, `introPosition`) and the pull-back camera (`PULLBACK_ZOOM`).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| `src/components/scrolly/sky.js`               | The sky: the crowd's volume and flow (`flowSpot`, `fieldSpot`, `cardSpot`, `writeFieldCrowd`, `makeFlight`), `galaxyBox`/`galaxyCentre`, and the one live clock `skyFlight`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| `src/components/scrolly/layout-types.js`      | JSDoc only: `LayoutFn`, `LayoutResult`, `Tick`, `Note`, `TakeoverCallout`, `FutureBand`, `LegendItem`, `Hit`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | `src/components/scrolly/galaxy-highlight.js`  | The chapter card's highlight beat: `withGalaxyHighlight(frames)` wraps a galaxy state's flight so that every `GALAXY_BEAT_MS` one prolific actor is inked, named and fanned with spokes. Owns the derived `GALAXY_CAST`, the beat schedule, the visibility gate that decides who can be lit, and the published `galaxyHighlight` / `galaxyLinks` the annotation layer and `edgeEnds` read. Draws nothing itself — the spokes rent the attr array's edge pool.                                                                                                                                                                                                                                                                                         |
 | `src/components/scrolly/layouts/*.js`         | One module per story chapter (`intro`, `hop-bands`, `chapters`, `rank`, `race`, `scatters`, `prediction`, `career`, `sim-race`, `genz-line`). Each exports a `states` object mapping state key → `{ layout, labels?, params?, pulse?, revealFrom?, entry?, overlay? }` (`revealFrom` scopes the layout's `delays` choreography to specific prior states — arriving from any other state is one plain tween) — everything about one state colocated in one object, instead of spread across parallel top-level maps.                                                                                                                                                                                                                                   |
 | `src/components/scrolly/states.js`            | Thin aggregator: merges every chapter's `states` object into one registry and derives the public `STATES`/`STATE_LABELS`/`STATE_PARAMS`/`STATE_PULSE`/`OVERLAYS` exports from it, plus `STATE_TRACKED`, `INTERACTIVE_IDS`, and the `nodeName`/`nodeRank`/`nodeAvgDistance` lookups. This is still the only module other files import from.                                                                                                                                                                                                                                                                                                                                                                                                            |
@@ -51,7 +60,7 @@ line's P50/P10 toggle) re-run the current layout via params — see
 | `src/components/scrolly/StartButton.svelte`   | The one control every reader-triggered animation has: asks the active state for one of its `requests` by name (`request(kind)`) and goes quiet while `story.running` names it. `advance` also moves the reader on as it asks (the rewind).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 
 JSDoc typedefs (`ActorNode`, `Edge`, `LayoutResult`, `LayoutFn`, `Tweener`) are in
-`nodes.js` / `layout-shared.js` / `tween.js` — VS Code type-checks them without any
+`nodes.js` / `layout-types.js` / `tween.js` — VS Code type-checks them without any
 build config. If the framework graduates to production, converting the folder to
 `.ts` is mechanical.
 
@@ -245,7 +254,7 @@ clobber itself is what to test — instrument the final `else` and check it is n
 reached on the second run — or test in a real browser.
 
 The galaxy states are the only users, and they share one writer: `makeFlight`
-(`layout-shared.js`) takes a state's own layout function and the ids to fly
+(`sky.js`) takes a state's own layout function and the ids to fly
 and returns its `frames`. `chapterCenters` flies the crowd **and** the intro
 fifteen, who have stopped being a diagram by then; `hopSeed` and `outro` fly
 `FIELD_IDS` only, because `hopSeed` is still drawing the constellation as
@@ -997,7 +1006,7 @@ the first frame and destroy the morph the slots exist for. `raceGenz` arrives th
 same way, for the same reason.
 
 `outro` then dissolves this chart rather than the simulation's, through the
-shared `dissolve()` helper in `layout-shared.js`, which zeroes every alpha and
+shared `dissolve()` helper in `attr-buffer.js`, which zeroes every alpha and
 returns the buffers ALONE — the axes and the block are HTML furniture with no
 alpha to take down, so dropping them is what empties the canvas.
 
@@ -1018,7 +1027,7 @@ Oz — and five contenders including Jenna Ortega), and the build drops them,
 leaving 279. The backdrop is a backdrop, so the other cast always wins. That
 exclusion is asserted rather than assumed.
 
-It is named BACKDROP and not FIELD because `layout-shared.js` already owns a
+It is named BACKDROP and not FIELD because `sky.js` already owns a
 `FIELD_*` vocabulary for the pull-back crowd (`FIELD_IDS`, `fieldSpot`,
 `FIELD_ALPHA`) — the hop 1–4 actors the chapter card and `hopBands` sort. Two
 unrelated "fields" in one module is a collision that reads fine until someone
@@ -1041,7 +1050,7 @@ chapter's rule is that no actor is identified BY a colour and the only ink belon
 to whoever leads at the camera. On this step no race actor is on the plot at all,
 so nothing is being identified as "in front"; the seven are the ones the story
 names, drawn exactly as `scatterGenZ` already draws them (`INK` at r 5). Who the
-seven are lives in `layout-shared.js` as `GENZ_NAMED_IDS`, because both charts
+seven are lives in `cast.js` as `GENZ_NAMED_IDS`, because both charts
 read it and they must not be able to drift apart; what stays in `scatters.js` is
 only each name's side, which is a fact about that frame's crowding (the race chart
 puts every name in the right-hand gutter).
@@ -1106,7 +1115,7 @@ resample: `tasks/build-scrolly-nodes.js` recovers it from the analysis repo's
 simulated-MAD matrix and asserts it reproduces every published win count exactly.
 So pressing Start again replays the same race, and the lines land on the
 percentages the story quotes. Every contender gets a line (`SIM_SERIES` in
-`layout-shared.js`); `SIM_LABEL_N` of the leaders carry a name and their win
+`cast.js`); `SIM_LABEL_N` of the leaders carry a name and their win
 share, arriving one at a time from 5,000 runs on (`SIM_NAMES_AT` +
 `SIM_NAME_STAGGER`, via `simNamesDue`) once the field has pulled apart. Names sit
 to the LEFT of their dots, so the plot needs no gutter and takes the canvas's
@@ -1143,7 +1152,7 @@ constellation plays earlier, on `lone`'s own entry pop-in).
 so the claim is set on the plot: an 11px ring where SLJ's line crosses
 Hackman's, a sentence of prose, and a curved leader tying the two together
 (`raceTakeoverCallout`, `layouts/race.js`; `TakeoverCallout` in
-`layout-shared.js`). It was a click-to-open `InfoTerm` — with a diverging bar
+`layout-types.js`). It was a click-to-open `InfoTerm` — with a diverging bar
 spark inside it — until review feedback that the insight should not be behind a
 click; the popover and the spark are both gone, and the ring is now plain
 decoration with the note carrying the crossing to AT.
@@ -1361,7 +1370,7 @@ height is what the charts never had**, and it is the whole reason to do it.
 
 Two things carry it, and they are deliberately in different places.
 `PLOT_BOTTOM_BESIDE` (0.86, against 0.6 stacked) is a module variable in
-`layout-shared.js` with a setter, rather than a seventh argument, because
+`plot.js` with a setter, rather than a seventh argument, because
 `plotBottom(h)` is read from ten layout modules and from the render path and none
 of them is handed the page's layout mode — the same idiom the dev band editor
 uses. `ScrollyVisual` owns the setter, called at the top of the render effect
@@ -1454,7 +1463,7 @@ of `bleed`, with the same result: `h` still means the box, and only `galaxyBox`
 reaches into the strip (`y0 = -TITLE_BAND`). `drawScene` clears from
 `-TITLE_BAND` for the reason it clears from `-bleed`.
 
-The band is a **constant**, defined once as `TITLE_BAND` in `layout-shared.js`
+The band is a **constant**, defined once as `TITLE_BAND` in `plot.js`
 and set from there onto `.scrolly-layout` as `--title-band` by `Index.svelte` —
 never measured, and never varied per state. `height` is bound to `.visual`'s
 `clientHeight` and sits inside `resized`, which stops any sweep and takes the
@@ -1888,7 +1897,7 @@ already grown, and stays one plain tween; reduced motion bypasses the lot.
 
 1. Pick the chapter module it belongs to under `layouts/` (or add a new one for
    a new chapter). Write `layoutFoo(nodes, w, h)`: fill a `Float64Array(ATTR_SIZE)`
-   via the `set()` helper from `layout-shared.js`, return `{ attrs }` (plus
+   via the `set()` helper from `attr-buffer.js`, return `{ attrs }` (plus
    `delays` if choreographed).
 2. Add one entry to that module's exported `states` object:
    `foo: { layout: layoutFoo, labels?, params?, pulse?, revealFrom?, entry?, ambient?, overlay? }`
@@ -1927,7 +1936,7 @@ unreachable and park hidden). Each row joins
 sqlite films/avgDistance/rank with concurrence, top-50 costar log-degree and
 the four predicted-distance variants (null when a metric doesn't exist for that
 actor; layouts hide non-participants at their distance-scatter park spot —
-`parkHidden` in `layout-shared.js`). `hop` is -1 when unknown — those nodes are
+`parkHidden` in `scatter-scales.js`). `hop` is -1 when unknown — those nodes are
 hidden in hop-coloured states.
 
 The race chart's three trajectory exports — `raceSeries` (224 anchors),
@@ -2124,14 +2133,14 @@ must pass the same snippet reference — that's what keeps the component alive
 across the step change. `RankBars.svelte` (the rank chapter's scrollable
 "everyone else" bar list, shown during `rankFocus`/`rankReveal`) is the built
 example. Its rows are hop-bands charts turned on their side, drawn as
-individual dots: `layout-shared.js`'s `hopDotSlots` generates the dot lattice
+individual dots: `rank-geometry.js`'s `hopDotSlots` generates the dot lattice
 both sides draw — the panel as one path per hop band, the canvas as the spot
 each converging actor lands on — so the frame the arrival tween settles into is
 the frame the panel then fades over. The panel owns the geometry and the canvas
 follows it: RankBars measures its focused row live and publishes the box to
 `story.rankFocusBar`, which `layouts/rank.js` reads as a param.
 
-Everything about a row's strip therefore lives in `layout-shared.js`, not in the
+Everything about a row's strip therefore lives in `rank-geometry.js`, not in the
 panel — including the whitespace between the hop bands (`RANK_BAND_GAP`, reserved
 inside `hopBandBoxes` before the shares are struck, the horizontal twin of
 `hop-bands.js`'s `BAND_GAP`). Gap the panel's `<path>`s alone and the two sides

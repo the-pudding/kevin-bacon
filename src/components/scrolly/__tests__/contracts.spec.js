@@ -11,7 +11,7 @@ import {
 	STATE_RACE,
 	STATE_YCAP
 } from "../states.js";
-import { TRAIL_SIZE, TRAIL_STRIDE, TRAIL_POINTS } from "../layout-shared.js";
+import { TRAIL_SIZE, TRAIL_STRIDE, TRAIL_POINTS } from "../trails.js";
 import {
 	writeRaceSweepFrame,
 	raceRestPlayhead,
