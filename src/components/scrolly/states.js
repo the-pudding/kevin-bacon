@@ -176,7 +176,11 @@ export const STATE_REVEAL_FROM = pick("revealFrom");
  * — the tween morphs whatever the buffers already hold into the seed, and a
  * slot left visible makes the reader watch stale geometry (this state's own
  * lines, left behind by an earlier visit) animate away before it has ever been
- * drawn.
+ * drawn. A slot the DEPARTING state was already drawing is the one exception,
+ * and it is not really one: `lone`'s seed carries Bacon at the title card's own
+ * crowd size and grey, so the arrival tween moves him nowhere and there is no
+ * stale geometry to watch. What the rule forbids is geometry appearing that the
+ * reader has not been shown yet.
  *
  * Scoped by STATE_REVEAL_FROM like any other reveal. See ScrollyVisual's
  * playEntry.
@@ -185,17 +189,46 @@ export const STATE_REVEAL_FROM = pick("revealFrom");
  * it instead of captioning a dot mid-flight. Declaring it hides every one of
  * the state's labels until its leg lands, including through the arrival tween.
  *
- * `bleed` is the layout's own (see LayoutFn) and is passed for the same reason
- * AmbientAnim gets it: a leg that authors across the bled canvas must strike its
- * box from the SAME bleed as the static layout it settles onto, or the last
- * frame and the settle are different frames.
+ * `edges` and `bleed` are the layout's own (see LayoutFn) and are passed for the
+ * same reason AmbientAnim gets them: a leg that authors across the bled canvas
+ * must strike its box from the SAME bleed as the static layout it settles onto,
+ * or the last frame and the settle are different frames — and a leg that
+ * rebuilds its state's layout to animate toward it needs the same edge table
+ * that layout was built with.
+ *
+ * A writer is handed both the leg's eased progress `e` and its LINEAR elapsed
+ * `ms`. Use `e` for motion authored as a share of the leg, which is nearly
+ * everything; `ms` is for a leg whose motion is a schedule in real time — the
+ * one case today is `lone`, whose walk leg replays the delay array its own
+ * layout returns, and which would be warped by the trapezoidal ease.
+ *
+ * `cardAfter` holds the step's PROSE back the way `labelsAfter` holds a name:
+ * the card stays empty until that leg lands (`story.entryHeld`). For an arrival
+ * that spends its first seconds finding the thing the prose is about, the words
+ * would otherwise be describing an empty frame.
+ *
+ * `ownsArrival` says the choreography's first leg reproduces the frame the
+ * reader is LEAVING, so there is nothing for an arrival tween to carry and the
+ * legs take the rAF straight from the step change. It is the same t = 0 contract
+ * an AmbientAnim holds, one step earlier, and it is what a leg whose motion has
+ * a real-world RATE needs: an arrival tween eases its own duration, so a sky
+ * that flows at one speed either side of it visibly surges through the middle.
+ *
+ * Two things come with the flag. A state's authored `delays` can only belong to
+ * a LEG (there is no arrival hop left for them to stagger), which is what `lone`
+ * wants anyway. And the seed is SNAPPED rather than tweened — for the dots that
+ * is the point, but it means the departing state must hold no trails, since a
+ * visible one would pop off rather than fade.
  *
  * @typedef {Object} EntryAnim
  * @property {number[]} phases
  * @property {number[][]} [labelsAfter]
- * @property {(nodes: import("./nodes.js").ActorNode[], w: number, h: number, params?: Object,
- *   bleed?: number) =>
- *   (attrs: Float64Array, trails: Float64Array, phase: number, e: number) => void} frames
+ * @property {number} [cardAfter]
+ * @property {boolean} [ownsArrival]
+ * @property {(nodes: import("./nodes.js").ActorNode[], w: number, h: number,
+ *   edges: import("./nodes.js").Edge[], params?: Object, bleed?: number) =>
+ *   (attrs: Float64Array, trails: Float64Array, phase: number, e: number,
+ *     ms: number) => void} frames
  * @type {Partial<Record<LayoutState, EntryAnim>>}
  */
 export const STATE_ENTRY = pick("entry");

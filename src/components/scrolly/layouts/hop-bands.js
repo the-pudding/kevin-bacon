@@ -219,7 +219,7 @@ function layoutHopSeed(nodes, w, h, edges, _params, bleed = NO_BLEED) {
  * call — a frame built against a different box would snap the sky inward on
  * settle.
  */
-function zoomOutFrames(nodes, w, h, _params, bleed = NO_BLEED) {
+function zoomOutFrames(nodes, w, h, _edges, _params, bleed = NO_BLEED) {
 	const box = galaxyBox(w, h, bleed);
 	return (attrs, _trails, _phase, e) => {
 		const scale = 1 + (PULLBACK_ZOOM - 1) * e;

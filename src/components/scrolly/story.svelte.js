@@ -71,6 +71,15 @@ export const story = $state({
 	 * own authored reveal has landed (see layouts/intro.js). Cleared on every
 	 * step change, so an interrupted reveal never arms. */
 	settled: null,
+	/** an entry choreography is running and has not yet reached the leg that
+	 * earns its step's prose (see EntryAnim's `cardAfter`). Written by
+	 * ScrollyVisual: raised on an arrival that declares one, dropped when that
+	 * leg lands, and dropped again by every later arrival, so an interrupted
+	 * choreography can never leave a step card silent. `settled` cannot serve
+	 * here — it marks the END of a reveal, which for the opening flight is eight
+	 * seconds of constellation after the beat the prose is waiting on, and which
+	 * a cold start does not reach for just as long. */
+	entryHeld: false,
 	/** intro network: node id whose route(s) to Bacon are highlighted; null = the
 	 * plain constellation, which is where the step rests before the tour starts.
 	 * Written by the tour in Index.svelte and by taps (see layouts/intro.js) */

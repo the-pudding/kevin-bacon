@@ -9,6 +9,20 @@ export const INTRO_IDS = data.introIds;
 export const INTRO_LAYOUT = data.introLayout;
 
 /**
+ * The links as endpoint pairs, in the edge table's own order — `makeNodes`'s
+ * edges without the film they come from. A module constant rather than
+ * something a caller is handed, so a schedule keyed on the network's SHAPE
+ * (`layouts/intro.js`'s reveal walk) can be struck once at load instead of
+ * rebuilt per canvas, and its total length can be declared on the state that
+ * plays it, before any layout has been built.
+ * @type {[number, number][]}
+ */
+export const EDGE_PAIRS = data.edges.map(([source, target]) => [
+	source,
+	target
+]);
+
+/**
  * @typedef {Object} ActorNode
  * @property {number} id stable index into the attr array — never changes
  * @property {number} pid TMDB person_id

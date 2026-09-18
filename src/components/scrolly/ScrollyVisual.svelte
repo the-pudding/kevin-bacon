@@ -113,6 +113,18 @@
 	const EDGE_LAG_MS = TWEEN_MS * 0.75;
 	const EDGE_LAG_DELAYS = new Float64Array(DELAY_SIZE);
 	EDGE_LAG_DELAYS.fill(EDGE_LAG_MS, nodes.length);
+	// titleGalaxy's own arrival: stepping back onto it from `lone` fades the
+	// constellation's links and names out over a frame where nothing moves (the
+	// fourteen co-stars shrink/fade in place; only Bacon's sky trip is actually
+	// travelling) — the same case `layoutHopSeed` opts out of the lag for, and for
+	// the same reason: EDGE_LAG_DELAYS is for links fading IN behind travelling
+	// dots, so applying it here left the constellation's links on screen for most
+	// of the tween instead of going out with its names. Handled here rather than
+	// in `layoutTitleGalaxy` itself, because that layout's own `delays` also feeds
+	// the once-only cold-start pop-in (below), where the fallback jitter stagger
+	// across the whole crowd is worth keeping.
+	const TITLE_GALAXY_STATE = "titleGalaxy";
+	const EDGE_UNISON_DELAYS = new Float64Array(DELAY_SIZE);
 	// how long a departing trail (one the landing state doesn't draw) takes to
 	// fade to invisible, in place, before the arrival's real tween starts — so
 	// a stale line from a state the reader has left disappears FIRST instead of
@@ -421,11 +433,16 @@
 	// the rAF spine every entry choreography rides: run `frame(eased)` for `ms`,
 	// repaint each tick, then chain `onDone`. Owns sweepRaf, so stopSweep()
 	// abandons whatever phase is in flight.
+	//
+	// `frame` also gets the leg's LINEAR elapsed ms, for a writer whose motion is
+	// authored as a schedule in real time rather than as a share of the leg — a
+	// replayed delay array, say. `sweepEase` is trapezoidal, so easing such a
+	// clock would stretch the schedule's ends and compress its middle.
 	function runPhase(ms, frame, onDone) {
 		const t0 = performance.now();
 		const step = (now) => {
 			const p = Math.min(1, (now - t0) / ms);
-			frame(sweepEase(p));
+			frame(sweepEase(p), Math.min(ms, now - t0));
 			drawScene();
 			if (p < 1) sweepRaf = requestAnimationFrame(step);
 			else onDone?.();
@@ -1454,17 +1471,21 @@
 			if (i >= anim.phases.length) {
 				sweeping = false;
 				entryLabels = null;
+				story.entryHeld = false;
 				tweener.to(finalAttrs, 0);
 				trailTweener.to(finalTrails, 0);
 				return;
 			}
 			runPhase(
 				anim.phases[i],
-				(e) => write(tweener.current, trailTweener.current, i, e),
+				(e, ms) => write(tweener.current, trailTweener.current, i, e, ms),
 				() => {
 					// the actors this leg was about are now on the chart, so their
 					// names land with it (see EntryAnim.labelsAfter)
 					for (const id of anim.labelsAfter?.[i] ?? []) entryLabels.add(id);
+					// and what the step's prose was waiting for is on screen now, so
+					// the card can speak (see EntryAnim.cardAfter)
+					if (i === anim.cardAfter) story.entryHeld = false;
 					runLeg(i + 1);
 				}
 			);
@@ -2302,7 +2323,9 @@
 		// (e.g. scrolling backwards) is one plain tween
 		const revealFrom = STATE_REVEAL_FROM[stateName];
 		const playReveal = !revealFrom || revealFrom.includes(prevState);
-		const stateDelays = (playReveal ? delays : null) ?? EDGE_LAG_DELAYS;
+		const stateDelays =
+			(playReveal ? delays : null) ??
+			(stateName === TITLE_GALAXY_STATE ? EDGE_UNISON_DELAYS : EDGE_LAG_DELAYS);
 		// race-chapter arrival (forward, from a revealFrom origin): play the draw-on
 		// entry choreography instead of a plain state tween. Only reached with real
 		// animation — reduced motion/resize are handled by the branch below.
@@ -2357,8 +2380,11 @@
 		// drop any gate a previous choreography left behind — an arrival tween
 		// superseded before its onDone fired never reaches playEntry's settle, and
 		// a stale gate would hide the new state's names for good. Re-armed below
-		// only if this arrival actually plays an entry.
+		// only if this arrival actually plays an entry. The step card's own gate
+		// goes with it, and for the same reason — a choreography the reader taps
+		// through must not leave the next step's prose held back.
 		entryLabels = null;
+		story.entryHeld = false;
 		// likewise disarm any race flight a previous pass left waiting on the rank
 		// list's collapse — re-armed below only by the raceEntry branch itself
 		raceFlight = null;
@@ -2609,14 +2635,35 @@
 			// reader who hits Next mid-flight skips the choreography.
 			// no name is on the chart yet; each leg introduces its own as it lands
 			if (entryAnim.labelsAfter) entryLabels = new Set();
-			const write = entryAnim.frames(nodes, width, height, layoutParams, bleed);
+			// and the step card, held until the leg that earns it (see cardAfter)
+			if (entryAnim.cardAfter != null) story.entryHeld = true;
+			const write = entryAnim.frames(
+				nodes,
+				width,
+				height,
+				edges,
+				layoutParams,
+				bleed
+			);
 			const startAttrs = attrs.slice();
 			const startTrails = trailTarget.slice();
-			write(startAttrs, startTrails, 0, 0);
-			tweener.to(startAttrs, TWEEN_MS, TWEEN_JITTER, stateDelays, () =>
-				playEntry(entryAnim, write, attrs, trailTarget)
-			);
-			tweenTrails(startTrails, TWEEN_MS);
+			write(startAttrs, startTrails, 0, 0, 0);
+			if (entryAnim.ownsArrival) {
+				// Frame 0 IS the departing frame (see EntryAnim), so this snap moves
+				// nothing — and the legs then own the rAF from the step change, at
+				// whatever rate they author, instead of watching an eased tween run in
+				// front of them. Skippability is unchanged: the `sweeping` guard at the
+				// top of this effect abandons a running choreography exactly as a
+				// superseding tween used to drop this callback.
+				tweener.to(startAttrs, 0);
+				trailTweener.to(startTrails, 0);
+				playEntry(entryAnim, write, attrs, trailTarget);
+			} else {
+				tweener.to(startAttrs, TWEEN_MS, TWEEN_JITTER, stateDelays, () =>
+					playEntry(entryAnim, write, attrs, trailTarget)
+				);
+				tweenTrails(startTrails, TWEEN_MS);
+			}
 		} else if (stateChange) {
 			heldLabels = introduced.size ? introduced : null;
 			labelHoldUntil = performance.now() + EDGE_LAG_MS;

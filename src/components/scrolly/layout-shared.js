@@ -1119,7 +1119,7 @@ export const galaxyBox = (w, h, bleed = NO_BLEED) => {
 export const SKY_NEAR = 1;
 export const SKY_FAR = 4;
 const SKY_SPAN = SKY_FAR - SKY_NEAR;
-const SKY_MID = (SKY_NEAR + SKY_FAR) / 2;
+export const SKY_MID = (SKY_NEAR + SKY_FAR) / 2;
 
 /**
  * How long one dot takes to cross the whole volume, far plane to near plane.
@@ -1188,7 +1188,7 @@ export const fieldDepth = (id) => SKY_FAR - skyFrac(id, 0) * SKY_SPAN;
 // full strength the far plane is a quarter of the near one, which on a light
 // ground takes the back of the sky to nothing and leaves a field of foreground
 // dots.
-const SKY_DEPTH_GAMMA = 0.5;
+export const SKY_DEPTH_GAMMA = 0.5;
 
 /** a dot's radius multiplier at depth z — about 1.6x at the near plane, 0.8x at the far */
 export const depthSize = (z) => (SKY_MID / z) ** SKY_DEPTH_GAMMA;

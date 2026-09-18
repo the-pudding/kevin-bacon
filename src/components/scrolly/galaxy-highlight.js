@@ -141,14 +141,22 @@ const GALAXY_LINK_ALPHA = 0.16;
 const GALAXY_TARGET_ALPHA = 0.75;
 /** how far a target's grey blends toward INK at full envelope */
 const GALAXY_TARGET_INK = 0.2;
-/** the focused actor's radius against the one the flight gives it */
-const GALAXY_FOCUS_R_MULT = 3;
+/**
+ * The focused actor's radius against the one the flight gives it. Exported
+ * because the title card lights the anchor on its own terms (see
+ * `layouts/intro.js`) and a second number for "a dot picked out of this sky"
+ * would let the two beats drift apart.
+ */
+export const GALAXY_FOCUS_R_MULT = 3;
 /**
  * px of the reading column the focused actor keeps clear of its edges, so the
  * NAME centred under the dot has somewhere to sit (see focusHolds). Targets take
  * no margin: a spoke ending on a dot at the very edge of the sky is fine.
+ *
+ * Exported for the same reason as the multiplier above: the title card's own
+ * lit dot is named by the same annotation layer and needs the same room.
  */
-const GALAXY_FOCUS_MARGIN = 32;
+export const GALAXY_FOCUS_MARGIN = 32;
 /**
  * How many recent actors a beat refuses to repeat (see pickFocus). Every one of
  * these is a candidate struck off an already narrow field, so it trades directly

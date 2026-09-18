@@ -78,6 +78,8 @@ words:
   - pullback
   - graying
   - mult
+  - smoothstep
+  - smoothsteps
 ignorePaths:
   - node_modules
   - build

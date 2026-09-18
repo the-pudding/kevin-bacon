@@ -23,7 +23,7 @@
 		resetSimRace,
 		resetGenzLines
 	} from "$components/scrolly/story.svelte.js";
-	import { quizDone } from "$components/scrolly/states.js";
+	import { quizDone, STATE_ENTRY } from "$components/scrolly/states.js";
 	import { routeSummary } from "$components/scrolly/intro-routes.js";
 	import {
 		CYCLE_ORDER,
@@ -193,8 +193,13 @@
 		get chapter() {
 			return stepConfigs[value ?? 0]?.chapter?.title ?? null;
 		},
+		// ...and while a step's prose is still held back by an entry choreography
+		// (story.entryHeld). The bar reports a position, and the reader has not
+		// been given one until the words that go with it are on screen — off the
+		// title card it would otherwise be up for three seconds before the card
+		// speaks, which is the whole of the opening flight.
 		get hideBar() {
-			return !!stepConfigs[value ?? 0]?.hideBar;
+			return !!stepConfigs[value ?? 0]?.hideBar || story.entryHeld;
 		},
 		// the active step's gate is shut, so the reader's Next has nothing to do —
 		// TapNav reads this to disable the right-hand gutter, so a held step reads
@@ -378,6 +383,16 @@
 	// being told not to. It is handed the destination the registry's `go` has
 	// already resolved, so `to < value` is still the reader's direction of travel.
 	function navigate(to) {
+		// A step whose card is held back by its own entry choreography has to have
+		// that flag up BEFORE it renders. ScrollyVisual raises it too, but from an
+		// effect — one flush too late, which is long enough for the dot bar to mount
+		// on the un-held step, start its fade in, and then be told to leave again.
+		// The reader sees it flash. Raised here for a FORWARD arrival only, which is
+		// the only direction a choreography ever plays on; if the arrival then turns
+		// out not to play one (reduced motion, a resize) ScrollyVisual drops it on
+		// the same flush, so the hold lasts a frame and nothing waits on it.
+		story.entryHeld =
+			to > value && STATE_ENTRY[stepConfigs[to]?.state]?.cardAfter != null;
 		// arriving at the quiz backwards means the reader has already been through
 		// it, so reveal every pair instead of re-asking (see story.svelte.js).
 		// Arriving forwards re-arms the question — and with it the step's gate.
@@ -764,13 +779,23 @@
 					</Splash>
 
 					<!-- PRESENT -->
+					<!-- The prose waits for Bacon to land (`story.entryHeld`, raised by
+				     this state's entry choreography and dropped when its approach leg
+				     finishes). Off the title card the step opens by finding him in the
+				     sky and flying to him, and a paragraph naming him while the reader
+				     is still watching a dot cross the frame would answer the question
+				     the motion is asking. Every other arrival here — a cold start, a
+				     step back from `networkIntro` — never raises the gate, so the card
+				     speaks straight away. -->
 					<Step state="lone">
-						<p>
-							The "Six Degrees of Kevin Bacon" is a game where players try to
-							connect an actor to Kevin Bacon via movies they've starred in with
-							other Hollywood actors, aiming to reach him in six movies or
-							fewer.
-						</p>
+						{#if !story.entryHeld}
+							<p>
+								The "Six Degrees of Kevin Bacon" is a game where players try to
+								connect an actor to Kevin Bacon via movies they've starred in
+								with other Hollywood actors, aiming to reach him in six movies
+								or fewer.
+							</p>
+						{/if}
 					</Step>
 					<Step state="networkIntro">
 						<!-- The tour's caption, over the canvas rather than in the card: it is
