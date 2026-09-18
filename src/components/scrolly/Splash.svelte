@@ -22,12 +22,23 @@
 	 * `hideBar` is declared here rather than passed: a title card is not a step
 	 * the reader has reached, so there is no position for the dot bar to report.
 	 *
+	 * `params` reaches the canvas state exactly as <Step>'s and <Chapter>'s do.
+	 * Nothing on this card consumes it today — the card shares the chapter cards'
+	 * highlight beat, and that picks its actors off a per-flight nonce rather than
+	 * an authored offset into the cast — but it is the same channel every other
+	 * registration uses, so a state that comes to need one already has it.
+	 *
 	 * @see notes/scrolly-framework.md
-	 * @type {{ state: import("./states.js").VisualState,
+	 * @type {{ state: import("./states.js").VisualState, params?: Object,
 	 *   title: import("svelte").Snippet, cta: import("svelte").Snippet }}
 	 */
-	let { state: layoutState, title, cta } = $props();
+	let { state: layoutState, params, title, cta } = $props();
 
 	const steps = getContext("scrolly-steps");
-	steps.register({ state: layoutState, hideBar: true, splash: { title, cta } });
+	steps.register({
+		state: layoutState,
+		params,
+		hideBar: true,
+		splash: { title, cta }
+	});
 </script>

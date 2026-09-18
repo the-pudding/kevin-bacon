@@ -19,6 +19,7 @@ import {
 	NETWORK_INTRO_RADIUS
 } from "../layout-shared.js";
 import { routesTo, routeActors } from "../intro-routes.js";
+import { withGalaxyHighlight } from "../galaxy-highlight.js";
 
 const INTRO_EDGE_ALPHA = 0.5;
 
@@ -311,6 +312,10 @@ function layoutNetworkIntro(nodes, w, h, _edges, params, bleed = NO_BLEED) {
  * on their constellation marks at zero radius and zero alpha — which is what
  * makes the step forward out of this card byte-identical to the first-paint
  * frame the pop-in walk was authored from (see `lone`'s `revealFrom`).
+ *
+ * The crowd around them is named, though, once it is moving: the card takes the
+ * chapter cards' highlight beat (see the state below), which picks its actors
+ * out of FIELD_IDS and so never reaches for one of the parked fifteen.
  * @type {import("../layout-shared.js").LayoutFn}
  */
 function layoutTitleGalaxy(nodes, w, h, _edges, _params, bleed = NO_BLEED) {
@@ -331,11 +336,23 @@ function layoutTitleGalaxy(nodes, w, h, _edges, _params, bleed = NO_BLEED) {
 export const states = {
 	titleGalaxy: {
 		layout: layoutTitleGalaxy,
-		// the title card names the piece, not an actor: the sky it sits on is
-		// anonymous, and stays that way (no highlight beat — a name cycling under
-		// the title would be the second thing on screen asking to be read)
-		labels: [],
-		ambient: { frames: makeFlight(layoutTitleGalaxy, FIELD_IDS) }
+		// No labels STANDING STILL, exactly as on a chapter card: the resting
+		// frame under the title is an anonymous crowd, and the names arrive with
+		// the motion instead — once the sky is flowing, the highlight beat picks
+		// one well-known actor out of it at a time (see galaxy-highlight.js). An
+		// empty set rather than no declaration at all, because the beat's own
+		// per-frame cut in ScrollyVisual is what names anybody; this says the
+		// resting card names nobody, which is also what holds the t = 0 contract.
+		labels: () => [],
+		// FIELD_IDS, not the cards' UNIVERSE_IDS: the fifteen are parked at zero
+		// alpha here rather than dissolved into the crowd, and flying them would
+		// move the seed the pop-in walk seeds from. The beat can never want one of
+		// them anyway — GALAXY_CAST is derived from FIELD_IDS, which excludes the
+		// fifteen by construction, so every actor it can light is one this state
+		// actually draws.
+		ambient: {
+			frames: withGalaxyHighlight(makeFlight(layoutTitleGalaxy, FIELD_IDS))
+		}
 	},
 	lone: {
 		layout: layoutLone,

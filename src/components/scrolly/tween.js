@@ -12,6 +12,7 @@ export const easeCubicInOut = (t) =>
  *   set instantly. Read it to know where a mark is going; null before the first
  *   `to()`.
  * @property {(next: Float64Array, ms: number, jitter?: number, nodeDelays?: Float64Array, onDone?: (() => void) | null) => void} to
+ * @property {(apply: (buf: Float32Array) => void) => void} reframe
  * @property {() => void} stop
  */
 
@@ -83,6 +84,25 @@ export function createTweener(size, draw, stride = 1) {
 		frame = requestAnimationFrame(tick);
 	}
 
+	/**
+	 * Restate the live frame in a shifted coordinate system — used when the
+	 * drawing origin moves under a frame that must not appear to move (the
+	 * side-by-side column swapping sides).
+	 *
+	 * `apply` is handed BOTH buffers, and that is the contract: `current` is what
+	 * is on screen, `start` is where an in-flight tween is easing from, and a
+	 * tween that kept a start in the old coordinates would drag every mark back
+	 * across the delta as it ran. `target` is deliberately not offered — it is the
+	 * layout's own array and is cached, so mutating it would poison the cache for
+	 * every later visit; a caller that needs a new target rebuilds the layout.
+	 *
+	 * @param {(buf: Float32Array) => void} apply
+	 */
+	function reframe(apply) {
+		apply(current);
+		apply(start);
+	}
+
 	function stop() {
 		cancelAnimationFrame(frame);
 		onDone = null;
@@ -95,6 +115,7 @@ export function createTweener(size, draw, stride = 1) {
 			return target;
 		},
 		to,
+		reframe,
 		stop
 	};
 }

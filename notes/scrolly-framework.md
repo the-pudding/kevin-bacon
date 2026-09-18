@@ -197,6 +197,35 @@ path into a state at once — a plain state tween's `onDone`, the cold-start and
 first-paint branches, and the reduced-motion/resize snap. Under reduced motion
 `playAmbient` returns immediately and the static layout is the still frame.
 
+**A re-run that changes nothing must DO nothing, and the render effect gets those
+runs.** `layoutParams` is a `$derived` over the `story` proxy, and every arrival
+branch paints synchronously — a `to()` with `ms 0` calls `draw()` on the spot —
+so a paint that publishes into `story` invalidates that derived and hands the
+effect back a params object with identical CONTENTS and a fresh identity. Svelte
+re-runs on identity; `paramsKey` compares by value and rightly reports no change.
+
+Without a guard, such a run falls the whole way down the arrival chain to its
+final `else`, whose instant `to(attrs, 0)` cancels whatever tween is in flight
+and, per `tween.js`, drops its `onDone` with it. On a COLD START that `onDone` is
+the only call to `settle()` — so the 900ms entry tween was snapped away
+microseconds after it started: no fade-up, the ambient never armed, and every
+`story.settled` gate stayed shut. The story opened on a still, silent sky, and it
+only became visible when the title card became the first step to own an ambient.
+
+The guard sits just after `paramsKey`, so a no-op run also skips building a
+layout it will not use. It has to carry `cacheDropped`: the two DEV revision
+counters clear the layout cache and then need a rebuild at the SAME state, params
+and box, so a bare "nothing changed" test would freeze both dev tuners. The
+`sweeping` guard above it is the same intent but can only arm once a choreography
+owns the rAF, which is too late for an arrival that is still tweening.
+
+**A note on measuring this.** It cannot be verified with Chrome's
+`--virtual-time-budget`: rAF timestamps there advance at a real ~17ms cadence
+while virtual time races ahead, so no rAF-driven tween ever reaches its duration
+and `settle` never fires in that harness whether the bug is present or not. The
+clobber itself is what to test — instrument the final `else` and check it is not
+reached on the second run — or test in a real browser.
+
 The galaxy states are the only users, and they share one writer: `makeFlight`
 (`layout-shared.js`) takes a state's own layout function and the ids to fly
 and returns its `frames`. `chapterCenters` flies the crowd **and** the intro
@@ -1326,6 +1355,68 @@ The breakpoint itself is stated twice — a `@media` rule and `BESIDE_MIN_W` —
 has to be kept in step by hand, because a breakpoint cannot be read back out of
 CSS and the render path needs the boolean rather than the layout.
 
+**A module variable is not a signal, and that is the trap this shape sets.** The
+layout cache copes by naming the fraction in its key. A `$derived` cannot: one
+that called `plotBottom()` held whatever fraction was current when its real
+dependency — `height` — last changed, so the axis titles and the lower/higher
+hints stayed pinned to the stacked plot for the whole of a beside layout while
+every chart around them had moved. `ScrollyVisual` therefore keeps `plotFrac` and
+`plotFloor` as derived values off `beside`, everything in that component reads
+those,
+and the setter is handed the same `plotFrac` — so there is one expression and two
+readers rather than two sources of truth. Anything else in the component that
+comes to depend on the plot's floor goes through them, never through
+`plotBottom()`.
+
+**`overlayHeight` is the same correction one layer out.** Half a dozen things are
+measured off how much of the canvas's bottom edge the step card covers — the
+over-canvas panels, the tour caption's floor, the x-axis title's clamp. Beside
+the prose the card covers none of it, so `Index.svelte` derives `overlayHeight`
+(0 when beside, the measured `stepsHeight` otherwise) and every one of those
+clearances reads that. A chart that goes on dodging a card which is not there
+leaves a band of empty canvas under it.
+
+**THE SWAP.** Every chapter puts the prose on the other side, so the reader
+crosses the screen as the argument turns over: right, centre, left and back, with
+a full-bleed chapter card holding the middle beat each time. `chapterOrdinal`
+counts the chapter cards the reader has reached and `flipped` is its parity;
+because a card announces the chapter it OPENS, it counts as part of the new one,
+which is what puts the side-change ON the card.
+
+That placement is the whole trick rather than a nicety. A card is full-bleed and
+carries no prose, so at the instant the column changes sides there is no chart
+boxed in it and no words in it to move. The sky is authored about the middle of
+the SCREEN (`galaxyCentre`), which the swap does not move, so the picture the
+reader is looking at is the one thing in the frame that is already invariant.
+Swapping anywhere else would slide a chart bodily across the viewport.
+
+**The canvas makes up the difference, and must not take the snap branch.** The
+column moves without changing size, so the backing store is already right and
+only the ORIGIN has travelled — `dx` px along the canvas. `measureBleed` returns
+that `dx`; the render effect re-pins the element and the transform by it and then
+takes the same `dx` back out of the live frame through `tweener.reframe`, so
+every mark the reader can see stays on the pixel it was on. The buffer holds
+column coordinates and the column's zero has just moved.
+
+Three things about that branch:
+
+- **It is what keeps the arrival onto the card a tween.** The resize path re-fits
+  and lands instantly, which is right for a rotate and would throw away the one
+  transition the swap is hidden inside — a chart dissolving into the full-bleed
+  sky.
+- **`reframe` is handed `current` AND `start`**, and that pairing is the contract:
+  `current` is what is on screen, `start` is where an in-flight tween is easing
+  from, and a tween left with a start in the old coordinates drags every mark back
+  across the delta as it runs. `target` is deliberately not offered — it is the
+  layout's own array and is CACHED, so mutating it would poison the cache for
+  every later visit. The state's layout is rebuilt against the new bleed
+  immediately below, which is where a new target comes from.
+- **A sweep cannot survive a bare move**, because a frame writer closes over the
+  box it was built for. Nothing in the story does it — the swap lands on a card
+  arrival, where the state change has already abandoned the previous sweep — so
+  rather than carry a rebuild path that never runs, `dx !== 0 && sweeping` falls
+  back to the snap.
+
 Known, and not yet retuned: `raceFuture` and `raceClose` give the future strip
 whatever plot width the pan leaves over, which was right when five years at
 76px/yr could not fit at any viewport the 700px container allowed. On the wider
@@ -1461,8 +1552,24 @@ crowd every other galaxy state draws — `writeFieldCrowd` at the landed camera,
 across `galaxyBox`, flying on `makeFlight` — and, like `outro`, it leaves the
 fifteen-actor constellation out: that is the opening BEAT, and a title card
 already carrying Bacon and his co-stars would spend it before the reader has
-tapped anything. There is no highlight beat either (`labels: []`), because a name
-cycling under the title would be the second thing on screen asking to be read.
+tapped anything. It does take the chapter cards' highlight beat, wrapping its
+flight in `withGalaxyHighlight` and declaring `labels: () => []` exactly as
+`chapterCenters` does, so the card rests anonymous and the names arrive only once
+the sky is moving. That is safe against the park below without any coordination:
+`GALAXY_CAST` is derived from `FIELD_IDS`, which excludes the fifteen by
+construction, so the beat can never reach for a dot this state draws at zero
+alpha. The flight itself is handed `FIELD_IDS` rather than the cards'
+`UNIVERSE_IDS` for the same reason — flying the fifteen would move the seed.
+
+Its `castFrom` is 75, in the gap the cards' 0/30/60 leave. Worth knowing what
+that does and does not buy: `pickFocus` starts at `(from + hash(beat) * n) % n`
+and walks forward to the first ELIGIBLE actor, so while only a handful of the
+cast are on canvas and clear of the flight's fade ramps, every offset converges
+on the same opening actor — measured, 0 through 75 all open on Alfred Molina at
+1280px and Harvey Keitel at 390px. The offsets separate the second beat onward,
+once each card's no-repeat window has diverged. The three chapter cards have
+always shared this; the checklist row asking whether a card opens on the same
+actor as the last one is still the open question it was.
 
 What the fifteen get instead is a park: their `lone` constellation marks at zero
 radius and zero alpha, which is **exactly** the seed frame `ScrollyVisual` builds

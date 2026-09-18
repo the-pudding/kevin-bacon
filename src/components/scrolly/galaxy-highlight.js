@@ -370,6 +370,22 @@ const envelope = (into) =>
 		Math.min(1, into / GALAXY_FADE_MS, (GALAXY_BEAT_MS - into) / GALAXY_FADE_MS)
 	);
 
+/** the eligible set, hoisted so a beat's choice allocates nothing */
+/** @type {number[]} */
+const eligible = [];
+
+/**
+ * How many flights have begun — the one thing here not derived from the cast and
+ * the clock. The flight's clock RESTARTS at zero on every arrival, so anything
+ * keyed purely on the beat index replays the same sequence every visit.
+ *
+ * A counter rather than `Math.random`: stable for the life of a flight, which is
+ * what matters (a re-seed mid-beat would swap the name being read), while still
+ * differing between flights. Reproducible too, so the distribution stays
+ * measurable.
+ */
+let flightSeq = 0;
+
 /**
  * The cast member this beat lights: the next one round the cycle that can hold
  * the frame for the whole beat, skipping anyone who cannot and anyone who has
@@ -394,18 +410,17 @@ const envelope = (into) =>
  *
  * @param {number[]} recent most-recent focus ids first (see the writer)
  */
-function pickFocus(beat, from, tBeat, attrs, cx, cy, w, h, recent) {
-	const n = GALAXY_CAST.length;
-	// a fresh place in the cast each beat, so consecutive beats do not start their
-	// search from neighbouring points and converge on the same eligible actor
-	const start = (from + Math.floor(dotHash(beat, 13) * n)) % n;
-	for (let k = 0; k < n; k++) {
-		const id = GALAXY_CAST[(start + k) % n];
+function pickFocus(beat, nonce, tBeat, attrs, cx, cy, w, h, recent) {
+	eligible.length = 0;
+	for (const id of GALAXY_CAST) {
 		if (recent.includes(id) || !wrapSafe(id, tBeat)) continue;
 		const g = beatGrowth(skyFrac(id, tBeat));
-		if (focusHolds(attrs, id, g, cx, cy, w, h)) return id;
+		if (focusHolds(attrs, id, g, cx, cy, w, h)) eligible.push(id);
 	}
-	return null;
+	if (eligible.length === 0) return null;
+	// dotHash is [0, 1), so this indexes the set without running off its end
+	const r = dotHash(beat * 0x9e37 + nonce * 0x85eb, 15);
+	return eligible[(r * eligible.length) | 0];
 }
 
 /**
@@ -499,7 +514,7 @@ export function withGalaxyHighlight(framesFn) {
 		const wTarget = [0, 0, 0];
 		// where this card joins the cycle, so the three of them do not all open on
 		// the same actor (the clock restarts at every arrival)
-		const from = params?.castFrom ?? 0;
+		const nonce = flightSeq++;
 		let beat = -1;
 		/** @type {number|null} */
 		let focus = null;
@@ -531,7 +546,7 @@ export function withGalaxyHighlight(framesFn) {
 					attrs[i + 4] = CROWD[1];
 					attrs[i + 5] = CROWD[2];
 				}
-				focus = pickFocus(b, from, tBeat, attrs, cx, cy, w, h, recent);
+				focus = pickFocus(b, nonce, tBeat, attrs, cx, cy, w, h, recent);
 				if (focus != null) {
 					recent.unshift(focus);
 					if (recent.length > GALAXY_NO_REPEAT) recent.pop();

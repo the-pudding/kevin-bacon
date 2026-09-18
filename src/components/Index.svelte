@@ -89,6 +89,7 @@
 	// what sets the plot's share of the column).
 	const BESIDE_MIN_W = 1200;
 	const beside = $derived(dimensions.width >= BESIDE_MIN_W);
+
 	// ScrollyVisual instance, for the pair-quiz panel's locate() flight targets
 	/** @type {ScrollyVisual | undefined} */
 	let visual = $state();
@@ -130,6 +131,30 @@
 	const chapterStarts = $derived(
 		stepConfigs.reduce((out, c, i) => (c.chapter ? [...out, i] : out), [])
 	);
+
+	// Which side the prose sits on: it swaps every chapter, so the reader crosses
+	// the screen as the argument turns over. The ordinal is how many chapter cards
+	// the reader has reached — a card announces the chapter it OPENS, so it counts
+	// as part of the new one, which is what puts the swap ON the card.
+	//
+	// That placement is the whole trick and it is not a nicety. A card is
+	// full-bleed and carries no prose, so at the instant the column changes sides
+	// there is no chart boxed in it and no words in it to move: the sky is
+	// authored about the middle of the SCREEN, which the swap does not move, and
+	// the canvas compensates for the rest (see ScrollyVisual's bleed-only branch).
+	// Swapping anywhere else would slide a chart across the viewport.
+	const chapterOrdinal = $derived(
+		chapterStarts.filter((i) => i <= (value ?? 0)).length
+	);
+	const flipped = $derived(beside && chapterOrdinal % 2 === 1);
+
+	// How much of the canvas's bottom edge the step card actually covers. Stacked,
+	// that is the card's own height and half a dozen things are measured off it —
+	// the over-canvas panels, the tour caption's floor, the x-axis title. Beside
+	// the prose it covers NONE of it: the card is in a column of its own, so every
+	// one of those clearances gets the whole box back, and a chart that goes on
+	// dodging a card that is not there leaves a band of empty canvas under it.
+	const overlayHeight = $derived(beside ? 0 : stepsHeight);
 
 	// Which steps own a dot on the progress bar. Neither the title card nor a
 	// chapter card is a step the bar claims a dot for — the reader has arrived
@@ -251,10 +276,11 @@
 	let rankHandoff = $state(false);
 	let rankStepsHeight = $state(0);
 	$effect(() => {
-		if (isRankState(currentState) && stepsHeight) rankStepsHeight = stepsHeight;
+		if (isRankState(currentState) && overlayHeight)
+			rankStepsHeight = overlayHeight;
 	});
 	const rankPanelBottom = $derived(
-		(isRankState(currentState) ? stepsHeight : rankStepsHeight) + 12
+		(isRankState(currentState) ? overlayHeight : rankStepsHeight) + 12
 	);
 	// The panel's own fade-in used to run on a fixed delay timed to land after
 	// the hopBands→rankFocus bar retarget (see the removed CSS comment); now it
@@ -443,7 +469,7 @@
 	const ROUTE_GAP = 12;
 	const routeTop = $derived.by(() => {
 		if (!visualWidth || !visualHeight) return 0;
-		const floor = visualHeight - stepsHeight - routeHeight - ROUTE_GAP;
+		const floor = visualHeight - overlayHeight - routeHeight - ROUTE_GAP;
 		return Math.min(introBottom(visualWidth, visualHeight) + ROUTE_GAP, floor);
 	});
 	// gated on `settled` for the same reason the caption always was: the network
@@ -522,6 +548,7 @@
 		<div
 			class="scrolly-layout"
 			class:exited
+			class:flipped
 			style="--viewport-height: {dimensions.height
 				? `${dimensions.height}px`
 				: '100svh'}; --title-band: {TITLE_BAND}px"
@@ -541,7 +568,7 @@
 					state={exited ? "chapterCenters" : stepConfigs[value ?? 0]?.state}
 					params={exited ? undefined : stepConfigs[value ?? 0]?.params}
 					{coldStart}
-					{stepsHeight}
+					stepsHeight={overlayHeight}
 					{beside}
 				/>
 				{#if !exited}
@@ -652,7 +679,7 @@
 					{#snippet raceStartPanel()}
 						<div
 							class="race-scrubber-panel"
-							style="bottom: {stepsHeight + 12}px"
+							style="bottom: {overlayHeight + 12}px"
 						>
 							<RaceRewindStart />
 						</div>
@@ -673,7 +700,7 @@
 					{#snippet racePanel()}
 						<div
 							class="race-scrubber-panel"
-							style="bottom: {stepsHeight + 12}px"
+							style="bottom: {overlayHeight + 12}px"
 						>
 							<RaceScrubber />
 						</div>
@@ -687,7 +714,7 @@
 					{#snippet simPanel()}
 						<div
 							class="race-scrubber-panel"
-							style="bottom: {stepsHeight + 12}px"
+							style="bottom: {overlayHeight + 12}px"
 						>
 							<SimRunner />
 						</div>
@@ -700,7 +727,7 @@
 					{#snippet genzLinesPanel()}
 						<div
 							class="race-scrubber-panel"
-							style="bottom: {stepsHeight + 12}px"
+							style="bottom: {overlayHeight + 12}px"
 						>
 							<GenZLinesStart />
 						</div>
@@ -709,7 +736,7 @@
 				     the simulation race it reads out. The whole close sits on that one
 				     chart, so this panel is the only thing that changes for its step. -->
 					{#snippet moversPanel()}
-						<div class="movers-panel" style="bottom: {stepsHeight + 12}px">
+						<div class="movers-panel" style="bottom: {overlayHeight + 12}px">
 							<GenZMovers />
 						</div>
 					{/snippet}
@@ -723,7 +750,8 @@
 					     The CTA says a different thing depending on the screen, because
 					     the mechanism a reader reaches for is different: a thumb at the
 					     edge of a phone, an arrow key at a desk. Both are always live —
-					     only the wording changes. -->
+					     only the wording changes.
+ -->
 					<Splash state="titleGalaxy">
 						{#snippet title()}
 							Gen Z's Kevin Bacon
@@ -810,16 +838,7 @@
 					     their places, which is the line the reader has just read. It rests
 					     there drifting (the framework's one ambient loop) until they step
 					     on, and the field then sorts itself into the hop bands. -->
-					<!-- castFrom: where this card joins the highlight beat's cycle of
-					     well-known actors. The flight's clock restarts on every arrival,
-					     so without a different offset per card all three would open on
-					     the same actor and a reader who taps briskly would meet nobody
-					     else. Spaced a third of GALAXY_CAST_N apart. -->
-					<Chapter
-						state="chapterCenters"
-						title="The centers of Hollywood"
-						params={{ castFrom: 0 }}
-					/>
+					<Chapter state="chapterCenters" title="The centers of Hollywood" />
 
 					<!-- hopBands' prose waits for the bands to actually land (story.settled)
 				     rather than mounting the moment the step becomes active — the crowd
@@ -947,7 +966,6 @@
 					<Chapter
 						state="chapterCenters"
 						title="The makings of a center of Hollywood"
-						params={{ castFrom: 30 }}
 					/>
 					<Step state="scatterCenters" params={{ showFilms: true }}>
 						<p>
@@ -1021,7 +1039,6 @@
 					<Chapter
 						state="chapterCenters"
 						title="Predicting the next center of Hollywood"
-						params={{ castFrom: 60 }}
 					/>
 					<!-- The race chart comes back for one beat, and the camera pans down
 				     off the crown onto the stretch of remoteness the contenders
@@ -1606,32 +1623,40 @@
 	   700px measure was giving them anyway. The height is what the charts never
 	   had. See PLOT_BOTTOM_BESIDE in layout-shared.js for the other half of it.
 
-	   The split is held as two unitless numbers so the three rules that need it
-	   cannot drift apart — the visual's left inset, the prose's right inset, and
-	   the full-bleed cards, which have to undo the first one from inside a box
-	   that is only --visual-frac of the layout wide. */
+	   The prose column is a FIXED measure, not a share of the layout, and it is
+	   sized at what a phone gives the same words (a 390-430px viewport less the
+	   1rem gutters, so 358-398px). Two reasons. The piece's prose was written and
+	   read at that measure, so holding it means the desktop reader gets the
+	   line-breaks the copy was tuned for instead of a longer line that only looks
+	   like more; and everything the screen has beyond it then goes to the
+	   visualisation, which is the only thing here that gets better with width.
+	   A percentage split gives the charts a fixed fraction of every screen and
+	   spends the rest widening a measure that was already right.
+
+	   Holding it in one custom property is also what makes the full-bleed cards
+	   trivial: a card has to reach back across exactly this much to sit on the
+	   screen's middle, so its offset is the measure negated rather than a ratio
+	   between two columns. */
 	@media (min-width: 75rem) {
 		#scrolly {
 			max-width: 1400px;
 		}
 
 		.scrolly-layout {
-			--prose-frac: 40;
-			--visual-frac: 60;
+			--prose-w: 25rem;
 		}
 
 		.scrolly-visual {
-			left: calc(var(--prose-frac) * 1%);
+			left: var(--prose-w);
 		}
 
-		/* no longer over the canvas, so it is centred in its own column rather
-		   than pinned to the bottom of the layout. `.exited` is untouched by all
-		   of this: `.scrolly-visual.exited` outranks the rule above on
-		   specificity, so the credits backdrop still goes full-screen. */
+		/* no longer over the canvas, so it is centred in a column of its own
+		   rather than pinned to the bottom of the layout */
 		.scrolly-steps {
 			top: 50%;
-			right: calc(var(--visual-frac) * 1%);
+			right: auto;
 			bottom: auto;
+			width: var(--prose-w);
 			transform: translateY(-50%);
 		}
 
@@ -1642,7 +1667,29 @@
 		   pointer-events: none, so reaching back across the prose costs nothing. */
 		.chapter-card,
 		.splash-card {
-			left: calc(var(--prose-frac) / var(--visual-frac) * -100%);
+			left: calc(-1 * var(--prose-w));
+		}
+
+		/* THE SWAP. Every chapter puts the prose on the other side, so the reader
+		   crosses the screen as the argument turns over — right, centre, left and
+		   back, with a full-bleed chapter card holding the middle beat each time.
+		   `:not(.exited)` keeps the credits backdrop out of it: once the reader
+		   has left the wizard the canvas is a fixed full-screen drift behind the
+		   roll and belongs to neither column. */
+		.scrolly-layout.flipped .scrolly-visual:not(.exited) {
+			left: 0;
+			right: var(--prose-w);
+		}
+
+		.scrolly-layout.flipped .scrolly-steps {
+			left: auto;
+			right: 0;
+		}
+
+		.scrolly-layout.flipped .chapter-card,
+		.scrolly-layout.flipped .splash-card {
+			left: 0;
+			right: calc(-1 * var(--prose-w));
 		}
 	}
 

@@ -673,16 +673,20 @@
 	let bleed = NO_BLEED;
 
 	/**
-	 * Re-measure the column's offset in the viewport. Returns whether it moved, so
-	 * the render effect can fold it into `resized`.
+	 * Re-measure the column's offset in the viewport.
+	 * @returns {number} how far the column's left edge moved, which is also how
+	 *   far the drawing origin moved along the canvas. 0 when nothing changed, and
+	 *   0 when only the far side did (the window got wider but the column stayed) —
+	 *   that case always changes `canvasWidth` too, so the resize branch has it.
 	 */
 	function measureBleed() {
-		if (!container) return false;
+		if (!container) return 0;
 		const l = Math.max(0, container.getBoundingClientRect().left);
 		const r = Math.max(0, canvasWidth - width - l);
-		if (bleed.l === l && bleed.r === r) return false;
+		if (bleed.l === l && bleed.r === r) return 0;
+		const dx = l - bleed.l;
 		bleed = { l, r };
-		return true;
+		return dx;
 	}
 	// live, so DevTools' emulation (and a reader changing the OS setting mid-story)
 	// stands every animation down straight away
@@ -850,19 +854,35 @@
 	// the padded domain edges, so a (firstTick+lastTick)/2 would sit off-centre —
 	// use the plot bounds directly. This is the y-range of the plot, not half the
 	// tall canvas.
-	const yLabelTop = $derived(
-		height ? (MARGIN + 8 + plotBottom(height)) / 2 : 0
-	);
+	/**
+	 * The plot's share of the column, and the floor it puts on the chart — as
+	 * something Svelte can TRACK.
+	 *
+	 * `plotBottom()` reads a module variable. The layout modules need it that way
+	 * (they are plain functions, and none of them is handed the page's layout
+	 * mode), and the layout cache coped by naming the fraction in its key. A
+	 * `$derived` cannot: a module variable is not a signal, so a derived that
+	 * called `plotBottom()` kept whatever fraction happened to be current when its
+	 * real dependency — `height` — last changed, and the axis furniture stayed
+	 * pinned to the stacked plot for the whole of a beside layout.
+	 *
+	 * So everything in THIS component goes through these two, and the setter in
+	 * the render effect is handed the same `plotFrac`: one expression, both
+	 * readers.
+	 */
+	const plotFrac = $derived(beside ? PLOT_BOTTOM_BESIDE : PLOT_BOTTOM_STACKED);
+	const plotFloor = $derived(height * plotFrac);
+	const yLabelTop = $derived(height ? (MARGIN + 8 + plotFloor) / 2 : 0);
 	// x-axis title sits just under the plot, but never behind the step card: on
 	// long-prose steps the card climbs into the plot, so clamp the title up to
 	// stay above it (text-shadow keeps it legible over any dots it then overlaps)
 	const xLabelTop = $derived(
-		height ? Math.min(plotBottom(height) + 32, height - stepsHeight - 24) : 0
+		height ? Math.min(plotFloor + 32, height - stepsHeight - 24) : 0
 	);
 	// pinned homes for the "lower"/"higher" mini-labels — the same plot-rect
 	// top/bottom that yLabelTop above centres the axis title within
 	const yHintTop = $derived(height ? MARGIN + 8 : 0);
-	const yHintBottom = $derived(height ? plotBottom(height) : 0);
+	const yHintBottom = $derived(height ? plotFloor : 0);
 	const labelIds = $derived.by(() => {
 		const spec = STATE_LABELS[stateName];
 		return new Set(
@@ -2077,14 +2097,20 @@
 		// the layout cache can't see. Read the revision counter FIRST, before any
 		// early return, so the dependency is registered on every run, and drop the
 		// cached layouts whenever it moves.
+		// `cacheDropped` is read by the no-op guard further down, which must not
+		// swallow either of these: they edit tables the cache cannot see and then
+		// need a rebuild at the SAME state, params and box.
+		let cacheDropped = false;
 		if (import.meta.env.DEV && story.raceYBandsRev !== lastBandRev) {
 			lastBandRev = story.raceYBandsRev;
 			layoutCache.clear();
+			cacheDropped = true;
 		}
 		// DEV: same idea for RacePxPerYearDev's x-axis density slider.
 		if (import.meta.env.DEV && story.racePxPerYearRev !== lastPxRev) {
 			lastPxRev = story.racePxPerYearRev;
 			layoutCache.clear();
+			cacheDropped = true;
 		}
 		// canvasWidth is in here with the rest: it sizes the backing store, so a tick
 		// where it has not been measured yet would hand the store a width of 0 and
@@ -2104,15 +2130,23 @@
 		// any one state, so it is set here — once, before any layout is built —
 		// rather than threaded through ten layout modules. `beside` is a prop, so
 		// this effect already re-runs when the breakpoint flips.
-		setPlotBottomFrac(beside ? PLOT_BOTTOM_BESIDE : PLOT_BOTTOM_STACKED);
-		// where the column sits in the viewport, which a width change does not
-		// always imply: beside the prose the column can keep its width and move
-		const bleedMoved = measureBleed();
+		setPlotBottomFrac(plotFrac);
+		// Where the column sits in the viewport, which a width change does not
+		// always imply: on the chapter-card swap it keeps its width and MOVES.
+		// `dx` is how far, and a move on its own is a change of coordinate frame
+		// rather than a resize — see the `else if` branch below.
+		const dx = measureBleed();
+		// A sweep is the one thing a bare move cannot survive: a frame writer closes
+		// over the box it was built for, so reframing the buffer under it would
+		// leave it writing the old geometry. Nothing in the story does that — the
+		// swap lands on a card ARRIVAL, where the state change has already abandoned
+		// the previous sweep — so rather than carry a rebuild path that never runs,
+		// fall back to the snap.
 		const resized =
 			width !== prevW ||
 			height !== prevH ||
 			canvasWidth !== prevCanvasW ||
-			bleedMoved;
+			(dx !== 0 && sweeping);
 		if (sweeping) {
 			if (stateName === prevState && !resized) return;
 			stopSweep();
@@ -2150,8 +2184,62 @@
 			prevW = width;
 			prevH = height;
 			prevCanvasW = canvasWidth;
+		} else if (dx !== 0) {
+			// THE SWAP, and the whole reason it is invisible. The column has moved to
+			// the other side of the screen without changing size, so the backing store
+			// is already right and only the ORIGIN has travelled — `dx` px along the
+			// canvas. Re-pin the element and the transform by that much, then take the
+			// same `dx` back out of the live frame, and every mark the reader can see
+			// stays on the pixel it was on: the buffer holds column coordinates, and
+			// the column's zero has just moved.
+			//
+			// Doing it this way is what keeps the arrival onto the card a TWEEN. The
+			// snap branch above re-fits and lands instantly, which is right for a
+			// resize and would throw away the one transition — a chart dissolving into
+			// the full-bleed sky — that the swap is hidden inside.
+			//
+			// The state's own layout is rebuilt below against the new bleed, so
+			// nothing here touches the tween's target: only where the frame is
+			// setting off FROM has to be restated.
+			const dpr = Math.min(window.devicePixelRatio || 1, 2);
+			canvas.style.left = `${-bleed.l}px`;
+			ctx.setTransform(dpr, 0, 0, dpr, bleed.l * dpr, TITLE_BAND * dpr);
+			tweener.reframe((buf) => {
+				for (let i = 0; i < EDGE_BASE; i += STRIDE) buf[i] -= dx;
+			});
+			trailTweener.reframe((buf) => {
+				for (let t = 0; t < TRAIL_META.length; t++) {
+					const base = t * TRAIL_STRIDE;
+					for (let k = 0; k < TRAIL_POINTS; k++) buf[base + k * 2] -= dx;
+				}
+			});
 		}
 		const paramsKey = JSON.stringify(layoutParams) ?? "";
+		// A re-run that changes nothing must DO nothing, and this effect gets them.
+		// `layoutParams` is a `$derived` over the `story` proxy, and every branch
+		// below paints synchronously — `to()` with ms 0 calls draw() on the spot —
+		// so a paint that publishes into `story` invalidates that derived and hands
+		// the effect back a params object with identical CONTENTS and a new
+		// identity. `paramsKey` compares by value and rightly reports no change;
+		// the run itself was caused by identity.
+		//
+		// Without this guard such a run falls all the way through the arrival chain
+		// to its final `else`, whose instant `to(attrs, 0)` cancels whatever tween
+		// is in flight and — see tween.js — drops its `onDone` with it. On a cold
+		// start that onDone is the ONLY call to `settle()`, so the 900ms entry tween
+		// is snapped away at birth: no fade-up, the ambient never arms, and every
+		// `story.settled` gate stays shut. The story opens on a still, silent sky.
+		//
+		// The `sweeping` guard above is the same intent, but it can only arm once a
+		// choreography owns the rAF, which is too late for an arrival still tweening.
+		if (
+			!resized &&
+			dx === 0 &&
+			!cacheDropped &&
+			stateName === prevState &&
+			paramsKey === prevParamsKey
+		)
+			return;
 		const layout = layoutFor(stateName, width, height, layoutParams, bleed);
 		const { attrs, delays } = layout;
 		decor = {
