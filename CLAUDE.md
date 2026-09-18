@@ -19,6 +19,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 There is no test suite/framework configured in this project.
 
+## Terminology
+
+- "step N" always means step **index** N: the zero-based index in the
+  `?step=N` query parameter, which is the same index the `notes/tween-checklist.md`
+  rows are numbered by. It is never an ordinal ("the Nth step") and never a
+  chapter, state or layout name.
+
 ## Tween sign-off
 
 `notes/tween-checklist.md` is the manual sign-off record for every step
