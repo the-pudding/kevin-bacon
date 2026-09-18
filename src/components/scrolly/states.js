@@ -208,24 +208,33 @@ export const STATE_ENTRY = pick("entry");
  * Unlike EntryAnim there is no last leg, so there is no settle to land on — and
  * one contract in place of that pair: **at t = 0 the writer must reproduce the
  * static layout call for call**, so the loop's first tick redraws exactly the
- * frame the arrival tween landed on and the join moves nothing. Express the
- * motion as an offset that is zero at t = 0 and it holds by construction.
+ * frame the arrival tween landed on and the join moves nothing.
+ *
+ * Hold that by construction rather than by review. There are two ways: write the
+ * motion as an offset from a stored base that is identically zero at t = 0, or
+ * make the static layout literally be the animation evaluated at t = 0. The
+ * galaxy's flight (`makeFlight`) takes the second — `fieldSpot` is `flowSpot`
+ * with the clock at zero — because its dots do not oscillate about a resting
+ * place, they stream continuously and never come back to one.
  *
  * Like every choreography it writes its animated slots straight into the live
  * tween buffers and must touch nothing else, and it is abandoned by a state
  * change's stopSweep — the next arrival tween then snapshots `current`, so the
- * marks travel on from wherever the drift had them.
+ * marks travel on from wherever the loop had them.
  *
  * Never runs under prefers-reduced-motion: the static layout is the still frame.
+ * A loop whose motion is the only thing carrying a reading therefore owes that
+ * reading to the static frame too (the flight bakes the sky's depth into it).
  *
- * `bleed` is the layout's own (see LayoutFn) and is passed here for one reason:
- * a loop that rebuilds its base by calling its static layout must call it with
- * the SAME bleed, or the base is a different frame from the one the arrival
- * landed on and the t = 0 contract above breaks.
+ * `edges` and `bleed` are the layout's own (see LayoutFn). Unlike EntryAnim,
+ * which authors its legs from scratch, an ambient loop's whole job is to carry
+ * on the frame it landed on, so it is handed exactly what a layout call takes
+ * and rebuilds its base with it — the same arguments, or the base is a different
+ * frame from the one the arrival landed on and the t = 0 contract above breaks.
  *
  * @typedef {Object} AmbientAnim
- * @property {(nodes: import("./nodes.js").ActorNode[], w: number, h: number, params?: Object,
- *   bleed?: number) =>
+ * @property {(nodes: import("./nodes.js").ActorNode[], w: number, h: number,
+ *   edges: import("./nodes.js").Edge[], params?: Object, bleed?: number) =>
  *   (attrs: Float32Array, trails: Float32Array, t: number) => void} frames
  * @type {Partial<Record<LayoutState, AmbientAnim>>}
  */

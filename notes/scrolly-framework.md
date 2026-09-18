@@ -130,10 +130,10 @@ fade itself. `hopBands` no longer reveals from that park: the `chapterCenters`
 card sits between the two, and the card is an authored departure frame of its own
 — the crowd is visible and spread across the plot, so `hopBands`'s hop 1→4 clock
 staggers _travel_ instead of a fade, and the reader watches the universe sort
-itself into degrees of separation. The determinism still holds, because the card's
-static layout is where the crowd is (its ambient drift is bounded at a few px, far
-inside what the arrival tween absorbs). Letting a crowd fly in is only a problem
-when where it flies from is arbitrary.
+itself into degrees of separation. The determinism still holds, because the sky's
+flow is a pure function of the clock and the bands read that clock rather than
+guessing where it left the crowd (`departureColumn`, see "Chapter cards").
+Letting a crowd fly in is only a problem when where it flies from is arbitrary.
 
 **Entry choreographies (`STATE_ENTRY`).** When a state's arrival needs an
 animation the tweener can't express — a draw-on, a fan opening, a slow camera
@@ -158,9 +158,17 @@ straight into the live tween buffers under the same single-writer discipline.
 `STATE_ENTRY`'s pair of contracts collapses to one here, because there is no last
 leg to land: **at t = 0 the writer must reproduce the static layout call for
 call**, so the loop's first tick redraws exactly the frame the arrival landed on
-and the join moves nothing. Express the motion as an offset that is zero at t = 0
-and that holds by construction rather than by review — `chapters.js` writes its
-drift as `cos(ωt + φ) − cos φ`, which is identically zero at t = 0.
+and the join moves nothing. Hold it by construction rather than by review — the
+galaxy's static layouts are literally the flow at t = 0 (`fieldSpot` is
+`flowSpot` with the clock at zero), so `makeFlight`'s first tick recomputes the
+frame it is joining rather than nudging it.
+
+The writer is handed the same arguments a layout call takes — `nodes, w, h,
+edges, params, bleed` — precisely because rebuilding its own static layout is the
+normal way to get that base, and any argument it rebuilt with a different value
+would give it a different frame from the one the arrival landed on. (`EntryAnim`
+takes no `edges`: a leg authors its frames from scratch rather than offsetting
+one.)
 
 Two more things follow from it having no end. The offset must be measured from a
 **stored base**, never read back out of the buffer it is writing, or the motion
@@ -186,7 +194,62 @@ It is hooked on `settle()` rather than at each arrival branch, which covers ever
 path into a state at once — a plain state tween's `onDone`, the cold-start and
 first-paint branches, and the reduced-motion/resize snap. Under reduced motion
 `playAmbient` returns immediately and the static layout is the still frame.
-Example: `chapterCenters` in `layouts/chapters.js`.
+
+The galaxy states are the only users, and they share one writer: `makeFlight`
+(`layout-shared.js`) takes a state's own layout function and the ids to fly
+and returns its `frames`. `chapterCenters` flies the crowd **and** the intro
+fifteen, who have stopped being a diagram by then; `hopSeed` and `outro` fly
+`FIELD_IDS` only, because `hopSeed` is still drawing the constellation as
+something to find Bacon in and a diagram that drifts is not one — and holding it
+still leaves it standing in front of a sky with parallax, the one place in the
+story the constellation reads as foreground. Both of those also have an `entry`
+leg — the ambient starts when the pull-back settles, because `settle()` is the
+common terminus of both paths.
+
+**The flight is a flow, not a displacement**, and that is the one way it departs
+from the shape everything else here has. The sky is a volume and the camera moves
+forward through it forever: a dot enters at the far plane, is carried outward
+from the vanishing point by `SKY_FAR / z` as it comes toward the reader, growing
+and darkening, passes the camera and enters again. That is what reads as flying
+THROUGH something — a bounded lateral sway gives parallax, but nothing ever comes
+past you, and it reads as looking around rather than travelling. It stays a
+writer into the flat buffer, so tweening, object constancy, labels, edges,
+culling and bucketing are all untouched and every non-galaxy state is unaffected
+— `PULLBACK_ZOOM` was already a fake camera (a scalar scaling positions about
+Bacon), and this is a real one beside it.
+
+Everything about the flow is a pure function of `(id, t)` — `skyFrac`,
+`entrySpot`, `flowSpot` — and it has to be, because two very different things
+read it: the per-frame writer, and the layouts, which are the flow at t = 0 and
+(for `hopBands`) at whatever t the reader stepped away on. One definition, two
+readers.
+
+Three things worth knowing before touching it:
+
+- **The wrap is the only seam**, and it is hidden twice over: `flightWindow`
+  takes a dot to nothing at both ends of its trip, and a dot at the near plane is
+  four times further out than it entered, so most wraps happen off the canvas
+  anyway. The window is applied to the static field as well, or the loop's first
+  tick would brighten every dot that is mid-fade.
+- **The field is stationary, and that is a property to preserve.** Phases are
+  uniform, so the ensemble looks the same at every t: measured over three
+  minutes, the on-canvas population holds within 2% and the centre-to-edge
+  density within 5%. A naive recycle — wrapping a dot's depth without re-drawing
+  its entry spot — is not stationary, and doubles the on-canvas count mid-cycle.
+  Check it numerically after changing any of this; it is invisible in a single
+  frame and obvious in motion.
+- **`GALAXY_SPREAD` is an entry box, not the sky's extent.** The flow carries a
+  dot out by up to `SKY_FAR / SKY_NEAR`, which spreads the crowd about half again
+  on average, so the spread that leaves the right share of it off screen is much
+  lower than the flat field's was. Retune it against the on-canvas count, not by
+  eye on one frame.
+
+Size and alpha both follow depth every frame, on the same square-root law, so one
+`Math.sqrt` serves the pair — a thing coming toward you grows and darkens
+together, and splitting the two laws makes it read as swelling instead. Entry
+spots are re-drawn only on the frames a dot actually wraps, a few hundred hashes
+a second rather than twelve thousand a frame; the whole writer costs 0.04ms a
+frame on a desktop for 12,097 dots.
 
 One renderer rule follows from this. `drawScene` draws a live edge's far endpoint
 at its **target** position, so a line points where its actor is going and the
@@ -995,12 +1058,42 @@ just a panel.
 **The card drops the reading column, and so does the step that feeds it.** Every
 state carrying a chart is drawn inside `#scrolly`'s 700px measure, because a
 chart wider than the prose it belongs to stops being readable. The two states
-that carry no chart — `hopSeed`'s pull-back and `chapterCenters` — author their
-crowd across `galaxyBox` instead: the whole viewport, edge to edge and from the
-top of the screen down, so the reader gets the corpus as something too big for
-the page exactly where the argument pauses. Nothing fades the crowd at the
-screen edges — a vignette there would draw the boundary the full bleed exists to
-hide.
+that carry no chart — `hopSeed`'s pull-back and `chapterCenters`, plus `outro` —
+author their crowd across `galaxyBox` instead: the viewport edge to edge and
+from the top of the screen down, then inflated past it about its own centre by
+`GALAXY_SPREAD`, so the reader gets the corpus as something too big for the page
+exactly where the argument pauses. Nothing fades the crowd at the screen edges —
+a vignette there would draw the boundary the full bleed exists to hide.
+
+**Sparse and faint is the whole reading.** Most of the crowd is authored off the
+canvas, which is the only sparsity lever available: the set cannot lose members,
+because `hopBands` sorts this exact crowd and a dot missing from the sky would
+have no row to fall into. What is left on screen is a scatter rather than a
+ground of dots, and `FIELD_ALPHA` draws it well under 1 so a chapter title sits
+in front of the sky rather than in it. Off-canvas dots cost a fill the context
+clips and nothing else. Every galaxy writer takes its alpha from that one
+constant — the crowd (`writeFieldCrowd`), the fifteen greying into it
+(`chapters.js`) and the closing chart's cast (`race.js`) — so the three cannot
+drift apart, and because alpha rides the tween buffer like position does, every
+arrival into and out of a galaxy state interpolates it without being told to.
+
+**The field carries its depth standing still.** `FIELD_ALPHA` and the crowd's
+radius are what the field averages, not what every dot gets: all three writers
+spread them about the dot's own `fieldDepth`, so a near dot is bigger and darker
+and a far one smaller and fading toward white before anything moves. That is what
+a reduced-motion reader gets in place of the flow, and it puts the depth cue on
+**radius**, which `drawScene` does not quantise, rather than leaning on alpha,
+which it buckets into 16. Banding is not a risk either way: a dot's depth is set
+by its phase in the flow, which is an independent per-dot hash, so it is not
+spatially correlated and the quantisation only makes the field's alphas discrete.
+
+The spread is **weight-preserving by construction**. Ink goes as radius squared
+times alpha, which is convex in the depth multiplier, so spreading about the
+middle of the volume would otherwise add about a quarter again as much ink — the
+opposite of what a sky a title sits in front of wants. `depthFade` divides the
+spread's own mean weight back out, and the entry/exit window's with it, derived
+in closed form rather than written down, so retuning the gamma, the depth range
+or the window cannot leave a stale number behind.
 
 `hopSeed` sharing the card's box is what makes the step onto the card a no-op.
 Both write the same crowd through `writeFieldCrowd` at `PULLBACK_ZOOM` against
@@ -1073,6 +1166,42 @@ left-to-right place and its neighbours — rather than twelve thousand unrelated
 diagonals, which is what an independently-hashed x would give and what reads as
 static rather than as sorting.
 
+**And the sky it leaves is flowing, so the column it leaves from is the live
+one.** The crowd streams outward the whole time the reader is on the card, so by
+the time they tap, a dot can be most of the way across the screen from where the
+static layout has it — take the resting column and the sort's first frame is
+somewhere other than the crowd the reader is looking at. `departureColumn` in
+`layouts/hop-bands.js` therefore contracts the dot's LIVE sky position. That is
+the same contraction the resting position gets, and because the flow's
+magnification is struck about the same centre the two commute: it is exactly
+where the dot would be if the whole flow had been authored in the column. At the
+flow's t = 0 it IS the resting column, which is what a cold `?step=4`, a backward
+arrival and a reduced-motion read all get.
+
+**A flowing sky has no outer edge**, which is the one thing that does not carry
+over from the flat field. A dot is carried out by up to `SKY_FAR / SKY_NEAR`, so
+about a third of the crowd sits further out than the plot is wide and no single
+contraction holds all of it. Every one of those is off the canvas — measured, not
+assumed: of the dots visible on the card, none lands outside the plot — so the
+rule is simple. A dot the reader can SEE falls straight down from where they see
+it; a dot they cannot takes a flat hashed column of its own. The crowd that does
+land in the plot fills it evenly, so the bands come out uniform either way
+(measured at ±5% across twelve columns). The intro fifteen are outside the flow
+entirely (`isIntroActor`) and simply keep their column.
+
+What is published is the flow's **clock** — one number, `skyFlight.t` — and not
+the twelve thousand positions it implies, so there is still exactly one definition
+of the flow and a reader of the sky cannot diverge from its writer. The cost is
+real and is the only one in the framework: a layout that reads `skyFlight` is not
+a pure function of `(state, w, h, bleed, params)`, so `stopSweep` drops the whole
+layout cache whenever a flight stops. The cache is dropped rather than the key
+made to carry a clock that moves every frame and would never hit, and `stopSweep`
+runs before any layout is built on a state change — which is what makes the frame
+the bands are struck against the frame the sky was showing at the instant the
+reader tapped. `hopSeed`'s invisible seed park goes through the same layout and
+so inherits the live column; it is alpha 0 and `hopBands` reveals from
+`chapterCenters`, not from the seed, so nothing reads it.
+
 Where the identity has to be exact is the OTHER side: `hopSeed` and the card both
 author across `galaxyBox` at `PULLBACK_ZOOM`, so that handoff is byte-identical
 by construction — both call the same `writeFieldCrowd` with the same box. The
@@ -1107,8 +1236,15 @@ is full-bleed, the words are not.
 3. Use it from `Index.svelte`: `<Step state="foo"><p>…</p></Step>`.
 
 Use `hash01(n.id, <new salt>)` for any per-node scatter/jitter — pick an unused
-salt integer. Taken so far: 3–8 across layouts, 9 in `tween.js`, 10–14 in
-`writeFieldCrowd`, 15–19 in `layouts/chapters.js`.
+salt integer. Taken so far: 3–8 across layouts, 9 in `tween.js`, 14 in
+`writeFieldCrowd`'s trickle, 21 for a dot's phase in the sky's flow, 22 for the
+band column of a dot that is off the canvas when it leaves a chapter card.
+(10–13 and 15–20 were the flat galaxy's spot, depth and per-dot drift; the flow
+replaced all of them, so they are free. Reuse them only deliberately — a dot's
+old orbit phase is not a fresh scatter.) The sky's own entry spots use `dotHash`,
+not this: the trip index walks the salt by one on every wrap, and stepping a sine
+hash's input by a constant steps its phase by a constant, so a dot would re-enter
+on a slow march across the sky instead of somewhere new.
 
 ## Data
 
@@ -1205,7 +1341,10 @@ alone is 86, not the storyboard's 82.
   transitions to jumps and disables the overlay fade (CSS media query).
 - Perf: ~11.5k dots per frame is fine because `draw()` buckets dots into
   one `Path2D` per quantised (rgb, alpha) pair — a handful of fills, not a
-  fillStyle per dot.
+  fillStyle per dot. The galaxy flight adds one divide and a few multiplies per
+  dot on top, against a `new Path2D()` + `arc()` per dot that was already
+  running every frame, and three trig calls for the whole frame rather than any
+  per dot.
 
 ## Required: interaction / drop-off points (agreed 2026-07-05; all built — see "Interactivity")
 
@@ -1443,3 +1582,33 @@ prefers-reduced-motion". `npm run build` must stay green.
 Per-step sign-off lives in `notes/tween-checklist.md` — one row per step, with
 forwards / backwards / mobile arrivals. Anything changed here makes rows there stale;
 the rules for working out which are in `CLAUDE.md`.
+
+### Checking a layout or a writer numerically
+
+There is no test runner here, and some of what this framework asserts cannot be
+seen in a single frame — the t = 0 contract is a sub-pixel claim, and the sky's
+flow being stationary is a claim about a whole minute. Both are cheap to measure
+directly, by bundling the modules for Node with the project's own aliases:
+
+```sh
+ESB=$(ls node_modules/.pnpm/@esbuild+*/node_modules/@esbuild/*/bin/esbuild | head -1)
+"$ESB" probe.js --bundle --format=esm --platform=node --loader:.json=json \
+  '--alias:$components=./src/components' '--alias:$data=./src/data' \
+  --outfile=probe.mjs && node probe.mjs
+```
+
+`probe.js` imports `makeNodes` from `scrolly/nodes.js` and `STATES` /
+`STATE_AMBIENT` from `scrolly/states.js`, calls a layout, and runs the ambient
+writer over the buffer at whatever times it wants. Write these in a scratch
+directory, not the repo — they are a measuring instrument, not a fixture. What is
+worth measuring:
+
+- **the t = 0 contract**: `|writer(attrs, trails, 0) − static layout|` over every
+  node slot. It should come out at one Float32 ULP (~2.4e-4 at sky coordinates),
+  not zero — `tweener.current` is Float32 and a layout is Float64.
+- **the flow's stationarity**: on-canvas population and centre-to-edge density
+  sampled across several minutes. Holds within 2% and 5% respectively.
+- **`hopBands`' columns**: none outside the plot, and the band filled evenly —
+  the off-canvas hash in `departureColumn` is what makes both true.
+- **cost**: the writer over a few thousand frames. It is ~0.04ms for 12,097 dots,
+  against a `Path2D` + `arc()` per dot that `drawScene` already pays.

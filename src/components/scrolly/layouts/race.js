@@ -35,7 +35,14 @@ import {
 	STRIDE,
 	introPosition,
 	NETWORK_INTRO_RADIUS,
-	FIELD_ALPHA
+	FIELD_ALPHA,
+	FIELD_IDS,
+	makeFlight,
+	fieldDepth,
+	depthSize,
+	depthFade,
+	flightWindow,
+	skyFrac
 } from "../layout-shared.js";
 import { ANCHOR_ID } from "../nodes.js";
 import { PULLBACK_ZOOM_MS } from "./hop-bands.js";
@@ -2740,18 +2747,24 @@ function writeOutroCast(attrs, rawAttrs, cast, bx, by, e) {
 	const crowdR = NETWORK_INTRO_RADIUS[1] * scale;
 	for (const id of cast) {
 		const i = id * STRIDE;
+		// they land in the crowd's DEPTH as well as its size and grey, each at the
+		// place in the volume the sky already has them — six dots at one flat
+		// distance would be a plane laid across a sky that has a front and a back
+		const d = fieldDepth(id);
+		const landR = crowdR * depthSize(d);
+		const landA = FIELD_ALPHA * depthFade(d) * flightWindow(skyFrac(id, 0));
 		set(
 			attrs,
 			id,
 			bx + (rawAttrs[i] - bx) * scale,
 			by + (rawAttrs[i + 1] - by) * scale,
-			rawAttrs[i + 2] + (crowdR - rawAttrs[i + 2]) * e,
+			rawAttrs[i + 2] + (landR - rawAttrs[i + 2]) * e,
 			[
 				rawAttrs[i + 3] + (CROWD[0] - rawAttrs[i + 3]) * e,
 				rawAttrs[i + 4] + (CROWD[1] - rawAttrs[i + 4]) * e,
 				rawAttrs[i + 5] + (CROWD[2] - rawAttrs[i + 5]) * e
 			],
-			rawAttrs[i + 6] + (FIELD_ALPHA - rawAttrs[i + 6]) * e
+			rawAttrs[i + 6] + (landA - rawAttrs[i + 6]) * e
 		);
 	}
 }
@@ -2927,7 +2940,13 @@ export const states = {
 		// a backward arrival, but every other bespoke choreography in this file
 		// scopes itself explicitly rather than leaving it implicit
 		revealFrom: ["raceClose"],
-		entry: { phases: [PULLBACK_ZOOM_MS], frames: outroGalaxyFrames }
+		entry: { phases: [PULLBACK_ZOOM_MS], frames: outroGalaxyFrames },
+		// the story ends on a sky that is still moving. FIELD_IDS covers the
+		// closing chart's cast too — they are actors with hops like anyone else,
+		// and the base each dot flies from is read back out of the layout, so it
+		// makes no difference which writer put a given dot there. The fifteen
+		// are the only ones left out, and this state never draws them.
+		ambient: { frames: makeFlight(layoutOutroGalaxy, FIELD_IDS) }
 	},
 	raceFuture: {
 		// no yCap, same as raceFull: the whole cast, on a chart whose camera has

@@ -8,9 +8,15 @@ import {
 	HOP_DOT_ALPHA,
 	NETWORK_HOP_DELAY_MS,
 	PULLBACK_ZOOM,
+	FIELD_IDS,
 	writeFieldCrowd,
+	makeFlight,
 	galaxyBox,
 	cardSpot,
+	flowSpot,
+	skyFlight,
+	skyToColumn,
+	isIntroActor,
 	hopFractions,
 	hopShareLabels,
 	set,
@@ -36,11 +42,61 @@ const MIN_BAND_H = 4;
 // number cites the corpus — the same split the right-edge notes used to make.
 const HOP_SHARE = hopShareLabels(hopFractions(ANCHOR_ID));
 
+/**
+ * The column one dot sets off from when it leaves the chapter card.
+ *
+ * Each dot keeps the COLUMN it stands in on the card — the band only decides its
+ * row. The crowd's columns are a uniform scatter across the plot and the intro
+ * fifteen's are their places in the pulled-back constellation, so the chart is
+ * indistinguishable from any other arrival; what changes is the arrival from the
+ * card, where an independent x would send twelve thousand dots off on twelve
+ * thousand unrelated diagonals and read as static. Sharing the x makes it fall:
+ * the universe rains straight down into rows, which is the only reading of this
+ * transition that says "sorted".
+ *
+ * The column the dot is standing in NOW, not the one it rests in, because the
+ * sky never stops: it streams outward from the vanishing point the whole time
+ * the reader is on the card, so a dot can be most of the way across the screen
+ * from where the static layout has it. Taking the resting column would put the
+ * sort's whole first frame somewhere other than the crowd the reader is looking
+ * at. At the flow's t = 0 this is exactly the resting column — which is what a
+ * cold load and a reduced-motion read both get.
+ *
+ * The live sky position is contracted about the shared centre, the same
+ * contraction the resting position gets, and because the flow's magnification is
+ * about that centre too the two commute: this is exactly where the dot would be
+ * if the whole flow had been authored in the column. The intro fifteen are
+ * outside the flow (see `cardSpot`) and simply keep their column.
+ * (`fieldSpot`'s keep-out dots, the handful nudged off Bacon, are the one place
+ * the contraction is approximate, as it always has been.)
+ *
+ * A flowing sky has no outer edge the way a flat one did — a dot is carried out
+ * by up to SKY_FAR / SKY_NEAR as it comes forward, so about a third of the crowd
+ * is further out than the plot is wide, and no single contraction can hold all
+ * of it. Every one of those is off the canvas, which is what makes the rule
+ * simple: a dot the reader can SEE falls straight down from where they see it,
+ * and a dot they cannot takes a column of its own. The crowd that does land in
+ * the plot fills it evenly, so a flat hash for the rest keeps the bands even —
+ * the same reasoning `parkHidden` uses for an actor with no hop to stand in.
+ */
+function departureColumn(id, w, h, skyBox, contraction) {
+	if (isIntroActor(id)) return cardSpot(id, w, h)[0];
+	const cx = (skyBox[0] + skyBox[1]) / 2;
+	const col =
+		cx + (flowSpot(id, w, h, skyBox, skyFlight.t)[0] - cx) * contraction;
+	if (Math.abs(col - w / 2) <= w / 2 - MARGIN) return col;
+	return MARGIN + hash01(id, 22) * (w - MARGIN * 2);
+}
+
 /** @type {import("../layout-shared.js").LayoutFn} */
-function layoutHopBands(nodes, w, h, _edges, params) {
+function layoutHopBands(nodes, w, h, _edges, params, bleed = 0) {
 	const seed = params?.seed;
 	const attrs = new Float64Array(ATTR_SIZE);
 	const delays = new Float64Array(DELAY_SIZE);
+	// the sky the crowd arrives from, and how far one of its pixels travels as it
+	// funnels back into the reading column. Struck once, outside the loop
+	const skyBox = galaxyBox(w, h, bleed);
+	const contraction = skyToColumn(w, h, bleed);
 	const counts = [0, 0, 0, 0, 0];
 	for (const n of nodes) if (n.hop >= 0) counts[n.hop]++;
 	const top = MARGIN + 12;
@@ -74,16 +130,8 @@ function layoutHopBands(nodes, w, h, _edges, params) {
 		set(
 			attrs,
 			n.id,
-			// Each dot keeps the COLUMN it stands in on the chapter card — the band
-			// only decides its row. The crowd's columns are a uniform scatter across
-			// the plot and the intro fifteen's are their places in the pulled-back
-			// constellation, so the chart is indistinguishable from any other
-			// arrival; what changes is the arrival from the card, where an
-			// independent x would send twelve thousand dots off on twelve thousand
-			// unrelated diagonals and read as static. Sharing the x makes it fall:
-			// the universe rains straight down into rows, which is the only reading
-			// of this transition that says "sorted".
-			anchor ? w / 2 : cardSpot(n.id, w, h)[0],
+			// the column the dot leaves the chapter card in, parallax and all
+			anchor ? w / 2 : departureColumn(n.id, w, h, skyBox, contraction),
 			bandTop[n.hop] + (anchor ? bandH[0] / 2 : hash01(n.id, 4) * bandH[n.hop]),
 			anchor ? 10 : 3,
 			HOP_RGB[n.hop],
@@ -141,7 +189,7 @@ const HOP_SEED_EDGE_FADE = 0;
 
 /** @type {import("../layout-shared.js").LayoutFn} */
 function layoutHopSeed(nodes, w, h, edges, _params, bleed = 0) {
-	const { attrs } = layoutHopBands(nodes, w, h, edges, { seed: true });
+	const { attrs } = layoutHopBands(nodes, w, h, edges, { seed: true }, bleed);
 	// no focus: whatever route the reader lit up on networkIntro releases as the
 	// camera pulls back, because the step is about the network as a whole again
 	writeNetwork(attrs, nodes, w, h, null, PULLBACK_ZOOM, HOP_SEED_EDGE_FADE);
@@ -187,10 +235,17 @@ export const states = {
 		// the pull-back is authored for the forward arrival out of networkIntro;
 		// stepping back in from hopBands is one plain tween
 		revealFrom: ["networkIntro"],
-		entry: { phases: [PULLBACK_ZOOM_MS], frames: zoomOutFrames }
+		entry: { phases: [PULLBACK_ZOOM_MS], frames: zoomOutFrames },
+		// once the pull-back stops, the sky it stopped in front of keeps moving, so
+		// the beat rests on something alive rather than on a still photograph.
+		// The crowd only: the fifteen are still drawn here as a constellation for
+		// the reader to find Bacon in, and a diagram that drifts is not one — and
+		// holding them still puts them in front of a sky with parallax, which is
+		// the one place in the story the constellation reads as foreground.
+		ambient: { frames: makeFlight(layoutHopSeed, FIELD_IDS) }
 	},
 	hopBands: {
-		layout: (n, w, h, e) => layoutHopBands(n, w, h, e, {}),
+		layout: (n, w, h, e, _p, bleed) => layoutHopBands(n, w, h, e, {}, bleed),
 		title: "The four degrees of Kevin Bacon",
 		labels: [ANCHOR_ID],
 		// The cascade is authored for the forward arrival off the chapter card,

@@ -1,41 +1,94 @@
-# Handoff: Fill the 26px white strip above full-bleed galaxy states
+# Handoff: the galaxy is a flowing 3D field — awaiting visual sign-off
 
-## Starting Prompt
+## Where this stands
 
-In `/Users/owen/src/Personal/kevin-bacon` there's a 26px white strip across the top of the viewport on the story's full-bleed "galaxy" steps (`?step=2` hopSeed, the chapter cards at 3/12/20, and `?step=28` outro). The dot field should run right to the top edge on those steps. Implement the vertical-bleed fix described below. Read `notes/scrolly-framework.md` and the "Tween sign-off" section of `CLAUDE.md` before touching `src/components/scrolly/`.
+The galaxy views (`hopSeed` at `?step=2`, the three `chapterCenters` cards at
+3/12/20, and `outro` at `?step=28`) are no longer a flat 2D field of drifting
+dots. They are a volume the camera flies forward through: a dot enters at the far
+plane, streams outward from the vanishing point as it comes toward the reader,
+growing and darkening, passes the camera and enters again somewhere new.
 
-**Why the obvious fix is forbidden.** `.scrolly-visual` sits at `top: var(--title-band)` (26px, `Index.svelte:1126,1138-1140`), so the canvas element does not extend into that strip and nothing drawn on it can fill it. Making that box taller — even conditionally, per state — changes the element's `clientHeight`, which is bound to `height` in `ScrollyVisual.svelte:2434`. `ScrollyVisual.svelte:1991` computes `resized = width !== prevW || height !== prevH || canvasWidth !== prevCanvasW`, and a resize calls `stopSweep()` and takes the instant snap branch at `ScrollyVisual.svelte:2158`. Outro's 4s pull-back animates in from `raceClose`, which _has_ a title while outro does not — so a per-state offset resizes the canvas exactly on that transition and snaps the story's closing animation. This was already tried and reverted; see commit `77f92da`'s message. **Do not make `width`, `height` or `canvasWidth` depend on the band.**
+**Built, green on `npm run build` and `npm run lint`, and measured. Not visually
+signed off** — every row of `notes/tween-checklist.md` is `[!]`, and only Owen
+marks a row `[x]`.
 
-**The fix — the vertical twin of the existing horizontal bleed.** The canvas backing store already spans _wider_ than the measured box, with the origin pinned to the wrapper's left edge so layout coordinates keep meaning the same screen pixels; only layouts that deliberately author outside `[0, width]` see the extra room. That's `ScrollyVisual.svelte:2005-2016` (`canvas.width = canvasWidth * dpr; canvas.height = height * dpr; ctx.setTransform(dpr, 0, 0, dpr, bleed * dpr, 0)`) and its comment. Do the same vertically, with a **constant** band (never per-state, never measured — a varying band would re-introduce the resize):
+There is no outstanding design question. If the next session is picking this up,
+it is to look at it in a browser and tune, not to decide anything.
 
-1. `ScrollyVisual.svelte:2752` — canvas CSS: `top: calc(-1 * <band>)`, `height: calc(100% + <band>)`.
-2. `ScrollyVisual.svelte:2013` — backing store: `canvas.height = (height + BAND) * dpr`.
-3. `ScrollyVisual.svelte:2015` — transform: `ctx.setTransform(dpr, 0, 0, dpr, bleed * dpr, BAND * dpr)`. This is what keeps every chart on the exact same screen pixels it occupies today.
-4. `ScrollyVisual.svelte:1499` — `ctx.clearRect(-bleed, -BAND, width + bleed * 2, height + BAND)`.
-5. `layout-shared.js:960` — `galaxyBox` y0 from `0` to `-BAND`, so only the full-bleed states author into the new strip.
+## Read first
 
-`height` passed to layouts is unchanged, so **no chart moves and no box resizes**. The DOM overlay layers (`.annotations`, `.hits`, `.overlay`) need no change, for the same reason the horizontal bleed doesn't disturb them: the origin is preserved.
+- `notes/scrolly-framework.md` — the contracts. `STATE_AMBIENT` (~:152) for the
+  flight, "Chapter cards" (~:1045) for the sky's depth and the handoff into
+  `hopBands`, and "Checking a layout or a writer numerically" at the end for how
+  to measure any of it without a test runner.
+- The "Tween sign-off" section of `CLAUDE.md`.
 
-**Open decision — where the band constant lives.** It exists today only as CSS `--title-band: 26px` (`Index.svelte:1126`) and the render path needs the number in JS. Cleanest is the repo's Style Dictionary token pipeline (`properties/`, `npm run style`, which emits both CSS and JS); the alternative is a `TITLE_BAND` constant in `layout-shared.js` with the CSS var commented as its twin. Ask Owen which he wants rather than silently duplicating the number — this repo is strict about single definitions.
+## What it is made of
 
-**Verify before reporting done.** `npm run dev`, then step _into_ (don't land on) each of: `?step=2` hopSeed's pull-back, `?step=28` outro's 4s pull-back arriving forward from 27, and the chapter cards at 3/12/20. The outro pull-back must _animate_, not snap — that's the exact regression this design avoids. Also check a couple of charted steps (e.g. 10, 18) are pixel-unchanged. Per `CLAUDE.md`, this is shared machinery, so mark the whole `notes/tween-checklist.md` table `[!]`; never mark a row `[x]` — only Owen signs rows off.
+| File                                                            | What lives there                                                                                                                                                                                                  |
+| --------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/components/scrolly/layout-shared.js`                       | All of it: `skyFrac`/`entrySpot`/`flowSpot` (the flow, pure in `(id, t)`), `fieldSpot` (the flow at t = 0), `fieldDepth`/`depthSize`/`depthFade`, `flightWindow`, `skyFlight` (the published clock), `makeFlight` |
+| `src/components/scrolly/layouts/hop-bands.js`                   | `departureColumn` — the column a dot leaves a chapter card in                                                                                                                                                     |
+| `src/components/scrolly/layouts/chapters.js`, `layouts/race.js` | the fifteen and the outro cast taking the crowd's depth and window                                                                                                                                                |
+| `src/components/scrolly/ScrollyVisual.svelte`                   | `stopSweep` drops the layout cache when a flight stops (see below)                                                                                                                                                |
 
-**Working tree warning.** There is unrelated in-progress work not to be committed: `src/components/results/`, `src/utils/analytics.js`, `supabase/*`, `.env.example`, `package.json`, `cspell.config.yaml`, `tasks/seed-quiz-analytics.js`, `untitled.md`. Stage only the files you touch — the previous commit did this by extracting the wanted hunks into a patch and `git apply --cached`, since `Index.svelte` carries both mine and someone else's changes. Don't commit without Owen asking.
+## The two things that are not obvious
 
-## Relevant Files
+**The flow is a pure function of `(id, t)`, and it has to be.** Two very
+different things read it: the per-frame writer, and the layouts — which are the
+flow at t = 0, and, for `hopBands`, the flow at whatever moment the reader
+stepped off the card. One definition, two readers.
 
-- `src/components/scrolly/ScrollyVisual.svelte` — the render path; all but one edit lands here. Lines 1499 (clearRect), 1991 (`resized`), 2005-2016 (backing store + transform, and the comment stating the design principle to copy), 2158 (snap branch), 2433-2436 (the size bindings), 2752 (canvas CSS).
-- `src/components/scrolly/layout-shared.js` — `galaxyBox` at line 960 (the one-line layout change).
-- `src/components/Index.svelte` — `--title-band: 26px` (1126) and `.scrolly-visual` (1138-1140); `.scrolly-visual.exited` (1151) goes `position: fixed; inset: 0`, where the extra strip simply falls off-screen.
-- `notes/scrolly-framework.md` — architecture/contracts; read before editing `scrolly/`.
-- `notes/tween-checklist.md` — the only regression net for motion; must be staled.
-- `CLAUDE.md` — tween sign-off rules and the repo's design principles.
+**One published number, and one impurity.** `skyFlight.t` is the flow's clock.
+`hopBands` reads it, which makes that layout the only thing in the story that is
+not a pure function of `(state, w, h, bleed, params)` — so `stopSweep` drops the
+whole layout cache whenever a flight stops. It runs before any layout is built on
+a state change, which is what makes the frame the bands are struck against the
+frame the sky was showing when the reader tapped.
 
-## Key Context
+## Tuning knobs, in the order worth reaching for
 
-- **Done and committed** (`77f92da`): edge fade removed for all galaxy crowds (`fieldEdgeAlpha` and `FIELD_FADE_PX` deleted outright — every caller used `galaxyBox`, so the parameter would have been dead weight), and progress dots hidden on hopSeed and outro via a new `hideBar` flag on `<Step>` → `StepProgress` (the mechanism chapter cards already used through `steps.chapter`).
-- **Attempted and reverted in the same commit**: gating the `--title-band` offset on whether the active state has a title. Owen caught the snap. The commit message records this so it isn't retried.
-- Only `hopBands` carries a `title` among the early states; `lone`, `networkIntro`, `hopSeed`, `chapterCenters` and `outro` have none — which is why a title-driven offset straddles exactly the animated transitions.
-- `galaxyBox` consumers (the states that will gain the strip): `hop-bands.js:148` and `:175` (hopSeed static + `zoomOutFrames`), `chapters.js:65`, `race.js` `layoutOutroGalaxy`/`outroGalaxyFrames`, and `intro.js:188` (parked invisible, no visual effect).
-- Pre-commit runs lint-staged: prettier, cspell and svelte-check. cspell rejected an invented compound ("title" + "less") in a code comment last session and failed the commit — watch comment vocabulary.
-- Jump to any step with `?step=N`; landing by URL paints without a transition, so step _into_ a step from its neighbour to actually see the tween.
+- `FLIGHT_CYCLE_MS` (26s) — one dot's trip across the whole volume. **The feel
+  knob.** Shorter streams faster.
+- `SKY_FAR` (4, against `SKY_NEAR` 1) — how far a dot is carried across the frame
+  per trip. Bigger is more dramatic, and pushes more of the crowd past the plot,
+  which `departureColumn`'s off-canvas rule absorbs.
+- `FLIGHT_FADE` (0.12) — how long a dot takes to fade in and out at the ends of
+  its trip; 3.1s at the current cycle. Raise it if the wraps read as shimmer.
+- `GALAXY_SPREAD` (1.46) — the ENTRY box, not the sky's extent. Retune it against
+  the on-canvas count, never by eye on one frame.
+- `SKY_DEPTH_GAMMA` (0.5) — how hard depth pushes size and alpha apart. The ink
+  normaliser is derived, so changing this cannot leave a stale number behind.
+
+## What was measured, so a regression is recognisable
+
+- t = 0 contract: 2.4e-4 (one Float32 ULP) for all three galaxy states.
+- Stationary over 10 minutes: 12,097 dots written every frame, ~2,400–2,580 on
+  canvas, centre-to-edge density 0.24–0.27, ~30 of 12,097 fully faded at any
+  instant. Every actor passes through the visible frame at least once.
+- `hopBands`: 0 columns outside the plot, band density uniform to ±5%.
+- Writer cost: 0.039ms/frame for 12,097 dots.
+
+A naive recycle — wrapping a dot's depth without re-drawing its entry spot — is
+NOT stationary and doubles the on-canvas count mid-cycle. It looks fine in a
+still. Measure after touching any of this.
+
+## What to look at, and the one honest caveat
+
+Watch a full 26s cycle on a card for a wrap that reads as a pop rather than a
+fade; births happen on canvas at roughly 220/s, but each is a 3.1s ramp, so the
+failure mode is a general shimmer in the field's brightness, not individual dots
+appearing.
+
+**The caveat Owen has already been given:** on a light background, faint grey
+dots streaming outward may read closer to drifting motes than to stars. That is a
+look to accept or reject, not a bug — and the background staying light is a fixed
+decision.
+
+## Left undone
+
+- Phone perf at 375px is unmeasured in a real browser. The writer is cheap; the
+  `Path2D` + `arc()` per dot that `drawScene` already pays is what to watch.
+- Every checklist row is stale, including the cross-cutting passes. Two new rows
+  were added there for the flow (sit on a card for two cycles; reduced-motion and
+  cold `?step=4`).

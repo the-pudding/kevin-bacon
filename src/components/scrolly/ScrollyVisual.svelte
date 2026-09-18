@@ -366,10 +366,28 @@
 	// ease-out — feels like a weighted reel). Reduced motion uses 1 (snap).
 	const SCRUB_EASE = 0.22;
 	let sweepRaf = 0;
+	// is the sweep being stopped a galaxy flight? Set when one starts (playAmbient)
+	// and cleared the moment it is abandoned, so the cache below is dropped once
+	// per departure from the sky rather than on every state change in the story.
+	let skyFlying = false;
 	function stopSweep() {
 		cancelAnimationFrame(sweepRaf);
 		sweepRaf = 0;
 		camPanning = false;
+		// The sky has stopped where it stopped, and `skyFlight.t` now holds the
+		// moment the reader is stepping off. A layout that READS it — hopBands takes
+		// each dot's column off the card, mid-flow — is not pure in the cache key's
+		// terms, so the cached layouts go: served a second visit's sort built
+		// against the first visit's frame, the crowd would set off from somewhere it
+		// is no longer standing.
+		//
+		// This runs before any layout is built on a state change (see the render
+		// effect), which is what makes the frame the bands are struck against the
+		// frame the sky was showing at the instant the reader tapped.
+		if (skyFlying) {
+			skyFlying = false;
+			layoutCache.clear();
+		}
 	}
 	// the rAF spine every entry choreography rides: run `frame(eased)` for `ms`,
 	// repaint each tick, then chain `onDone`. Owns sweepRaf, so stopSweep()
@@ -562,6 +580,12 @@
 	// tweener only reads the result, never mutates it. `params` merges the
 	// step's static params with the interaction fields the state consumes
 	// (STATE_PARAMS selector), so an interaction re-runs the current layout.
+	//
+	// The one exception is a layout that receives the crowd off a galaxy state and
+	// so reads the sky's live clock (layout-shared's skyFlight). The whole cache is
+	// dropped when a flight stops rather than that key being made to carry a time:
+	// the clock moves every frame, a key that tracked it would never hit, and a
+	// flight stops a handful of times in a read-through. See stopSweep.
 	const layoutCache = new Map();
 	// DEV only: last y-band revision the cache was valid for (see the render
 	// effect). Always 0 in a build, where the tuning panel doesn't exist.
@@ -1387,7 +1411,10 @@
 		tweener.stop();
 		trailTweener.stop();
 		sweeping = true;
-		const write = anim.frames(nodes, width, height, layoutParams, bleed);
+		const write = anim.frames(nodes, width, height, edges, layoutParams, bleed);
+		// armed AFTER stopSweep above, which would otherwise read the flag this call
+		// is about to set and bump a revision for a flight that had not started
+		skyFlying = true;
 		runLoop((t) => write(tweener.current, trailTweener.current, t));
 	}
 
