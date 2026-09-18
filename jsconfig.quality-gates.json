@@ -1,9 +1,0 @@
-{
-	"extends": "./jsconfig.json",
-	"include": ["src/**/*.js", "src/**/*.svelte"],
-	"exclude": [
-		"tasks/*.js",
-		"src/components/**/migrate/**",
-		"src/components/layercake/future/**"
-	]
-}
