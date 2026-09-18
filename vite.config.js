@@ -29,5 +29,9 @@ export default defineConfig({
 	},
 	ssr: {
 		noExternal: ["bits-ui"]
+	},
+	test: {
+		include: ["src/**/*.spec.js"],
+		environment: "node"
 	}
 });

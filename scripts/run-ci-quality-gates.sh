@@ -5,15 +5,18 @@
 #   - .github/workflows/ci-quality-gates.yml      → runs in full (default) mode
 #
 # Modes:
-#   (default)  full/CI: whole-tree prettier check + svelte-check + parity guard
-#   --local    pre-commit: skips the whole-tree prettier check — lint-staged has
-#              already formatted the staged files, and checking the *working
-#              tree* here would block commits over unrelated dirty files.
+#   (default)  full/CI: whole-tree prettier + eslint, svelte-check, vitest,
+#              parity guard
+#   --local    pre-commit: skips the whole-tree prettier and eslint passes —
+#              lint-staged has already formatted and linted the staged files,
+#              and checking the *working tree* here would block commits over
+#              unrelated dirty files.
 #
-# svelte-check is scoped by jsconfig.quality-gates.json: the unmigrated starter
-# templates (src/components/**/migrate/**, layercake/future/**) are excluded —
-# they are kept-as-reference svelte-starter code, not story code. Everything
-# else fails the gate on type errors. `npm run check` remains the unscoped run.
+# svelte-check runs over jsconfig.json (everything under src/) and fails on type
+# errors. The vitest suite under src/components/scrolly/__tests__ holds the
+# layout goldens and frame contracts — the automated half of the tween
+# checklist (notes/tween-checklist.md). A golden only changes when a layout was
+# meant to change, and is regenerated deliberately with `npx vitest run -u`.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -29,13 +32,16 @@ for arg in "$@"; do
 done
 
 if ! $LOCAL; then
-	echo "gate: prettier (whole tree)"
+	echo "gate: prettier + eslint (whole tree)"
 	npm run lint
 fi
 
-echo "gate: svelte-check (story code)"
+echo "gate: svelte-check"
 npx svelte-kit sync
-npx svelte-check --tsconfig ./jsconfig.quality-gates.json --threshold error
+npx svelte-check --tsconfig ./jsconfig.json --threshold error
+
+echo "gate: vitest"
+npx vitest run
 
 echo "gate: hook/CI parity"
 grep -Eq '"pre-commit": ".*run-ci-quality-gates\.sh --local"' package.json

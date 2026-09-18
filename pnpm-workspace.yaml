@@ -3,4 +3,7 @@ allowBuilds:
   sharp: false
   simple-git-hooks: true
   svelte-preprocess: true
+  # eslint-plugin-import-x's resolver; its prebuilt binding is an optional
+  # dependency, so the install script (a download fallback) never needs to run
+  unrs-resolver: false
   workerd: false

@@ -9,9 +9,10 @@
 		"dev": "vite dev",
 		"build": "vite build",
 		"preview": "vite preview",
-		"lint": "prettier --check .",
+		"lint": "prettier --check . && eslint .",
+		"test": "vitest run",
 		"check": "svelte-check --tsconfig ./jsconfig.json",
-		"spellcheck": "cspell \"src/data/**\" \"notes/**\" \"README.md\" \"src/routes/**/*.svelte\" \"src/components/Index.svelte\" \"src/components/Header.svelte\" \"src/components/Meta.svelte\" \"src/components/results/*.svelte\"",
+		"spellcheck": "cspell \"src/data/**\" \"notes/**\" \"README.md\" \"src/routes/**/*.svelte\" \"src/components/Index.svelte\" \"src/components/Meta.svelte\" \"src/components/results/*.svelte\"",
 		"format": "prettier --write .",
 		"gates": "bash scripts/run-ci-quality-gates.sh",
 		"prepare": "simple-git-hooks"
@@ -20,17 +21,21 @@
 		"pre-commit": "npx lint-staged && bash scripts/run-ci-quality-gates.sh --local"
 	},
 	"lint-staged": {
-		"*.{js,svelte,json,css,md,html}": "prettier --write",
+		"*.{js,svelte}": [
+			"prettier --write",
+			"eslint"
+		],
+		"*.{json,css,md,html}": "prettier --write",
 		"src/data/**": "cspell --no-must-find-files",
 		"notes/**": "cspell --no-must-find-files",
 		"README.md": "cspell --no-must-find-files",
 		"src/routes/**/*.svelte": "cspell --no-must-find-files",
 		"src/components/Index.svelte": "cspell --no-must-find-files",
-		"src/components/Header.svelte": "cspell --no-must-find-files",
 		"src/components/Meta.svelte": "cspell --no-must-find-files",
 		"src/components/results/*.svelte": "cspell --no-must-find-files"
 	},
 	"devDependencies": {
+		"@eslint/js": "^10.0.1",
 		"@lucide/svelte": "^1.16.0",
 		"@rollup/plugin-dsv": "^3.0.5",
 		"@sveltejs/adapter-cloudflare": "^7.2.6",
@@ -42,6 +47,11 @@
 		"bits-ui": "^2.18.1",
 		"cspell": "^10.0.1",
 		"d3": "^7.9.0",
+		"eslint": "^10.10.0",
+		"eslint-config-prettier": "^10.1.8",
+		"eslint-plugin-import-x": "^4.17.1",
+		"eslint-plugin-svelte": "^3.23.0",
+		"globals": "^17.12.0",
 		"lint-staged": "^17.0.8",
 		"lodash.debounce": "^4.0.8",
 		"postcss": "^8.5.15",
@@ -57,7 +67,8 @@
 		"svelte-preprocess": "^6.0.3",
 		"typescript": "^5.9.3",
 		"vite": "^8.0.13",
-		"vite-plugin-svgstring": "^1.0.0"
+		"vite-plugin-svgstring": "^1.0.0",
+		"vitest": "^5.0.1"
 	},
 	"type": "module",
 	"engines": {
