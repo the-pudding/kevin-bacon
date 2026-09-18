@@ -1458,6 +1458,113 @@ const dotVs = new Float64Array(RACE_IDS.length);
 const dotMs = new Float64Array(RACE_IDS.length);
 const lineMs = new Float64Array(RACE_IDS.length);
 
+/** is a value on the fitted y window? */
+const inWindow = (v, vMin, vMax) => v >= vMin && v <= vMax;
+/**
+ * How far into the plot a line's end sits, as a 0-1 fade: an actor whose data
+ * has scrolled off the camera fades out over the last few px of its travel
+ * rather than popping. Measured in PX off the plot's left edge, not in years
+ * off camLeft — those are the same rule when the ramp is a year long, but only
+ * then, and raceFuture parks its camera a fraction of a year inside the data.
+ * In px it is a property of where the line's end actually sits, which is what
+ * the fade was always about.
+ */
+const edgeFadeAt = (cam, yr) =>
+	clamp((cam.xS(yr) - cam.left) / RACE_EDGE_FADE_PX, 0, 1);
+
+/**
+ * One actor on the chart, as every series writer describes them before handing
+ * them to writeActorLine — the race cast, the Gen-Z backdrop and field, and the
+ * closing step's projections differ only in what they put here.
+ * @typedef {Object} ActorLine
+ * @property {number} id
+ * @property {ReturnType<typeof monotoneSegments>} segs the curve
+ * @property {number} slot its trail slot
+ * @property {number} dotYr the year the dot rides — the line's right-hand end
+ * @property {number} dotV the curve's value there
+ * @property {number} endYr where the drawn line ends
+ * @property {number} from the earliest year the line may be drawn from
+ * @property {number} minX a further floor on where the line starts (the draw-on's reveal)
+ * @property {number} m alpha multiplier, 0-1
+ * @property {{ r: number, rgb: number[], alpha: number }} dot how the dot is drawn
+ * @property {number} lineAlpha the line's stroke alpha at full strength
+ * @property {number} ink 0-1, the trail highlight
+ * @property {boolean} fastHide collapse a hidden line onto its dot instead of drawing its geometry
+ * @property {(yr: number) => number} xS the x scale the line is drawn on
+ */
+// one descriptor, mutated per actor: this runs for hundreds of actors on every
+// frame of every sweep, and the per-frame path allocates nothing
+/** @type {ActorLine} */
+const ACTOR = {
+	id: 0,
+	segs: [],
+	slot: 0,
+	dotYr: 0,
+	dotV: 0,
+	endYr: 0,
+	from: 0,
+	minX: -Infinity,
+	m: 0,
+	dot: BACKDROP_DOT,
+	lineAlpha: 0.35,
+	ink: 0,
+	fastHide: false,
+	xS: (yr) => yr
+};
+
+/**
+ * The one place an actor's dot and line are written on the chart. The dot rides
+ * the line's right-hand end, hidden outright when its value has left the fitted
+ * window — it would otherwise be drawn over the axis furniture, showing a value
+ * the chart isn't showing; the line is clipped where the curve leaves the window
+ * (curveExit) and where it re-enters it (curveEntry), entering and leaving the
+ * plot through an edge like any line chart, which is what lets a step fit its
+ * axis to the years it is ABOUT; and a line with nothing drawn parks on its dot
+ * at the dot's alpha, so a collapsed trail never sits off scale where the dot
+ * itself is hidden. The highlight is written last, after the line, because
+ * every trail writer zeroes that channel.
+ *
+ * `fastHide`: for an ANIMATED frame an actor it can't show keeps its dot
+ * placement (what holds them on their own curve) and skips the line work —
+ * curveEntry and curveExit each bisect the curve and sampleTrail resamples 48
+ * vertices, and most of the cast is hidden on most steps, so this is what keeps
+ * a wide cast affordable across a 4s sweep. Never for a static layout: that is
+ * the geometry the trail TWEENER interpolates out of, so a hidden line has to
+ * hold its true shape there, or the next step that reveals it would unspool it
+ * from a point instead of fading it in where it already is.
+ * @param {ActorLine} a
+ */
+function writeActorLine(attrsBuf, trailBuf, yS, vMin, vMax, a) {
+	const dotM = inWindow(a.dotV, vMin, vMax) ? a.m : 0;
+	const dx = a.xS(a.dotYr);
+	const dy = yS(a.dotV);
+	set(attrsBuf, a.id, dx, dy, a.dot.r, a.dot.rgb, a.dot.alpha * dotM);
+	if (a.fastHide && a.m <= 0.002) {
+		collapseTrail(trailBuf, a.slot, dx, dy, 0);
+		return;
+	}
+	const sx1 = curveExit(a.segs, a.endYr, a.from, vMin, vMax);
+	const sx0 =
+		sx1 === null
+			? 0
+			: Math.max(a.from, a.minX, curveEntry(a.segs, sx1, a.from, vMin, vMax));
+	if (sx1 !== null && sx1 > sx0) {
+		sampleTrail(
+			trailBuf,
+			a.slot,
+			a.segs,
+			sx0,
+			sx1,
+			a.xS,
+			yS,
+			a.lineAlpha * a.m
+		);
+	} else {
+		collapseTrail(trailBuf, a.slot, dx, dy, a.lineAlpha * dotM);
+	}
+	setTrailHighlight(trailBuf, a.slot, a.ink);
+}
+
 // Where the Gen-Z field's arrival sweep starts, as a fraction of the camera's
 // own span back from the plot's LEFT edge. Slightly off-plot rather than exactly
 // on it, so the column of dots is already moving when it crosses into view
@@ -1484,60 +1591,25 @@ const GENZ_ARRIVE_LEAD = 0.06;
  * @param {number} vMin @param {number} vMax
  */
 function writeBackdropLines(attrsBuf, trailBuf, cam, yS, vMin, vMax) {
+	const a = ACTOR;
+	a.xS = cam.xS;
+	a.dot = BACKDROP_DOT;
+	a.lineAlpha = BACKDROP_TRAIL_ALPHA;
+	a.ink = 0;
+	a.minX = -Infinity;
+	a.fastHide = true;
 	for (const id of BACKDROP_IDS) {
-		const segs = BACKDROP_SEGS.get(id);
-		const slot = BACKDROP_SLOT.get(id);
 		const [ds, de] = BACKDROP_RANGE.get(id);
-		const dotYr = Math.min(Math.max(cam.playhead, ds), de);
+		a.id = id;
+		a.segs = BACKDROP_SEGS.get(id);
+		a.slot = BACKDROP_SLOT.get(id);
+		a.dotYr = Math.min(Math.max(cam.playhead, ds), de);
+		a.dotV = curveYAt(a.segs, a.dotYr);
+		a.endYr = a.dotYr;
+		a.from = Math.max(cam.camLeft, ds);
 		const onCamera = de >= cam.camLeft && ds <= cam.playhead;
-		const edgeFade = clamp(
-			(cam.xS(dotYr) - cam.left) / RACE_EDGE_FADE_PX,
-			0,
-			1
-		);
-		const m = onCamera ? edgeFade : 0;
-		const dotV = curveYAt(segs, dotYr);
-		const dotM = dotV >= vMin && dotV <= vMax ? m : 0;
-		const dx = cam.xS(dotYr);
-		const dy = yS(dotV);
-		set(
-			attrsBuf,
-			id,
-			dx,
-			dy,
-			BACKDROP_DOT.r,
-			BACKDROP_DOT.rgb,
-			BACKDROP_DOT.alpha * dotM
-		);
-		if (m <= 0.002) {
-			collapseTrail(trailBuf, slot, dx, dy, 0);
-			continue;
-		}
-		const drawFloor = Math.max(cam.camLeft, ds);
-		const sx1 = curveExit(segs, dotYr, drawFloor, vMin, vMax);
-		const sx0 =
-			sx1 === null
-				? 0
-				: Math.max(
-						cam.camLeft,
-						ds,
-						curveEntry(segs, sx1, drawFloor, vMin, vMax)
-					);
-		if (sx1 !== null && sx1 > sx0) {
-			sampleTrail(
-				trailBuf,
-				slot,
-				segs,
-				sx0,
-				sx1,
-				cam.xS,
-				yS,
-				BACKDROP_TRAIL_ALPHA * m
-			);
-		} else {
-			collapseTrail(trailBuf, slot, dx, dy, BACKDROP_TRAIL_ALPHA * dotM);
-		}
-		setTrailHighlight(trailBuf, slot, 0);
+		a.m = onCamera ? edgeFadeAt(cam, a.dotYr) : 0;
+		writeActorLine(attrsBuf, trailBuf, yS, vMin, vMax, a);
 	}
 }
 
@@ -1753,41 +1825,32 @@ function writeProjectionCurve(
 	vMin,
 	vMax
 ) {
+	const a = ACTOR;
+	a.id = id;
+	a.segs = segs;
+	a.slot = slot;
+	a.from = from;
+	a.m = m;
+	a.xS = projX;
 	// the dot rides the draw playhead — the line's own right-hand end — the way
 	// the Gen-Z field's dots ride their arrival, so what the reader follows out
 	// across the strip is a mark travelling rather than a line growing under a
-	// stationary one
-	const dotYr = clamp(drawYr, from, RACE_FUTURE_END);
-	const dotV = curveYAt(segs, dotYr);
-	const dx = projX(dotYr);
-	const dy = yS(dotV);
-	// a dot whose value is off the window is hidden outright, as everywhere else
-	// on this chart. It is what makes SLJ's entrance: he leaves 2025 above the
-	// window's top edge, so for the first part of the draw there is no dot and no
-	// line, and he comes in through the top as his own curve descends onto it.
-	const dotM = dotV >= vMin && dotV <= vMax ? m : 0;
-	set(
-		attrsBuf,
-		id,
-		dx,
-		dy,
-		GENZ_NAMED_DOT.r,
-		GENZ_NAMED_DOT.rgb,
-		GENZ_NAMED_DOT.alpha * dotM
-	);
-	// ...and the line is clipped to the window at both ends, which this pass used
-	// not to need: everything it drew was inside by assertion. SLJ's line crosses
-	// the top edge now, which is the step.
-	const sx1 = curveExit(segs, dotYr, from, vMin, vMax);
-	const sx0 =
-		sx1 === null ? 0 : Math.max(from, curveEntry(segs, sx1, from, vMin, vMax));
-	if (sx1 !== null && sx1 > sx0) {
-		sampleTrail(trailBuf, slot, segs, sx0, sx1, projX, yS, 0.35 * m);
-	} else {
-		collapseTrail(trailBuf, slot, dx, dy, 0.35 * dotM);
-	}
-	// after the line, never before — every trail writer zeroes this channel
-	setTrailHighlight(trailBuf, slot, id === CLOSE_LEAD ? 1 : 0);
+	// stationary one. Hidden outright when its value is off the window, as
+	// everywhere else on this chart: that is what makes SLJ's entrance — he
+	// leaves 2025 above the window's top edge, so for the first part of the draw
+	// there is no dot and no line, and he comes in through the top as his own
+	// curve descends onto it.
+	a.dotYr = clamp(drawYr, from, RACE_FUTURE_END);
+	a.dotV = curveYAt(segs, a.dotYr);
+	a.endYr = a.dotYr;
+	a.minX = -Infinity;
+	a.dot = GENZ_NAMED_DOT;
+	a.lineAlpha = 0.35;
+	a.ink = id === CLOSE_LEAD ? 1 : 0;
+	// never the fast path: an actor the step does not draw (m = 0) still rides
+	// its own curve at alpha 0, so nothing travels to arrive
+	a.fastHide = false;
+	writeActorLine(attrsBuf, trailBuf, yS, vMin, vMax, a);
 }
 
 /**
@@ -1854,12 +1917,10 @@ function writeProjectionLines(attrsBuf, trailBuf, cam, yS, vMin, vMax, proj) {
 /**
  * The 99 Gen-Z contenders' trajectories, on the frame's own camera and axis.
  *
- * A near-copy of the race pass above rather than a shared loop, and deliberately
- * so: the two casts answer different questions and differ in three ways that
- * would each need a branch — these lines are ragged (4 to 25 points against the
- * race cast's uniform series), they carry no `visible` set and no lead, and
- * their emphasis is a fixed seven rather than whoever is in front. Folding them
- * together would cost more in conditionals than it saves in lines.
+ * The same writer as the race pass (writeActorLine); what differs is the
+ * description handed to it. These lines are ragged (4 to 25 points against the
+ * race cast's uniform series), carry no `visible` set and no lead, and their
+ * emphasis is a fixed seven rather than whoever is in front.
  *
  * The ink here is NOT the chapter's crown ink, and it is not an exception to the
  * rule either. On this step no race actor is on the plot at all — the camera has
@@ -1889,59 +1950,144 @@ function writeGenzLines(attrsBuf, trailBuf, cam, yS, vMin, vMax, reveal) {
 	// backwards out of a stationary dot says the reverse of that.
 	const arriveFrom = cam.camLeft - cam.visibleSpan * GENZ_ARRIVE_LEAD;
 	const arriveYr = arriveFrom + (RACE_DATA_END - arriveFrom) * reveal;
+	const a = ACTOR;
+	a.xS = cam.xS;
+	a.lineAlpha = 0.35;
+	a.minX = -Infinity;
+	a.fastHide = true;
 	for (const id of SIM_SERIES) {
-		const segs = GENZ_SEGS.get(id);
-		const slot = SIM_SLOT.get(id);
 		const [ds, de] = GENZ_RANGE.get(id);
 		const named = GENZ_NAMED.has(id);
+		a.id = id;
+		a.segs = GENZ_SEGS.get(id);
+		a.slot = SIM_SLOT.get(id);
 		// the dot rides the arrival playhead, clamped to the actor's own data: one
 		// who debuts inside the window waits at their first year rather than
 		// sliding along a curve that does not exist yet, and every dot stops dead
 		// on its last data year (2025 for all 99) instead of running on with the
 		// camera, which this step parks past the present to make room for the strip
-		const dotYr = Math.min(Math.max(arriveYr, ds), de);
+		a.dotYr = Math.min(Math.max(arriveYr, ds), de);
+		a.dotV = curveYAt(a.segs, a.dotYr);
+		a.endYr = a.dotYr;
+		a.from = Math.max(cam.camLeft, ds);
 		// ...so the line's right-hand end is the dot, and the SAME pixel ramp the
 		// race pass uses for a line leaving at the left edge becomes this one's
 		// entrance for free: it measures where the end actually sits, and here that
 		// end is what is moving. No separate fade-in constant to keep in step.
 		const onCamera = de >= cam.camLeft && ds <= cam.playhead && arriveYr >= ds;
-		const edgeFade = clamp(
-			(cam.xS(dotYr) - cam.left) / RACE_EDGE_FADE_PX,
-			0,
-			1
-		);
-		const m = onCamera ? edgeFade : 0;
-		const dotV = curveYAt(segs, dotYr);
-		const dotM = dotV >= vMin && dotV <= vMax ? m : 0;
-		const dx = cam.xS(dotYr);
-		const dy = yS(dotV);
-		const dot = named ? GENZ_NAMED_DOT : raceDotSpec(false);
-		set(attrsBuf, id, dx, dy, dot.r, dot.rgb, dot.alpha * dotM);
-		if (m <= 0.002) {
-			collapseTrail(trailBuf, slot, dx, dy, 0);
-			continue;
-		}
-		const drawFloor = Math.max(cam.camLeft, ds);
-		// the history trailing the dot, ending wherever the dot has got to
-		const sx1 = curveExit(segs, dotYr, drawFloor, vMin, vMax);
-		const sx0 =
-			sx1 === null
-				? 0
-				: Math.max(
-						cam.camLeft,
-						ds,
-						curveEntry(segs, sx1, drawFloor, vMin, vMax)
-					);
-		if (sx1 !== null && sx1 > sx0) {
-			sampleTrail(trailBuf, slot, segs, sx0, sx1, cam.xS, yS, 0.35 * m);
-		} else {
-			collapseTrail(trailBuf, slot, dx, dy, 0.35 * dotM);
-		}
-		// after the line, never before — every trail writer zeroes this channel
-		setTrailHighlight(trailBuf, slot, named ? 1 : 0);
+		a.m = onCamera ? edgeFadeAt(cam, a.dotYr) : 0;
+		a.dot = named ? GENZ_NAMED_DOT : raceDotSpec(false);
+		a.ink = named ? 1 : 0;
+		writeActorLine(attrsBuf, trailBuf, yS, vMin, vMax, a);
 	}
 }
 
+/**
+ * Pass one of the cast: place every dot and decide how strongly each actor is
+ * shown, into the scratch arrays. Separate from the write so the LEAD can be
+ * picked in between — it is the lowest dot the frame shows, so nothing can be
+ * inked until every dot has been placed.
+ *
+ * The dot rides the RIGHT END OF THE VISIBLE LINE, not the raw playhead: when
+ * the playhead is within the actor's data the two coincide (dot pinned to the
+ * plot's right edge), but once the playhead runs past the data the dot stays
+ * glued to the curve's endpoint instead of floating ahead of a shorter line. A
+ * dot whose value has left the fitted scale is hidden outright rather than
+ * pinned to the plot edge. An actor the projection pass owns is zeroed rather
+ * than skipped, so he is also out of the lead pick: on a frame whose marks
+ * reach 2030, "in front" is a question about where the lines END (CLOSE_LEAD).
+ */
+function placeCast(frame, cam, visible, alphaOf, vMin, vMax) {
+	const [, e1] = frame.extent;
+	const projecting = frame.proj !== undefined;
+	for (let i = 0; i < RACE_IDS.length; i++) {
+		const id = RACE_IDS[i];
+		const [ds, de] = RACE_RANGE.get(id);
+		const onCamera = de >= cam.camLeft && ds <= cam.playhead;
+		const shown = alphaOf ? alphaOf(id) : visible.has(id) ? 1 : 0;
+		const owned = projecting && CLOSE_OWNED.has(id);
+		lineMs[i] = owned
+			? 0
+			: shown * (onCamera ? edgeFadeAt(cam, Math.min(de, e1)) : 0);
+		dotYrs[i] = Math.min(Math.max(cam.playhead, ds), de);
+		dotVs[i] = curveYAt(RACE_SEGS.get(id), dotYrs[i]);
+		dotMs[i] = inWindow(dotVs[i], vMin, vMax) ? lineMs[i] : 0;
+	}
+}
+
+/**
+ * Pass two of the cast: the dots and lines themselves, from the scratch pass
+ * one filled. One writer per slot — an actor the projection pass places is not
+ * touched here at all, or the two would fight over his dot and his trail. The
+ * camera's left edge, not the extent's, is the draw floor: when the viewport is
+ * wider than the step's extent (or a choreography has panned behind it) the
+ * lines simply extend further back rather than leaving the axis empty. The
+ * extent still caps the right edge, so a step never shows years past the one
+ * it is about, and the draw-on's reveal floors where a line starts. The
+ * crown's ink is written for the whole cast every frame (0 for the field), so
+ * it can only be on one line and can never linger on one it has left.
+ */
+function writeCast(
+	attrsBuf,
+	trailBuf,
+	frame,
+	cam,
+	yS,
+	vMin,
+	vMax,
+	lead,
+	animated
+) {
+	const [, e1] = frame.extent;
+	const projecting = frame.proj !== undefined;
+	// the draw-on: the lines unspool leftward from the right-hand end of the data
+	const revealRight = Math.min(cam.camRight, e1);
+	const revealFrom =
+		revealRight - (revealRight - cam.camLeft) * (frame.reveal ?? 1);
+	const a = ACTOR;
+	a.xS = cam.xS;
+	a.lineAlpha = 0.35;
+	a.minX = revealFrom;
+	a.fastHide = animated;
+	for (let i = 0; i < RACE_IDS.length; i++) {
+		const id = RACE_IDS[i];
+		if (projecting && CLOSE_OWNED.has(id)) continue;
+		const [ds, de] = RACE_RANGE.get(id);
+		a.id = id;
+		a.segs = RACE_SEGS.get(id);
+		a.slot = RACE_SLOT.get(id);
+		a.dotYr = dotYrs[i];
+		a.dotV = dotVs[i];
+		a.m = lineMs[i];
+		a.endYr = Math.min(cam.playhead, de, e1);
+		a.from = Math.max(cam.camLeft, ds);
+		a.dot = raceDotSpec(id === lead);
+		a.ink = id === lead ? 1 : 0;
+		writeActorLine(attrsBuf, trailBuf, yS, vMin, vMax, a);
+	}
+}
+
+/**
+ * The marks the frame writes besides the cast, in draw order: the backdrop
+ * first, so the contenders' lines are written over it; the Gen-Z field; and the
+ * closing step's projections last, since they alone live out on the strip and
+ * own the slots they write. All from inside the one frame writer, so it stays
+ * the SINGLE placer of everything on this chart — which is what makes a settle
+ * byte-identical to its animation's last frame by construction.
+ */
+function writeFields(attrsBuf, trailBuf, frame, cam, yS, vMin, vMax) {
+	if (frame.backdrop) {
+		writeBackdropLines(attrsBuf, trailBuf, cam, yS, vMin, vMax);
+	}
+	if (frame.genz) {
+		writeGenzLines(attrsBuf, trailBuf, cam, yS, vMin, vMax, frame.genz);
+	}
+	// tested against undefined, not for truth: 0 is a real progress there (see
+	// RaceFrame.proj)
+	if (frame.proj !== undefined) {
+		writeProjectionLines(attrsBuf, trailBuf, cam, yS, vMin, vMax, frame.proj);
+	}
+}
 /**
  * Writes ONLY the race cast's dot slots + trail slots (one each per RACE_IDS)
  * for one frame, directly into the live Float32 tweener buffers (no allocation,
@@ -1979,7 +2125,6 @@ export function writeRaceSweepFrame(
 	yCap = Infinity,
 	alphaOf = null
 ) {
-	const [, e1] = frame.extent;
 	// How far the future strip has opened. Read only by the strip's own ticks and
 	// its block — no dot, trail, label, takeover callout or y fit ever sees it,
 	// which is what lets the strip carry a second x scale with nothing leaking
@@ -1995,61 +2140,13 @@ export function writeRaceSweepFrame(
 		frame.yClose ?? 0
 	);
 	const yS = (v) => lin(v, vMin, vMax, cam.top, cam.bottom);
-	// draw-on: the lines unspool leftward from the right-hand end of the data
-	const revealRight = Math.min(cam.camRight, e1);
-	const revealFrom =
-		revealRight - (revealRight - cam.camLeft) * (frame.reveal ?? 1);
-	// Pass one places every dot; pass two writes them. They are separate only so
-	// the LEAD can be picked in between: it is the lowest dot the frame shows, so
-	// nothing can be inked until every dot has been placed.
-	for (let i = 0; i < RACE_IDS.length; i++) {
-		const id = RACE_IDS[i];
-		const [ds, de] = RACE_RANGE.get(id);
-		// an actor whose data has scrolled off the camera fades out over the last
-		// few px of its travel rather than popping — and once out, its dot must not
-		// be placed (it would sit over the y ticks or in the name gutter, dragging
-		// a collapsed 48-vertex trail with it).
-		//
-		// Measured in PX off the plot's left edge, not in years off camLeft. Those
-		// are the same rule when the ramp is a year long, but only then — and
-		// raceFuture parks its camera RACE_FUTURE_TAIL_PX inside the data, which is
-		// a fraction of a year. In years, that step's whole cast came out at the
-		// fraction of full strength the tail happened to be (~12% on the widest
-		// canvas, 0 on a phone): PRD P-11-1. In px it is a property of where the
-		// line's end actually sits, which is what the fade was always about.
-		const onCamera = de >= cam.camLeft && ds <= cam.playhead;
-		const endX = cam.xS(Math.min(de, e1));
-		const edgeFade = clamp((endX - cam.left) / RACE_EDGE_FADE_PX, 0, 1);
-		// ...unless the projection pass owns this actor, which writes both his dot
-		// and his line out past the end of the data. Zeroed rather than skipped so
-		// he is also out of the lead pick below: on a frame whose marks reach 2030,
-		// "in front" is a question about where the lines END, not about the
-		// stub of history left of the break (see CLOSE_LEAD).
-		lineMs[i] =
-			frame.proj !== undefined && CLOSE_OWNED.has(id)
-				? 0
-				: (alphaOf ? alphaOf(id) : visible.has(id) ? 1 : 0) *
-					(onCamera ? edgeFade : 0);
-		// the dot rides the RIGHT END OF THE VISIBLE LINE, not the raw playhead:
-		// when the playhead is within the actor's data the two coincide (dot pinned
-		// to the plot's right edge), but once the playhead runs past the data the
-		// dot stays glued to the curve's endpoint instead of floating ahead of a
-		// shorter line.
-		dotYrs[i] = Math.min(Math.max(cam.playhead, ds), de);
-		dotVs[i] = curveYAt(RACE_SEGS.get(id), dotYrs[i]);
-		// a dot whose value has left the fitted scale is hidden outright rather than
-		// pinned to the plot edge: it would otherwise be drawn below the x axis (or
-		// above the plot, over the axis furniture), showing a value the chart isn't
-		// showing. Its line already ends at that edge (curveExit).
-		dotMs[i] = dotVs[i] >= vMin && dotVs[i] <= vMax ? lineMs[i] : 0;
-	}
-	// The crown at this camera. Picked from the dots the frame is actually
+	placeCast(frame, cam, visible, alphaOf, vMin, vMax);
+	// The crown at this camera, picked from the dots the frame is actually
 	// SHOWING — reusing dotM rather than testing the same gates again is what
 	// keeps "inked" and "on the plot" from ever disagreeing, so a frame can never
-	// ink a dot it is hiding.
-	// The crown at this camera — unless the frame says there is no crown to show.
-	// The ink means "in front of the race", and a step whose camera has travelled
-	// off the race has nobody in front: left to itself this would hand the ink to
+	// ink a dot it is hiding. Unless the frame says there is no crown to show:
+	// the ink means "in front of the race", and a step whose camera has travelled
+	// off the race has nobody in front — left to itself this would hand the ink to
 	// whichever straggler happens to sit nearest the top of the new window, which
 	// says something false about them in the chapter's most loaded mark.
 	const lead =
@@ -2059,103 +2156,18 @@ export function writeRaceSweepFrame(
 					(id) => dotMs[RACE_SLOT.get(id)] > 0,
 					(id) => dotVs[RACE_SLOT.get(id)]
 				);
-	for (let i = 0; i < RACE_IDS.length; i++) {
-		const id = RACE_IDS[i];
-		// one writer per slot: an actor the projection pass places is not touched
-		// here at all, or the two would fight over his dot and his trail
-		if (frame.proj !== undefined && CLOSE_OWNED.has(id)) continue;
-		const isLead = id === lead;
-		const dot = raceDotSpec(isLead);
-		const segs = RACE_SEGS.get(id);
-		const slot = RACE_SLOT.get(id);
-		const [ds, de] = RACE_RANGE.get(id);
-		const m = lineMs[i];
-		const dotM = dotMs[i];
-		const dx = cam.xS(dotYrs[i]);
-		const dy = yS(dotVs[i]);
-		set(attrsBuf, id, dx, dy, dot.r, dot.rgb, dot.alpha * dotM);
-		// Fast path for an actor this ANIMATED frame can't show: keep the dot
-		// placement (it is what holds them on their own curve) and skip the line
-		// work below, which is the expensive part — curveEntry and curveExit each
-		// scan and bisect the curve (~60 curveYAt calls apiece) and sampleTrail
-		// resamples 48 vertices. Most of the cast is hidden on most steps, so this
-		// is what keeps a wide cast affordable across the 4s sweep.
-		//
-		// Only for animated frames (alphaOf), never for a static layout. A static
-		// layout is the geometry the trail TWEENER interpolates out of, so a hidden
-		// line has to hold its true shape there: collapse it to a point and the
-		// next step that reveals it would unspool it from that point instead of
-		// fading it in where it already is. Mid-sweep there is nothing to tween
-		// from — the sweep writes the live buffers every frame, and an actor at any
-		// alpha above this floor takes the full path — so stale geometry for one
-		// invisible frame can't be seen. Static layouts run once per state change,
-		// so paying full price there costs nothing per frame.
-		// (no highlight to write on this path: a frame that can't show an actor
-		// can't have picked them as its lead, and collapseTrail zeroes the channel)
-		if (alphaOf && m <= 0.002) {
-			collapseTrail(trailBuf, slot, dx, dy, 0);
-			continue;
-		}
-		// the camera's left edge, not the extent's, is the draw floor: when the
-		// viewport is wider than the step's extent (or a choreography has panned
-		// behind it) the cast's lines simply extend further back rather than
-		// leaving the axis empty. The extent still caps the right edge, so a step
-		// never shows years past the one it is about.
-		// ...and its right-hand end stops where the curve LEAVES the y scale, so a
-		// line whose recent years sit below the fitted axis ends at the plot's
-		// bottom edge instead of being drawn under the x axis. null = this actor is
-		// entirely off scale over the drawn window, so nothing of it is shown.
-		const drawFloor = Math.max(cam.camLeft, ds);
-		const sx1 = curveExit(
-			segs,
-			Math.min(cam.playhead, de, e1),
-			drawFloor,
-			vMin,
-			vMax
-		);
-		const sx0 =
-			sx1 === null
-				? 0
-				: Math.max(
-						cam.camLeft,
-						revealFrom,
-						ds,
-						// ...and a line STARTS where it re-enters the y scale, entering the
-						// plot through an edge like any line chart. That is what lets a step
-						// fit its axis to the years it is ABOUT: the further history its
-						// camera happens to cover goes off-scale instead of stretching the
-						// axis to hold it.
-						curveEntry(segs, sx1, drawFloor, vMin, vMax)
-					);
-		if (sx1 !== null && sx1 > sx0) {
-			sampleTrail(trailBuf, slot, segs, sx0, sx1, cam.xS, yS, 0.35 * m);
-		} else {
-			// nothing of this actor is drawn yet (or at all) → park on the dot, and
-			// ride the dot's alpha so a collapsed trail doesn't sit off scale where
-			// the dot itself is hidden
-			collapseTrail(trailBuf, slot, dx, dy, 0.35 * dotM);
-		}
-		// after the line is written, never before — every trail writer zeroes this
-		// channel. Written for the whole cast every frame (0 for the field), so the
-		// ink can only be on one line and can never linger on one it has left.
-		setTrailHighlight(trailBuf, slot, isLead ? 1 : 0);
-	}
-	// The Gen-Z field, on the same camera and the same axis. Written from inside
-	// this function rather than beside it so that writeRaceSweepFrame stays the
-	// SINGLE placer of everything on this chart — which is what makes a settle
-	// byte-identical to its animation's last frame by construction rather than by
-	// review, for the new lines exactly as for the old ones.
-	// the backdrop first, so the contenders' lines are written over it
-	if (frame.backdrop)
-		writeBackdropLines(attrsBuf, trailBuf, cam, yS, vMin, vMax);
-	if (frame.genz)
-		writeGenzLines(attrsBuf, trailBuf, cam, yS, vMin, vMax, frame.genz);
-	// ...and the closing step's projections, last: they are the only marks that
-	// live out on the strip, and they own the slots they write. Tested against
-	// undefined, not for truth: 0 is a real progress there (see RaceFrame.proj).
-	if (frame.proj !== undefined)
-		writeProjectionLines(attrsBuf, trailBuf, cam, yS, vMin, vMax, frame.proj);
-
+	writeCast(
+		attrsBuf,
+		trailBuf,
+		frame,
+		cam,
+		yS,
+		vMin,
+		vMax,
+		lead,
+		alphaOf !== null
+	);
+	writeFields(attrsBuf, trailBuf, frame, cam, yS, vMin, vMax);
 	return {
 		axes: raceAxes(
 			cam,
@@ -2168,15 +2180,61 @@ export function writeRaceSweepFrame(
 		),
 		takeover: raceTakeoverCallout(cam, yS),
 		band: raceFutureBand(cam, frontier, frame.proj !== undefined),
-		// the RESOLVED frontier, so a caller snapshotting the live frame (see
-		// ScrollyVisual's renderFrontier) reads what was drawn rather than what
-		// was asked for
+		// the RESOLVED frontier, so a caller snapshotting the live frame reads what
+		// was drawn rather than what was asked for
 		frontier,
 		cam,
 		yS,
 		visible,
 		lead
 	};
+}
+
+/**
+ * The frame a step rests on: its descriptor with the camera, the strip, the y
+ * travel and the draw-ons all at their resting values — or at the `params` a
+ * hold has published. Resting DRAWN is what lets a cold mount, a resize and the
+ * reduced-motion snap all land on the finished frame with nothing left to play
+ * — the same contract an entry's last leg has to meet, discharged here by
+ * construction rather than by an animation. `genzShown` is the reader's own
+ * press: that step rests with the lines NOT drawn until they ask for them.
+ * `proj` is left undefined on every other step rather than defaulted to 0:
+ * absent means "not a projection frame", where 0 means "a projection frame
+ * with nothing drawn yet" — the frame the arrival animation starts from.
+ */
+function restingFrame(step, params, w, h) {
+	const rest = (key, fallback) => params?.[key] ?? step[key] ?? fallback;
+	return {
+		...step,
+		playhead: params?.playhead ?? raceRestPlayhead(w, h, step),
+		frontier: rest("frontier", RACE_DATA_END),
+		yOpen: rest("yOpen", 0),
+		yClose: rest("yClose", 0),
+		proj: step.proj === undefined ? undefined : (params?.proj ?? step.proj),
+		genz: step.genz && params?.genzShown ? 1 : 0,
+		reveal: 1
+	};
+}
+
+/**
+ * Every trail slot the step does not draw retracts into the middle of the plot,
+ * and the race slots it does draw get their reveal delay. The frame writer owns
+ * every race slot; on the Gen-Z step the simulation block too — those 99 slots
+ * hold the contenders' trajectories here and their win counts four steps later
+ * — and on the closing step that block again, and the backdrop's on the step
+ * that draws it, so a step never retracts what it is itself drawing.
+ */
+function settleTrails(trails, trailDelays, step, visible, w, bottom) {
+	const keepsSim = step.genz || step.proj !== undefined;
+	TRAIL_META.forEach((meta, t) => {
+		if (RACE_TRAIL_SLOTS.has(t)) {
+			if (meta.id !== null && visible.has(meta.id)) trailDelays[t] = 250;
+			return;
+		}
+		if (keepsSim && SIM_TRAIL_SLOTS.has(t)) return;
+		if (step.backdrop && BACKDROP_TRAIL_SLOTS.has(t)) return;
+		collapseTrail(trails, t, w / 2, bottom, 0);
+	});
 }
 
 /**
@@ -2192,9 +2250,9 @@ function raceLayout(step, yCap = Infinity) {
 		const trails = new Float64Array(TRAIL_SIZE);
 		const trailDelays = new Float64Array(TRAIL_META.length);
 		// park every node hidden at its scatter spot first; the frame writer then
-		// places the race cast on their curves. Sharing that writer with the sweep
-		// animators is what makes a settle byte-identical to its animation's last
-		// frame — there is only one placer of race dots and trails.
+		// places the race cast on their curves. Sharing that writer with the
+		// choreographies is what makes a settle byte-identical to its animation's
+		// last frame — there is only one placer of race dots and trails.
 		for (const n of nodes) {
 			const [x, y] = scatterPosition(n, w, h);
 			set(attrs, n.id, x, y, 2, CROWD, 0);
@@ -2204,32 +2262,7 @@ function raceLayout(step, yCap = Infinity) {
 			trails,
 			w,
 			h,
-			{
-				...step,
-				playhead: params?.playhead ?? raceRestPlayhead(w, h, step),
-				// the step's own resting frontier, so a COLD MOUNT, a RESIZE and the
-				// reduced-motion snap all land on the fully-open strip with nothing
-				// left to play — the same contract an entry's last leg has to
-				// meet, discharged here by construction rather than by an animation
-				frontier: params?.frontier ?? step.frontier ?? RACE_DATA_END,
-				// ...and the same contract for the camera's y travel and for the Gen-Z
-				// draw-on: both rest where the step says, so every path that arrives
-				// without an animation (cold mount, resize, reduced motion) lands on
-				// the finished frame. `genzShown` is the reader's own press — the step
-				// rests with the lines NOT drawn until they ask for them, which is why
-				// this one reads a param before the step's declaration rather than
-				// after it.
-				yOpen: params?.yOpen ?? step.yOpen ?? 0,
-				yClose: params?.yClose ?? step.yClose ?? 0,
-				// ...and the closing step's draw-on, which rests DRAWN (proj: 1 on the
-				// step). Left undefined on every other step rather than defaulted to
-				// 0: absent means "not a projection frame", where 0 means "a
-				// projection frame with nothing drawn yet" — the frame the arrival
-				// animation starts from.
-				proj: step.proj === undefined ? undefined : (params?.proj ?? step.proj),
-				genz: step.genz ? (params?.genzShown ? 1 : 0) : 0,
-				reveal: 1
-			},
+			restingFrame(step, params, w, h),
 			yCap
 		);
 		// NOTE: the actors this step doesn't show are deliberately left where the
@@ -2240,29 +2273,8 @@ function raceLayout(step, yCap = Infinity) {
 		// transition doesn't need the park either: raceFull shows the whole cast,
 		// so by the time the story leaves the chapter there is nobody hidden left
 		// to fly in from off the plot.
-		TRAIL_META.forEach((meta, t) => {
-			// the writer owns every race slot; the rest (career trio, cohort lines,
-			// prediction diagonal) retract into the middle of the plot
-			if (RACE_TRAIL_SLOTS.has(t)) {
-				if (meta.id !== null && visible.has(meta.id)) trailDelays[t] = 250;
-				return;
-			}
-			// ...and on the Gen-Z step the simulation block too: those 99 slots hold
-			// the contenders' trajectories here and their win counts four steps
-			// later, so this step must not retract what it is itself drawing.
-			if ((step.genz || step.proj !== undefined) && SIM_TRAIL_SLOTS.has(t))
-				return;
-			if (step.backdrop && BACKDROP_TRAIL_SLOTS.has(t)) return;
-			collapseTrail(trails, t, w / 2, cam.bottom, 0);
-		});
-		return {
-			attrs,
-			trails,
-			trailDelays,
-			axes,
-			takeover,
-			band
-		};
+		settleTrails(trails, trailDelays, step, visible, w, cam.bottom);
+		return { attrs, trails, trailDelays, axes, takeover, band };
 	};
 }
 
