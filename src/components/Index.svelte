@@ -14,13 +14,10 @@
 	import PairQuiz from "$components/scrolly/PairQuiz.svelte";
 	import QuizResults from "$components/results/QuizResults.svelte";
 	import useWindowDimensions from "$runes/useWindowDimensions.svelte.js";
-	import urlParams from "$utils/urlParams.js";
-	import {
-		story,
-		resetSimRace,
-		resetGenzLines
-	} from "$components/scrolly/story.svelte.js";
-	import { quizDone, entryFor } from "$components/scrolly/states.js";
+	import { story } from "$components/scrolly/story.svelte.js";
+	import { quizDone, isRankState } from "$components/scrolly/states.js";
+	import { createStepRegistry } from "$components/scrolly/step-registry.svelte.js";
+	import { prepareArrival } from "$components/scrolly/arrivals.js";
 	import { routeSummary } from "$components/scrolly/intro-routes.js";
 	import {
 		CYCLE_ORDER,
@@ -38,41 +35,15 @@
 		CHAPTER_OUT_MS
 	} from "$components/scrolly/chapterFade.js";
 
-	const STEP_PARAM = "step";
-	const isRankState = (s) => s === "rankFocus" || s === "rankReveal";
-
 	// A gate that never opens: the step's own control is the only way forward,
 	// so the reader's Next has nothing to do but wait for them to press it.
 	const NEVER = () => false;
 
-	// current step lives in the URL query (?step=N) so each tab keeps its own
-	// place across refreshes independently — unlike localStorage, which is
-	// shared across every tab on the origin
-	function readStep() {
-		if (typeof window === "undefined") return null;
-		const n = parseInt(urlParams.get(STEP_PARAM), 10);
-		return Number.isInteger(n) ? n : null;
-	}
-
-	// read synchronously (not in onMount) so it's already correct by the time
-	// ScrollyVisual's first paint effect runs; onMount fires too late, after
-	// that effect has already committed to the state `value` had at mount.
-	// Every <Step> registers into stepConfigs during the initial render (its
-	// registration is plain top-level script, not gated on being the active
-	// step — see Step.svelte), so stepConfigs is already fully populated by
-	// then too, and `value` starting at the restored index (rather than 0,
-	// corrected later in onMount) is what lets ScrollyVisual's first paint
-	// land directly on the right state instead of flashing `lone` and then
-	// tweening from it once onMount catches up.
-	const restoredStep = readStep();
-	let value = $state(
-		restoredStep !== null && restoredStep > 0 ? restoredStep : 0
-	);
-	// true only when a saved step from a prior visit exists, so this render
-	// isn't the reader's first-ever view. ScrollyVisual uses this to skip the
-	// `lone`-authored pop-in, which would otherwise replay (and be misread as
-	// an empty chart) on every refresh regardless of which step it lands on
-	let coldStart = $state(restoredStep !== null && restoredStep > 0);
+	// The step registry (the wizard) and the arrival rules that prepare the
+	// story for each destination step. Created here so it is the one instance
+	// every <Step>, TapNav and StepProgress reads from the context.
+	const steps = createStepRegistry({ navigate: prepareArrival });
+	setContext("scrolly-steps", steps);
 	let dimensions = new useWindowDimensions();
 
 	// Beside, rather than over. Below this width the prose is a card lying across
@@ -100,34 +71,6 @@
 	// so the clamp that keeps it off the step card knows what it is clamping
 	let routeHeight = $state(0);
 
-	/**
-	 * Filled by each <Step> / <Chapter> as it mounts, in document order — the
-	 * single source of truth mapping step index → visual state (+ per-step
-	 * params, plus an optional `panel` snippet rendered over the canvas while the
-	 * step is active, the three gating fields documented on Step.svelte — `gate`
-	 * (the reader's Next is refused while it returns false), `skipback` (a
-	 * backward move passes through this step) and `advanceon` (the step carries
-	 * the reader on itself) — `hideBar` (drops the progress bar for this step
-	 * alone) — `chapter` for a chapter card's title, or `splash` for the title
-	 * card's own name-and-how-to-move pair).
-	 * @typedef {{ state: import("$components/scrolly/states.js").VisualState, params?: Object, panel?: import("svelte").Snippet, gate?: () => boolean, skipback?: boolean, advanceon?: () => boolean, hideBar?: boolean, chapter?: { title: string }, splash?: { title: import("svelte").Snippet, cta: import("svelte").Snippet } }} StepConfig
-	 * @type {StepConfig[]}
-	 */
-	const stepConfigs = $state([]);
-
-	// one-way: the reader tapping forward off the last step leaves the wizard
-	// for the credits, and there is no path back in (see `exit` below and
-	// TapNav, which drops the back gutter along with everything else once
-	// this is true)
-	let exited = $state(false);
-
-	// which step each chapter opens on, in order — [3, 12, 20] today. Derived
-	// from the registry rather than written down, so inserting a step or a
-	// chapter re-segments the progress bar with no edit anywhere else.
-	const chapterStarts = $derived(
-		stepConfigs.reduce((out, c, i) => (c.chapter ? [...out, i] : out), [])
-	);
-
 	// Which side the prose sits on: it swaps every chapter, so the reader crosses
 	// the screen as the argument turns over. The ordinal is how many chapter cards
 	// the reader has reached — a card announces the chapter it OPENS, so it counts
@@ -140,7 +83,7 @@
 	// the canvas compensates for the rest (see ScrollyVisual's bleed-only branch).
 	// Swapping anywhere else would slide a chart across the viewport.
 	const chapterOrdinal = $derived(
-		chapterStarts.filter((i) => i <= (value ?? 0)).length
+		steps.chapterStarts.filter((i) => i <= (steps.current ?? 0)).length
 	);
 	const flipped = $derived(beside && chapterOrdinal % 2 === 1);
 
@@ -152,117 +95,7 @@
 	// dodging a card that is not there leaves a band of empty canvas under it.
 	const overlayHeight = $derived(beside ? 0 : stepsHeight);
 
-	// Which steps own a dot on the progress bar. Neither the title card nor a
-	// chapter card is a step the bar claims a dot for — the reader has arrived
-	// at the story, not moved through it — and neither is a gated
-	// interaction step: it and the
-	// step that reads out its answer are one beat to the reader (they cannot
-	// arrive at the second without passing the first, and stepping back skips
-	// straight over it), so they share the successor's dot rather than making
-	// the bar tick twice for one move. Derived, like chapterStarts — nothing
-	// downstream counts steps by hand.
-	const dotSteps = $derived(
-		stepConfigs.reduce(
-			(out, c, i) => (c.splash || c.chapter || c.skipback ? out : [...out, i]),
-			[]
-		)
-	);
-	const dotStep = $derived(
-		stepConfigs[value ?? 0]?.skipback ? (value ?? 0) + 1 : (value ?? 0)
-	);
-
-	/** @type {{ register: (config: StepConfig) => number, current: number|undefined, count: number, chapterStarts: number[], chapter: string|null, hideBar: boolean, nextBlocked: boolean, dotSteps: number[], dotStep: number, advance: () => void, go: (to: number) => void, next: () => void, prev: () => void, exited: boolean, exit: () => void }} */
-	const scrollySteps = {
-		// one object rather than positional args: a step now has six optional
-		// kinds of registration and `register(s, undefined, undefined, c)` is a
-		// call nobody can read
-		register: (config) => stepConfigs.push(config) - 1,
-		get current() {
-			return value;
-		},
-		get count() {
-			return stepConfigs.length;
-		},
-		get chapterStarts() {
-			return chapterStarts;
-		},
-		get chapter() {
-			return stepConfigs[value ?? 0]?.chapter?.title ?? null;
-		},
-		// ...and while a step's prose is still held back by an entry choreography
-		// (story.entryHeld). The bar reports a position, and the reader has not
-		// been given one until the words that go with it are on screen — off the
-		// title card it would otherwise be up for three seconds before the card
-		// speaks, which is the whole of the opening flight.
-		get hideBar() {
-			return !!stepConfigs[value ?? 0]?.hideBar || story.entryHeld;
-		},
-		// the active step's gate is shut, so the reader's Next has nothing to do —
-		// TapNav reads this to disable the right-hand gutter, so a held step reads
-		// as held rather than as a dead tap
-		get nextBlocked() {
-			const gate = stepConfigs[value ?? 0]?.gate;
-			return !!gate && !gate();
-		},
-		get dotSteps() {
-			return dotSteps;
-		},
-		get dotStep() {
-			return dotStep;
-		},
-		// Deliberately NOT routed through go() below: this is the in-chapter
-		// nudge a step's own control gives itself once its interaction is done
-		// (GuessRank on a correct guess or a give-up, the rewind's StartButton,
-		// and the effect watching a gated step's `advanceon`). Every one of them
-		// moves within a chapter, so none crosses a transition navigate() cares
-		// about — and sending them through go() would put them straight into the
-		// gate their own press exists to answer.
-		advance: () => {
-			if (value < stepConfigs.length - 1) value += 1;
-		},
-		/**
-		 * The reader's own navigation — the tap gutters and the arrow keys both
-		 * land here, so the gate and everything navigate() prepares happen for a
-		 * tap exactly as they do for a key.
-		 *
-		 * Two things sit between the press and the move, in this order:
-		 *
-		 * - `skipback` resolves the real destination first. A backward move that
-		 *   would land on a gated interaction step passes through it instead, so
-		 *   the reader never arrives back on the controls behind their own answer.
-		 * - the departing step's `gate` then gets the last word on a FORWARD move.
-		 *   While it is shut the press does nothing at all: the step's own control
-		 *   is the only way on, and it goes through advance() above.
-		 *
-		 * navigate() runs with the resolved destination *before* `value` changes,
-		 * so it can compare against the current `value` to know the direction and
-		 * prepare state the destination step reads on its first render (a
-		 * post-render $effect is too late for anything that mounts with the step).
-		 */
-		go(to) {
-			if (to < 0 || to > stepConfigs.length - 1) return;
-			const back = to < value;
-			let dest = to;
-			if (back) while (dest > 0 && stepConfigs[dest].skipback) dest -= 1;
-			const gate = stepConfigs[value]?.gate;
-			if (!back && gate && !gate()) return;
-			navigate(dest);
-			value = dest;
-		},
-		next: () => scrollySteps.go(value + 1),
-		prev: () => scrollySteps.go(value - 1),
-		get exited() {
-			return exited;
-		},
-		// the last step's own forward press, once its gate (if any) is open —
-		// TapNav calls this instead of next() at the end of the step list
-		exit: () => {
-			exited = true;
-		}
-	};
-	setContext("scrolly-steps", scrollySteps);
-
-	const currentState = $derived(stepConfigs[value ?? 0]?.state);
+	const currentState = $derived(steps.state);
 
 	// The rank panel outlives the rank chapter by one step: raceRecent keeps it
 	// mounted so its bars can collapse into the race chart's own dots (see
@@ -271,10 +104,6 @@
 	// rankReveal's, so without this every row would shift a few px away from what
 	// the reader was looking at (and away from where the canvas has been aimed) at
 	// the very moment it collapses. Hold the last height a rank step measured.
-	// set by navigate(): true from the forward step out of the rank chapter into
-	// raceRecent — the one arrival the collapse belongs to — and held for as long
-	// as the reader stays on raceRecent
-	let rankHandoff = $state(false);
 	let rankStepsHeight = $state(0);
 	$effect(() => {
 		if (isRankState(currentState) && overlayHeight)
@@ -286,7 +115,7 @@
 	// The panel's own fade-in used to run on a fixed delay timed to land after
 	// the hopBands→rankFocus bar retarget (see the removed CSS comment); now it
 	// waits for that retarget to actually settle instead. Once true it stays
-	// true: the panel outlives rankFocus (see rankHandoff above), and re-checking
+	// true: the panel outlives rankFocus (see story.rank.handoff), and re-checking
 	// story.settled live would hide it again the moment the reader reaches
 	// rankReveal, where settled no longer reads "rankFocus".
 	//
@@ -299,31 +128,18 @@
 	// `story.settled` read "rankFocus" again, so the hold was permanent: the
 	// ladder sat at opacity 0 for good, over a canvas carrying nothing but Bacon's
 	// bar — which this panel is placed to cover (see layouts/rank.js).
-	let rankBarsRevealed = $state(false);
 	$effect(() => {
 		if (story.settled === "rankFocus" || currentState === "rankReveal")
-			rankBarsRevealed = true;
+			story.rank.revealed = true;
 	});
 	// the overlay is up through the rank chapter, and for the collapse that opens
 	// raceRecent — until the nodes are the canvas's (see RankBars' `collapse`)
 	const showRankPanel = $derived(
 		isRankState(currentState) ||
-			(currentState === "raceRecent" && rankHandoff && !story.rank.collapsed)
+			(currentState === "raceRecent" &&
+				story.rank.handoff &&
+				!story.rank.collapsed)
 	);
-
-	// safety net for a stale/malformed URL (?step past the end of the story):
-	// value already starts at restoredStep, so this only ever corrects it back
-	// into range once stepConfigs.length is known. That correction lands on
-	// `lone`, which coldStart would otherwise still be armed for (it was set
-	// from the same out-of-range restoredStep) — clear it so ScrollyVisual's
-	// first paint plays the pop-in instead of settling instantly, as it would
-	// for any other genuine first-ever view.
-	onMount(() => {
-		if (value >= stepConfigs.length) {
-			value = 0;
-			coldStart = false;
-		}
-	});
 
 	// The race chart's dev tuners (scrolly/dev). Pulled in dynamically rather
 	// than imported at the top so a production build drops them entirely:
@@ -337,10 +153,6 @@
 		devTuners = await import("$components/scrolly/dev/Tuners.svelte");
 	});
 
-	$effect(() => {
-		urlParams.set(STEP_PARAM, value);
-	});
-
 	// --- a step that carries the reader on itself ---
 	// A gated step's own control is the only way past it, and one of them isn't a
 	// button press but the thing the press starts: the simulation's 10,000 runs
@@ -349,73 +161,11 @@
 	// happened as `advanceon`, and this watches whichever step is active — so a
 	// reader who steps away mid-run disarms it by leaving, with no flag to clear.
 	//
-	// advance() is untracked because it writes the `value` this effect reads:
+	// advance() is untracked because it writes the step this effect reads:
 	// without it the write re-runs the effect against the step it just left.
 	$effect(() => {
-		if (stepConfigs[value]?.advanceon?.())
-			untrack(() => scrollySteps.advance());
+		if (steps.config?.advanceon?.()) untrack(() => steps.advance());
 	});
-
-	// What arriving at a state does to the story before its step renders, by the
-	// reader's direction of travel — for the states that carry an arrival rule.
-	const ARRIVALS = {
-		// arriving at the quiz backwards means the reader has already been through
-		// it, so reveal every pair instead of re-asking (see story.svelte.js).
-		// Arriving forwards re-arms the question — and with it the step's gate.
-		scatterQuiz: ({ back }) => {
-			story.quiz.revealed = back;
-		},
-		// the simulation rests at zero runs until the reader presses Start, so a
-		// reader who walked back out of the chapter and in again gets the race to
-		// watch rather than the finished chart under a dead Start button. Forward
-		// arrivals from OUTSIDE the state only: the steps inside it that read the
-		// result out must keep the settled chart they describe.
-		simRace: ({ forward, from }) => {
-			if (forward && from !== "simRace") resetSimRace();
-		},
-		// ...and the same for the Gen Z step, which is one step rather than a
-		// chapter: its whole payoff is the draw-on, so an arrival must find the
-		// plot empty and the button live. It is `skipback`, so the only arrival
-		// there is a forward one.
-		raceGenz: ({ forward }) => {
-			if (forward) resetGenzLines();
-		}
-	};
-
-	// Prepares an arrival. Runs before `value` changes, so state the destination
-	// step's own components read at mount is already correct — PairQuiz decides
-	// whether to ask from story.quiz.revealed as it mounts, and a post-render
-	// $effect would leave it painting the blurred question for a frame before
-	// being told not to. It is handed the destination the registry's `go` has
-	// already resolved, so `to < value` is still the reader's direction of travel.
-	function navigate(to) {
-		const target = stepConfigs[to]?.state;
-		const forward = to > value;
-		// A step whose card is held back by its own entry choreography has to have
-		// that flag up BEFORE it renders. ScrollyVisual raises it too, but from an
-		// effect — one flush too late, which is long enough for the dot bar to mount
-		// on the un-held step, start its fade in, and then be told to leave again.
-		// The reader sees it flash. Raised here for a FORWARD arrival only, which is
-		// the only direction a choreography ever plays on; if the arrival then turns
-		// out not to play one (reduced motion, a resize) ScrollyVisual drops it on
-		// the same flush, so the hold lasts a frame and nothing waits on it.
-		story.entryHeld =
-			forward && entryFor(target, currentState)?.cardAfter != null;
-		ARRIVALS[target]?.({ forward, back: to < value, from: currentState });
-		// the rank panel only carries over into raceRecent when the reader actually
-		// walks there out of the rank chapter — that is the one arrival whose bars
-		// collapse into the chart's dots. Reloading straight onto raceRecent, or
-		// stepping back to it from raceFull, must not flash the list up over a
-		// chart that is already drawn.
-		//
-		// It then STAYS up for as long as the reader is on raceRecent (both its
-		// steps): the collapse is a 500ms clock the canvas is waiting on, and a step
-		// taken inside that window used to pull the overlay out from over a canvas
-		// parked on the collapsed frame — leaving the bare nodes on screen with the
-		// chart never drawn. Only leaving the state hands it back.
-		rankHandoff =
-			target === "raceRecent" && (isRankState(currentState) || rankHandoff);
-	}
 
 	// --- step 1's tour of the network ---
 	// The step demonstrates the game rather than waiting to be asked: it picks each
@@ -433,11 +183,11 @@
 	// (see Chapter.svelte). It fades in behind a beat, so the constellation
 	// dissolving into the crowd underneath reads first, and leaves briskly — it
 	// must be gone before the next step starts sorting the field into bands.
-	const activeChapter = $derived(stepConfigs[value ?? 0]?.chapter);
+	const activeChapter = $derived(steps.config?.chapter);
 	// the title card, rendered from the registry for exactly the reasons a
 	// chapter's title is (see Splash.svelte) — and on the same fade, so opening
 	// the story and opening a chapter are visibly the same move
-	const activeSplash = $derived(stepConfigs[value ?? 0]?.splash);
+	const activeSplash = $derived(steps.config?.splash);
 	// cubicInOut is the same curve the dot tweener eases on (tween.js's
 	// easeCubicInOut), so the title arrives on the motion the canvas is already
 	// moving to
@@ -525,32 +275,13 @@
 		const timer = setInterval(showNext, TOUR_MS);
 		return () => clearInterval(timer);
 	});
-
-	let prevValue = 0;
-	$effect(() => {
-		const state = stepConfigs[value]?.state;
-		const prevState = stepConfigs[prevValue]?.state;
-		// stepping back out of the rank chapter resets the guess, so returning
-		// to it later starts the guessing game fresh instead of picking up
-		// where the reader left off (guessed, or already seeing the reveal)
-		if (value < prevValue && isRankState(prevState) && !isRankState(state)) {
-			story.rank.guesses = [];
-			story.rank.gaveUp = false;
-			// ...and re-arms the panel's hold. `rankBarsRevealed` is a latch (it has
-			// to outlive rankFocus — see its declaration), so without this a second
-			// walk into rankFocus mounts the ladder already revealed and Bacon's bar
-			// fades up over a collapse that is still tweening underneath it.
-			rankBarsRevealed = false;
-		}
-		prevValue = value;
-	});
 </script>
 
 <svelte:boundary onerror={(e) => console.error(e)}>
 	<section id="scrolly">
 		<div
 			class="scrolly-layout"
-			class:exited
+			class:exited={steps.exited}
 			class:flipped
 			style="--viewport-height: {dimensions.height
 				? `${dimensions.height}px`
@@ -558,7 +289,7 @@
 		>
 			<div
 				class="scrolly-visual"
-				class:exited
+				class:exited={steps.exited}
 				bind:clientWidth={visualWidth}
 				bind:clientHeight={visualHeight}
 			>
@@ -568,13 +299,13 @@
 				     chart, see the .scrolly-visual.exited rule below -->
 				<ScrollyVisual
 					bind:this={visual}
-					state={exited ? "chapterCenters" : stepConfigs[value ?? 0]?.state}
-					params={exited ? undefined : stepConfigs[value ?? 0]?.params}
-					{coldStart}
+					state={steps.exited ? "chapterCenters" : steps.state}
+					params={steps.exited ? undefined : steps.config?.params}
+					coldStart={steps.coldStart}
 					stepsHeight={overlayHeight}
 					{beside}
 				/>
-				{#if !exited}
+				{#if !steps.exited}
 					<!-- The rank ladder, mounted here rather than as a step's panel (the
 				     way the dev tuners below are) because it has to OUTLIVE the step
 				     change into raceRecent: that arrival is the handoff, where its bars
@@ -593,7 +324,7 @@
 					{#if showRankPanel}
 						<div
 							class="rank-bars-panel"
-							class:revealed={rankBarsRevealed}
+							class:revealed={story.rank.revealed}
 							style="bottom: {rankPanelBottom}px"
 						>
 							<RankBars
@@ -607,7 +338,7 @@
 				     markup lives next to the <Step> that owns it. After the ladder
 				     above, so a step's own controls (raceRecent's Start button) sit
 				     over it rather than under it -->
-					{@render stepConfigs[value ?? 0]?.panel?.()}
+					{@render steps.config?.panel?.()}
 					<!-- a chapter card's title. Rendered from the registry rather than by
 				     <Chapter> itself so this {#if} is stable and Svelte can play the
 				     out-transition; the panel render above cannot, which is the whole
@@ -646,7 +377,7 @@
 							→
 						</div>
 					{/if}
-					<!-- dev-only race tuners. Mounted outside stepConfigs so they span
+					<!-- dev-only race tuners. Mounted outside the step registry so they span
 				     the whole race chapter and keep their values installed across step
 				     changes; they render nothing until story.race.cam exists, i.e. off
 				     the race chapter. -->
@@ -655,7 +386,7 @@
 					{/if}
 				{/if}
 			</div>
-			{#if !exited}
+			{#if !steps.exited}
 				<div
 					class="scrolly-steps"
 					bind:clientHeight={stepsHeight}
@@ -1147,7 +878,7 @@
 			{/if}
 		</div>
 	</section>
-	{#if exited}
+	{#if steps.exited}
 		<!-- a slow, steady rise rather than an easing-driven "arrival" — the
 		     constant speed (linear, no in/out) is what reads as a film's credits
 		     rolling rather than a UI panel animating in. Offset by the full
@@ -1281,7 +1012,7 @@
 	   step card (inline `bottom`). Its opaque background must not hide the
 	   hopBands → rankFocus canvas collapse (the bar can only be aimed once
 	   RankBars has measured its focus row), so the fade-in is held back — via
-	   the `.revealed` class, driven by `rankBarsRevealed` in the script, which
+	   the `.revealed` class, driven by `story.rank.revealed`, which
 	   only flips once `story.settled` confirms that retarget has actually
 	   landed — until the frame it lands on is the one this list then draws,
 	   dot for dot. */

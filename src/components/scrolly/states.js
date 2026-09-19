@@ -408,6 +408,9 @@ export const STATE_TRACKED = [
 	...GALAXY_CAST
 ];
 
+/** the rank chapter's two states: the ladder panel the race arrival collapses */
+export const isRankState = (s) => s === "rankFocus" || s === "rankReveal";
+
 /** ids the interactive step-card components need (see story.svelte.js) */
 export const INTERACTIVE_IDS = {
 	quiz: QUIZ_PAIRS

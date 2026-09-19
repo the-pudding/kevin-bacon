@@ -99,7 +99,20 @@ export const story = $state({
 		 * the reader steps back into the rank chapter. No layout's params
 		 * selector reads it, so writing it mid-transition can never retarget a
 		 * tween */
-		collapsed: false
+		collapsed: false,
+		/** the ladder panel has faded in. A latch: it has to outlive rankFocus —
+		 * the panel spans the step change into raceRecent — and re-checking
+		 * `settled` live would hide it again the moment the reader reaches
+		 * rankReveal. Index raises it; the arrival rules re-arm it when the reader
+		 * steps back out of the chapter (see arrivals.js) */
+		revealed: false,
+		/** the ladder carries over into raceRecent. Set by the arrival rules for
+		 * the one forward step out of the rank chapter into raceRecent — the
+		 * arrival whose bars collapse into the chart's dots — and held for as long
+		 * as the reader stays there, so a reload straight onto raceRecent, or a
+		 * step back to it from raceFull, never flashes the list up over a chart
+		 * that is already drawn */
+		handoff: false
 	},
 
 	/** the race chart's camera and controls (RaceScrubber, race-camera.js,

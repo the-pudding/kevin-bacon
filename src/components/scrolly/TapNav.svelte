@@ -4,8 +4,8 @@
 	 * The story's navigation: two narrow full-height tap gutters at the far left
 	 * and right of the layout, plus ArrowLeft/ArrowRight. Both go through the
 	 * registry's `go()`, so a tap gets exactly what a key does: the gated steps'
-	 * refusal, the backward skip past them, and everything Index's navigate()
-	 * prepares on arrival (see notes/scrolly-framework.md).
+	 * refusal, the backward skip past them, and everything the arrival rules
+	 * (arrivals.js) prepare (see notes/scrolly-framework.md).
 	 *
 	 * The next gutter goes disabled while the active step's gate is shut, so a
 	 * step that is holding the reader reads as held rather than as a dead tap —
