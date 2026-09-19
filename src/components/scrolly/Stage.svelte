@@ -613,6 +613,17 @@
 		left: 0;
 		right: 0;
 		bottom: 0;
+		/* ONE CELL, not a stack. A step's prose fades out while the next one waits
+		   out its delay (see Step.svelte), so for a couple of hundred ms the column
+		   holds two copies. In normal flow that makes it as tall as both of them
+		   together, and this box is measured (`stepsHeight` above) for every
+		   clearance the canvas takes off it — the whole layout would lurch on each
+		   step. Sharing one grid cell puts the height at the TALLER of the two
+		   instead, which is never worse than the instant jump it replaces. Bottom
+		   aligned because the column is pinned to the bottom edge here: that is the
+		   edge the two copies have in common. */
+		display: grid;
+		align-items: end;
 		/* halo, not a plate — the same reason .chapter-card h2 carries one. A
 		   full-bleed state (hopSeed, the chapter cards) puts the crowd behind the
 		   copy all the way to the bottom edge, and a background would be a
@@ -683,6 +694,9 @@
 			bottom: auto;
 			width: var(--prose-w);
 			transform: translateY(-50%);
+			/* the column is centred in its own column now, so that is the edge the
+			   two copies of a swap share (see the grid note above) */
+			align-items: center;
 		}
 
 		/* A full-bleed state's title belongs to the SCREEN, not to the charts'

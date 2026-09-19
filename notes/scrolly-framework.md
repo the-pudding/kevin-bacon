@@ -293,6 +293,13 @@ ranked layouts plot by sampled rank order, never by raw rank against
   (GuessRank's controls). A step card that grows can cover a layout's `hits`.
 - Overlay label swaps use `{#key}`: the new label fades in, the old is removed
   instantly.
+- A step's prose swaps sequentially rather than as a crossfade: 200ms out, a
+  beat, 300ms in, both ends drifting 8px upward (`Step.svelte`, where `hold`
+  also keeps a step's prose off screen while the arrival it describes is still
+  playing). The two copies overlap in the DOM for that window, so
+  `.scrolly-steps` is a single-cell grid — in normal flow the column would
+  measure as tall as both steps at once and shove every clearance taken off
+  `stepsHeight`.
 - The canvas hop colours in `palette.js` are hard-coded rgb of the tokens in
   `src/styles/variables.css`.
 

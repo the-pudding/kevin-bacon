@@ -177,14 +177,12 @@
 		     the motion is asking. Every other arrival here — a cold start, a
 		     step back from `networkIntro` — never raises the gate, so the card
 		     speaks straight away. -->
-			<Step state="lone">
-				{#if !story.entryHeld}
-					<p>
-						The "Six Degrees of Kevin Bacon" is a game where players try to
-						connect an actor to Kevin Bacon via movies they've starred in with
-						other Hollywood actors, aiming to reach him in six movies or fewer.
-					</p>
-				{/if}
+			<Step state="lone" hold={story.entryHeld}>
+				<p>
+					The "Six Degrees of Kevin Bacon" is a game where players try to
+					connect an actor to Kevin Bacon via movies they've starred in with
+					other Hollywood actors, aiming to reach him in six movies or fewer.
+				</p>
 			</Step>
 			<Step state="networkIntro">
 				<!-- The tour's caption, over the canvas rather than in the card: it is
@@ -260,83 +258,80 @@
 		     that finish before being told what it means. Both steps below rest in
 		     the one hopBands state (see layouts/hop-bands.js), so the gate holds
 		     for the whole pair, not just the first arrival. -->
-			<Step state="hopBands">
-				{#if story.settled === "hopBands"}
-					<p>
-						No doubt, he's well connected. With
-						<InfoTerm>
-							our dataset
-							{#snippet info()}
-								<p>
-									The corpus is the IMDb top 10,000 English-language feature
-									films by user vote count.
-								</p>
-								<p>
-									We then enrich the data with cast information from the TMDB
-									API so we can build the graph network. In total, there are
-									just over 169,000 actors in the dataset.
-								</p>
-								<p>The data for this was taken in ~March 2026.</p>
-								<p>
-									Massive tangent: this dataset even includes <a
-										href="https://www.imdb.com/name/nm8509587/">my bestie</a
-									>, who got a role in the 2018 film Tolkien, putting him two
-									movies away from Kevin Bacon!
-								</p>
-							{/snippet}
-						</InfoTerm>, you can get from any Hollywood actor to Kevin Bacon in
-						four movies or fewer, a.k.a. the <i>four</i> degrees of Kevin Bacon.
-					</p>
-					<p>
-						The reality is that Kevin Bacon isn't special in this respect; there
-						are 16,429 actors who can be reached by everyone within 4 movies,
-						and no one can be reached by everyone within 3.
-					</p>
-				{/if}
+			<Step state="hopBands" hold={story.settled !== "hopBands"}>
+				<p>
+					No doubt, he's well connected. With
+					<InfoTerm>
+						our dataset
+						{#snippet info()}
+							<p>
+								The corpus is the IMDb top 10,000 English-language feature films
+								by user vote count.
+							</p>
+							<p>
+								We then enrich the data with cast information from the TMDB API
+								so we can build the graph network. In total, there are just over
+								169,000 actors in the dataset.
+							</p>
+							<p>The data for this was taken in ~March 2026.</p>
+							<p>
+								Massive tangent: this dataset even includes <a
+									href="https://www.imdb.com/name/nm8509587/">my bestie</a
+								>, who got a role in the 2018 film Tolkien, putting him two
+								movies away from Kevin Bacon!
+							</p>
+						{/snippet}
+					</InfoTerm>, you can get from any Hollywood actor to Kevin Bacon in
+					four movies or fewer, a.k.a. the <i>four</i> degrees of Kevin Bacon.
+				</p>
+				<p>
+					The reality is that Kevin Bacon isn't special in this respect; there
+					are 16,429 actors who can be reached by everyone within 4 movies, and
+					no one can be reached by everyone within 3.
+				</p>
 			</Step>
-			<Step state="hopBands">
-				{#if story.settled === "hopBands"}
-					<p>
-						We need a better way to measure the connectivity of actors in this
-						highly congested network. For this, we use how many movies on
-						average it takes to get to them from all other actors. In graph
-						theory, this is often referred to as <i>remoteness</i>.
-					</p>
-					<p>
-						For example, Kevin Bacon's remoteness is 2.28: an actor is 2.28
-						movies away on average. Smaller is better: the less remote you are,
-						the more likely you are to be the center of Hollywood.
-					</p>
-				{/if}
+			<Step state="hopBands" hold={story.settled !== "hopBands"}>
+				<p>
+					We need a better way to measure the connectivity of actors in this
+					highly congested network. For this, we use how many movies on average
+					it takes to get to them from all other actors. In graph theory, this
+					is often referred to as <i>remoteness</i>.
+				</p>
+				<p>
+					For example, Kevin Bacon's remoteness is 2.28: an actor is 2.28 movies
+					away on average. Smaller is better: the less remote you are, the more
+					likely you are to be the center of Hollywood.
+				</p>
 			</Step>
 			<!-- guessing #1 or giving up is the only way on: GuessRank calls the
 		     registry's advance() itself, and stepping back off the reveal
 		     skips this step so its search box isn't left sitting under the
 		     answer (see `gate` / `skipback` in Step.svelte) -->
-			<Step state="rankFocus" gate={NEVER} skipback>
-				{#if story.settled === "rankFocus"}
-					<div class="rank-focus-text">
-						<p>
-							As mentioned earlier, Kevin Bacon is not the center of Hollywood.
-							His remoteness of 2.28 puts him at #175 of all Hollywood actors.
-							Can you guess who #1 is?
-						</p>
-						<GuessRank />
-					</div>
-				{/if}
+			<Step
+				state="rankFocus"
+				hold={story.settled !== "rankFocus"}
+				gate={NEVER}
+				skipback
+			>
+				<div class="rank-focus-text">
+					<p>
+						As mentioned earlier, Kevin Bacon is not the center of Hollywood.
+						His remoteness of 2.28 puts him at #175 of all Hollywood actors. Can
+						you guess who #1 is?
+					</p>
+					<GuessRank />
+				</div>
 			</Step>
-			<Step state="rankReveal">
-				{#if story.settled === "rankReveal"}
-					<p>
-						Samuel L. Jackson is the <i>center of Hollywood</i>, with a
-						remoteness of just 2.09. Willem Dafoe is second with 2.13, Robert De
-						Niro third with 2.14.
-					</p>
-					<p>
-						Female actors are under-represented here, taking only 16 of the top
-						100 places. Nicole Kidman is the first female in at #21 with 2.19.
-					</p>
-				{/if}
+			<Step state="rankReveal" hold={story.settled !== "rankReveal"}>
+				<p>
+					Samuel L. Jackson is the <i>center of Hollywood</i>, with a remoteness
+					of just 2.09. Willem Dafoe is second with 2.13, Robert De Niro third
+					with 2.14.
+				</p>
+				<p>
+					Female actors are under-represented here, taking only 16 of the top
+					100 places. Nicole Kidman is the first female in at #21 with 2.19.
+				</p>
 			</Step>
 
 			<!-- Start is the only way on, and it advances as it asks for the pan
@@ -621,12 +616,14 @@
 	}
 
 	/* rankFocus' own staged reveal: Bacon's bar/row lands first (panel-in,
-	   above; both now gated on the same story.settled === "rankFocus" check —
-	   see the Step markup), then this text fades in a beat later so the reader
+	   above; both now held on the same story.settled === "rankFocus" check —
+	   see the step's `hold`), then this text fades in a beat later so the reader
 	   meets Bacon before the question — see RankBars.svelte's row-in for the
 	   next stage (everyone else fading in after this). The 0.55s delay is
 	   relative to this element's own mount, not a fixed point after the step
-	   became active, since it no longer mounts until the bar has landed. */
+	   became active, since it no longer mounts until the bar has landed — which
+	   is also why it outlasts the step's own prose fade (Step.svelte) rather
+	   than duplicating it: that one is over before this one starts. */
 	.rank-focus-text {
 		animation: panel-in 0.5s ease 0.55s both;
 	}
