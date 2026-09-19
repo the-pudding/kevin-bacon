@@ -17,8 +17,6 @@ import {
 	flightWindow,
 	skyFrac
 } from "../sky.js";
-import { withGalaxyHighlight } from "../galaxy-highlight.js";
-
 // ---------------------------------------------------------------------------
 // Chapter cards: a title beat between chapters, with the corpus drifting behind
 // it. Every other state is drawn inside the 700px reading column; a card is the
@@ -92,21 +90,16 @@ export const states = {
 	chapterCenters: {
 		layout: layoutChapterCenters,
 		// No pulse, and no labels STANDING STILL: the card names a chapter, not an
-		// actor, and the static frame it arrives on is an anonymous crowd. The
-		// names arrive with the motion instead — once the sky is flowing, the
-		// highlight beat picks one well-known actor out of it at a time (see
-		// galaxy-highlight.js). An empty set rather than no declaration at all,
-		// because the beat's own per-frame cut in ScrollyVisual is what names
-		// anybody; this says the resting card names nobody, which is also what
-		// holds the ambient loop's t = 0 contract.
+		// actor, and the static frame it arrives on is an anonymous crowd. Unlike
+		// the splash's titleGalaxy, this ambient carries no highlight beat, so no
+		// actor is ever named here — an empty set rather than no declaration at
+		// all, because it also holds the ambient loop's t = 0 contract.
 		labels: () => [],
 		// the fifteen fly with the crowd here, and only here: this is the one
 		// galaxy state where they have stopped being a constellation, so holding
 		// them still would pick them back out of the sky they just joined
 		ambient: {
-			frames: withGalaxyHighlight(
-				makeFlight(layoutChapterCenters, UNIVERSE_IDS)
-			)
+			frames: makeFlight(layoutChapterCenters, UNIVERSE_IDS)
 		}
 	}
 };

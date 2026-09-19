@@ -19,10 +19,9 @@
 	 * transition both ways.
 	 *
 	 * `params` reaches the canvas state exactly as <Step>'s does — the cards share
-	 * one state (`chapterCenters`), so it is the only way to tell them apart. The
-	 * galaxy highlight beat uses it to give each card a different starting point
-	 * in the cast, since the flight's clock restarts at every arrival and all
-	 * three would otherwise open on the same actor.
+	 * one state (`chapterCenters`), so it is the only way to tell them apart.
+	 * Unlike the splash's titleGalaxy state, `chapterCenters` carries no galaxy
+	 * highlight beat, so no actor is ever named on a chapter card.
 	 *
 	 * @see notes/scrolly-framework.md
 	 * @type {{ state: import("./states.js").VisualState, title: string,

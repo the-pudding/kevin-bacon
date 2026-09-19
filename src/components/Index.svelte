@@ -429,8 +429,8 @@
 				<p>
 					The relationship between film count and remoteness is strong, but it
 					doesn't explain it fully. Two actors can have the same film counts but
-					very different average distances. For example, Natalie Portman and
-					Anna Kendrick are shown here at the two extremes of the data.
+					very different remoteness. For example, Natalie Portman and Anna
+					Kendrick are shown here at the two extremes of the data.
 				</p>
 			</Step>
 			<Step state="scatterCenters" params={{ showPair: true }}>
