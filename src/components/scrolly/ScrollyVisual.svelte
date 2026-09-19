@@ -1046,20 +1046,41 @@
 	// written inside drawScene.
 	let labelRelaxRaf = null;
 
+	/** the race cast's cull mid-chapter (see onRacePlot), or nothing to cull */
+	function dotCull(attrs) {
+		if (!racePlotCulling || !racePlotRect) return null;
+		// scoped to the cast, so a crowd arriving from — or leaving for — a
+		// neighbouring chapter still crosses the whole canvas
+		return (i) => RACE_CAST.has(i / STRIDE) && !onRacePlot(attrs, i);
+	}
+	// raceFuture is the one step whose name column is pinned at the LEFT
+	// (tailPx), so its names lie over the plot and an overflowing stack would
+	// land on the x-axis tick row — eight names packed into the band's bottom
+	// ~70px need ~112px, and on a short viewport the last two land on the year
+	// labels. The stacker lifts the whole set off the plot floor for it.
+	function labelFloor() {
+		return raceStep?.tailPx !== undefined && height
+			? plotBottom(height) - 4
+			: null;
+	}
+	/** owe the labels another frame while their stack is still relaxing */
+	function relaxLabels(settled) {
+		if (labelRelaxRaf != null) cancelAnimationFrame(labelRelaxRaf);
+		labelRelaxRaf = settled
+			? null
+			: requestAnimationFrame(() => {
+					labelRelaxRaf = null;
+					drawScene();
+				});
+	}
+
 	function drawScene() {
 		if (!ctx) return;
 		const attrs = tweener.current;
 		clearCanvas(ctx, width, height, bleed);
 		drawTrails(ctx, trailTweener.current);
 		drawEdges(ctx, attrs, tweener.target, edgeEnds, choreo.active);
-		// mid-chapter, the race cast is drawn only where the chart is (see
-		// onRacePlot). Scoped to the cast, so a crowd arriving from — or leaving
-		// for — a neighbouring chapter still crosses the whole canvas.
-		const cull =
-			racePlotCulling && racePlotRect
-				? (i) => RACE_CAST.has(i / STRIDE) && !onRacePlot(attrs, i)
-				: null;
-		drawDots(ctx, attrs, cull);
+		drawDots(ctx, attrs, dotCull(attrs));
 		// held names (see heldLabels) are still waiting out their lag; drawScene
 		// runs every frame of the arrival tween, which always outlasts the hold, so
 		// this flips over mid-tween with no timer of its own
@@ -1070,22 +1091,13 @@
 			gate: entryLabels,
 			held: holding ? heldLabels : null
 		});
-		// raceFuture is the one step whose name column is pinned at the LEFT
-		// (tailPx), so its names lie over the plot and an overflowing stack would
-		// land on the x-axis tick row — eight names packed into the band's bottom
-		// ~70px need ~112px, and on a short viewport the last two land on the year
-		// labels. The stacker lifts the whole set off the plot floor for it.
-		const floor =
-			raceStep?.tailPx !== undefined && height ? plotBottom(height) - 4 : null;
-		const { moved, settled } = stacker.stack(nextTracked, labelDirs, floor);
+		const { moved, settled } = stacker.stack(
+			nextTracked,
+			labelDirs,
+			labelFloor()
+		);
 		if (moved.length > 0) {
-			if (labelRelaxRaf != null) cancelAnimationFrame(labelRelaxRaf);
-			labelRelaxRaf = settled
-				? null
-				: requestAnimationFrame(() => {
-						labelRelaxRaf = null;
-						drawScene();
-					});
+			relaxLabels(settled);
 			drawLabelLeaders(ctx, attrs, moved, labelDirs);
 		}
 		tracked = nextTracked;
@@ -1279,16 +1291,23 @@
 		trailTweener.to(target.trails, PARAM_TWEEN_MS, 0);
 	}
 
-	$effect(() => {
-		const cacheDropped = dropStaleLayouts();
-		// canvasWidth is in here with the rest: it sizes the backing store, so a tick
-		// where it has not been measured yet would hand the store a width of 0 and
-		// blank the canvas until the next resize
-		if (!canvas || !width || !height || !canvasWidth || !stateName) return;
+	/** everything the render effect needs measured before it can build a layout */
+	const canvasReady = () =>
+		!!(canvas && width && height && canvasWidth && stateName);
+
+	/**
+	 * Fit the canvas to the box the story is showing. Returns what changed — a
+	 * resize (the backing store re-fitted) or a bare move of the column (the
+	 * frame reframed) — or null when a choreography owns the frame and nothing
+	 * about the state or box changed under it: a param/raceView change while a
+	 * choreography owns the rAF is its own handoff, and the effect steps aside
+	 * (scrubbing implies active, so this one guard covers both).
+	 */
+	function fitBox() {
 		// the plot's share of the column is a property of the PAGE's layout, not of
 		// any one state, so it is set here — once, before any layout is built —
 		// rather than threaded through ten layout modules. `beside` is a prop, so
-		// this effect already re-runs when the breakpoint flips.
+		// the effect already re-runs when the breakpoint flips.
 		setPlotBottomFrac(plotFrac);
 		// Where the column sits in the viewport, which a width change does not
 		// always imply: on the chapter-card swap it keeps its width and MOVES.
@@ -1304,34 +1323,92 @@
 			height !== prevH ||
 			canvasWidth !== prevCanvasW ||
 			(dx !== 0 && choreo.active);
-		// a param/raceView change while a choreography owns the rAF is the
-		// choreography's own handoff, so ignore it (scrubbing implies active, so
-		// this one guard covers both); anything else abandons it
 		if (choreo.active) {
-			if (stateName === prevState && !resized) return;
+			if (stateName === prevState && !resized) return null;
 			abandonChoreography();
 		}
 		if (resized) fitCanvas();
 		else if (dx !== 0) reframe(dx);
+		return { resized, moved: dx !== 0 };
+	}
+
+	/**
+	 * A re-run that changes nothing must DO nothing, and this effect gets them.
+	 * `layoutParams` is a `$derived` over the `story` proxy, and every arrival
+	 * paints synchronously — `to()` with ms 0 calls draw() on the spot — so a
+	 * paint that publishes into `story` invalidates that derived and hands the
+	 * effect back a params object with identical CONTENTS and a new identity.
+	 * `paramsKey` compares by value and rightly reports no change; the run itself
+	 * was caused by identity. Without this guard such a run would retarget the
+	 * tween in flight and — see tween.js — drop its `onDone` with it; on a cold
+	 * start that onDone is the ONLY call to `settle()`, so the 900ms entry tween
+	 * would be snapped away at birth.
+	 */
+	const unchanged = (box, cacheDropped, paramsKey) =>
+		!box.resized &&
+		!box.moved &&
+		!cacheDropped &&
+		stateName === prevState &&
+		paramsKey === prevParamsKey;
+
+	/**
+	 * The delays a plain arrival tweens on: the state's authored reveal when it
+	 * was choreographed for where the reader is coming from (STATE_REVEAL_FROM),
+	 * else the edge lag — or, onto the title card, unison (EDGE_UNISON_DELAYS).
+	 */
+	function arrivalDelays(from, target) {
+		const revealFrom = STATE_REVEAL_FROM[stateName];
+		const playReveal = !revealFrom || revealFrom.includes(from);
+		if (playReveal && target.delays != null) return target.delays;
+		return stateName === TITLE_GALAXY_STATE
+			? EDGE_UNISON_DELAYS
+			: EDGE_LAG_DELAYS;
+	}
+
+	// How each arrival kind lands. The first paint's names are on screen at
+	// once, so the next arrival has nothing to introduce (leaving them behind
+	// would make it read every carried-over name as new and hold it out for the
+	// lag); every later arrival resets the gates a previous choreography may
+	// have left behind.
+	const ARRIVE = {
+		cold: (target) => {
+			prevLabelIds = labelIds;
+			snapTo(target);
+		},
+		popIn: (target) => {
+			prevLabelIds = labelIds;
+			popIn(target);
+		},
+		snap: (target, from) => {
+			resetArrivalGates(from);
+			snapTo(target);
+		},
+		entry: (target, from, entryAnim) => {
+			resetArrivalGates(from);
+			arrive(entryAnim, from, target, arrivalDelays(from, target));
+		},
+		state: (target, from) =>
+			tweenToState(
+				target,
+				arrivalDelays(from, target),
+				resetArrivalGates(from)
+			),
+		params: (target, from) => {
+			resetArrivalGates(from);
+			tweenToParams(target);
+		}
+	};
+
+	$effect(() => {
+		const cacheDropped = dropStaleLayouts();
+		// canvasWidth is in here with the rest: it sizes the backing store, so a tick
+		// where it has not been measured yet would hand the store a width of 0 and
+		// blank the canvas until the next resize
+		if (!canvasReady()) return;
+		const box = fitBox();
+		if (!box) return;
 		const paramsKey = JSON.stringify(layoutParams) ?? "";
-		// A re-run that changes nothing must DO nothing, and this effect gets them.
-		// `layoutParams` is a `$derived` over the `story` proxy, and every arrival
-		// below paints synchronously — `to()` with ms 0 calls draw() on the spot —
-		// so a paint that publishes into `story` invalidates that derived and hands
-		// the effect back a params object with identical CONTENTS and a new
-		// identity. `paramsKey` compares by value and rightly reports no change;
-		// the run itself was caused by identity. Without this guard such a run
-		// would retarget the tween in flight and — see tween.js — drop its
-		// `onDone` with it; on a cold start that onDone is the ONLY call to
-		// `settle()`, so the 900ms entry tween would be snapped away at birth.
-		if (
-			!resized &&
-			dx === 0 &&
-			!cacheDropped &&
-			stateName === prevState &&
-			paramsKey === prevParamsKey
-		)
-			return;
+		if (unchanged(box, cacheDropped, paramsKey)) return;
 		const layout = layoutFor(stateName, width, height, layoutParams, bleed);
 		decor = staticDecor(layout);
 		chartVeiled = false;
@@ -1345,32 +1422,18 @@
 		};
 		const firstPaint = !entered;
 		entered = true;
-		const stateChange = stateName !== prevState;
 		const from = prevState;
+		const stateChange = stateName !== from;
 		prevState = stateName;
 		prevParamsKey = paramsKey;
-		// a state's authored reveal only plays when arriving from the states it
-		// was choreographed for (STATE_REVEAL_FROM); any other direction (e.g.
-		// stepping backwards) is one plain tween
-		const revealFrom = STATE_REVEAL_FROM[stateName];
-		const playReveal = !revealFrom || revealFrom.includes(from);
-		const stateDelays =
-			(playReveal ? target.delays : null) ??
-			(stateName === TITLE_GALAXY_STATE ? EDGE_UNISON_DELAYS : EDGE_LAG_DELAYS);
 		const entryAnim = stateChange ? entryFor(stateName, from) : undefined;
-		const kind = arrivalKind({ firstPaint, resized, stateChange, entryAnim });
-		// the names this paint puts up are on screen, so the next arrival has
-		// nothing to introduce; leaving them behind would make it read every
-		// carried-over name as new and hold it out for the lag
-		const introduced =
-			kind === "cold" || kind === "popIn"
-				? ((prevLabelIds = labelIds), new Set())
-				: resetArrivalGates(from);
-		if (kind === "cold" || kind === "snap") snapTo(target);
-		else if (kind === "popIn") popIn(target);
-		else if (kind === "entry") arrive(entryAnim, from, target, stateDelays);
-		else if (kind === "state") tweenToState(target, stateDelays, introduced);
-		else tweenToParams(target);
+		const kind = arrivalKind({
+			firstPaint,
+			resized: box.resized,
+			stateChange,
+			entryAnim
+		});
+		ARRIVE[kind](target, from, entryAnim);
 	});
 
 	$effect(() => () => {

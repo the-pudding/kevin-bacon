@@ -255,26 +255,32 @@ export function setTrailHighlight(trails, t, hi) {
 	trails[t * TRAIL_STRIDE + TRAIL_POINTS * 2 + 1] = hi;
 }
 
+/**
+ * The first point past the window leaves on the curve at its edge — unless the
+ * series already ends exactly there, or began past it.
+ * @param {[number, number][]} pairs
+ * @param {number} i the first index past x1
+ * @param {[number, number][]} out the clipped series so far
+ */
+const leavesAt = (pairs, i, out, x1) =>
+	pairs[i - 1]?.[0] < x1 && out.at(-1)?.[0] !== x1;
+
 /** clip a [x, y][] series to [x0, x1], interpolating the cut ends on the curve */
 export function clipSeries(pairs, x0, x1) {
 	// cut-ends read off the monotone curve of the full series, so the clipped
 	// endpoints (and the dot placed at series.at(-1)) sit on the same smooth line
 	const segs = monotoneSegments(pairs);
+	const cut = (x) => [x, curveYAt(segs, x)];
 	const out = [];
 	for (let i = 0; i < pairs.length; i++) {
 		const [x, y] = pairs[i];
 		if (x < x0) {
-			const nxt = pairs[i + 1];
-			if (nxt && nxt[0] > x0) {
-				out.push([x0, curveYAt(segs, x0)]);
-			}
+			// the last point before the window: enter on the curve at its edge
+			if (pairs[i + 1]?.[0] > x0) out.push(cut(x0));
 			continue;
 		}
 		if (x > x1) {
-			const prv = pairs[i - 1];
-			if (prv && prv[0] < x1 && (!out.length || out.at(-1)[0] < x1)) {
-				out.push([x1, curveYAt(segs, x1)]);
-			}
+			if (leavesAt(pairs, i, out, x1)) out.push(cut(x1));
 			break;
 		}
 		out.push([x, y]);

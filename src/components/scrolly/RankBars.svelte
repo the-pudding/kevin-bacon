@@ -312,6 +312,14 @@
 		return () => clearTimeout(timer);
 	});
 
+	/** smooth once the reader owns the scroll, instant before: no spoiler pan
+	 * from the top on first paint */
+	const scrollBehavior = () =>
+		scrolledByReader &&
+		!window.matchMedia("(prefers-reduced-motion: reduce)").matches
+			? "smooth"
+			: "auto";
+
 	// keep the focused row centered: instant on first paint (no spoiler pan
 	// from the top), smooth when a guess/reveal moves the focus.
 	//
@@ -332,15 +340,29 @@
 		if (scrolledByReader && id === centeredId) return;
 		const row = list.querySelector(`[data-id="${id}"]`);
 		if (!(row instanceof HTMLElement)) return;
-		const bar = row.querySelector(".bar");
-		const behavior =
-			scrolledByReader &&
-			!window.matchMedia("(prefers-reduced-motion: reduce)").matches
-				? "smooth"
-				: "auto";
+		// read BEFORE the flag below moves, so the run that makes the scroll
+		// reader-driven is still the instant one
+		const behavior = scrollBehavior();
 		// only count this as reader-driven once fonts have settled — the
 		// fonts-ready re-run right after mount is a correction, not a move
 		if (ready) scrolledByReader = true;
+		centeredId = id;
+		centreOn(row, behavior);
+	});
+
+	/**
+	 * Scroll the list so `row` sits in the middle, then publish where its bar
+	 * landed for the canvas handoff: `list`'s offsetParent is the rank-bars-panel
+	 * div, which sits inside the same absolutely-positioned box as the canvas
+	 * (see Index.svelte/layouts/rank.js), so the row's landing position in that
+	 * shared coordinate space is what Bacon's hop bar should tween to meet. The
+	 * `.bar` element itself, not the row's overall centre — the row also carries
+	 * the label text above the bar, so centring on the whole row overshoots
+	 * upward past the bar's real position.
+	 * @param {HTMLElement} row
+	 * @param {ScrollBehavior} behavior
+	 */
+	function centreOn(row, behavior) {
 		const target =
 			row.offsetTop -
 			list.offsetTop -
@@ -350,28 +372,26 @@
 			Math.min(target, list.scrollHeight - list.clientHeight)
 		);
 		list.scrollTo({ top: clampedTop, behavior });
-		centeredId = id;
-
-		// canvas handoff: `list`'s offsetParent is the rank-bars-panel div, which
-		// sits inside the same absolutely-positioned box as the canvas (see
-		// Index.svelte/layouts/rank.js) — so this row's landing position, in that
-		// shared coordinate space, is what Bacon's hop bar should tween to meet.
-		// Target the `.bar` element itself, not the row's overall center — the
-		// row also carries the label text above the bar, so centering on the
-		// whole row overshoots upward past the bar's real position.
 		publishRows(clampedTop);
-
+		const bar = row.querySelector(".bar");
 		const panel = list.offsetParent;
-		if (panel instanceof HTMLElement && bar instanceof HTMLElement) {
-			publish({
-				x: panel.offsetLeft + bar.offsetLeft,
-				w: bar.offsetWidth,
-				y: Math.round(
-					panel.offsetTop + bar.offsetTop - clampedTop + bar.offsetHeight / 2
-				)
-			});
-		}
-	});
+		if (!(panel instanceof HTMLElement && bar instanceof HTMLElement)) return;
+		publish({
+			x: panel.offsetLeft + bar.offsetLeft,
+			w: bar.offsetWidth,
+			y: Math.round(
+				panel.offsetTop + bar.offsetTop - clampedTop + bar.offsetHeight / 2
+			)
+		});
+	}
+
+	/** the same row geometry, field for field */
+	const sameRows = (a, b) =>
+		a != null &&
+		a.cx === b.cx &&
+		a.top === b.top &&
+		a.pitch === b.pitch &&
+		a.bottom === b.bottom;
 
 	// The race chapter's arrival takes this list's collapsed nodes over on the
 	// canvas (ScrollyVisual's raceEntry branch), so it needs the geometry of the
@@ -410,15 +430,7 @@
 			pitch: rowEls[1].offsetTop - rowEls[0].offsetTop,
 			bottom: panel.offsetTop + panel.offsetHeight
 		};
-		const prev = story.rankListRows;
-		if (
-			prev &&
-			prev.cx === geom.cx &&
-			prev.top === geom.top &&
-			prev.pitch === geom.pitch &&
-			prev.bottom === geom.bottom
-		)
-			return;
+		if (sameRows(story.rankListRows, geom)) return;
 		story.rankListRows = geom;
 	}
 

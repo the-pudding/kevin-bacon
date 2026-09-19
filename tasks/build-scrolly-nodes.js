@@ -380,7 +380,8 @@ const predByPid = new Map(predictionPoints.map((p) => [p.person_id, p]));
 const idByPid = new Map(sample.map((n, id) => [n.pid, id]));
 const nodes = sample.map((n) => {
 	const { films, avgDistance, rank } = lookupMetrics(n.pid, n.name);
-	const pred = predByPid.get(n.pid);
+	// a pid missing from a metric map lands as null: round4 maps undefined there
+	const pred = predByPid.get(n.pid) ?? {};
 	return [
 		n.pid,
 		n.name,
@@ -388,12 +389,12 @@ const nodes = sample.map((n) => {
 		films,
 		avgDistance,
 		rank,
-		round4(concByPid.get(n.pid) ?? null),
-		round4(top50ByPid.get(n.pid) ?? null),
-		round4(pred?.pred_film ?? null),
-		round4(pred?.pred_film_conc ?? null),
-		round4(pred?.pred_film_deg ?? null),
-		round4(pred?.pred_all ?? null),
+		round4(concByPid.get(n.pid)),
+		round4(top50ByPid.get(n.pid)),
+		round4(pred.pred_film),
+		round4(pred.pred_film_conc),
+		round4(pred.pred_film_deg),
+		round4(pred.pred_all),
 		careerAgeByPid.get(n.pid) ?? null
 	];
 });

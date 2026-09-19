@@ -84,30 +84,24 @@ function departureColumn(id, w, h, skyBox, contraction) {
 	return MARGIN + hash01(id, 22) * (w - MARGIN * 2);
 }
 
-/** @type {import("../layout-types.js").LayoutFn} */
-function layoutHopBands(nodes, w, h, _edges, params, bleed = NO_BLEED) {
-	const seed = params?.seed;
-	const attrs = new Float64Array(ATTR_SIZE);
-	const delays = new Float64Array(DELAY_SIZE);
-	// the sky the crowd arrives from, and how far one of its pixels travels as it
-	// funnels back into the reading column. Struck once, outside the loop
-	const skyBox = galaxyBox(w, h, bleed);
-	const contraction = skyToColumn(w, h, bleed);
-	const counts = [0, 0, 0, 0, 0];
-	for (const n of nodes) if (n.hop >= 0) counts[n.hop]++;
+// fixed header band for the anchor (Bacon) + its label, so the label clears
+// the top edge and the first hop band
+const HEADER_H = 60;
+
+/**
+ * The rows: the header band for Bacon, then hops 1–4 sized purely by their
+ * sample share so dot density matches across bands, out of whatever the three
+ * gaps between them leave behind. The gap is reserved BEFORE the shares are
+ * struck rather than taken back out of each band, so it is real whitespace and
+ * every band still gets its honest share of what's left.
+ * @param {number[]} counts actors per hop, index = hop
+ * @returns {{ bandTop: number[], bandH: number[] }} per hop, index = hop
+ */
+function bandGeometry(counts, h) {
 	const top = MARGIN + 12;
-	// fixed header band for the anchor (Bacon) + its label, so the label clears
-	// the top edge and the first hop band
-	const HEADER_H = 60;
 	const bandsTop = top + HEADER_H;
-	const innerH = plotBottom(h) - bandsTop;
-	// hops 1–4 are sized purely by their sample share so dot density matches
-	// across bands, out of whatever the three gaps between them leave behind.
-	// The gap is reserved BEFORE the shares are struck rather than taken back
-	// out of each band, so it is real whitespace and every band still gets its
-	// honest share of what's left.
 	const dataTotal = counts[1] + counts[2] + counts[3] + counts[4];
-	const bandsH = innerH - BAND_GAP * 3;
+	const bandsH = plotBottom(h) - bandsTop - BAND_GAP * 3;
 	const bandTop = [top];
 	const bandH = [HEADER_H];
 	let y = bandsTop;
@@ -117,25 +111,59 @@ function layoutHopBands(nodes, w, h, _edges, params, bleed = NO_BLEED) {
 		bandH[hop] = Math.max(share, MIN_BAND_H);
 		y += share + BAND_GAP;
 	}
+	return { bandTop, bandH };
+}
+
+/**
+ * One actor's dot in its hop band: the anchor big and centred in the header
+ * row, everyone else jittered within their hop's band.
+ * @param {{ w: number, h: number, skyBox: number[], contraction: number,
+ *   bandTop: number[], bandH: number[], seed: boolean }} f the frame
+ */
+function placeInBand(attrs, n, f) {
+	if (n.hop === 0) {
+		const y = f.bandTop[0] + f.bandH[0] / 2;
+		set(attrs, n.id, f.w / 2, y, 10, HOP_RGB[0], f.seed ? 0 : 1);
+		return;
+	}
+	set(
+		attrs,
+		n.id,
+		// the column the dot leaves the chapter card in, parallax and all
+		departureColumn(n.id, f.w, f.h, f.skyBox, f.contraction),
+		f.bandTop[n.hop] + hash01(n.id, 4) * f.bandH[n.hop],
+		3,
+		HOP_RGB[n.hop],
+		// `seed` parks every node at its band position but invisible — what
+		// sits behind hopSeed's zoomed-out network, so the fifteen the network
+		// draws are the only actors with any distance left to travel there.
+		f.seed ? 0 : HOP_DOT_ALPHA
+	);
+}
+
+/** @type {import("../layout-types.js").LayoutFn} */
+function layoutHopBands(nodes, w, h, _edges, params, bleed = NO_BLEED) {
+	const seed = Boolean(params?.seed);
+	const attrs = new Float64Array(ATTR_SIZE);
+	const delays = new Float64Array(DELAY_SIZE);
+	const counts = [0, 0, 0, 0, 0];
+	for (const n of nodes) if (n.hop >= 0) counts[n.hop]++;
+	// the sky the crowd arrives from, and how far one of its pixels travels as it
+	// funnels back into the reading column. Struck once, outside the loop
+	const frame = {
+		w,
+		h,
+		skyBox: galaxyBox(w, h, bleed),
+		contraction: skyToColumn(w, h, bleed),
+		seed,
+		...bandGeometry(counts, h)
+	};
 	for (const n of nodes) {
 		if (n.hop < 0) {
 			parkHidden(attrs, n, w, h);
 			continue;
 		}
-		const anchor = n.hop === 0;
-		set(
-			attrs,
-			n.id,
-			// the column the dot leaves the chapter card in, parallax and all
-			anchor ? w / 2 : departureColumn(n.id, w, h, skyBox, contraction),
-			bandTop[n.hop] + (anchor ? bandH[0] / 2 : hash01(n.id, 4) * bandH[n.hop]),
-			anchor ? 10 : 3,
-			HOP_RGB[n.hop],
-			// `seed` parks every node at its band position but invisible — what
-			// sits behind hopSeed's zoomed-out network, so the fifteen the network
-			// draws are the only actors with any distance left to travel there.
-			seed ? 0 : anchor ? 1 : HOP_DOT_ALPHA
-		);
+		placeInBand(attrs, n, frame);
 		// bands cascade 1→4, and each node jitters within its hop so the row fills
 		// in rather than snapping on all at once. Arriving from the chapter card
 		// this clock staggers TRAVEL, not a fade: the crowd is already on screen,
@@ -149,7 +177,7 @@ function layoutHopBands(nodes, w, h, _edges, params, bleed = NO_BLEED) {
 		color: HOP_RGB[hop],
 		label: `${hop} movie${hop > 1 ? "s" : ""} away — ${HOP_SHARE[hop - 1]} of actors`,
 		x: MARGIN,
-		y: bandTop[hop] + bandH[hop] / 2
+		y: frame.bandTop[hop] + frame.bandH[hop] / 2
 	}));
 	return { attrs, delays, legend };
 }

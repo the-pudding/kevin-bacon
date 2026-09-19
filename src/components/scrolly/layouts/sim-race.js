@@ -121,6 +121,23 @@ function simAxes(w, plot, xS, yS) {
 }
 
 /**
+ * One line's vertices at `played` runs: every grid vertex the playhead has
+ * passed, then the tip at the playhead itself. Only that last segment moves
+ * between frames; everything behind it is already at its final position.
+ * @param {Int32Array} cum cumulative wins per run
+ */
+function simLinePoints(cum, played, xS, yS) {
+	const points = [];
+	for (let k = 0; k < GRID_RUNS.length && GRID_RUNS[k] <= played; k++) {
+		points.push([xS(GRID_RUNS[k]), yS(cum[GRID_RUNS[k]])]);
+	}
+	if (played > GRID_RUNS[points.length - 1]) {
+		points.push([xS(played), yS(cum[played])]);
+	}
+	return points;
+}
+
+/**
  * The one frame writer: the settled layout and every animation frame both go
  * through here, so a run's last frame IS the layout it settles onto.
  * @param {Float32Array|Float64Array} attrs live dot buffer (or a scratch clone)
@@ -138,21 +155,17 @@ export function writeSimFrame(attrs, trails, w, h, runs) {
 		const cum = WINS_AT[s];
 		const named = s < SIM_LABEL_N;
 		const slot = SIM_SLOT_BASE + s;
+		const lineAlpha = named ? 0.8 : 0.35;
 		if (played === 0) {
 			// nothing has run yet: every line is a dot on the origin, ready to unspool
-			collapseTrail(trails, slot, xS(0), yS(0), named ? 0.8 : 0.35);
+			collapseTrail(trails, slot, xS(0), yS(0), lineAlpha);
 		} else {
-			// every grid vertex the playhead has passed, then the tip at the playhead
-			// itself. Only that last segment moves between frames; everything behind
-			// it is already at its final position
-			const points = [];
-			for (let k = 0; k < GRID_RUNS.length && GRID_RUNS[k] <= played; k++) {
-				points.push([xS(GRID_RUNS[k]), yS(cum[GRID_RUNS[k]])]);
-			}
-			if (played > GRID_RUNS[points.length - 1]) {
-				points.push([xS(played), yS(cum[played])]);
-			}
-			setTrailPoints(trails, slot, points, named ? 0.8 : 0.35);
+			setTrailPoints(
+				trails,
+				slot,
+				simLinePoints(cum, played, xS, yS),
+				lineAlpha
+			);
 		}
 		if (id !== null) {
 			set(

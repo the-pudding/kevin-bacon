@@ -40,7 +40,6 @@
 
 	const STEP_PARAM = "step";
 	const isRankState = (s) => s === "rankFocus" || s === "rankReveal";
-	const isQuizState = (s) => s === "scatterQuiz";
 
 	// A gate that never opens: the step's own control is the only way forward,
 	// so the reader's Next has nothing to do but wait for them to press it.
@@ -373,6 +372,32 @@
 			untrack(() => scrollySteps.advance());
 	});
 
+	// What arriving at a state does to the story before its step renders, by the
+	// reader's direction of travel — for the states that carry an arrival rule.
+	const ARRIVALS = {
+		// arriving at the quiz backwards means the reader has already been through
+		// it, so reveal every pair instead of re-asking (see story.svelte.js).
+		// Arriving forwards re-arms the question — and with it the step's gate.
+		scatterQuiz: ({ back }) => {
+			story.quizRevealed = back;
+		},
+		// the simulation rests at zero runs until the reader presses Start, so a
+		// reader who walked back out of the chapter and in again gets the race to
+		// watch rather than the finished chart under a dead Start button. Forward
+		// arrivals from OUTSIDE the state only: the steps inside it that read the
+		// result out must keep the settled chart they describe.
+		simRace: ({ forward, from }) => {
+			if (forward && from !== "simRace") resetSimRace();
+		},
+		// ...and the same for the Gen Z step, which is one step rather than a
+		// chapter: its whole payoff is the draw-on, so an arrival must find the
+		// plot empty and the button live. It is `skipback`, so the only arrival
+		// there is a forward one.
+		raceGenz: ({ forward }) => {
+			if (forward) resetGenzLines();
+		}
+	};
+
 	// Prepares an arrival. Runs before `value` changes, so state the destination
 	// step's own components read at mount is already correct — PairQuiz decides
 	// whether to ask from story.quizRevealed as it mounts, and a post-render
@@ -380,6 +405,8 @@
 	// being told not to. It is handed the destination the registry's `go` has
 	// already resolved, so `to < value` is still the reader's direction of travel.
 	function navigate(to) {
+		const target = stepConfigs[to]?.state;
+		const forward = to > value;
 		// A step whose card is held back by its own entry choreography has to have
 		// that flag up BEFORE it renders. ScrollyVisual raises it too, but from an
 		// effect — one flush too late, which is long enough for the dot bar to mount
@@ -389,28 +416,8 @@
 		// out not to play one (reduced motion, a resize) ScrollyVisual drops it on
 		// the same flush, so the hold lasts a frame and nothing waits on it.
 		story.entryHeld =
-			to > value &&
-			entryFor(stepConfigs[to]?.state, currentState)?.cardAfter != null;
-		// arriving at the quiz backwards means the reader has already been through
-		// it, so reveal every pair instead of re-asking (see story.svelte.js).
-		// Arriving forwards re-arms the question — and with it the step's gate.
-		if (isQuizState(stepConfigs[to]?.state)) story.quizRevealed = to < value;
-		// the simulation rests at zero runs until the reader presses Start, so a
-		// reader who walked back out of the chapter and in again gets the race to
-		// watch rather than the finished chart under a dead Start button. Forward
-		// arrivals from OUTSIDE the state only: the steps inside it that read the
-		// result out must keep the settled chart they describe.
-		if (
-			to > value &&
-			stepConfigs[to]?.state === "simRace" &&
-			currentState !== "simRace"
-		)
-			resetSimRace();
-		// ...and the same for the Gen Z step, which is one step rather than a
-		// chapter: its whole payoff is the draw-on, so an arrival must find the
-		// plot empty and the button live. It is `skipback`, so the only arrival
-		// there is a forward one.
-		if (to > value && stepConfigs[to]?.state === "raceGenz") resetGenzLines();
+			forward && entryFor(target, currentState)?.cardAfter != null;
+		ARRIVALS[target]?.({ forward, back: to < value, from: currentState });
 		// the rank panel only carries over into raceRecent when the reader actually
 		// walks there out of the rank chapter — that is the one arrival whose bars
 		// collapse into the chart's dots. Reloading straight onto raceRecent, or
@@ -423,8 +430,7 @@
 		// parked on the collapsed frame — leaving the bare nodes on screen with the
 		// chart never drawn. Only leaving the state hands it back.
 		rankHandoff =
-			stepConfigs[to]?.state === "raceRecent" &&
-			(isRankState(currentState) || rankHandoff);
+			target === "raceRecent" && (isRankState(currentState) || rankHandoff);
 	}
 
 	// --- step 1's tour of the network ---

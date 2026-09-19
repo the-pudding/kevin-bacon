@@ -173,37 +173,47 @@ export function writeNetwork(
 	/** @type {Map<number, [number, number]>} */
 	const pos = new Map();
 	for (const id of INTRO_IDS) {
-		const n = nodes[id];
 		const [x, y] = introPosition(id, w, h, scale);
 		pos.set(id, [x, y]);
-		let r = NETWORK_INTRO_RADIUS[n.hop];
-		let rgb = id === ANCHOR_ID ? HOP_RGB[0] : CROWD;
-		let alpha = 1;
-		if (focus != null && id !== ANCHOR_ID) {
-			// routeActors includes the focused actor, so one branch covers both —
-			// they differ by size, the subject being the biggest dot on the route
-			if (routeNodes.has(id)) {
-				r = id === focus ? FOCUS_RADIUS : ROUTE_RADIUS;
-				rgb = INK;
-			} else {
-				// their name label rides this alpha, so the crowd's names dim too
-				alpha = DIM_ALPHA;
-			}
-		}
+		const { r, rgb, alpha } = introDot(id, nodes[id], focus, routeNodes);
 		set(attrs, id, x, y, r * scale, rgb, alpha);
 	}
 	for (let e = 0; e < EDGE_COUNT; e++) {
 		const onRoute = routeEdges.has(e);
-		const alpha =
-			focus == null
-				? INTRO_EDGE_ALPHA
-				: onRoute
-					? ROUTE_EDGE_ALPHA
-					: DIM_EDGE_ALPHA;
-		setEdge(attrs, e, 1, alpha * edgeFade, onRoute ? 1 : 0);
+		setEdge(attrs, e, 1, edgeAlpha(focus, onRoute) * edgeFade, onRoute ? 1 : 0);
 	}
 	return pos;
 }
+
+/**
+ * How one of the fifteen is drawn. With nothing picked out, the anchor in his
+ * own colour and the rest as crowd; with a route lit, its actors in ink — the
+ * subject the biggest dot on it (routeActors includes the focused actor, so one
+ * branch covers both) — and everyone else dimmed, their name labels with them,
+ * since a label rides its dot's alpha.
+ */
+function introDot(id, n, focus, routeNodes) {
+	const r = NETWORK_INTRO_RADIUS[n.hop];
+	if (focus == null || id === ANCHOR_ID) {
+		return { r, rgb: id === ANCHOR_ID ? HOP_RGB[0] : CROWD, alpha: 1 };
+	}
+	if (routeNodes.has(id)) {
+		return {
+			r: id === focus ? FOCUS_RADIUS : ROUTE_RADIUS,
+			rgb: INK,
+			alpha: 1
+		};
+	}
+	return { r, rgb: CROWD, alpha: DIM_ALPHA };
+}
+
+/** a link's alpha: the constellation's own at rest, and with a route lit, the route's or the dimmed rest's */
+const edgeAlpha = (focus, onRoute) =>
+	focus == null
+		? INTRO_EDGE_ALPHA
+		: onRoute
+			? ROUTE_EDGE_ALPHA
+			: DIM_EDGE_ALPHA;
 
 // The full intro frame: the constellation, with every other node parked at the
 // scatter spot a later chapter wants it at (alpha 0).
@@ -730,6 +740,83 @@ const crowdFade = (u) => {
 };
 
 /**
+ * Bacon's writer for the four legs. He is in the flow on every leg, the
+ * approach included — the camera closes on him, it does not pick him up and
+ * carry him — so his frame always starts at `anchorSkyAt`. The light-up is an
+ * envelope ON it, never a replacement for it: exactly the idiom the chapter
+ * card's highlight beat uses on a flowing dot, with radius and alpha nudged
+ * against whatever the flow just wrote and colour written absolutely (a
+ * relative blend would darken the same dot again every tick).
+ * @param {{ w: number, h: number, bleed: import("../plot.js").Bleed,
+ *   anchorClock: (leg: number, ms: number) => number, zStart: number,
+ *   driftShare: number, gx: number, gy: number, aex: number, aey: number,
+ *   mx: number, my: number }} c the approach's geometry, struck once at the
+ *   tap (see loneEntryFrames)
+ */
+function anchorWriter(c) {
+	const lerp = (a, b, t) => a + (b - a) * t;
+	const rgb = [0, 0, 0];
+	// His depth, closing on the camera — and everything about how he is drawn
+	// follows from it through the SAME two functions the whole sky uses. That
+	// is the whole change: his size used to be a lerp onto a target radius,
+	// which grows at a constant rate, where a thing you are flying at grows
+	// slowly at first and then very fast indeed.
+	const approach = (attrs, ms) => {
+		const u = ms / APPROACH_MS;
+		// how far the camera has flown to him — the one number (see approachClose)
+		const p = approachClose(u, c.driftShare);
+		const z = c.zStart - (c.zStart - APPROACH_Z_END) * p;
+		const m = skyMag(z);
+		// his lateral offset relative to the camera, times his magnification —
+		// the same camera the crowd below is drawn under
+		const k = 1 - cameraSlide(u, z, c.zStart);
+		// ...and the camera's swing onto him is the only thing that moves him
+		// off it. `1 - turn` is where his own offset stands relative to the
+		// camera's, so this walks him onto the vanishing point as the turn
+		// completes — the same single camera the crowd is drawn under, which is
+		// what makes "he is the point the sky streams out of" true rather than
+		// arranged. There is no curve here to pick: his path is the camera's.
+		set(
+			attrs,
+			ANCHOR_ID,
+			c.gx + c.aex * m * k + (c.mx - c.gx) * p,
+			c.gy + c.aey * m * k + (c.my - c.gy) * p,
+			PULLBACK_DOT_R * depthSize(z) * GALAXY_FOCUS_R_MULT,
+			HOP_RGB[0],
+			1
+		);
+	};
+	return (attrs, leg, e, ms) => {
+		const [ax, ay, ar, aa] = anchorSkyAt(
+			c.w,
+			c.h,
+			c.bleed,
+			c.anchorClock(leg, ms)
+		);
+		if (leg === APPROACH) {
+			approach(attrs, ms);
+		} else if (leg === LOCK) {
+			set(attrs, ANCHOR_ID, ax, ay, ar * GALAXY_FOCUS_R_MULT, HOP_RGB[0], 1);
+		} else if (leg === LIGHT) {
+			for (let ch = 0; ch < 3; ch++)
+				rgb[ch] = lerp(CROWD[ch], HOP_RGB[0][ch], e);
+			set(
+				attrs,
+				ANCHOR_ID,
+				ax,
+				ay,
+				lerp(ar, ar * GALAXY_FOCUS_R_MULT, e),
+				rgb,
+				lerp(aa, 1, e)
+			);
+		} else if (leg === CLEAR) {
+			// one of the crowd, exactly as the title card had him
+			set(attrs, ANCHOR_ID, ax, ay, ar, CROWD, aa);
+		}
+	};
+}
+
+/**
  * `lone`'s arrival off the title card: the one arrival in the story that flies
  * somewhere before it draws anything.
  *
@@ -825,10 +912,7 @@ function loneEntryFrames(nodes, w, h, edges, params, bleed = NO_BLEED) {
 	// magnification to shift the camera sideways by it (see `approachClose`), and
 	// `makeFlight` keeps that arithmetic private — but it is only a phase and a
 	// clock, and re-deriving it here costs no hashing per frame.
-	const skyPhases = new Float64Array(FIELD_IDS.length);
-	for (let k = 0; k < FIELD_IDS.length; k++) {
-		skyPhases[k] = skyFrac(FIELD_IDS[k], 0);
-	}
+	const skyPhases = Float64Array.from(FIELD_IDS, (id) => skyFrac(id, 0));
 
 	// the fourteen, held at nothing on their marks until the walk grows them —
 	// which is also, slot for slot, the frame a cold start seeds from
@@ -847,68 +931,20 @@ function loneEntryFrames(nodes, w, h, edges, params, bleed = NO_BLEED) {
 	const legStart = final.slice();
 	hold(legStart);
 
-	const lerp = (a, b, t) => a + (b - a) * t;
-	const rgb = [0, 0, 0];
-	const writeAnchor = (attrs, leg, e, ms) => {
-		// He is in the flow on every leg, the approach included — the camera closes
-		// on him, it does not pick him up and carry him — so his frame always
-		// starts here. The light-up is an envelope ON it, never a replacement for
-		// it: exactly the idiom the chapter card's highlight beat uses on a flowing
-		// dot, with radius and alpha nudged against whatever the flow just wrote
-		// and colour written absolutely (a relative blend would darken the same dot
-		// again every tick).
-		const [ax, ay, ar, aa] = anchorSkyAt(w, h, bleed, anchorClock(leg, ms));
-		if (leg === APPROACH) {
-			// His depth, closing on the camera — and everything about how he is drawn
-			// follows from it through the SAME two functions the whole sky uses. That
-			// is the whole change: his size used to be a lerp onto a target radius,
-			// which grows at a constant rate, where a thing you are flying at grows
-			// slowly at first and then very fast indeed.
-			const u = ms / APPROACH_MS;
-			// how far the camera has flown to him — the one number (see above)
-			const p = approachClose(u, driftShare);
-			const z = zStart - (zStart - APPROACH_Z_END) * p;
-			const m = skyMag(z);
-			// his lateral offset relative to the camera, times his magnification —
-			// the same camera the crowd below is drawn under
-			const k = 1 - cameraSlide(u, z, zStart);
-			// ...and the camera's swing onto him is the only thing that moves him
-			// off it. `1 - turn` is where his own offset stands relative to the
-			// camera's, so this walks him onto the vanishing point as the turn
-			// completes — the same single camera the crowd is drawn under, which is
-			// what makes "he is the point the sky streams out of" true rather than
-			// arranged. There is no curve here to pick: his path is the camera's.
-			set(
-				attrs,
-				ANCHOR_ID,
-				gx + aex * m * k + (mx - gx) * p,
-				gy + aey * m * k + (my - gy) * p,
-				PULLBACK_DOT_R * depthSize(z) * GALAXY_FOCUS_R_MULT,
-				HOP_RGB[0],
-				1
-			);
-			return;
-		}
-		if (leg === LOCK) {
-			set(attrs, ANCHOR_ID, ax, ay, ar * GALAXY_FOCUS_R_MULT, HOP_RGB[0], 1);
-			return;
-		}
-		if (leg === LIGHT) {
-			for (let c = 0; c < 3; c++) rgb[c] = lerp(CROWD[c], HOP_RGB[0][c], e);
-			set(
-				attrs,
-				ANCHOR_ID,
-				ax,
-				ay,
-				lerp(ar, ar * GALAXY_FOCUS_R_MULT, e),
-				rgb,
-				lerp(aa, 1, e)
-			);
-			return;
-		}
-		// CLEAR: one of the crowd, exactly as the title card had him
-		if (leg === CLEAR) set(attrs, ANCHOR_ID, ax, ay, ar, CROWD, aa);
-	};
+	const writeAnchor = anchorWriter({
+		w,
+		h,
+		bleed,
+		anchorClock,
+		zStart,
+		driftShare,
+		gx,
+		gy,
+		aex,
+		aey,
+		mx,
+		my
+	});
 
 	// The tweener's own per-group arithmetic (see tween.js), run against the very
 	// delays a cold start is handed. The walk is REPLAYED here, not re-authored:

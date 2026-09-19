@@ -129,42 +129,47 @@ function clock() {
 const rankRows = [];
 const pairRows = [];
 
-/** @param {{ solved?: number, gaveUp?: boolean, wrong?: number, repeat?: boolean, legacyNull?: boolean, unresolved?: number }} shape */
-function seedRank(session_id, shape) {
+/** one session's rank-guess rows, each a wrong guess unless said otherwise */
+function rankSession(session_id) {
 	const tick = clock();
 	const used = new Set();
 	const row = (fields) =>
 		rankRows.push({ session_id, ...fields, created_at: tick() });
+	const wrong = (actor_id = wrongActor(used)) =>
+		row({ actor_id, gave_up: false, correct: false });
+	return { row, wrong };
+}
 
+/** @param {{ solved?: number, gaveUp?: boolean, wrong?: number, repeat?: boolean, legacyNull?: boolean, unresolved?: number }} shape */
+function seedRank(session_id, shape) {
+	const session = rankSession(session_id);
 	if (shape.unresolved) {
 		// guessed, then wandered off: no correct row and no give-up, so the
 		// function must drop this session entirely
-		for (let i = 0; i < shape.unresolved; i++) {
-			row({ actor_id: wrongActor(used), gave_up: false, correct: false });
-		}
+		for (let i = 0; i < shape.unresolved; i++) session.wrong();
 		return;
 	}
-
 	if (shape.gaveUp) {
-		for (let i = 0; i < (shape.wrong ?? 0); i++) {
-			row({ actor_id: wrongActor(used), gave_up: false, correct: false });
-		}
-		row({ actor_id: null, gave_up: true, correct: false });
+		for (let i = 0; i < (shape.wrong ?? 0); i++) session.wrong();
+		session.row({ actor_id: null, gave_up: true, correct: false });
 		return;
 	}
+	seedSolved(session, shape);
+}
 
-	const guesses = shape.solved;
+/** a session that got there: `solved - 1` wrong guesses, then SLJ */
+function seedSolved(session, shape) {
 	const wrongIds = [];
-	for (let i = 0; i < guesses - 1; i++) wrongIds.push(wrongActor(used));
-	for (const actor_id of wrongIds)
-		row({ actor_id, gave_up: false, correct: false });
-	// re-picking an actor already guessed: the bucket must still count it once
-	if (shape.repeat && wrongIds.length) {
-		row({ actor_id: wrongIds[0], gave_up: false, correct: false });
+	for (let i = 0; i < shape.solved - 1; i++) {
+		const actor_id = wrongActor(new Set(wrongIds));
+		wrongIds.push(actor_id);
+		session.wrong(actor_id);
 	}
+	// re-picking an actor already guessed: the bucket must still count it once
+	if (shape.repeat && wrongIds.length) session.wrong(wrongIds[0]);
 	// legacyNull: a row from before the `correct` column existed, recoverable
 	// only because the actor is SLJ
-	row({
+	session.row({
 		actor_id: SLJ_ACTOR_ID,
 		gave_up: false,
 		correct: shape.legacyNull ? null : true
@@ -207,13 +212,32 @@ function seedPairs(session_id, shape) {
 	}
 }
 
+// Edge cases, seeded on top of the base sessions so the function's filters are
+// exercised rather than assumed. Each says what the histograms must do with
+// the session.
+const EDGE_CASES = [
+	// partial quiz — absent from histogram B and from pairs.takers
+	{ n: 6, seed: (i) => seedPairs(sessionId(), { answered: 2 + (i % 2) }) },
+	// duplicate pair_index, later row flipped — first row wins
+	{ n: 5, seed: () => seedPairs(sessionId(), { duplicate: true }) },
+	// unscorable legacy pick — whole session drops out
+	{ n: 3, seed: () => seedPairs(sessionId(), { legacyNull: true }) },
+	// guessed, then gave up — belongs in the gave-up bucket, not a guess one
+	{ n: 3, seed: (i) => seedRank(sessionId(), { gaveUp: true, wrong: 2 + i }) },
+	// same wrong actor twice before solving — counts once
+	{ n: 3, seed: () => seedRank(sessionId(), { solved: 3, repeat: true }) },
+	// never resolved — excluded from rank.takers
+	{ n: 4, seed: () => seedRank(sessionId(), { unresolved: 2 }) },
+	// pre-`correct` row, recovered from the actor id
+	{ n: 2, seed: () => seedRank(sessionId(), { solved: 2, legacyNull: true }) }
+];
+
 function build() {
 	for (const planted of PLANTED) {
 		const id = sessionId(planted.id);
 		seedRank(id, planted.rank);
 		seedPairs(id, { score: planted.pairScore });
 	}
-
 	for (let i = 0; i < BASE_SESSIONS; i++) {
 		const id = sessionId();
 		if (Math.random() < SOLVE_RATE) {
@@ -223,36 +247,8 @@ function build() {
 		}
 		seedPairs(id, {});
 	}
-
-	// Edge cases on top, so the function's filters are exercised rather than
-	// assumed. Each comment says what the histograms must do with the session.
-	for (let i = 0; i < 6; i++) {
-		// partial quiz — absent from histogram B and from pairs.takers
-		seedPairs(sessionId(), { answered: 2 + (i % 2) });
-	}
-	for (let i = 0; i < 5; i++) {
-		// duplicate pair_index, later row flipped — first row wins
-		seedPairs(sessionId(), { duplicate: true });
-	}
-	for (let i = 0; i < 3; i++) {
-		// unscorable legacy pick — whole session drops out
-		seedPairs(sessionId(), { legacyNull: true });
-	}
-	for (let i = 0; i < 3; i++) {
-		// guessed, then gave up — belongs in the gave-up bucket, not a guess one
-		seedRank(sessionId(), { gaveUp: true, wrong: 2 + i });
-	}
-	for (let i = 0; i < 3; i++) {
-		// same wrong actor twice before solving — counts once
-		seedRank(sessionId(), { solved: 3, repeat: true });
-	}
-	for (let i = 0; i < 4; i++) {
-		// never resolved — excluded from rank.takers
-		seedRank(sessionId(), { unresolved: 2 });
-	}
-	for (let i = 0; i < 2; i++) {
-		// pre-`correct` row, recovered from the actor id
-		seedRank(sessionId(), { solved: 2, legacyNull: true });
+	for (const { n, seed } of EDGE_CASES) {
+		for (let i = 0; i < n; i++) seed(i);
 	}
 }
 

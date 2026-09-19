@@ -500,6 +500,169 @@ function pickTargets(count, focus, attrs, cx, cy, w, h, bleed, beat, tBeat) {
  * @param {import("./states.js").AmbientAnim["frames"]} framesFn
  * @returns {import("./states.js").AmbientAnim["frames"]}
  */
+// scratch for the two world positions a spoke's length is measured between,
+// hoisted so a beat allocates nothing
+const wFocus = [0, 0, 0];
+const wTarget = [0, 0, 0];
+
+/** one dot back at the crowd's own colour */
+function toCrowd(attrs, id) {
+	const i = id * STRIDE;
+	attrs[i + 3] = CROWD[0];
+	attrs[i + 4] = CROWD[1];
+	attrs[i + 5] = CROWD[2];
+}
+
+/**
+ * A new beat. The outgoing targets go back to the crowd BEFORE the new ones are
+ * chosen — their colour is the one thing nothing else restores: the flight
+ * rewrites radius and alpha from its own base every frame, and the cast's grey
+ * is rewritten every frame too, but a dot that was a spoke's far end and is not
+ * one any more would otherwise keep the ink it was given for good. Then the
+ * focus, its spokes, and each spoke's REAL length at the moment it was struck —
+ * the distance through the volume, not across the screen — which is what lets
+ * the fan draw at one speed rather than in one duration (see writeSpokes).
+ * Floored at a pixel so that ramp is always a real division: two dots in the
+ * same place would otherwise give 0/0 on the beat's first tick, and a NaN in
+ * this buffer spreads.
+ * @param {{ index: number, focus: number|null, targets: number[], lens: number[], recent: number[] }} beat
+ * @param {{ cx: number, cy: number, w: number, h: number, bleed: import("./plot.js").Bleed, depthPx: number, nonce: number }} f the flight
+ */
+function strikeBeat(beat, b, tBeat, attrs, f) {
+	beat.index = b;
+	for (const id of beat.targets) toCrowd(attrs, id);
+	beat.focus = pickFocus(
+		b,
+		f.nonce,
+		tBeat,
+		attrs,
+		f.cx,
+		f.cy,
+		f.w,
+		f.h,
+		beat.recent
+	);
+	beat.lens.length = 0;
+	if (beat.focus == null) {
+		beat.targets = [];
+		return;
+	}
+	beat.recent.unshift(beat.focus);
+	if (beat.recent.length > GALAXY_NO_REPEAT) beat.recent.pop();
+	beat.targets = pickTargets(
+		spokeCount(beat.focus),
+		beat.focus,
+		attrs,
+		f.cx,
+		f.cy,
+		f.w,
+		f.h,
+		f.bleed,
+		b,
+		tBeat
+	);
+	worldSpot(attrs, beat.focus, tBeat, f.cx, f.cy, f.depthPx, wFocus);
+	for (const id of beat.targets) {
+		worldSpot(attrs, id, tBeat, f.cx, f.cy, f.depthPx, wTarget);
+		beat.lens.push(
+			Math.max(
+				1,
+				Math.hypot(
+					wTarget[0] - wFocus[0],
+					wTarget[1] - wFocus[1],
+					wTarget[2] - wFocus[2]
+				)
+			)
+		);
+	}
+}
+
+/**
+ * The connected nodes, brought forward out of the crowd, and the focus inked —
+ * by the beat's envelope `e`. Alpha is nudged from whatever the flight just
+ * gave them, which is safe to do relatively because the flight rewrites it every
+ * frame — but COLOUR is written absolutely, from the constants, because nothing
+ * resets it per frame and a relative blend would darken the same dot again on
+ * every tick until it went black. Radius is left entirely alone on the targets:
+ * it is this sky's depth cue. The focus last, so it wins outright over a target
+ * that happens to be one of the cast, and is never scaled twice.
+ */
+function inkBeat(attrs, beat, e) {
+	const ink = e * GALAXY_TARGET_INK;
+	for (const id of beat.targets) {
+		const i = id * STRIDE;
+		attrs[i + 6] += e * (GALAXY_TARGET_ALPHA - attrs[i + 6]);
+		attrs[i + 3] = CROWD[0] + ink * (INK[0] - CROWD[0]);
+		attrs[i + 4] = CROWD[1] + ink * (INK[1] - CROWD[1]);
+		attrs[i + 5] = CROWD[2] + ink * (INK[2] - CROWD[2]);
+	}
+	const i = beat.focus * STRIDE;
+	attrs[i + 2] *= 1 + e * (GALAXY_FOCUS_R_MULT - 1);
+	attrs[i + 6] += e * (1 - attrs[i + 6]);
+	attrs[i + 3] += e * (INK[0] - attrs[i + 3]);
+	attrs[i + 4] += e * (INK[1] - attrs[i + 4]);
+	attrs[i + 5] += e * (INK[2] - attrs[i + 5]);
+}
+
+/**
+ * The spokes, in the edge pool. One SPEED for the whole fan, not one duration,
+ * and the speed of a crow flying THROUGH the volume rather than of a pen moving
+ * across the screen. A shared 0-1 progress makes a long line travel faster than
+ * a short one so they all land together, which reads as the fan being inflated.
+ * A constant rate over SCREEN distance fixes that but still flattens the sky,
+ * because it says a dot that merely looks close is close. Over real distance,
+ * a spoke reaching from the near plane to the far one takes its time however
+ * short it looks, while two dots that are genuinely neighbours are joined at
+ * once even if the camera has flung them to opposite sides of the frame — which
+ * is the depth the sky has and the projection alone cannot say out loud. Struck
+ * against each spoke's length at its own beat, so the ramp stays strictly
+ * monotone even as the flow pulls the ends apart.
+ * @param {number} drawn px of volume the fan has drawn so far
+ */
+function writeSpokes(attrs, beat, e, drawn) {
+	for (let k = 0; k < GALAXY_LINK_MAX; k++) {
+		const slot = GALAXY_LINK_BASE + k;
+		if (k >= beat.targets.length) {
+			setEdge(attrs, slot, 0, 0);
+			continue;
+		}
+		galaxyLinks.ends[k][0] = /** @type {number} */ (beat.focus);
+		galaxyLinks.ends[k][1] = beat.targets[k];
+		setEdge(
+			attrs,
+			slot,
+			Math.min(1, drawn / beat.lens[k]),
+			e * GALAXY_LINK_ALPHA
+		);
+	}
+}
+
+/**
+ * Wraps a galaxy state's ambient writer with the highlight beat. The flight runs
+ * first and untouched — it owns every dot's x, y, radius and alpha — and this
+ * then re-inks one of them and rents the pool for its spokes.
+ *
+ * Three things hold the ambient contract:
+ *
+ * At t = 0 the envelope is zero, so no spoke has alpha, the focus is lerped none
+ * of the way toward ink, and the cast is written at the crowd's own colour —
+ * which is precisely what the static layout produces. The card still names
+ * nobody standing still, so the loop's first tick moves nothing.
+ *
+ * Nothing accumulates. Positions are only ever READ, once per beat, to test a
+ * candidate for being on canvas; everything written is absolute, and the flight
+ * overwrites radius and alpha from its own stored base every frame regardless.
+ *
+ * Colour is the one channel `makeFlight` leaves alone, so it is the one that
+ * could persist: the cast is re-written to the crowd's grey every frame, before
+ * the focus is inked, rather than the outgoing focus being restored on a beat
+ * change. One write per cast member, and no way for a past focus to stay lit —
+ * which a restore-on-change would not guarantee, since the buffer is never
+ * re-allocated between frames and a resize rebuilds the writer mid-beat.
+ *
+ * @param {import("./states.js").AmbientAnim["frames"]} framesFn
+ * @returns {import("./states.js").AmbientAnim["frames"]}
+ */
 export function withGalaxyHighlight(framesFn) {
 	return (nodes, w, h, edges, params, bleed = NO_BLEED) => {
 		const write = framesFn(nodes, w, h, edges, params, bleed);
@@ -511,158 +674,37 @@ export function withGalaxyHighlight(framesFn) {
 		// length through the volume is one number (see worldSpot)
 		const box = galaxyBox(w, h, bleed);
 		const skyWidth = box[1] - box[0];
-		const depthPx = skyWidth * GALAXY_DEPTH_SPAN;
 		// px of volume per ms, so the fan takes the same time relative to the frame
 		// whatever the viewport
 		const drawSpeed = (skyWidth * GALAXY_DRAW_WIDTHS_PER_S) / 1000;
-		// scratch for the two world positions a spoke's length is measured between,
-		// hoisted so the beat allocates nothing
-		const wFocus = [0, 0, 0];
-		const wTarget = [0, 0, 0];
 		// where this card joins the cycle, so the three of them do not all open on
 		// the same actor (the clock restarts at every arrival)
-		const nonce = flightSeq++;
-		let beat = -1;
-		/** @type {number|null} */
-		let focus = null;
-		/** @type {number[]} */
-		let targets = [];
-		/** each spoke's length when its beat was struck, aligned with `targets` */
-		/** @type {number[]} */
-		const lens = [];
-		// the last few actors shown, most recent first — per flight, so a resize or
-		// a re-arrival starts the no-repeat window fresh, which is right: the reader
-		// is looking at a new card either way
-		/** @type {number[]} */
-		const recent = [];
+		const flight = {
+			cx,
+			cy,
+			w,
+			h,
+			bleed,
+			depthPx: skyWidth * GALAXY_DEPTH_SPAN,
+			nonce: flightSeq++
+		};
+		// the beat's state: who is lit, who the spokes reach, how long each spoke
+		// is, and who was lit lately — per flight, so a resize or a re-arrival
+		// starts the no-repeat window fresh, which is right: the reader is looking
+		// at a new card either way
+		const beat = { index: -1, focus: null, targets: [], lens: [], recent: [] };
 		return (attrs, _trails, t) => {
 			write(attrs, _trails, t);
 			const b = Math.floor(t / GALAXY_BEAT_MS);
 			const tBeat = b * GALAXY_BEAT_MS;
-			if (b !== beat) {
-				beat = b;
-				// hand the outgoing targets back to the crowd BEFORE the new ones are
-				// chosen. Their colour is the one thing nothing else restores: the
-				// flight rewrites radius and alpha from its own base every frame, and
-				// the cast's grey is rewritten below, but a dot that was a spoke's far
-				// end and is not one any more would otherwise keep the ink it was
-				// given for good.
-				for (const id of targets) {
-					const i = id * STRIDE;
-					attrs[i + 3] = CROWD[0];
-					attrs[i + 4] = CROWD[1];
-					attrs[i + 5] = CROWD[2];
-				}
-				focus = pickFocus(b, nonce, tBeat, attrs, cx, cy, w, h, recent);
-				if (focus != null) {
-					recent.unshift(focus);
-					if (recent.length > GALAXY_NO_REPEAT) recent.pop();
-				}
-				targets =
-					focus == null
-						? []
-						: pickTargets(
-								spokeCount(focus),
-								focus,
-								attrs,
-								cx,
-								cy,
-								w,
-								h,
-								bleed,
-								b,
-								tBeat
-							);
-				// each spoke's REAL length at the moment it was struck — the distance
-				// through the volume, not across the screen — which is what lets the
-				// fan draw at one speed rather than in one duration (see below)
-				lens.length = 0;
-				if (focus != null) {
-					worldSpot(attrs, focus, tBeat, cx, cy, depthPx, wFocus);
-					for (const id of targets) {
-						worldSpot(attrs, id, tBeat, cx, cy, depthPx, wTarget);
-						// floored at a pixel so the ramp below is always a real division:
-						// two dots in the same place would otherwise give 0/0 on the
-						// beat's first tick, and a NaN in this buffer spreads
-						lens.push(
-							Math.max(
-								1,
-								Math.hypot(
-									wTarget[0] - wFocus[0],
-									wTarget[1] - wFocus[1],
-									wTarget[2] - wFocus[2]
-								)
-							)
-						);
-					}
-				}
-			}
-			for (const id of GALAXY_CAST) {
-				const i = id * STRIDE;
-				attrs[i + 3] = CROWD[0];
-				attrs[i + 4] = CROWD[1];
-				attrs[i + 5] = CROWD[2];
-			}
-			const e = focus == null ? 0 : envelope(t - tBeat);
-			// The connected nodes, brought forward out of the crowd. Alpha is nudged
-			// from whatever the flight just gave them, which is safe to do relatively
-			// because the flight rewrites it every frame — but COLOUR is written
-			// absolutely, from the constants, because nothing resets it per frame and
-			// a relative blend would darken the same dot again on every tick until it
-			// went black. Radius is left entirely alone: it is this sky's depth cue.
-			if (e > 0) {
-				const ink = e * GALAXY_TARGET_INK;
-				for (const id of targets) {
-					const i = id * STRIDE;
-					// radius untouched on purpose — see GALAXY_TARGET_ALPHA
-					attrs[i + 6] += e * (GALAXY_TARGET_ALPHA - attrs[i + 6]);
-					attrs[i + 3] = CROWD[0] + ink * (INK[0] - CROWD[0]);
-					attrs[i + 4] = CROWD[1] + ink * (INK[1] - CROWD[1]);
-					attrs[i + 5] = CROWD[2] + ink * (INK[2] - CROWD[2]);
-				}
-				// the focus last, so it wins outright over a target that happens to be
-				// one of the cast, and is never scaled twice
-				const i = focus * STRIDE;
-				attrs[i + 2] *= 1 + e * (GALAXY_FOCUS_R_MULT - 1);
-				attrs[i + 6] += e * (1 - attrs[i + 6]);
-				attrs[i + 3] += e * (INK[0] - attrs[i + 3]);
-				attrs[i + 4] += e * (INK[1] - attrs[i + 4]);
-				attrs[i + 5] += e * (INK[2] - attrs[i + 5]);
-			}
-			// One SPEED for the whole fan, not one duration, and the speed of a crow
-			// flying THROUGH the volume rather than of a pen moving across the screen.
-			//
-			// A shared 0-1 progress makes a long line travel faster than a short one
-			// so they all land together, which reads as the fan being inflated. A
-			// constant rate over SCREEN distance fixes that but still flattens the
-			// sky, because it says a dot that merely looks close is close. Over real
-			// distance, a spoke reaching from the near plane to the far one takes its
-			// time however short it looks, while two dots that are genuinely
-			// neighbours are joined at once even if the camera has flung them to
-			// opposite sides of the frame — which is the depth the sky has and the
-			// projection alone cannot say out loud.
-			//
-			// Struck against each spoke's length at its own beat, so the ramp stays
-			// strictly monotone even as the flow pulls the ends apart.
-			const drawn = (t - tBeat) * drawSpeed;
-			for (let k = 0; k < GALAXY_LINK_MAX; k++) {
-				const slot = GALAXY_LINK_BASE + k;
-				if (k >= targets.length) {
-					setEdge(attrs, slot, 0, 0);
-					continue;
-				}
-				galaxyLinks.ends[k][0] = /** @type {number} */ (focus);
-				galaxyLinks.ends[k][1] = targets[k];
-				setEdge(
-					attrs,
-					slot,
-					Math.min(1, drawn / lens[k]),
-					e * GALAXY_LINK_ALPHA
-				);
-			}
+			if (b !== beat.index) strikeBeat(beat, b, tBeat, attrs, flight);
+			for (const id of GALAXY_CAST) toCrowd(attrs, id);
+			const e = beat.focus == null ? 0 : envelope(t - tBeat);
+			if (e > 0) inkBeat(attrs, beat, e);
+			writeSpokes(attrs, beat, e, (t - tBeat) * drawSpeed);
 			// the name rides its dot's alpha in the annotation layer, so this only
 			// has to say WHO — and say nobody at both ends of the beat
-			galaxyHighlight.id = e > 0 ? focus : null;
+			galaxyHighlight.id = e > 0 ? beat.focus : null;
 		};
 	};
 }

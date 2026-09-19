@@ -28,8 +28,29 @@ import {
 function filmsScatter(nodes, w, h, cfg) {
 	const attrs = new Float64Array(ATTR_SIZE);
 	const values = nodes.map((n) => cfg.yOf(n));
-	// y-domain from the SHOWN subset only — sub-threshold actors' long tail
-	// would stretch the domain and squash the plotted cloud
+	const [vMin, vMax] = scatterDomain(nodes, values, cfg);
+	const pad = (vMax - vMin) * 0.04;
+	const top = MARGIN + 8;
+	const bottom = plotBottom(h);
+	const yS = cfg.invert
+		? (v) => lin(v, vMin - pad, vMax + pad, top, bottom)
+		: (v) => lin(v, vMin - pad, vMax + pad, bottom, top);
+	for (const n of nodes) {
+		const hi = cfg.highlights?.get(n.id);
+		placeScatterDot(attrs, n, values[n.id], hi, w, h, yS, vMin, vMax);
+	}
+	return {
+		attrs,
+		axes: { xBase: bottom + 10, y: scatterTicks(vMin, vMax, cfg, yS) }
+	};
+}
+
+/**
+ * The y domain, from the SHOWN subset only — sub-threshold actors' long tail
+ * would stretch the domain and squash the plotted cloud — then widened by the
+ * config's floor and ceiling.
+ */
+function scatterDomain(nodes, values, cfg) {
 	let vMin = Infinity;
 	let vMax = -Infinity;
 	for (const n of nodes) {
@@ -40,45 +61,51 @@ function filmsScatter(nodes, w, h, cfg) {
 	}
 	if (cfg.floor != null) vMin = Math.max(vMin, cfg.floor);
 	if (cfg.ceil != null) vMax = Math.max(vMax, cfg.ceil);
-	const pad = (vMax - vMin) * 0.04;
-	const top = MARGIN + 8;
-	const bottom = plotBottom(h);
-	const yS = cfg.invert
-		? (v) => lin(v, vMin - pad, vMax + pad, top, bottom)
-		: (v) => lin(v, vMin - pad, vMax + pad, bottom, top);
-	for (const n of nodes) {
-		const v = values[n.id];
-		const [sx] = scatterPosition(n, w, h);
-		const hi = cfg.highlights?.get(n.id);
-		// only actors at or above the film floor are plotted (see FILM_LOG_MIN);
-		// everyone else — and anyone missing the y-metric — holds their scatter
-		// spot at alpha 0. Highlighted actors are always drawn, unless the metric
-		// is missing (nothing to plot).
-		if (v == null || (n.films < FILM_MIN_SHOWN && !hi)) {
-			const [, sy] = scatterPosition(n, w, h);
-			set(attrs, n.id, sx, sy, 2, CROWD, 0);
-			continue;
-		}
-		const clamped = v < vMin || v > vMax;
-		set(
-			attrs,
-			n.id,
-			sx,
-			yS(Math.min(vMax, Math.max(vMin, v))),
-			hi?.r ?? 2,
-			hi?.rgb ?? CROWD,
-			(hi ? (hi.alpha ?? 1) : 0.3) * (clamped ? 0.35 : 1)
-		);
+	return [vMin, vMax];
+}
+
+/** a dot's mark: the highlight's own radius, colour and alpha, or the crowd's */
+const dotStyle = (hi) =>
+	hi
+		? { r: hi.r ?? 2, rgb: hi.rgb ?? CROWD, alpha: hi.alpha ?? 1 }
+		: { r: 2, rgb: CROWD, alpha: 0.3 };
+
+/**
+ * One actor on the scatter. Only actors at or above the film floor are plotted
+ * (see FILM_LOG_MIN); everyone else — and anyone missing the y-metric — holds
+ * their scatter spot at alpha 0. Highlighted actors are always drawn, unless
+ * the metric is missing (nothing to plot); a value past the domain clamps to
+ * its edge, dimmed.
+ */
+function placeScatterDot(attrs, n, v, hi, w, h, yS, vMin, vMax) {
+	const [sx, sy] = scatterPosition(n, w, h);
+	if (v == null || (n.films < FILM_MIN_SHOWN && !hi)) {
+		set(attrs, n.id, sx, sy, 2, CROWD, 0);
+		return;
 	}
-	// x-axis carries no ticks or numbers — just the title below (the log scale
-	// is described, not quantified); y ticks at even metric steps, no gridlines
+	const clamped = v < vMin || v > vMax;
+	const { r, rgb, alpha } = dotStyle(hi);
+	set(
+		attrs,
+		n.id,
+		sx,
+		yS(Math.min(vMax, Math.max(vMin, v))),
+		r,
+		rgb,
+		alpha * (clamped ? 0.35 : 1)
+	);
+}
+
+// y ticks at even metric steps, no gridlines; the x axis carries no ticks or
+// numbers — just the title below (the log scale is described, not quantified)
+function scatterTicks(vMin, vMax, cfg, yS) {
 	const step = cfg.tickStep ?? 0.5;
 	const labelOf = cfg.labelOf ?? ((t) => t.toFixed(1));
 	const y = [];
 	for (let t = Math.ceil(vMin / step) * step; t <= vMax; t += step) {
 		y.push({ pos: yS(t), label: labelOf(t) });
 	}
-	return { attrs, axes: { xBase: bottom + 10, y } };
+	return y;
 }
 
 const avgScatter = (nodes, w, h, highlights) =>
@@ -335,15 +362,8 @@ function layoutScatterGenZ(nodes, w, h) {
 		const hi = GENZ_HIGHLIGHTS.get(n.id);
 		const shown = hi || inGenzWindow(n);
 		const [x, y] = place(n);
-		set(
-			attrs,
-			n.id,
-			x,
-			y,
-			hi?.r ?? 2,
-			hi?.rgb ?? CROWD,
-			shown ? (hi ? (hi.alpha ?? 1) : 0.3) : 0
-		);
+		const { r, rgb, alpha } = dotStyle(hi);
+		set(attrs, n.id, x, y, r, rgb, shown ? alpha : 0);
 	}
 	// both axes are re-ticked against the local scales — avgScatter's ticks were
 	// positioned by the corpus-wide y domain this frame just replaced. 0.25 steps

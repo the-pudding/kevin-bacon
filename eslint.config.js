@@ -46,8 +46,21 @@ export default [
 			// cycles between our own modules only; a package's internals are its own
 			"import-x/no-cycle": ["error", { ignoreExternal: true }],
 			// `_edges`, `_params`: a layout keeps the LayoutFn arity it does not use
-			"no-unused-vars": ["error", { argsIgnorePattern: "^_" }]
+			"no-unused-vars": ["error", { argsIgnorePattern: "^_" }],
+			// size and branching caps: a function that outgrows these is split
+			// (see notes/scrolly-framework.md for how the story's code is laid out)
+			complexity: ["error", 10],
+			"max-depth": ["error", 4],
+			"max-lines-per-function": [
+				"error",
+				{ max: 100, skipBlankLines: true, skipComments: true }
+			]
 		}
+	},
+	{
+		// a test file's describe blocks are lists of cases, not logic
+		files: ["**/*.spec.js"],
+		rules: { "max-lines-per-function": "off" }
 	},
 	{
 		files: ["**/*.svelte", "**/*.svelte.js"],
