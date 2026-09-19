@@ -4,6 +4,13 @@
 // re-runs the current layout with a short tween — an interaction is a param
 // update, not a step change.
 //
+// Grouped by the interaction that owns the fields: `intro` (step 1's tour and
+// taps), `rank` (the guess-the-rank ladder), `race` (the race chart's camera
+// and its Gen Z draw-on), `quiz` (the pair quiz), `predict` (the prediction
+// scatter's toggle) and `sim` (the simulation replay). The four top-level
+// fields are the framework's own: what the reader has asked for, what is
+// playing, what has landed, and whether a step's prose is still held back.
+//
 // Five of these interactions gate the story: the reader cannot be carried to
 // the step that reads out the answer without doing the thing (the rank guess,
 // the race rewind, the quiz, the Gen Z draw-on, the simulation). Two of them
@@ -13,57 +20,6 @@
 // fields below are what those gates are asked about; see `gate` / `skipback` /
 // `advanceon` in Step.svelte.
 export const story = $state({
-	/** rank ladder: every actor the reader has guessed, in the order they picked
-	 * them. The last one is the current guess (what the list focuses on); the
-	 * earlier ones stay named and un-faded, since the reader already knows who
-	 * they are */
-	rankGuesses: [],
-	/** rank ladder: reader gave up instead of guessing #1 */
-	rankGaveUp: false,
-	/** pair quiz: per-pair pick, keyed by pair index → picked pid */
-	quizPicks: {},
-	/** pair quiz: the reader stepped *back* into the quiz step, so it shows every
-	 * pair revealed instead of re-asking. Set (and cleared again on a forwards
-	 * arrival) by Index's navigate(), which runs before the step renders so
-	 * PairQuiz reads the right value at mount. It also opens the quiz step's
-	 * forward gate — a reader who reloaded past the quiz and stepped back has a
-	 * revealed panel with nothing to answer, and states.js's `quizDone` is the
-	 * one predicate both the gate and the panel read, so they cannot disagree */
-	quizRevealed: false,
-	/** prediction scatter: false = film count alone, true = the full model */
-	predictInsights: false,
-	/** simulation race: how many of the 10,000 recorded runs have been replayed —
-	 * the chart's playhead. 0 = the reader hasn't pressed Start yet. Written once
-	 * per run (0 or all of them), never per frame: the animation writes the canvas
-	 * buffers directly, and a per-frame write here would retarget the tweener
-	 * mid-run (see the simulation's request in layouts/sim-race.js). Also zeroed —
-	 * with `simNames`, by resetSimRace() below — when the reader walks into the
-	 * chapter again, so the step has a race to watch rather than the finished
-	 * chart */
-	simRuns: 0,
-	/** simulation race: how many of the leaders' names the replay has reached (see
-	 * SIM_NAMES_AT / simNamesDue — they arrive one at a time, in win order).
-	 * Published by the replay's frames, a handful of times per run, because the
-	 * layout never sees the live playhead: `simRuns` is only published when a run
-	 * ends */
-	simNames: 0,
-	/** a reader's ask for one of the active state's `requests` (see RequestAnim
-	 * in states.js): `kind` names it and `nonce` counts asks, so a second press
-	 * of the same button is a fresh ask and the reset back to nothing is not one.
-	 * Written by request() below; ScrollyVisual plays it */
-	request: { kind: null, nonce: 0 },
-	/** the kind of request whose animation is in flight, else null. ScrollyVisual
-	 * owns this write; a StartButton reads it to go quiet while its own run
-	 * plays. Cleared by a state change that abandons the run, so a reader who
-	 * steps away mid-run finds the button live if they come back */
-	running: null,
-	/** Gen Z race step: the lines are drawn. The step's one layout param — it
-	 * rests with the field NOT on the chart, so the reader's press is what puts it
-	 * there — and what the step's `advanceon` watches, so the draw carries the
-	 * story on by itself. Written once, at the end of a run, for the same reason
-	 * simRuns is: a per-frame write would retarget the tweener mid-draw. Cleared
-	 * by resetGenzLines() when the reader walks into the chapter again */
-	genzLinesShown: false,
 	/** name of the state whose arrival tween has finished, else null. Set by
 	 * ScrollyVisual — a layout reads it to hold an interaction back until its
 	 * own authored reveal has landed (see layouts/intro.js). Cleared on every
@@ -78,62 +34,144 @@ export const story = $state({
 	 * seconds of constellation after the beat the prose is waiting on, and which
 	 * a cold start does not reach for just as long. */
 	entryHeld: false,
-	/** intro network: node id whose route(s) to Bacon are highlighted; null = the
-	 * plain constellation, which is where the step rests before the tour starts.
-	 * Written by the tour in Index.svelte and by taps (see layouts/intro.js) */
-	introFocus: null,
-	/** intro network: the reader picked an actor themselves, so step 1's automatic
-	 * tour stands down and leaves the highlight where they put it. Tapping the
-	 * highlighted actor again (or Bacon) clears both and the tour resumes */
-	introPinned: false,
-	/** intro network: bumped whenever a tap CLEARS the highlight. The tour watches
-	 * it to know the reader dismissed what was on screen, so it leaves the
-	 * constellation neutral and restarts its clock instead of carrying on mid-turn.
-	 * A counter rather than a flag because a release can leave every other field as
-	 * it was — tapping the actor the tour is already showing, or Bacon, clears a
-	 * focus off an `introPinned` that was false to begin with.
-	 *
-	 * It exists so the tour never has to READ `introFocus`, which it writes: an
-	 * effect that does both re-runs itself on its own write and skips an actor
-	 * every tick. */
-	introReleases: 0,
-	/** rank ladder: `{ x, y, w }` in canvas coordinate space of the hop bar on
-	 * RankBars' centered focus row, measured live by RankBars itself — null until
-	 * it has mounted and reported a position. The canvas bar tweens to meet that
-	 * exact box, so the two are the same strip (see layouts/rank.js) */
-	rankFocusBar: null,
-	/** rank ladder: `{ cx, top, pitch, bottom }` in canvas coordinate space of
-	 * RankBars' rows — the CENTRE of row #1's bar at the list's current scroll
-	 * (where the bar collapses to), the px between consecutive rows, and the last
-	 * y the opaque panel covers. The race chapter's arrival reads it to place the
-	 * canvas copy of each collapsed node on the row its actor occupied in the list,
-	 * and to hide the ones sitting past `bottom`, which the reader never saw as
-	 * HTML (see ScrollyVisual's raceEntry branch); no layout consumes it, so
-	 * republishing it as the reader scrolls can't retarget a tween */
-	rankListRows: null,
-	/** rank ladder: true once RankBars' bars have finished collapsing into single
-	 * nodes and the HTML overlay has stood down, so the canvas can take the same
-	 * nodes over and fly them onto the race chart. RankBars owns the clock
-	 * (RANK_COLLAPSE_MS); ScrollyVisual only waits on this flag. Reset when the
-	 * reader steps back into the rank chapter. No layout's params selector reads
-	 * it, so writing it mid-transition can never retarget a tween */
-	rankCollapsed: false,
-	/** race chart: optional `{ playhead }` camera override; null = the active race
-	 * state rests at the right-hand end of its content extent. It is the *hold*
-	 * target written once when the reader releases a pan (ScrollyVisual owns the
-	 * write; see scrubbing/scrubYear). */
-	raceView: null,
-	/** race chart: target playhead year while the reader pans (null = not set) */
-	scrubYear: null,
-	/** race chart: true while the reader is actively dragging the plot or keying
-	 * the year slider — ScrollyVisual direct-writes the panned frame per change
-	 * instead of tweening */
-	scrubbing: false,
-	/** race chart: the live camera, `{ pxPerYear, panMin, panMax, playhead,
-	 * pannable }` or null off the race chapter. One-way — ScrollyVisual is the
-	 * only component that knows the canvas width, so it writes this and
-	 * RaceScrubber only reads it. No layout consumes it, so there is no cycle. */
-	raceCam: null,
+	/** a reader's ask for one of the active state's `requests` (see RequestAnim
+	 * in states.js): `kind` names it and `nonce` counts asks, so a second press
+	 * of the same button is a fresh ask and the reset back to nothing is not one.
+	 * Written by request() below; ScrollyVisual plays it */
+	request: { kind: null, nonce: 0 },
+	/** the kind of request whose animation is in flight, else null. ScrollyVisual
+	 * owns this write; a StartButton reads it to go quiet while its own run
+	 * plays. Cleared by a state change that abandons the run, so a reader who
+	 * steps away mid-run finds the button live if they come back */
+	running: null,
+
+	/** step 1's constellation: the tour in Index.svelte and the reader's taps
+	 * (see layouts/intro.js) */
+	intro: {
+		/** node id whose route(s) to Bacon are highlighted; null = the plain
+		 * constellation, which is where the step rests before the tour starts */
+		focus: null,
+		/** the reader picked an actor themselves, so the automatic tour stands
+		 * down and leaves the highlight where they put it. Tapping the highlighted
+		 * actor again (or Bacon) clears both and the tour resumes */
+		pinned: false,
+		/** bumped whenever a tap CLEARS the highlight. The tour watches it to know
+		 * the reader dismissed what was on screen, so it leaves the constellation
+		 * neutral and restarts its clock instead of carrying on mid-turn. A
+		 * counter rather than a flag because a release can leave every other
+		 * field as it was — tapping the actor the tour is already showing, or
+		 * Bacon, clears a focus off a `pinned` that was false to begin with.
+		 *
+		 * It exists so the tour never has to READ `focus`, which it writes: an
+		 * effect that does both re-runs itself on its own write and skips an
+		 * actor every tick. */
+		releases: 0
+	},
+
+	/** the guess-the-rank ladder (GuessRank, RankBars, layouts/rank.js) */
+	rank: {
+		/** every actor the reader has guessed, in the order they picked them. The
+		 * last one is the current guess (what the list focuses on); the earlier
+		 * ones stay named and un-faded, since the reader already knows who they
+		 * are */
+		guesses: [],
+		/** reader gave up instead of guessing #1 */
+		gaveUp: false,
+		/** `{ x, y, w }` in canvas coordinate space of the hop bar on RankBars'
+		 * centered focus row, measured live by RankBars itself — null until it has
+		 * mounted and reported a position. The canvas bar tweens to meet that
+		 * exact box, so the two are the same strip (see layouts/rank.js) */
+		focusBar: null,
+		/** `{ cx, top, pitch, bottom }` in canvas coordinate space of RankBars'
+		 * rows — the CENTRE of row #1's bar at the list's current scroll (where
+		 * the bar collapses to), the px between consecutive rows, and the last y
+		 * the opaque panel covers. The race chapter's arrival reads it to place
+		 * the canvas copy of each collapsed node on the row its actor occupied in
+		 * the list, and to hide the ones sitting past `bottom`, which the reader
+		 * never saw as HTML (see the draw-on entry in layouts/race.js); no layout
+		 * consumes it, so republishing it as the reader scrolls can't retarget a
+		 * tween */
+		listRows: null,
+		/** true once RankBars' bars have finished collapsing into single nodes
+		 * and the HTML overlay has stood down, so the canvas can take the same
+		 * nodes over and fly them onto the race chart. RankBars owns the clock
+		 * (RANK_COLLAPSE_MS); ScrollyVisual only waits on this flag. Reset when
+		 * the reader steps back into the rank chapter. No layout's params
+		 * selector reads it, so writing it mid-transition can never retarget a
+		 * tween */
+		collapsed: false
+	},
+
+	/** the race chart's camera and controls (RaceScrubber, race-camera.js,
+	 * layouts/race.js) */
+	race: {
+		/** optional `{ playhead }` camera override; null = the active race state
+		 * rests at the right-hand end of its content extent. It is the *hold*
+		 * target written once when the reader releases a pan (ScrollyVisual owns
+		 * the write; see scrubbing/scrubYear). */
+		view: null,
+		/** target playhead year while the reader pans (null = not set) */
+		scrubYear: null,
+		/** true while the reader is actively dragging the plot or keying the year
+		 * slider — ScrollyVisual direct-writes the panned frame per change instead
+		 * of tweening */
+		scrubbing: false,
+		/** the live camera, `{ pxPerYear, panMin, panMax, playhead, pannable }`
+		 * or null off the race chapter. One-way — ScrollyVisual is the only
+		 * component that knows the canvas width, so it writes this and
+		 * RaceScrubber only reads it. No layout consumes it, so there is no
+		 * cycle. */
+		cam: null,
+		/** Gen Z race step: the lines are drawn. The step's one layout param — it
+		 * rests with the field NOT on the chart, so the reader's press is what
+		 * puts it there — and what the step's `advanceon` watches, so the draw
+		 * carries the story on by itself. Written once, at the end of a run, for
+		 * the same reason `sim.runs` is: a per-frame write would retarget the
+		 * tweener mid-draw. Cleared by resetGenzLines() when the reader walks
+		 * into the chapter again */
+		genzLinesShown: false
+	},
+
+	/** the pair quiz (PairQuiz, layouts/scatters.js) */
+	quiz: {
+		/** per-pair pick, keyed by pair index → picked pid */
+		picks: {},
+		/** the reader stepped *back* into the quiz step, so it shows every pair
+		 * revealed instead of re-asking. Set (and cleared again on a forwards
+		 * arrival) by the step registry's arrival rules, which run before the
+		 * step renders so PairQuiz reads the right value at mount. It also opens
+		 * the quiz step's forward gate — a reader who reloaded past the quiz and
+		 * stepped back has a revealed panel with nothing to answer, and
+		 * states.js's `quizDone` is the one predicate both the gate and the panel
+		 * read, so they cannot disagree */
+		revealed: false
+	},
+
+	/** the prediction scatter (PredictToggles, layouts/prediction.js) */
+	predict: {
+		/** false = film count alone, true = the full model */
+		insights: false
+	},
+
+	/** the simulation replay (layouts/sim-race.js) */
+	sim: {
+		/** how many of the 10,000 recorded runs have been replayed — the chart's
+		 * playhead. 0 = the reader hasn't pressed Start yet. Written once per run
+		 * (0 or all of them), never per frame: the animation writes the canvas
+		 * buffers directly, and a per-frame write here would retarget the tweener
+		 * mid-run (see the simulation's request in layouts/sim-race.js). Also
+		 * zeroed — with `names`, by resetSimRace() below — when the reader walks
+		 * into the chapter again, so the step has a race to watch rather than the
+		 * finished chart */
+		runs: 0,
+		/** how many of the leaders' names the replay has reached (see
+		 * SIM_NAMES_AT / simNamesDue — they arrive one at a time, in win order).
+		 * Published by the replay's frames, a handful of times per run, because
+		 * the layout never sees the live playhead: `runs` is only published when
+		 * a run ends */
+		names: 0
+	},
+
 	/** race chart, DEV ONLY: bumped by RaceYBandDev.svelte after every edit to the
 	 * per-year y band table. The table itself lives in layouts/race.js (set through
 	 * setRaceDevBands) so nothing reactive lands in the per-frame path; this is only
@@ -161,21 +199,21 @@ export function request(kind) {
 }
 
 /** Put the Gen Z race step back to the state that asks to be started: the camera
- * panned down onto an empty plot, with the field still to be drawn. Called from
- * Index's navigate() on a forward arrival, so walking into the chapter again
- * re-asks rather than showing the finished chart. */
+ * panned down onto an empty plot, with the field still to be drawn. Called by
+ * the step registry's arrival rules on a forward arrival, so walking into the
+ * chapter again re-asks rather than showing the finished chart. */
 export function resetGenzLines() {
-	story.genzLinesShown = false;
+	story.race.genzLinesShown = false;
 }
 
 /** Put the simulation race back to the state that asks to be started: no runs
  * replayed and no winners named. Both fields together, because the two label
- * selectors fall back to `simNames` whenever `simRuns` is below the threshold
- * (see layouts/sim-race.js) — zeroing the playhead alone would draw all five
- * winners on a chart collapsed back to the origin. Called from Index's
- * navigate() on a forward arrival into the chapter from outside it; the replay's
- * own `start` (layouts/sim-race.js) zeroes both before a run. */
+ * selectors fall back to `names` whenever `runs` is below the threshold (see
+ * layouts/sim-race.js) — zeroing the playhead alone would draw all five winners
+ * on a chart collapsed back to the origin. Called by the step registry's
+ * arrival rules on a forward arrival into the chapter from outside it; the
+ * replay's own `start` (layouts/sim-race.js) zeroes both before a run. */
 export function resetSimRace() {
-	story.simRuns = 0;
-	story.simNames = 0;
+	story.sim.runs = 0;
+	story.sim.names = 0;
 }

@@ -631,9 +631,7 @@
 	// What a frame writer hands back (FrameOutput in states.js): per-frame chart
 	// furniture, the camera it drew, and story fields to publish. Applied on
 	// every tick of every choreography, so a leg that pans the camera keeps the
-	// axes, the callout and the live playhead in step with the dots. `story`
-	// writes go through an equality check: a write that changes nothing still
-	// invalidates the layout params and would retarget the tweener mid-run.
+	// axes, the callout and the live playhead in step with the dots.
 	/** @type {{ playhead: number, frontier: number } | null} */
 	let lastCamera = null;
 	function applyFrame(out) {
@@ -643,9 +641,20 @@
 			camera.apply(out.camera);
 			lastCamera = camera.hold();
 		}
-		if (out.story) {
-			for (const [key, value] of Object.entries(out.story)) {
-				if (story[key] !== value) story[key] = value;
+		if (out.story) publish(out.story);
+	}
+
+	/**
+	 * The story fields a frame publishes, by interaction group (see
+	 * FrameOutput in states.js). Every write goes through an equality check: a
+	 * write that changes nothing still invalidates the layout params and would
+	 * retarget the tweener mid-run.
+	 * @param {Record<string, Record<string, unknown>>} groups
+	 */
+	function publish(groups) {
+		for (const [group, fields] of Object.entries(groups)) {
+			for (const [key, value] of Object.entries(fields)) {
+				if (story[group][key] !== value) story[group][key] = value;
 			}
 		}
 	}
@@ -923,7 +932,7 @@
 
 	// -- The reader's pan -------------------------------------------------------
 	// One glide loop that eases the camera toward the reader's target
-	// (story.scrubYear) and writes the panned frame each tick, so a year change
+	// (story.race.scrubYear) and writes the panned frame each tick, so a year change
 	// glides instead of snapping. Runs while the reader is panning OR until the
 	// reel catches up after release; once released AND settled it holds via
 	// raceView (one param-tween settle restarts the generic writers). Bypasses
@@ -945,7 +954,7 @@
 		choreo.loop(scrubTick, () => {
 			camPanning = false;
 			if (!raceStep?.extent) return;
-			story.raceView = camera.hold();
+			story.race.view = camera.hold();
 			camera.publish(raceStep, width, height);
 		});
 	}
@@ -956,7 +965,7 @@
 			raceStep,
 			width,
 			height,
-			story.scrubYear,
+			story.race.scrubYear,
 			reducedMotion ? 1 : SCRUB_EASE
 		);
 		const { axes, takeover, band, frontier } = writeRaceSweepFrame(
@@ -968,7 +977,7 @@
 			STATE_YCAP[stateName]
 		);
 		applyFrame({ decor: { axes, takeover, band }, camera: { frontier } });
-		return story.scrubbing || !caughtUp;
+		return story.race.scrubbing || !caughtUp;
 	}
 
 	// -- Drawing ----------------------------------------------------------------
@@ -1124,11 +1133,11 @@
 	});
 
 	// When the reader starts dragging/keying the year control, kick off the glide
-	// loop (which then self-drives off story.scrubYear until it settles and hands
+	// loop (which then self-drives off story.race.scrubYear until it settles and hands
 	// off to raceView). Declared before the render effect so it wins the flush;
 	// the loop-start is untracked.
 	$effect(() => {
-		if (story.scrubbing) untrack(() => camPanning || startScrub());
+		if (story.race.scrubbing) untrack(() => camPanning || startScrub());
 	});
 
 	// A reader's ask: a StartButton bumps `story.request` (see request() in
@@ -1188,7 +1197,7 @@
 	 */
 	function abandonChoreography() {
 		choreo.stop();
-		if (story.scrubbing) untrack(() => (story.scrubbing = false));
+		if (story.race.scrubbing) untrack(() => (story.race.scrubbing = false));
 		if (story.running !== null) untrack(() => (story.running = null));
 	}
 
@@ -1283,7 +1292,7 @@
 	 * An interaction: retarget quickly, no choreography (delays would make a
 	 * small pan/highlight feel laggy). Still settles on completion — rankFocus's
 	 * bar only gets its real target once RankBars measures its row
-	 * (story.rankFocusBar), so this is the one state whose "reveal has landed"
+	 * (story.rank.focusBar), so this is the one state whose "reveal has landed"
 	 * moment is a param retarget rather than the state's own arrival tween.
 	 */
 	function tweenToParams(target) {

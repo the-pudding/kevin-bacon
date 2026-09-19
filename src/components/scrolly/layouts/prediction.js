@@ -110,7 +110,7 @@ export const states = {
 		// don't snap orientation on arrival
 		labelDirs: QUIZ_LABEL_DIRS,
 		pulse: SLJ,
-		params: (s) => ({ mode: s.predictInsights ? "all" : "film" }),
+		params: (s) => ({ mode: s.predict.insights ? "all" : "film" }),
 		// x stays directional (predicted distance isn't the y-axis remoteness
 		// metric); y's direction is conveyed by the pinned "lower"/"higher"
 		// mini-labels instead of an arrow in the title

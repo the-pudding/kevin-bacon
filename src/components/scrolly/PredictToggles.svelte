@@ -9,7 +9,7 @@
 
 <div class="toggles">
 	<label>
-		<input type="checkbox" bind:checked={story.predictInsights} />
+		<input type="checkbox" bind:checked={story.predict.insights} />
 		include co-star insights
 	</label>
 </div>

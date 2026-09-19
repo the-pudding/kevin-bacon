@@ -5,12 +5,12 @@
 // actually got to; the camera of the race step the reader is leaving,
 // snapshotted before the arriving step resets it, so a retrace starts from
 // exactly there; and the two things the story reads off it — the hold
-// (`story.raceView`, the params a settled chart rests at) and the pan control's
-// bounds (`story.raceCam`).
+// (`story.race.view`, the params a settled chart rests at) and the pan control's
+// bounds (`story.race.cam`).
 //
 // Plain fields, not $state: nothing the story SHOWS depends on them directly.
 // The frames they steer are drawn by the choreography that owns them, and the
-// render effect reacts to `story.raceView`, which is published at rest.
+// render effect reacts to `story.race.view`, which is published at rest.
 import {
 	racePanBounds,
 	raceRestPlayhead,
@@ -58,8 +58,8 @@ export function createRaceCamera(story) {
 		 */
 		reset(step, w, h) {
 			cam.exit = { playhead: cam.playhead, frontier: cam.frontier };
-			if (story.raceView !== null) story.raceView = null;
-			if (story.scrubYear !== null) story.scrubYear = null;
+			if (story.race.view !== null) story.race.view = null;
+			if (story.race.scrubYear !== null) story.race.scrubYear = null;
 			if (step) {
 				cam.playhead =
 					w && h
@@ -80,7 +80,7 @@ export function createRaceCamera(story) {
 		 */
 		publish(step, w, h) {
 			if (!step?.extent || !w || !h) {
-				if (story.raceCam !== null) story.raceCam = null;
+				if (story.race.cam !== null) story.race.cam = null;
 				return;
 			}
 			const bounds = racePanBounds(w, h, step, cam.playhead);
@@ -89,12 +89,12 @@ export function createRaceCamera(story) {
 				Math.max(bounds.panMin, cam.playhead)
 			);
 			if (
-				story.raceView &&
-				Math.abs(story.raceView.playhead - cam.playhead) > 0.01
+				story.race.view &&
+				Math.abs(story.race.view.playhead - cam.playhead) > 0.01
 			) {
-				story.raceView = cam.hold();
+				story.race.view = cam.hold();
 			}
-			story.raceCam = {
+			story.race.cam = {
 				pxPerYear: getRacePxPerYear(),
 				playhead: cam.playhead,
 				...bounds

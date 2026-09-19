@@ -57,11 +57,11 @@
 	}
 </script>
 
-{#if story.raceCam && hidden}
+{#if story.race.cam && hidden}
 	<button class="reopen" type="button" onclick={() => setHidden(false)}>
 		speed
 	</button>
-{:else if story.raceCam}
+{:else if story.race.cam}
 	<div class="speed-dev">
 		<span class="tag">speed</span>
 		<input

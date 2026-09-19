@@ -27,14 +27,14 @@ const STEP_PARAMS = {
 // interactions, as overrides of the story's resting defaults. Each is tried
 // against every state and kept only where it changes what the layout is handed.
 const INTERACTIONS = [
-	{ rankGuesses: [SLJ], rankFocusBar: { x: 120, y: 300, w: 400 } },
-	{ rankGaveUp: true },
-	{ quizPicks: { 0: 1 }, quizRevealed: true },
-	{ predictInsights: true },
-	{ simRuns: SIM_N_SIMS, simNames: 5 },
-	{ genzLinesShown: true },
-	{ introFocus: INTRO_IDS[3] },
-	{ raceView: { playhead: 2006 } }
+	{ rank: { guesses: [SLJ], focusBar: { x: 120, y: 300, w: 400 } } },
+	{ rank: { gaveUp: true } },
+	{ quiz: { picks: { 0: 1 }, revealed: true } },
+	{ predict: { insights: true } },
+	{ sim: { runs: SIM_N_SIMS, names: 5 } },
+	{ race: { genzLinesShown: true } },
+	{ intro: { focus: INTRO_IDS[3] } },
+	{ race: { view: { playhead: 2006 } } }
 ];
 
 const keyOf = (params) => JSON.stringify(params) ?? "null";

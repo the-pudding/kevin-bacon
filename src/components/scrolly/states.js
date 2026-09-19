@@ -151,7 +151,8 @@ export const STATE_REVEAL_FROM = pick("revealFrom");
  * @typedef {Object} FrameOutput
  * @property {Object} [decor]
  * @property {{ playhead?: number, frontier?: number }} [camera]
- * @property {Object} [story]
+ * @property {Record<string, Record<string, unknown>>} [story] interaction
+ *   fields to publish, by group (`{ sim: { names } }` — see story.svelte.js)
  */
 
 /**
@@ -419,8 +420,8 @@ export const INTERACTIVE_IDS = {
  * what a reload straight past the quiz produces: `quizRevealed` with no picks.
  */
 export const quizDone = (s) =>
-	s.quizRevealed ||
-	INTERACTIVE_IDS.quiz.every((_, i) => s.quizPicks[i] !== undefined);
+	s.quiz.revealed ||
+	INTERACTIVE_IDS.quiz.every((_, i) => s.quiz.picks[i] !== undefined);
 
 /** name/rank lookups for the interactive step-card components */
 export const nodeName = (id) => rawNodes.nodes[id][1];

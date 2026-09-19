@@ -48,9 +48,32 @@ export const BOXES = [
 	}
 ];
 
-/** the story's resting defaults with `overrides` applied — a plain copy, so a
- * test can hand it to a `start`/`finish` hook and read back what it wrote */
-export const storyWith = (overrides) => ({ ...story, ...overrides });
+/**
+ * The story's resting defaults with `overrides` applied one group deep —
+ * `storyWith({ sim: { runs: 10 } })` keeps `sim.names` — as a plain copy of every
+ * group, so a test can hand it to a `start`/`finish` hook and read back what it
+ * wrote without touching the defaults.
+ */
+export function storyWith(overrides = {}) {
+	const s = {};
+	for (const [key, value] of Object.entries(story)) {
+		const group =
+			value !== null && typeof value === "object" && !Array.isArray(value);
+		s[key] = group
+			? { ...value, ...overrides[key] }
+			: (overrides[key] ?? value);
+	}
+	return s;
+}
+
+/** `s` with a frame's published fields (FrameOutput's `story`, by group) applied, as a copy */
+export function published(s, groups = {}) {
+	const after = { ...s };
+	for (const [group, fields] of Object.entries(groups)) {
+		after[group] = { ...s[group], ...fields };
+	}
+	return after;
+}
 
 /**
  * What ScrollyVisual hands a layout: the state's selector plucks the interaction

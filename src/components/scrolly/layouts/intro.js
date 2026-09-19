@@ -1099,7 +1099,7 @@ export const states = {
 		// fifteen in ScrollyVisual's TRACKED_IDS.
 		labels: (p) => (p?.focus == null ? INTRO_IDS : [...routeActors(p.focus)]),
 		pulse: ANCHOR_ID,
-		params: (s) => ({ focus: s.introFocus }),
+		params: (s) => ({ focus: s.intro.focus }),
 		// A tap takes the step off its automatic tour and leaves the highlight where
 		// the reader put it. Tapping the highlighted actor again, or Bacon (a route
 		// from the anchor to itself says nothing), clears the pick and hands the step
@@ -1109,10 +1109,10 @@ export const states = {
 		// again — or Bacon, who has no route to himself — clears the highlight and
 		// leaves the constellation neutral.
 		pick: (s, value) => {
-			const release = value === ANCHOR_ID || value === s.introFocus;
-			s.introFocus = release ? null : value;
-			s.introPinned = !release;
-			if (release) s.introReleases += 1;
+			const release = value === ANCHOR_ID || value === s.intro.focus;
+			s.intro.focus = release ? null : value;
+			s.intro.pinned = !release;
+			if (release) s.intro.releases += 1;
 		}
 	}
 };

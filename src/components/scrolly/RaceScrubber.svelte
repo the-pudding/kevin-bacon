@@ -3,21 +3,21 @@
 	/**
 	 * Race-chapter pan control. Two controls over one playhead year: a pointer
 	 * drag surface over the plot and a bits-ui year Slider (keyboard-accessible).
-	 * Both write `story.scrubYear`/`story.scrubbing` only — ScrollyVisual owns the
+	 * Both write `story.race.scrubYear`/`story.race.scrubbing` only — ScrollyVisual owns the
 	 * buffer writes and the on-release `raceView` hold.
 	 *
 	 * The x axis is fixed-scale (PX_PER_YEAR px per year, see layouts/race.js), so
 	 * the drag is a RELATIVE pan: a year travels exactly as far as the finger, the
-	 * way a map does. Bounds and the live playhead come from `story.raceCam`, which
+	 * way a map does. Bounds and the live playhead come from `story.race.cam`, which
 	 * ScrollyVisual publishes because only it knows the canvas width.
 	 */
 	import Slider from "$components/ui/Slider.svelte";
 	import { story } from "./story.svelte.js";
 
-	const cam = $derived(story.raceCam);
+	const cam = $derived(story.race.cam);
 	// playhead the reader is aiming at; falls back to the published camera whenever
 	// they aren't driving it (a step change, a choreography, a resize re-clamp)
-	const value = $derived(story.scrubYear ?? cam?.playhead ?? 0);
+	const value = $derived(story.race.scrubYear ?? cam?.playhead ?? 0);
 	// The Slider's own domain is whole years, and every value it is handed has to
 	// BE one: the camera's bounds and playhead are fractional (a step's resting
 	// camera is its extent start + however many years the viewport shows), and
@@ -25,7 +25,7 @@
 	// value that isn't on its step grid by writing the snapped one back through
 	// onValueChange — indistinguishable here from the reader moving the control, so
 	// the mount of a freshly-arrived step would announce a scrub nobody started
-	// (and never commit it, leaving story.scrubbing stuck on). The grid is rounded
+	// (and never commit it, leaving story.race.scrubbing stuck on). The grid is rounded
 	// OUTWARD so it always spans at least one whole year however wide the viewport
 	// makes the camera; onSlide clamps the year it yields back to the real bounds,
 	// so the two ends of the track still mean exactly panMin and panMax.
@@ -45,12 +45,12 @@
 		if (!cam?.pannable) return;
 		from = { x: e.clientX, playhead: cam.playhead };
 		surface?.setPointerCapture(e.pointerId);
-		story.scrubbing = true;
+		story.race.scrubbing = true;
 	}
 	function onPointerMove(e) {
 		if (!from) return;
 		// drag right → the content follows the finger → earlier years
-		story.scrubYear = clamp(
+		story.race.scrubYear = clamp(
 			from.playhead - (e.clientX - from.x) / cam.pxPerYear
 		);
 	}
@@ -59,16 +59,16 @@
 		from = null;
 		if (surface?.hasPointerCapture?.(e.pointerId))
 			surface.releasePointerCapture(e.pointerId);
-		story.scrubbing = false;
+		story.race.scrubbing = false;
 	}
 
 	// slider (keyboard/click): same playhead, same scrubbing/hold protocol
 	function onSlide(v) {
-		story.scrubbing = true;
-		story.scrubYear = clamp(v);
+		story.race.scrubbing = true;
+		story.race.scrubYear = clamp(v);
 	}
 	function onCommit() {
-		story.scrubbing = false;
+		story.race.scrubbing = false;
 	}
 </script>
 

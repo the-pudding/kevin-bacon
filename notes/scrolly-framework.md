@@ -56,7 +56,7 @@ line's P50/P10 toggle) re-run the current layout via params — see
 | `src/components/scrolly/render.js`            | The canvas renderer: `clearCanvas`, `drawTrails`, `drawEdges`, `drawDots`, `drawLabelLeaders` — one frame of the attr and trail buffers onto a 2D context, pure over (ctx, buffers).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | `src/components/scrolly/annotations.js`       | The annotation layer's per-frame decisions: `raceLabelCut` (the ten names nearest the centre at this camera), `trackLabels` (the entries the HTML labels ride, alpha-gated) and `createLabelStacker` (vertical de-collision of beside-dot names, with the plot-floor lift).                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
 | `src/components/scrolly/choreographer.js`     | `createChoreographer({ ease, draw, onStop })` — the one owner of the choreography rAF: `phase`, `loop`, `legs`, `stop`, and `active` (a choreography owns the frame). Knows nothing about states or the story.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
-| `src/components/scrolly/race-camera.js`       | `createRaceCamera(story)` — the race chapter's live camera (playhead, frontier, the departed step's `exit` camera), its `reset` on a state change, `publish` of the pan control's bounds (`story.raceCam`), the `hold` a settled chart rests at (`story.raceView`) and the reader's `glide`.                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| `src/components/scrolly/race-camera.js`       | `createRaceCamera(story)` — the race chapter's live camera (playhead, frontier, the departed step's `exit` camera), its `reset` on a state change, `publish` of the pan control's bounds (`story.race.cam`), the `hold` a settled chart rests at (`story.race.view`) and the reader's `glide`.                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 | `src/components/scrolly/StartButton.svelte`   | The one control every reader-triggered animation has: asks the active state for one of its `requests` by name (`request(kind)`) and goes quiet while `story.running` names it. `advance` also moves the reader on as it asks (the rewind).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 
 JSDoc typedefs (`ActorNode`, `Edge`, `LayoutResult`, `LayoutFn`, `Tweener`) are in
@@ -695,8 +695,8 @@ every vertex inside the plot with no canvas clip region. Panning is
 `RaceScrubber`, mounted on `raceFull` only (the `raceRecent` steps are carried by
 their own camera choreography, and `raceFuture` is a fixed camera by design): a
 relative pointer drag plus a bits-ui year
-Slider, both writing only `story.scrubYear`/`scrubbing`, with bounds read from
-`story.raceCam` (published by ScrollyVisual, the only component that knows the
+Slider, both writing only `story.race.scrubYear`/`race.scrubbing`, with bounds read from
+`story.race.cam` (published by ScrollyVisual, the only component that knows the
 canvas width). It renders nothing when the whole extent already fits on screen.
 
 **The future strip (`raceFuture`).** The chapter's last step runs the camera
@@ -1076,8 +1076,8 @@ past the present. And `edgeFade` — the chapter's pixel ramp for a line whose e
 is at the plot's left edge — becomes the entrance fade for free, because it
 measures where the end actually sits and here that end is what is moving.
 
-The trigger itself is `story.genzLinesShown`, a layout param written once at the
-end of the run — the same shape as `simRuns`, and for the same reason. The step
+The trigger itself is `story.race.genzLinesShown`, a layout param written once at the
+end of the run — the same shape as `sim.runs`, and for the same reason. The step
 rests with the field NOT on the chart, so the press is what puts it there, and a
 resize or a reduced-motion arrival lands on whichever of the two frames the flag
 says.
@@ -1104,10 +1104,10 @@ the grid fixed, only the tip segment moves — everything behind the playhead is
 already at its final position, which is directly testable (successive mid-run
 frames are pixel-identical left of the playhead). The frame
 writer is the settled layout's only path too, so a run's last frame IS the state
-it settles onto — the end of a run just publishes `story.simRuns`,
+it settles onto — the end of a run just publishes `story.sim.runs`,
 with nothing left to move. The playhead is deliberately NOT published per frame:
-`simRuns` is a layout param, so a per-frame write would retarget the tweener
-mid-run. `simNames` is the param that lets the labels come in for a replay whose
+`sim.runs` is a layout param, so a per-frame write would retarget the tweener
+mid-run. `sim.names` is the param that lets the labels come in for a replay whose
 playhead the layout never sees.
 
 The data behind it is the real per-run winner sequence (`story.genz.runs`), not a
@@ -1119,7 +1119,7 @@ percentages the story quotes. Every contender gets a line (`SIM_SERIES` in
 share, arriving one at a time from 5,000 runs on (`SIM_NAMES_AT` +
 `SIM_NAME_STAGGER`, via `simNamesDue`) once the field has pulled apart. Names sit
 to the LEFT of their dots, so the plot needs no gutter and takes the canvas's
-full width; `story.simNames` (how many are due) is the one thing a run publishes
+full width; `story.sim.names` (how many are due) is the one thing a run publishes
 while it is in flight, because the layout never sees the live playhead — and it
 is written only on the runs a name is actually due, not per frame.
 
@@ -1196,7 +1196,7 @@ key, which lands in its catch-all and snaps the very reveal the gate was
 waiting for.
 
 **Interactivity.** `story.svelte.js` holds shared `$state` (rankGuess,
-quizPicks, prediction toggles, simRuns, introFocus) written by the step-card components
+quiz.picks, predict.insights, sim.runs, intro.focus) written by the step-card components
 (`GuessRank`, `PairQuiz`, `PredictToggles`) and by on-chart picks. `STATE_PARAMS`
 selectors pluck the fields a state consumes and merge them with the step's
 static params; a change re-runs the _current_ layout with a short
@@ -1212,22 +1212,22 @@ the same `INTRO_IDS` as a static array.)
 
 **Step 1's tour and its route panel.** `networkIntro` does not wait to be tapped.
 Index.svelte walks `CYCLE_ORDER` (exported from `layouts/intro.js`) every
-`TOUR_MS`, writing `story.introFocus`, so the step demonstrates the game on its
+`TOUR_MS`, writing `story.intro.focus`, so the step demonstrates the game on its
 own; the card reads one line, "X is _two movies_ away from Kevin Bacon". A tap
-sets `story.introPinned` and the tour stands down. It is a plain toggle, so every
+sets `story.intro.pinned` and the tour stands down. It is a plain toggle, so every
 tap does exactly one visible thing: tapping the highlighted actor again — or
 Bacon, who has no route to himself — clears the highlight and leaves the
 constellation neutral (no caption, all fifteen names back), and the tour picks up
 on its next beat, one past where the reader left it. A release bumps
-`story.introReleases`, which the tour effect watches to know the highlight was
+`story.intro.releases`, which the tour effect watches to know the highlight was
 dismissed rather than carrying on mid-turn: `touring` alone doesn't change when a
 reader clears an actor the tour was already showing.
 
-**The tour effect must never read `story.introFocus`.** It writes it, so reading
+**The tour effect must never read `story.intro.focus`.** It writes it, so reading
 it too makes the effect invalidate itself on its own write — each tick re-runs
 it, fires a second `showNext` and restarts the interval, and the tour skips an
 actor on every tap. That is why the release signal is a counter in `story` rather
-than an `introFocus == null` test inside the effect. Auto-advancing text is motion the reader did not ask
+than an `intro.focus == null` test inside the effect. Auto-advancing text is motion the reader did not ask
 for, so under `prefers-reduced-motion` the tour seeds the first actor and stops
 there. The films behind each hop live in a `ui/InfoTerm` panel behind "two
 movies" (`RouteFilms.svelte`), not in the card — see the note in "Known gaps"
@@ -2077,7 +2077,7 @@ Three rules:
      pressing Give up calls `advance()` (`GuessRank`). Give up is always on
      screen, so the step can never strand a reader. Stepping back off the
      reveal lands on step 5, and the existing effect in `Index.svelte` clears
-     `rankGuesses`/`rankGaveUp` on the way out of the chapter, so walking in
+     `rank.guesses`/`rank.gaveUp` on the way out of the chapter, so walking in
      again re-asks the question with the gate shut.
    - **Step 8, the race rewind** (`gate` never opens; `skipback`). Start asks
      for the pan and advances with it — the rewind is choreographed to play
@@ -2098,16 +2098,16 @@ Three rules:
    - **Step 25, the simulation** (`gate` never opens; `skipback`; `advanceon`).
      Start asks for the run; the run _is_ the payoff and the next step names
      the winner, so the story waits and then moves on by itself once
-     `story.simRuns` is published (the run's single end-of-run write, and the
+     `story.sim.runs` is published (the run's single end-of-run write, and the
      reduced-motion path's only one). Walking back into the chapter calls
-     `resetSimRace()` from `navigate()` — `simRuns` **and** `simNames`
-     together, because the label selectors fall back to `simNames` below the
+     `resetSimRace()` from `navigate()` — `sim.runs` **and** `sim.names`
+     together, because the label selectors fall back to `sim.names` below the
      run threshold and zeroing the playhead alone would draw all five winners
      on a chart collapsed to the origin.
    - **The Gen Z race step** (`gate` never opens; `skipback`; `advanceon`). The
      same shape as the simulation, one chapter earlier: "Show Gen Z actors" asks
      for the draw-on, the draw _is_ the payoff, and the story moves on by itself
-     once `story.genzLinesShown` is published (the run's single end-of-run
+     once `story.race.genzLinesShown` is published (the run's single end-of-run
      write, and the reduced-motion path's only one). Walking into it calls
      `resetGenzLines()` from `navigate()`, so a reader who came back gets the
      empty plot and a live button rather than the finished chart. Unlike the
@@ -2138,7 +2138,7 @@ both sides draw — the panel as one path per hop band, the canvas as the spot
 each converging actor lands on — so the frame the arrival tween settles into is
 the frame the panel then fades over. The panel owns the geometry and the canvas
 follows it: RankBars measures its focused row live and publishes the box to
-`story.rankFocusBar`, which `layouts/rank.js` reads as a param.
+`story.rank.focusBar`, which `layouts/rank.js` reads as a param.
 
 Everything about a row's strip therefore lives in `rank-geometry.js`, not in the
 panel — including the whitespace between the hop bands (`RANK_BAND_GAP`, reserved
@@ -2147,7 +2147,7 @@ inside `hopBandBoxes` before the shares are struck, the horizontal twin of
 disagree about where a dot is, which breaks both the `hopBands → rankFocus`
 convergence and the collapse below. A second, less obvious rule: **every row must
 keep the same height.** The handoff places all 250 canvas copies from one measured
-`pitch` (see `story.rankListRows` below), so a row that is taller than its
+`pitch` (see `story.rank.listRows` below), so a row that is taller than its
 neighbours scatters every copy below it. That is why the per-band share labels
 under each bar are absolutely positioned into a lane the row's own bottom padding
 reserves, rather than laid out beneath the strip.
@@ -2165,7 +2165,7 @@ chapter and runs the handoff in three beats.
    from `raceDotSpec` in `layouts/race.js` — the same function `writeRaceSweepFrame`
    places canvas dots with — read against `RACE_RECENT_SUBJECT`, so SLJ and Hackman
    already carry their emphasis and everyone else the grey field treatment.
-2. **Swap** (one frame). The timer sets `story.rankCollapsed`, which both unmounts
+2. **Swap** (one frame). The timer sets `story.rank.collapsed`, which both unmounts
    the whole overlay (`Index.svelte`'s `showRankPanel`) and releases the canvas.
    Nothing moves: the canvas is already holding an identical copy of those nodes,
    snapped there under the opaque panel when the step changed.
@@ -2173,20 +2173,20 @@ chapter and runs the handoff in three beats.
    chart positions — same top-to-bottom order, new spacing — and hand over to the
    4s draw-on and the rewind's first leg as before.
 
-`story.rankListRows` (`{ cx, top, pitch }` — the horizontal centre a bar collapses
+`story.rank.listRows` (`{ cx, top, pitch }` — the horizontal centre a bar collapses
 to, row #1's bar centre at the current scroll, and the row-to-row pitch) is what
 puts the canvas copy on the right row, with `ORDER_OF`; ranks below the panel
 (most of the 131-strong cast — the list shows 250 rows and ~20 fit) start just off
 the bottom edge and stream up. The previous step being HTML costs nothing — its
 rows have positions in the canvas's own coordinate space, which is all a departure
 point needs. Unlike the focus box, nothing reads this during the rank chapter
-(rank.js's selector takes only `rankFocusBar`), so it is safe to republish on
+(rank.js's selector takes only `rank.focusBar`), so it is safe to republish on
 scroll — and ScrollyVisual reads it `untrack`ed, so it can never retarget a tween.
 
 Three things the handoff depends on:
 
 - **The panel owns the clock.** It is the only party that knows when its own
-  transitions have landed, so it publishes the one moment (`story.rankCollapsed`)
+  transitions have landed, so it publishes the one moment (`story.rank.collapsed`)
   and ScrollyVisual only waits — its flight is _held_ by the arrival (the
   entry's `hold`, parked in `pendingArrival`) and released by the flag, so the
   canvas can never be moving while the HTML the reader is watching is not. Every
@@ -2203,7 +2203,7 @@ Three things the handoff depends on:
   Stepping back off raceRecent's second step lands on `rankReveal` (the Start
   step is `skipback`), which hands the panel back and remounts `RankBars` with
   `collapse` false — so walking forward again replays the fold, where a step
-  back onto the Start step would have left `rankCollapsed` stuck true.
+  back onto the Start step would have left `rank.collapsed` stuck true.
 
 Two rules come with a measured hand-off like that, both learned the hard way:
 publish from a **pre-effect**, so the box is set before ScrollyVisual's layout

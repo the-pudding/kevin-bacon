@@ -295,7 +295,7 @@
 	// rankReveal instead has no collapse underneath to wait for — it is either a
 	// reload already past the guess (?step=7) or the reader stepping back into the
 	// chapter out of the race, which takes the overlay down on arrival
-	// (story.rankCollapsed) and so has to rebuild it. Neither will ever see
+	// (story.rank.collapsed) and so has to rebuild it. Neither will ever see
 	// `story.settled` read "rankFocus" again, so the hold was permanent: the
 	// ladder sat at opacity 0 for good, over a canvas carrying nothing but Bacon's
 	// bar — which this panel is placed to cover (see layouts/rank.js).
@@ -308,7 +308,7 @@
 	// raceRecent — until the nodes are the canvas's (see RankBars' `collapse`)
 	const showRankPanel = $derived(
 		isRankState(currentState) ||
-			(currentState === "raceRecent" && rankHandoff && !story.rankCollapsed)
+			(currentState === "raceRecent" && rankHandoff && !story.rank.collapsed)
 	);
 
 	// safety net for a stale/malformed URL (?step past the end of the story):
@@ -379,7 +379,7 @@
 		// it, so reveal every pair instead of re-asking (see story.svelte.js).
 		// Arriving forwards re-arms the question — and with it the step's gate.
 		scatterQuiz: ({ back }) => {
-			story.quizRevealed = back;
+			story.quiz.revealed = back;
 		},
 		// the simulation rests at zero runs until the reader presses Start, so a
 		// reader who walked back out of the chapter and in again gets the race to
@@ -400,7 +400,7 @@
 
 	// Prepares an arrival. Runs before `value` changes, so state the destination
 	// step's own components read at mount is already correct — PairQuiz decides
-	// whether to ask from story.quizRevealed as it mounts, and a post-render
+	// whether to ask from story.quiz.revealed as it mounts, and a post-render
 	// $effect would leave it painting the blurred question for a frame before
 	// being told not to. It is handed the destination the registry's `go` has
 	// already resolved, so `to < value` is still the reader's direction of travel.
@@ -437,7 +437,7 @@
 	// The step demonstrates the game rather than waiting to be asked: it picks each
 	// actor out in turn and the card reads their distance to Bacon, so a reader who
 	// never taps still sees what "two movies away" means. A tap takes it over
-	// (story.introPinned, set by the state's `pick` — see layouts/intro.js).
+	// (story.intro.pinned, set by the state's `pick` — see layouts/intro.js).
 	const TOUR_MS = 3400; // ~3s to read, on top of the 450ms highlight tween
 	const reducedMotion = new MediaQuery(
 		"(prefers-reduced-motion: reduce)",
@@ -480,7 +480,7 @@
 	const chapterHeight = $derived(visualHeight);
 
 	const introRoute = $derived(
-		story.introFocus == null ? null : routeSummary(story.introFocus)
+		story.intro.focus == null ? null : routeSummary(story.intro.focus)
 	);
 	// The caption hangs a short gap under the constellation's lowest name, then is
 	// clamped off the step card — which only binds on a viewport short enough that
@@ -497,7 +497,7 @@
 	const touring = $derived(
 		currentState === "networkIntro" &&
 			story.settled === "networkIntro" &&
-			!story.introPinned
+			!story.intro.pinned
 	);
 	// Where the tour has got to. A plain `let`, not $state: the tour effect reads
 	// it when it (re)starts and must not re-run because of it. Kept outside the
@@ -507,14 +507,14 @@
 	// tour effect reads it when it (re)starts and must not re-run because of it.
 	let tourNext = 0;
 	const showNext = () => {
-		story.introFocus = CYCLE_ORDER[tourNext];
+		story.intro.focus = CYCLE_ORDER[tourNext];
 		tourNext = (tourNext + 1) % CYCLE_ORDER.length;
 	};
 	// Whoever is highlighted — by the tour or by the reader — is where the tour
 	// carries on from, so it never snaps back to the top of the order.
 	$effect(() => {
 		const i =
-			story.introFocus == null ? -1 : CYCLE_ORDER.indexOf(story.introFocus);
+			story.intro.focus == null ? -1 : CYCLE_ORDER.indexOf(story.intro.focus);
 		if (i >= 0) tourNext = (i + 1) % CYCLE_ORDER.length;
 	});
 	let seenReleases = 0;
@@ -524,10 +524,10 @@
 		// actor the tour was showing, so without this the next one would arrive on
 		// the remainder of a turn they never saw start.
 		//
-		// This effect must NEVER read `story.introFocus`, which showNext writes: a
+		// This effect must NEVER read `story.intro.focus`, which showNext writes: a
 		// tick would then invalidate the effect, re-run it, fire a second showNext
 		// and restart the interval — the tour would skip an actor on every tap.
-		const releases = story.introReleases;
+		const releases = story.intro.releases;
 		const released = releases !== seenReleases;
 		seenReleases = releases;
 		if (!touring) return;
@@ -550,8 +550,8 @@
 		// to it later starts the guessing game fresh instead of picking up
 		// where the reader left off (guessed, or already seeing the reveal)
 		if (value < prevValue && isRankState(prevState) && !isRankState(state)) {
-			story.rankGuesses = [];
-			story.rankGaveUp = false;
+			story.rank.guesses = [];
+			story.rank.gaveUp = false;
 			// ...and re-arms the panel's hold. `rankBarsRevealed` is a latch (it has
 			// to outlive rankFocus — see its declaration), so without this a second
 			// walk into rankFocus mounts the ladder already revealed and Bacon's bar
@@ -600,7 +600,7 @@
 				     box on that very step — restarting its fade-in (700ms at opacity 0,
 				     leaving the parked canvas bare) and mounting the bars already
 				     collapsed, so the fold never played. `showRankPanel` is what stands
-				     it down, once the canvas holds the nodes (story.rankCollapsed).
+				     it down, once the canvas holds the nodes (story.rank.collapsed).
 
 				     `reveal` stays on through the handoff step: it is what puts SLJ in
 				     focus, so dropping it on raceRecent would send the focus row back to
@@ -664,7 +664,7 @@
 					{/if}
 					<!-- dev-only y-band tuner. Mounted outside stepConfigs so it spans the
 				     whole race chapter and keeps its table installed across step
-				     changes; it renders nothing until story.raceCam exists, i.e. off
+				     changes; it renders nothing until story.race.cam exists, i.e. off
 				     the race chapter. -->
 					{#if raceYBandDev}
 						<raceYBandDev.default />
@@ -821,11 +821,11 @@
 									<strong>{introRoute.name}</strong>:
 									<InfoTerm
 										title="{introRoute.name} → {introRoute.anchor}"
-										onclick={() => (story.introPinned = true)}
+										onclick={() => (story.intro.pinned = true)}
 									>
 										{introRoute.count}
 										{#snippet info()}
-											<RouteFilms id={story.introFocus} />
+											<RouteFilms id={story.intro.focus} />
 										{/snippet}
 									</InfoTerm>
 									away from {introRoute.anchor}.
@@ -1074,7 +1074,7 @@
 						gate={NEVER}
 						skipback
 						advanceon={() =>
-							story.genzLinesShown && story.running !== "genzLines"}
+							story.race.genzLinesShown && story.running !== "genzLines"}
 					>
 						<p>
 							We now have everything we need to predict Gen Z's Kevin Bacon
@@ -1119,7 +1119,7 @@
 						panel={simPanel}
 						gate={NEVER}
 						skipback
-						advanceon={() => story.simRuns > 0 && story.running !== "run"}
+						advanceon={() => story.sim.runs > 0 && story.running !== "run"}
 					>
 						<p>
 							To achieve a stable result, we'll run the simulation 10,000 times

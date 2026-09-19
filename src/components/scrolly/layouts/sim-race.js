@@ -40,7 +40,7 @@ const SIM_NAME_STAGGER = 500;
 
 /**
  * How many of the leaders' names are due at `runs`. The animation publishes this
- * as it climbs (`story.simNames`) — a handful of writes per run, rather than the
+ * as it climbs (`story.sim.names`) — a handful of writes per run, rather than the
  * playhead itself, which would retarget the tweener every frame.
  * @param {number} runs
  */
@@ -222,7 +222,7 @@ const simLabelText = () =>
 			])
 	);
 
-const simParams = (s) => ({ runs: s.simRuns ?? 0, names: s.simNames ?? 0 });
+const simParams = (s) => ({ runs: s.sim.runs ?? 0, names: s.sim.names ?? 0 });
 
 // The replay the reader asks for (a RequestAnim, see states.js): the 10,000
 // runs play left to right as a moving playhead, each frame written straight
@@ -242,16 +242,16 @@ const SIM_MS = 3000;
 const replay = {
 	phases: [SIM_MS],
 	start: (s) => {
-		s.simRuns = 0;
-		s.simNames = 0;
+		s.sim.runs = 0;
+		s.sim.names = 0;
 	},
 	frames: (_nodes, w, h) => (attrs, trails, _phase, e) => {
 		const played = e * SIM_N_SIMS;
 		const { axes } = writeSimFrame(attrs, trails, w, h, played);
-		return { decor: { axes }, story: { simNames: simNamesDue(played) } };
+		return { decor: { axes }, story: { sim: { names: simNamesDue(played) } } };
 	},
 	finish: (s) => {
-		s.simRuns = SIM_N_SIMS;
+		s.sim.runs = SIM_N_SIMS;
 	}
 };
 

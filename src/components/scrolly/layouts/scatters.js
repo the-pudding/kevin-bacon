@@ -157,7 +157,7 @@ const layoutScatterCenters = (nodes, w, h, _edges, params) => {
 };
 
 // every pair index marked picked: the shape layoutScatterQuiz's picks-lookup
-// expects, forcing its "answered" highlight regardless of story.quizPicks
+// expects, forcing its "answered" highlight regardless of story.quiz.picks
 const ALL_PICKED = Object.fromEntries(QUIZ_PAIRS.map((_, i) => [i, true]));
 
 // Label placement for the quiz dots, to keep names off each other in the tight
@@ -450,7 +450,7 @@ export const states = {
 		// the reveal is unconditional, so a skipped quiz is revealed too rather
 		// than left blank (see story.svelte.js — "every interaction is skippable")
 		params: (s) => ({
-			picks: s.quizRevealed ? ALL_PICKED : { ...s.quizPicks }
+			picks: s.quiz.revealed ? ALL_PICKED : { ...s.quiz.picks }
 		}),
 		labelDirs: QUIZ_LABEL_DIRS,
 		overlay: AVG_OVERLAY

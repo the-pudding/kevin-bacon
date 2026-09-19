@@ -27,7 +27,7 @@ const BACON_Y = MARGIN + 40;
 function layoutRank(nodes, w, h, _edges, params) {
 	const attrs = new Float64Array(ATTR_SIZE);
 	// RankBars reports the box its centered row's bar actually occupies
-	// (story.rankFocusBar) — the canvas bar tweens to meet it there, not a fixed
+	// (story.rank.focusBar) — the canvas bar tweens to meet it there, not a fixed
 	// spot, so the strip the dots land on is the strip the panel then draws
 	const {
 		x: x0,
@@ -82,7 +82,7 @@ function placeInBar(attrs, n, slots, x0, baconY) {
 	);
 }
 
-const params = (s) => ({ bar: s.rankFocusBar });
+const params = (s) => ({ bar: s.rank.focusBar });
 
 export const states = {
 	rankFocus: { layout: layoutRank, params },

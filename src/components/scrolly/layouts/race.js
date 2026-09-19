@@ -2295,12 +2295,15 @@ const OVERLAY = {
 
 // optional runtime override of the camera ({ playhead }); null while idle, so
 // normal stepping keeps its resting playhead and stays on the reveal path
-const params = (s) => s.raceView;
+const params = (s) => s.race.view;
 
 // ...and the Gen-Z step's, which consumes one interaction as well: whether the
 // reader has asked for the lines yet. Spread rather than nested so the camera
 // override keeps reading exactly as it does on every other race step.
-const genzParams = (s) => ({ ...s.raceView, genzShown: s.genzLinesShown });
+const genzParams = (s) => ({
+	...s.race.view,
+	genzShown: s.race.genzLinesShown
+});
 
 // Content extents. Width-independent by construction, so the constants derived
 // from them (the per-state yCaps) can be computed at module load. A step's
@@ -2643,7 +2646,7 @@ export function raceStepVisible(step, yCap) {
 // appear.
 //
 // Still a CONSTANT per step rather than a function of the live camera, for the
-// same reason as before: the camera moves during an arrival but story.raceView
+// same reason as before: the camera moves during an arrival but story.race.view
 // is only published when that pan settles, so a camera-derived set would change
 // in one frame at the end of the animation — a dozen names appearing at once on
 // a chart that has just stopped moving. A fixed superset lets each name ride its
@@ -2885,7 +2888,7 @@ const RACE_CLOSE_LABELS = {
 // rather than by review. Each leg publishes the frame's axes, callout and
 // future block as decor and its camera as the live camera (FrameOutput), and
 // every choreography finishes by holding the camera where it stopped
-// (story.raceView), so the param retarget that follows moves nothing.
+// (story.race.view), so the param retarget that follows moves nothing.
 // ---------------------------------------------------------------------------
 
 /** the draw-on's length: the lines unspool leftward across the visible span */
@@ -3081,19 +3084,19 @@ function raceChoreography(plan, fields = {}) {
 // frame left it, as the step's `raceView` param. The layout at that param IS the
 // last frame, so the param retarget that follows moves nothing.
 const holdCamera = (s, cam) => {
-	s.raceView = { playhead: cam.playhead, frontier: cam.frontier };
+	s.race.view = { playhead: cam.playhead, frontier: cam.frontier };
 };
 // ...and the one for a retrace, which lands on a named year whether or not it
 // had any pan left to play
 const landAt = (playhead) => (s) => {
-	s.raceView = { playhead };
+	s.race.view = { playhead };
 };
 
 // -- raceRecent: the rank list hands over, and the lines draw on --------------
 // The canvas parks on a copy of the collapsed rank list — every bar folded into
 // the node that IS its dot on this chart (raceDotSpec: the same spot, radius,
 // colour and alpha RankBars' HTML circle reads), the rest of the rank scene at
-// alpha 0 — and waits for the overlay to stand down (story.rankCollapsed:
+// alpha 0 — and waits for the overlay to stand down (story.rank.collapsed:
 // RankBars owns that clock). When it does, the canvas underneath is holding the
 // identical nodes, so the swap has nothing to show, and the flight carries them
 // up onto the chart. Ranks past the bottom of the panel — most of the cast; the
@@ -3101,7 +3104,7 @@ const landAt = (playhead) => (s) => {
 // alpha 0: the reader never saw those rows, so there is no node to hand over,
 // and anything parked further down would draw over the step's prose.
 function collapsedFrame(_nodes, _w, _h, _edges, _params, _bleed, ctx) {
-	const rows = ctx.story.rankListRows;
+	const rows = ctx.story.rank.listRows;
 	return (attrs, trails) => {
 		for (let i = 0, id = 0; i < EDGE_BASE; i += STRIDE, id++) {
 			if (rows && RACE_RECENT_VISIBLE.has(id)) {
@@ -3141,7 +3144,7 @@ function collapsedFrame(_nodes, _w, _h, _edges, _params, _bleed, ctx) {
 // alpha the chart gives them when they were flown in out of the list already
 // lit; dipping them back to nothing would blink the whole cast off.
 function drawOnSeed(_nodes, w, h, _edges, _params, _bleed, ctx) {
-	const flownIn = Boolean(ctx.story.rankListRows);
+	const flownIn = Boolean(ctx.story.rank.listRows);
 	const frame = entryFrame(RACE_RECENT_STEP)(0);
 	return (attrs, trails) => {
 		writeRaceSweepFrame(attrs, trails, w, h, frame, RACE_RECENT_YCAP, () => 0);
@@ -3170,7 +3173,7 @@ function drawOnSeed(_nodes, w, h, _edges, _params, _bleed, ctx) {
 // them in lit out of the rank list.
 const drawOn = raceChoreography(
 	(ctx) => {
-		const flownIn = Boolean(ctx.story.rankListRows);
+		const flownIn = Boolean(ctx.story.rank.listRows);
 		const arrive = (e) => (id) =>
 			RACE_RECENT_VISIBLE.has(id)
 				? flownIn
@@ -3194,7 +3197,7 @@ const drawOn = raceChoreography(
 		arrivalJitter: 0,
 		// the names ride their dots once the flight has landed them on the chart
 		labelsAfter: [[]],
-		hold: { until: (s) => s.rankCollapsed, frame: collapsedFrame },
+		hold: { until: (s) => s.rank.collapsed, frame: collapsedFrame },
 		seed: drawOnSeed,
 		finish: holdCamera
 	}
@@ -3382,7 +3385,7 @@ const drawGenz = raceChoreography(
 	},
 	{
 		finish: (s, cam) => {
-			s.genzLinesShown = true;
+			s.race.genzLinesShown = true;
 			holdCamera(s, cam);
 		}
 	}

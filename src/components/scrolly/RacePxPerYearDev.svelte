@@ -64,11 +64,11 @@
 	}
 </script>
 
-{#if story.raceCam && hidden}
+{#if story.race.cam && hidden}
 	<button class="reopen" type="button" onclick={() => setHidden(false)}>
 		px/yr
 	</button>
-{:else if story.raceCam}
+{:else if story.race.cam}
 	<div class="px-dev">
 		<span class="tag">px/yr</span>
 		<input

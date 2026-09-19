@@ -37,7 +37,7 @@
 	// forward gate asks the same question: a panel with nothing left to ask must
 	// be a step the gate lets the reader leave, or they are stuck on it.
 	const firstUnanswered = pairs.findIndex(
-		(_, idx) => story.quizPicks[idx] === undefined
+		(_, idx) => story.quiz.picks[idx] === undefined
 	);
 	let i = $state(quizDone(story) ? pairs.length : firstUnanswered);
 	let phase = $state("asking"); // "asking" | "resolving"
@@ -75,7 +75,7 @@
 		const pickedId = [pair.a, pair.b][choice];
 		const otherId = [pair.a, pair.b][1 - choice];
 		const pairIndex = i;
-		story.quizPicks[i] = choice;
+		story.quiz.picks[i] = choice;
 		advance();
 		recordPairPick({
 			pairIndex,
@@ -171,7 +171,7 @@
 		const pickedId = [a, b][choice];
 		const otherId = [a, b][1 - choice];
 		const pairIndex = i;
-		story.quizPicks[i] = choice;
+		story.quiz.picks[i] = choice;
 		holdTimer = setTimeout(advance, HOLD_MS);
 		// last, for the reason on commit() above
 		recordPairPick({

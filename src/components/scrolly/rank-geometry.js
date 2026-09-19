@@ -38,7 +38,7 @@ export const RANK_DOT_JITTER = 0.9;
 
 // How long the list's bars take to collapse into single nodes when the story
 // steps on into the race chapter (RankBars' `collapse`). Shared vocabulary: the
-// panel owns the clock and the canvas waits for it (story.rankCollapsed), so
+// panel owns the clock and the canvas waits for it (story.rank.collapsed), so
 // this lives here rather than in either component.
 export const RANK_COLLAPSE_MS = 500;
 

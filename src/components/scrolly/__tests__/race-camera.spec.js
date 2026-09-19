@@ -11,19 +11,21 @@ import {
 
 const W = 700;
 const H = 820;
-const freshStory = () => ({ raceView: null, scrubYear: null, raceCam: null });
+const freshStory = () => ({
+	race: { view: null, scrubYear: null, cam: null }
+});
 
 describe("createRaceCamera", () => {
 	test("a state change remembers the departing camera and rests on the arriving step's", () => {
 		const story = freshStory();
 		const cam = createRaceCamera(story);
 		cam.apply({ playhead: 2010, frontier: RACE_FUTURE_END });
-		story.raceView = { playhead: 2010 };
-		story.scrubYear = 2011;
+		story.race.view = { playhead: 2010 };
+		story.race.scrubYear = 2011;
 		cam.reset(STATE_RACE.raceRecent, W, H);
 		expect(cam.exit).toEqual({ playhead: 2010, frontier: RACE_FUTURE_END });
-		expect(story.raceView).toBeNull();
-		expect(story.scrubYear).toBeNull();
+		expect(story.race.view).toBeNull();
+		expect(story.race.scrubYear).toBeNull();
 		expect(cam.playhead).toBe(raceRestPlayhead(W, H, STATE_RACE.raceRecent));
 		expect(cam.frontier).toBe(RACE_DATA_END);
 	});
@@ -60,23 +62,23 @@ describe("createRaceCamera", () => {
 		cam.publish(STATE_RACE.raceFull, W, H);
 		expect(cam.playhead).toBe(RACE_DATA_END);
 		const bounds = racePanBounds(W, H, STATE_RACE.raceFull, cam.playhead);
-		expect(story.raceCam).toMatchObject({ playhead: cam.playhead, ...bounds });
+		expect(story.race.cam).toMatchObject({ playhead: cam.playhead, ...bounds });
 		// ...and a hold that no longer matches the camera is rewritten to it
-		story.raceView = { playhead: 1990 };
+		story.race.view = { playhead: 1990 };
 		cam.publish(STATE_RACE.raceFull, W, H);
-		expect(story.raceView).toEqual(cam.hold());
+		expect(story.race.view).toEqual(cam.hold());
 		// a hold that does match is left alone, identity included
-		const held = story.raceView;
+		const held = story.race.view;
 		cam.publish(STATE_RACE.raceFull, W, H);
-		expect(story.raceView).toBe(held);
+		expect(story.race.view).toBe(held);
 	});
 
 	test("publish off the chapter clears the pan control", () => {
 		const story = freshStory();
-		story.raceCam = { playhead: 2000 };
+		story.race.cam = { playhead: 2000 };
 		const cam = createRaceCamera(story);
 		cam.publish(undefined, W, H);
-		expect(story.raceCam).toBeNull();
+		expect(story.race.cam).toBeNull();
 	});
 
 	test("glide eases toward a clamped target and reports when it has caught up", () => {

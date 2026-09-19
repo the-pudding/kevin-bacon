@@ -257,9 +257,11 @@
 
 	// ---- camera readout -------------------------------------------------------
 
-	const cam = $derived(story.raceCam);
+	const cam = $derived(story.race.cam);
 	/** the year on the chart's right edge — where in the curve you're standing */
-	const year = $derived(story.scrubYear ?? cam?.playhead ?? RACE_BAND_LAST);
+	const year = $derived(
+		story.race.scrubYear ?? cam?.playhead ?? RACE_BAND_LAST
+	);
 	const liveBand = $derived.by(() =>
 		curveYAt(monotoneSegments($state.snapshot(points)), year)
 	);
@@ -349,19 +351,19 @@
 	// Same scrub protocol — announce, move, release.
 	//
 	// The release waits a tick: ScrollyVisual starts its glide loop from an $effect
-	// on story.scrubbing, so clearing the flag in the same flush would mean the
+	// on story.race.scrubbing, so clearing the flag in the same flush would mean the
 	// effect only ever sees `false` and the camera never moves. Once the loop is
 	// running it self-drives to the target either way.
 	async function stepYear(delta) {
 		if (!cam) return;
 		const next = Math.min(
 			cam.panMax,
-			Math.max(cam.panMin, (story.scrubYear ?? cam.playhead) + delta)
+			Math.max(cam.panMin, (story.race.scrubYear ?? cam.playhead) + delta)
 		);
-		story.scrubbing = true;
-		story.scrubYear = next;
+		story.race.scrubbing = true;
+		story.race.scrubYear = next;
 		await tick();
-		story.scrubbing = false;
+		story.race.scrubbing = false;
 	}
 
 	let copied = $state(false);

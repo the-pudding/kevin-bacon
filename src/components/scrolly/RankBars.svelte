@@ -33,7 +33,7 @@
 	// already IS its dot on the race chart (raceDotSpec — same radius, colour and
 	// alpha, ink for the #1 the chart leads with), the labels go, and once that
 	// has landed this overlay stands down
-	// (story.rankCollapsed) and the canvas takes the very same nodes over and
+	// (story.rank.collapsed) and the canvas takes the very same nodes over and
 	// flies them onto the chart. See ScrollyVisual's raceEntry branch.
 	/** @type {{ reveal?: boolean, collapse?: boolean }} */
 	let { reveal = false, collapse = false } = $props();
@@ -119,16 +119,16 @@
 
 	// pre-guess the list centers on Bacon (#175, the step copy's anchor) rather
 	// than opening on #1 and spoiling the guess
-	const guess = $derived(story.rankGuesses.at(-1) ?? null);
+	const guess = $derived(story.rank.guesses.at(-1) ?? null);
 	const focusId = $derived(
-		reveal || story.rankGaveUp ? SLJ : (guess ?? ANCHOR_ID)
+		reveal || story.rank.gaveUp ? SLJ : (guess ?? ANCHOR_ID)
 	);
 
 	// rows the reader already knows the identity of: Bacon (named by the step
 	// copy) plus every actor they have guessed, including earlier guesses the
 	// focus has since moved off. Those stay named and at full opacity — the fade
 	// is there to hide who's who, and there's nothing left to hide on them.
-	const known = $derived(new Set([ANCHOR_ID, ...story.rankGuesses]));
+	const known = $derived(new Set([ANCHOR_ID, ...story.rank.guesses]));
 
 	// Whether this mount is a RESUMPTION of a ladder the reader has already been
 	// shown, rather than the reveal they just earned. The forward path always
@@ -136,7 +136,7 @@
 	// hidden, so the two cases separate cleanly on where `reveal` stood at the
 	// first render: true here means the panel was built straight onto the answer
 	// — a reload past the guess (?step=7), or stepping back into the chapter out
-	// of the race, which takes the overlay down on arrival (story.rankCollapsed)
+	// of the race, which takes the overlay down on arrival (story.rank.collapsed)
 	// and so leaves nothing to step back into but a fresh one.
 	//
 	// Everything the reveal is staged out of is skipped for that reader: the
@@ -164,7 +164,7 @@
 	let scrolledByReader = false;
 	// the row the effect below last centered on, so it re-centers only when the
 	// focus actually moves. Without it, every reader scroll re-runs the effect
-	// (it republishes story.rankListRows, which it also reads) and snaps the
+	// (it republishes story.rank.listRows, which it also reads) and snaps the
 	// list straight back to the focus row — leaving the list unscrollable.
 	let centeredId = null;
 	// the very first row-position measurement can land a few px off if it
@@ -196,7 +196,7 @@
 	// change, so it has to be able to un-collapse.
 	$effect(() => {
 		if (!collapse) {
-			story.rankCollapsed = false;
+			story.rank.collapsed = false;
 			return;
 		}
 		// don't leave a row mid-cascade once the bars start folding into the
@@ -204,11 +204,11 @@
 		// below has finished
 		revealUpTo = rows.length;
 		if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-			story.rankCollapsed = true;
+			story.rank.collapsed = true;
 			return;
 		}
 		const timer = setTimeout(() => {
-			story.rankCollapsed = true;
+			story.rank.collapsed = true;
 		}, RANK_COLLAPSE_MS);
 		return () => clearTimeout(timer);
 	});
@@ -430,8 +430,8 @@
 			pitch: rowEls[1].offsetTop - rowEls[0].offsetTop,
 			bottom: panel.offsetTop + panel.offsetHeight
 		};
-		if (sameRows(story.rankListRows, geom)) return;
-		story.rankListRows = geom;
+		if (sameRows(story.rank.listRows, geom)) return;
+		story.rank.listRows = geom;
 	}
 
 	// Re-publishing the same box would re-run ScrollyVisual's layout effect with
@@ -442,10 +442,10 @@
 	// collapsing into the bar and the bar simply appearing.
 	/** @param {{x: number, y: number, w: number}} box */
 	function publish(box) {
-		const prev = story.rankFocusBar;
+		const prev = story.rank.focusBar;
 		if (prev && prev.x === box.x && prev.y === box.y && prev.w === box.w)
 			return;
-		story.rankFocusBar = box;
+		story.rank.focusBar = box;
 	}
 </script>
 

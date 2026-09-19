@@ -28,7 +28,8 @@ import {
 	maxAbsDiff,
 	nodes,
 	phasesOf,
-	storyWith
+	storyWith,
+	published
 } from "./helpers.js";
 
 // px or alpha: invisible, and inside the rounding of the Float32 frame buffers
@@ -98,7 +99,7 @@ function expectLastLegLandsOnLayout(state, anim, box, ctx, s = storyWith()) {
 	const last = phases.length - 1;
 	const out = write(attrs, trails, last, 1, phases[last]) ?? {};
 	// what the run published on its way: the frame's story fields, then finish
-	const after = { ...s, ...(out.story ?? {}) };
+	const after = published(s, out.story);
 	if (anim.finish) {
 		anim.finish(after, out.camera ? { ...out.camera } : undefined);
 	}
@@ -129,8 +130,11 @@ describe("entry choreography: hold and seed frames", () => {
 	for (const [state, entries] of Object.entries(STATE_ENTRIES)) {
 		for (const entry of entries.filter((e) => e.hold || e.seed)) {
 			for (const box of BOXES) {
-				for (const s of [storyWith(), storyWith({ rankListRows: rows })]) {
-					const label = s.rankListRows ? "with rows" : "without rows";
+				for (const s of [
+					storyWith(),
+					storyWith({ rank: { listRows: rows } })
+				]) {
+					const label = s.rank.listRows ? "with rows" : "without rows";
 					test(`${state} ${label} @${box.name}`, () => {
 						const ctx = arrivalContext(box, { story: s });
 						const params = layoutParamsFor(state, undefined, s);

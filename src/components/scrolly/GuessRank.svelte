@@ -18,10 +18,10 @@
 	let editing = $state(false);
 	const matches = $derived(searchRankOptions(query));
 	// the reader's current guess: the most recent pick (see story.svelte.js)
-	const guess = $derived(story.rankGuesses.at(-1) ?? null);
+	const guess = $derived(story.rank.guesses.at(-1) ?? null);
 	// "Guess again" only reopens search — it doesn't drop the prior guess,
 	// so RankBars keeps focus on it until a new one is picked
-	const showSearch = $derived(!story.rankGaveUp && (guess == null || editing));
+	const showSearch = $derived(!story.rank.gaveUp && (guess == null || editing));
 	const solved = $derived(guess != null && nodeRank(guess) === 1);
 
 	// Both handlers below record the guess LAST, after the state write and the
@@ -33,9 +33,9 @@
 	function pick(id) {
 		// re-picking an earlier guess moves it back to the end, so the last entry
 		// is always the one the list focuses on
-		const seen = story.rankGuesses.indexOf(id);
-		if (seen !== -1) story.rankGuesses.splice(seen, 1);
-		story.rankGuesses.push(id);
+		const seen = story.rank.guesses.indexOf(id);
+		if (seen !== -1) story.rank.guesses.splice(seen, 1);
+		story.rank.guesses.push(id);
 		editing = false;
 		query = "";
 		const correct = nodeRank(id) === 1;
@@ -44,7 +44,7 @@
 	}
 
 	function giveUp() {
-		story.rankGaveUp = true;
+		story.rank.gaveUp = true;
 		editing = false;
 		query = "";
 		steps.advance();
@@ -53,7 +53,7 @@
 </script>
 
 <div class="guess">
-	{#if story.rankGaveUp}
+	{#if story.rank.gaveUp}
 		<p class="verdict">{nodeName(SLJ)} ranks #1.</p>
 	{:else if guess != null}
 		<p class="verdict">
