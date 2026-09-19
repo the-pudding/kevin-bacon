@@ -43,32 +43,31 @@ snapping back.
 ## Marking steps stale
 
 When a visualisation changes, every step that renders through it goes back to
+`[!]` — including steps whose own code was untouched. `npm run stale` works the
+blast radius out from the staged diff and marks the rows (`scripts/stale-checklist.js`;
+`--since <ref>` for a range, `--check` to report without writing). The pre-commit
+gate runs the check, so a commit that stales rows without marking them is refused,
+and so is one whose `<Step>` list no longer matches the table's numbering. The
+rules it applies:
 
-`[!]` — including steps whose own code was untouched. Work out the blast radius
+- a **layout module** in `layouts/*.js` → every step on one of its states, plus
+  the step either side of each of them (a tween has two ends).
+- an **over-canvas panel** (`GuessRank`, `RaceScrubber`, `PairQuiz`,
+  `StartButton`, `RouteFilms`) → the steps that mount it and their neighbours;
+  `RankBars`, which `Stage.svelte` mounts across the rank chapter and the
+  handoff into `raceRecent`, stales those.
+- **everything else that draws** under `src/components/scrolly/` — `tween.js`,
+  the buffer and geometry modules, `ScrollyVisual.svelte` and its modules,
+  `Stage.svelte`, `states.js`, the story store, the registry and arrival rules
+  → the whole table.
+- **navigation chrome** (`TapNav`, `StepProgress`, `Step`, `Chapter`,
+  `Splash`), the dev tuners and the tests → nothing.
+- **the `<Step>` list** in `Index.svelte` (a step added, removed or reordered)
+  → renumber the table; the check fails until it matches. Stale the neighbours of
+  the edit by hand — the script cannot see which step moved.
 
-from what changed:
-
-- a **layout function** in `layouts/*.js` → every step using that state, plus the
-
-  step either side of each of them (a tween has two ends).
-
-- **shared machinery** — `tween.js`, the layout modules (`attr-buffer.js`, `plot.js`, `trails.js`, `sky.js` and their siblings), `ScrollyVisual.svelte` and its modules,
-
-  `states.js` → the whole table.
-
-- a state's **entry / requests / revealFrom / delays / ambient / camera** → that state's
-
-  steps and the step before each one.
-
-- an **over-canvas panel** (`RankBars`, `RaceScrubber`, `PairQuiz`,
-
-  `StartButton`) → the steps that mount it and the
-
-  step it hands off to.
-
-- **step registry** changes (adding, removing or reordering a `<Step>`) → renumber
-
-  the table and stale the neighbours of the edit.
+A state's **entry / requests / revealFrom / delays / ambient / camera** config
+lives in its layout module, so the first rule covers it.
 
 ## Steps
 

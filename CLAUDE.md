@@ -10,6 +10,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Preview a production build: `npm run preview`
 - Lint (Prettier check, then ESLint per `eslint.config.js`): `npm run lint`
 - Test (vitest): `npm run test`. Regenerate the layout goldens after an intentional layout change: `npx vitest run -u`
+- Stale the tween checklist's rows from the staged diff: `npm run stale` (`--check` only reports; the pre-commit gate runs it)
 - All quality gates as CI runs them (lint, svelte-check, vitest): `npm run gates`
 - Format: `npm run format`
 - Sync Google Docs/Sheets micro-CMS content into `src/data` (per `google.config.js`): `npm run gdoc`
@@ -19,7 +20,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Deploy to production/AWS (pudding.cool): `npm run prodution` (typo preserved as-is in `package.json`)
 - Password-protect a build (requires `.env` with `PASSWORD=...`): `make protect`, then `make github` or `make pudding`
 
-Tests live in `src/components/scrolly/__tests__/` and run under vitest in plain Node (layouts and `tween.js` import nothing from Svelte). Four files: `tween.spec.js` (the tweener's timing, supersede and reframe semantics), `registry.spec.js` (invariants of the state registry in `states.js`), `goldens.spec.js` (a content hash of every state's layout at three canvas boxes, stored as vitest snapshots) and `contracts.spec.js` (the frame equalities the framework doc requires: an entry's last leg, an ambient at t = 0 and a race step's resting frame all reproduce the static layout). The goldens are the automated half of the tween sign-off below: a refactor that changes nothing keeps every hash, and an intentional layout change regenerates its golden in the same commit.
+Tests live in `src/components/scrolly/__tests__/` and run under vitest in plain Node (the layouts import nothing from Svelte; the `.svelte.js` modules compile to plain objects there). By subject: `tween.spec.js` (the tweener's timing, supersede and reframe semantics), `registry.spec.js` (invariants of the state registry in `states.js`), `goldens.spec.js` (a content hash of every state's layout at three canvas boxes, stored as vitest snapshots), `contracts.spec.js` (the frame equalities the framework requires: an entry's last leg, an ambient at t = 0 and a race step's resting frame all reproduce the static layout), `render.spec.js`, `annotations.spec.js`, `choreographer.spec.js` and `race-camera.spec.js` (the visual's extracted modules), `step-registry.spec.js` (the wizard: gates, skipback, the bar's dots) and `stale-checklist.spec.js` (the checklist script's rules, and that the table matches the `<Step>` list). The goldens are the automated half of the tween sign-off below: a refactor that changes nothing keeps every hash, and an intentional layout change regenerates its golden in the same commit.
 
 ## Terminology
 
@@ -38,9 +39,11 @@ transition — the only regression net the story's motion has.
   `tween.js`, a layout module (`attr-buffer.js`, `palette.js`, `plot.js`, `cast.js`,
   `rank-geometry.js`, `scatter-scales.js`, `trails.js`, `intro-geometry.js`,
   `sky.js`), `ScrollyVisual.svelte` or its modules (`render.js`, `annotations.js`,
-  `choreographer.js`, `race-camera.js`), `states.js`, a state's
-  entry/reveal/delay/ambient/camera config, an over-canvas panel, or the `<Step>`
-  registry in `Index.svelte`.
+  `choreographer.js`, `race-camera.js`), `Stage.svelte`, `states.js`, a state's
+  entry/reveal/delay/ambient/camera config, an over-canvas panel, the registry or
+  arrival rules (`step-registry.svelte.js`, `arrivals.js`), or the `<Step>` list
+  in `Index.svelte`. `npm run stale` applies these rules from the staged diff, and
+  the pre-commit gate refuses a commit that skipped it.
 - **ALWAYS** stale the step either side of a changed step as well — a tween has
   two ends.
 - **ALWAYS** renumber the checklist rows when a `<Step>` is added, removed or
@@ -59,8 +62,8 @@ This is The Pudding's `svelte-starter` template (SvelteKit 2 + Svelte 5 with run
 - **Micro-CMS**: `google.config.js` lists Google Docs/Sheets to pull in via `npm run gdoc`, parsed with ArchieML and written into `src/data`.
 - **Styling**: global styles live in `src/styles` and are pulled into `app.css`; design tokens are authored in `properties/` and compiled to CSS/JS via Style Dictionary (`npm run style`).
 - **Component layers** under `src/components/`:
-  - `scrolly/` — the story's object-constancy visual framework (canvas dots tweening between per-step layout states, driven by the active step index from `scrolly/TapNav.svelte` through the step registry in `Index.svelte`). Architecture and contracts documented in `notes/scrolly-framework.md` — read that before touching these files.
-  - `helpers/` — the CMS helpers and `Tip.svelte`. The story's step driver is not here: it is `scrolly/TapNav.svelte` (tap gutters + arrow keys) against the registry `Index.svelte` builds.
+  - `scrolly/` — the story's object-constancy visual framework (canvas dots tweening between per-step layout states, driven by the active step index from `scrolly/TapNav.svelte` through the step registry, `scrolly/step-registry.svelte.js`, which `Index.svelte` creates). `scrolly/Stage.svelte` is the layout shell — the canvas, the over-canvas panels, the prose column and the navigation — and `Index.svelte` is the prose and the `<Step>` list. Architecture and contracts documented in `notes/scrolly-framework.md` (the map) and `notes/design/` (per-chart reasoning) — read the map before touching these files.
+  - `helpers/` — the CMS helpers and `Tip.svelte`. The story's step driver is not here: it is `scrolly/TapNav.svelte` (tap gutters + arrow keys) against the registry `Index.svelte` creates.
   - `ui/` — bits-ui-based headless UI wrappers (Button, Checkbox, InfoTerm, Select, Slider, Switch, ToggleGroup). Each is styled from a global `src/styles/ui.<name>.css` that must be `@import`ed by `src/styles/ui.css`, not from a scoped `<style>` block.
 - `src/runes/` — Svelte 5 rune-based state utilities (`useWindowDimensions`, `useClipboard`, `useFetcher`, `useWindowFocus`); the `runed` package is also preloaded for more.
 - `src/actions/` — Svelte actions (`canTab`, `checkOverlap`, `focusTrap`, `keepWithinBox`, `inView`, `resize`).

@@ -80,6 +80,11 @@ words:
   - mult
   - smoothstep
   - smoothsteps
+  - goldens
+  - tweeners
+  - choreo
+  - ambients
+  - stales
 ignorePaths:
   - node_modules
   - build

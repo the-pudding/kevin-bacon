@@ -10,7 +10,9 @@
 #   --local    pre-commit: skips the whole-tree prettier and eslint passes —
 #              lint-staged has already formatted and linted the staged files,
 #              and checking the *working tree* here would block commits over
-#              unrelated dirty files.
+#              unrelated dirty files. Adds the tween-checklist check: the rows
+#              the staged diff stales must be marked [!] (npm run stale), and
+#              the table must match the <Step> list.
 #
 # svelte-check runs over jsconfig.json (everything under src/) and fails on type
 # errors. The vitest suite under src/components/scrolly/__tests__ holds the
@@ -34,6 +36,11 @@ done
 if ! $LOCAL; then
 	echo "gate: prettier + eslint (whole tree)"
 	npm run lint
+fi
+
+if $LOCAL; then
+	echo "gate: tween checklist"
+	node scripts/stale-checklist.js --check
 fi
 
 echo "gate: svelte-check"

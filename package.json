@@ -11,6 +11,7 @@
 		"preview": "vite preview",
 		"lint": "prettier --check . && eslint .",
 		"test": "vitest run",
+		"stale": "node scripts/stale-checklist.js",
 		"check": "svelte-check --tsconfig ./jsconfig.json",
 		"spellcheck": "cspell \"src/data/**\" \"notes/**\" \"README.md\" \"src/routes/**/*.svelte\" \"src/components/Index.svelte\" \"src/components/Meta.svelte\" \"src/components/results/*.svelte\"",
 		"format": "prettier --write .",
