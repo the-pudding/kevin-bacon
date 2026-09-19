@@ -1,6 +1,6 @@
 # Interactive steps
 
-> Design notes for the agreed interaction rules (2026-07-05, revised 2026-09-11) and the rank → race handoff, moved out of `notes/scrolly-framework.md` on
+> Design notes for the agreed interaction rules (2026-07-05, revised 2026-09-11 and 2026-09-19) and the rank → race handoff, moved out of `notes/scrolly-framework.md` on
 > 2026-09-19. The framework map there carries the contracts; this carries the
 > reasoning behind them and the measurements that were taken.
 
@@ -21,6 +21,20 @@ Three rules:
    short tween, so e.g. panning the rank ladder to the reader's guess is a param
    update, not a step change. The interruption-safe `to()` already covers a
    reader who interacts then immediately steps away.
+
+   The three `StartButton`s (the rewind, the Gen Z draw-on, the simulation)
+   were floated over the canvas as `panel` snippets until 2026-09-19, pinned
+   above the card by `layout.overlayHeight`. That put "Press 'Start' to begin"
+   at one end of the screen and Start at the other, and made the button read as
+   chart furniture. They are in the card now, under the sentence that names
+   them, which is what this rule asked for and what `GuessRank` had always
+   done. The cost is the one every card-hosted control pays: the tap gutters
+   run the full height of the layout and lie over the card's left and right
+   edges, so the control insets itself past them
+   (`padding-inline: var(--tap-gutter)`) rather than lifting — see
+   `GuessRank.svelte`'s note on why a `z-index` lift cannot escape a step
+   wrapper that forms a stacking context.
+
 2. **A gated question owns the way out of its step** (revised 2026-09-11;
    this replaces "every question is skippable / Next must always be
    clickable"). Five steps ask the reader to do something and are followed by a

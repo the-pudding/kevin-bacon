@@ -16,10 +16,14 @@
 	 * the step's whole payoff and carry the reader on when they land (the step's
 	 * `advanceon`), so they leave the step alone.
 	 *
-	 * Nothing above the button appears or disappears with the run, and the step
-	 * card's prose is unconditional too — the card's height feeds this panel's
-	 * `bottom` (see Index.svelte), so anything that unmounts on click would move
-	 * the button under the reader's finger.
+	 * It lives in the step card, under the sentence that names it, rather than
+	 * over the canvas — the copy asking for the press and the press itself
+	 * belong together (notes/design/interactions.md, rule 1). So it sits in the
+	 * prose flow and needs no measurement to place: its position is whatever the
+	 * card's own content gives it, stable for as long as the step is. It does
+	 * make the card taller, and `overlayHeight` is the card's measured height on
+	 * the narrow layout, so the panels that ride the card's top edge (the race
+	 * scrubber) sit that much higher here than they did.
 	 */
 	import { getContext } from "svelte";
 	import Button from "$components/ui/Button.svelte";
@@ -37,30 +41,28 @@
 </script>
 
 <div class="start-button">
-	<div class="controls">
-		<Button variant="primary" disabled={story.running === kind} onclick={ask}>
-			{label}
-		</Button>
-	</div>
+	<Button variant="default" disabled={story.running === kind} onclick={ask}>
+		{label}
+	</Button>
 </div>
 
 <style>
-	/* the panel covers the canvas, so it only claims the strip its button needs
-	   and lets every pointer event through to the chart above it */
+	/* Inset clear of the tap gutters, which run the full height of the layout
+	   and would otherwise swallow the button's edges. Padding rather than a
+	   z-index lift, for the reason GuessRank records in its own file: a step
+	   wrapper with a filling opacity animation forms a stacking context that a
+	   lift cannot escape at any value. The padding is symmetric, so the button
+	   stays centred in what is left. The prose above stays full width — a tap
+	   on its outer edge is meant to be a step. */
 	.start-button {
-		position: absolute;
-		inset: 0;
 		display: flex;
-		flex-direction: column;
-		justify-content: flex-end;
-		pointer-events: none;
-	}
-
-	.controls {
-		display: flex;
-		align-items: center;
 		justify-content: center;
-		padding: 0 1rem 0.5rem;
-		pointer-events: auto;
+		margin-top: 0.75rem;
+		padding-inline: var(--tap-gutter);
+		/* .scrolly-steps hangs a white halo on its text to hold the prose off
+		   the sky behind it; it is inherited, and on a filled button it is a
+		   white glow around white glyphs on a dark plate. A button carries its
+		   own background, so it needs no hold-out. */
+		text-shadow: none;
 	}
 </style>

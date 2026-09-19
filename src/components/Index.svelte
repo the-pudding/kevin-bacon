@@ -125,65 +125,25 @@
 		     single-step panels nest inside <Step> directly). The rank ladder
 		     is NOT one of them: it spans the step change into raceRecent, so
 		     Stage.svelte mounts it beside the canvas instead. -->
-			<!-- raceRecent's opening step: the Start button that asks for the
-		     backwards rewind - consent for the "remove information" move, same
-		     reasoning as simPanel below. Only that one step gets it; raceRecent's
-		     second step is already rewinding by then — the button advances as it
-		     asks, and it is the only way past that step. -->
-			{#snippet raceStartPanel()}
-				<div
-					class="race-scrubber-panel"
-					style="bottom: {layout.overlayHeight + 12}px"
-				>
-					<StartButton kind="rewind" label="Start" advance />
-				</div>
-			{/snippet}
-			<!-- raceFull pan control: drag surface + year slider over the plot. Only
-		     raceFull gets it — the raceRecent steps are carried by their own
-		     camera choreography, so they need no control of their own, and
-		     raceFuture is a fixed camera by design (its copy asks the reader to
-		     look at the empty future, not to go rummaging in the past; it also
-		     reports its camera as fixed, so this would render nothing there
-		     anyway). Renders nothing on a viewport wide enough to show the
-		     whole range. -->
 			<!-- the pair quiz renders as a blurred overlay over the scatter; the
 		     step below it just sets up the question -->
 			{#snippet quizPanel()}
 				<PairQuiz visual={layout.visual} />
 			{/snippet}
+			<!-- raceFull pan control: drag surface + year slider over the plot. Only
+		     raceFull gets it — the raceRecent steps are carried by their own
+		     camera choreography, so they need no pan control of their own, and
+		     raceFuture is a fixed camera by design (its copy asks the reader to
+		     look at the empty future, not to go rummaging in the past; it also
+		     reports its camera as fixed, so this would render nothing there
+		     anyway). Renders nothing on a viewport wide enough to show the
+		     whole range. -->
 			{#snippet racePanel()}
 				<div
 					class="race-scrubber-panel"
 					style="bottom: {layout.overlayHeight + 12}px"
 				>
 					<RaceScrubber />
-				</div>
-			{/snippet}
-			<!-- simulation race: the Start button over the plot. Keep this step's
-		     card unconditional — its height is what the panel's `bottom` is
-		     measured from, so anything that unmounts mid-run would move the
-		     button under the reader's finger. The chart rests at zero runs
-		     until Start, which is the only way past this step; the run then
-		     carries the reader on itself (the step's `advanceon`). -->
-			{#snippet simPanel()}
-				<div
-					class="race-scrubber-panel"
-					style="bottom: {layout.overlayHeight + 12}px"
-				>
-					<StartButton kind="run" label="Start" />
-				</div>
-			{/snippet}
-			<!-- the Gen Z field arriving on the race chart: the same Start-button
-		     shape, and the same reasoning as simPanel above. The camera has
-		     already panned down onto the empty stretch the contenders live on
-		     by the time this is pressed; the draw-on is the only way past the
-		     step and carries the reader on when it lands. -->
-			{#snippet genzLinesPanel()}
-				<div
-					class="race-scrubber-panel"
-					style="bottom: {layout.overlayHeight + 12}px"
-				>
-					<StartButton kind="genzLines" label="Show Gen Z actors" />
 				</div>
 			{/snippet}
 			<!-- TITLE CARD -->
@@ -368,7 +328,7 @@
 			<Step state="rankReveal">
 				{#if story.settled === "rankReveal"}
 					<p>
-						Yes, Samuel L. Jackson is the <i>center of Hollywood</i>, with a
+						Samuel L. Jackson is the <i>center of Hollywood</i>, with a
 						remoteness of just 2.09. Willem Dafoe is second with 2.13, Robert De
 						Niro third with 2.14.
 					</p>
@@ -382,13 +342,14 @@
 			<!-- Start is the only way on, and it advances as it asks for the pan
 		     (the rewind's StartButton) — the rewind is choreographed to play ACROSS
 		     the step change onto the view the next step describes -->
-			<Step state="raceRecent" panel={raceStartPanel} gate={NEVER} skipback>
+			<Step state="raceRecent" gate={NEVER} skipback>
 				<p>
 					We can repeat the process for calculating all actors' remoteness and
 					go backwards to create a time machine of centers. By using completed
 					calendar years, our time machine starts at the end of 2025.
 				</p>
 				<p>Remember, lower remoteness is better. Press 'Start' to begin.</p>
+				<StartButton kind="rewind" label="Start" advance />
 			</Step>
 			<Step state="raceRecent">
 				<p>
@@ -494,7 +455,6 @@
 		     lands, so the step and its payoff read as one move. -->
 			<Step
 				state="raceGenz"
-				panel={genzLinesPanel}
 				gate={NEVER}
 				skipback
 				advanceon={() =>
@@ -505,6 +465,7 @@
 					film count and costar data. Our contenders are actors born since 1997
 					who have been in at least 5 films.
 				</p>
+				<StartButton kind="genzLines" label="Show Gen Z actors" />
 			</Step>
 			<Step state="raceGenz">
 				<p>
@@ -540,7 +501,6 @@
 		     step names the winner -->
 			<Step
 				state="simRace"
-				panel={simPanel}
 				gate={NEVER}
 				skipback
 				advanceon={() => story.sim.runs > 0 && story.running !== "run"}
@@ -549,6 +509,7 @@
 					To achieve a stable result, we'll run the simulation 10,000 times and
 					see who comes out on top. Press start to find out who wins.
 				</p>
+				<StartButton kind="run" label="Start" />
 			</Step>
 			<!-- 
           1. GCM is the winner
