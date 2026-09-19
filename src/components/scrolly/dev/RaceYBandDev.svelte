@@ -24,16 +24,16 @@
 	 * fixed. That slider is the only control that does anything on raceRecent and
 	 * raceFuture; the curve is raceFull's.
 	 *
-	 * Both write straight into race.js (setRaceDevBands / setRaceDevFixedYMin,
-	 * plain module variables, so no $state read lands in the per-frame draw path)
-	 * and bump story.raceYBandsRev, which is ScrollyVisual's cue to drop its
-	 * cached layouts and redraw.
+	 * Both write straight into `raceTuning` (layouts/race.js — a plain object, so
+	 * no $state read lands in the per-frame draw path) and bump the tuning
+	 * revision (tuning.svelte.js), which is ScrollyVisual's cue to drop its cached
+	 * layouts and redraw.
 	 *
 	 * Only mounted under `import.meta.env.DEV` (dynamically imported by Index).
 	 */
 	import { onMount, tick } from "svelte";
 	import localStorage from "$utils/localStorage.js";
-	import { story } from "./story.svelte.js";
+	import { story } from "../story.svelte.js";
 	import {
 		RACE_BAND_FIRST,
 		RACE_BAND_LAST,
@@ -42,11 +42,10 @@
 		RACE_Y_FIXED_MIN,
 		RACE_GENZ_Y_MIN,
 		RACE_GENZ_Y_MAX,
-		setRaceDevGenzWindow,
-		setRaceDevBands,
-		setRaceDevFixedYMin
-	} from "./layouts/race.js";
-	import { monotoneSegments, curveYAt } from "./trails.js";
+		raceTuning
+	} from "../layouts/race.js";
+	import { monotoneSegments, curveYAt } from "../trails.js";
+	import { retune } from "./tuning.svelte.js";
 
 	const STORE_KEY = "kb-race-y-band-points";
 	const HIDDEN_KEY = "kb-race-y-band-hidden";
@@ -137,7 +136,7 @@
 	 */
 	function install() {
 		const snap = $state.snapshot(points);
-		setRaceDevBands(snap);
+		raceTuning.bandSegs = snap.length > 1 ? monotoneSegments(snap) : null;
 		localStorage.set(STORE_KEY, snap);
 		return snap;
 	}
@@ -147,11 +146,11 @@
 	 * redraw.
 	 *
 	 * Called explicitly by every mutator rather than from an $effect — an effect
-	 * that both reads and bumps raceYBandsRev would re-trigger itself forever.
+	 * that both reads and bumps the revision would re-trigger itself forever.
 	 */
 	function commit() {
 		install();
-		story.raceYBandsRev++;
+		retune();
 	}
 
 	// ---- the fixed window's top edge -----------------------------------------
@@ -169,14 +168,14 @@
 	}
 
 	function installFixedMin() {
-		setRaceDevFixedYMin(fixedMin);
+		raceTuning.yFixedMin = fixedMin;
 		localStorage.set(FIXED_MIN_KEY, fixedMin);
 	}
 
 	function onFixedMin(e) {
 		fixedMin = Number(e.currentTarget.value);
 		installFixedMin();
-		story.raceYBandsRev++;
+		retune();
 	}
 
 	// ---- the Gen Z window ------------------------------------------------------
@@ -195,7 +194,7 @@
 	}
 
 	function installGenz() {
-		setRaceDevGenzWindow(genzMin, genzMax);
+		raceTuning.genzY = [genzMin, genzMax];
 		localStorage.set(GENZ_MIN_KEY, genzMin);
 		localStorage.set(GENZ_MAX_KEY, genzMax);
 	}
@@ -206,7 +205,7 @@
 			if (which === "min") genzMin = v;
 			else genzMax = v;
 			installGenz();
-			story.raceYBandsRev++;
+			retune();
 		};
 	}
 
@@ -226,7 +225,7 @@
 			genzMin !== RACE_GENZ_Y_MIN ||
 			genzMax !== RACE_GENZ_Y_MAX
 		)
-			story.raceYBandsRev++;
+			retune();
 	});
 
 	// ---- the two curves the editor draws -------------------------------------

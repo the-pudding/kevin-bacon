@@ -67,6 +67,7 @@
 		NO_BLEED
 	} from "./plot.js";
 	import { story } from "./story.svelte.js";
+	import { tuning } from "./dev/tuning.svelte.js";
 
 	// undefined until the <Step> registry has populated (first client render)
 	/** @type {{ state: import("./states.js").VisualState, params?: Object, stepsHeight?: number, coldStart?: boolean, beside?: boolean }} */
@@ -290,32 +291,22 @@
 		}
 		return result;
 	}
-	// DEV only: the revisions of the tuners' tables the cache was last valid for
-	// (see dropStaleLayouts). Always 0 in a build, where the panels don't exist.
-	let lastBandRev = 0;
-	let lastPxRev = 0;
+	// DEV only: the tuning revision the cache was last valid for (see
+	// dropStaleLayouts). Always 0 in a build, where the tuners don't exist.
+	let lastTuningRev = 0;
 	/**
-	 * DEV: the y-band editor and the x-density slider edit tables inside
-	 * layouts/race.js that the layout cache can't see. Read their revision
-	 * counters FIRST in the render effect — before any early return, so the
-	 * dependency is registered on every run — and drop the cached layouts
-	 * whenever they move. The result is what lets the no-op guard let such a run
-	 * through: the tables changed and the SAME state, params and box need a
-	 * rebuild.
+	 * DEV: the race tuners (scrolly/dev) edit `raceTuning` inside layouts/race.js,
+	 * which the layout cache can't see. Read their revision FIRST in the render
+	 * effect — before any early return, so the dependency is registered on every
+	 * run — and drop the cached layouts whenever it moves. The result is what lets
+	 * the no-op guard let such a run through: the tables changed and the SAME
+	 * state, params and box need a rebuild.
 	 */
 	function dropStaleLayouts() {
-		let dropped = false;
-		if (import.meta.env.DEV && story.raceYBandsRev !== lastBandRev) {
-			lastBandRev = story.raceYBandsRev;
-			layoutCache.clear();
-			dropped = true;
-		}
-		if (import.meta.env.DEV && story.racePxPerYearRev !== lastPxRev) {
-			lastPxRev = story.racePxPerYearRev;
-			layoutCache.clear();
-			dropped = true;
-		}
-		return dropped;
+		if (!import.meta.env.DEV || tuning.rev === lastTuningRev) return false;
+		lastTuningRev = tuning.rev;
+		layoutCache.clear();
+		return true;
 	}
 	/** the static chart furniture a layout hands the template */
 	const staticDecor = (layout) => ({

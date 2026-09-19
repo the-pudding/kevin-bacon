@@ -1,29 +1,29 @@
 <script>
 	// @ts-check
 	/**
-	 * DEV-ONLY tuner for the race chart's choreographed animation speed: a single
-	 * multiplier over every entry draw-on and rewind leg's duration (see
-	 * getRaceSpeedScale in layouts/race.js, and `scaled` / rewindMs under its
-	 * "Choreographies"). 1 is the originally-tuned pace, >1 slows it down, <1
-	 * speeds it up.
+	 * DEV-ONLY tuner for the race chart's x-axis density: pixels between
+	 * consecutive year labels (see PX_PER_YEAR's replacement, pxPerYear, in
+	 * layouts/race.js).
 	 *
-	 * Unlike RacePxPerYearDev/RaceYBandDev, this needs no story revision bump:
-	 * nothing here is cached by layout — each animation reads the scale once,
-	 * when it starts, so a live edit only affects the NEXT triggered animation
-	 * (a rewind already in flight keeps the pace it started with).
+	 * It writes the value straight into `raceTuning` (layouts/race.js, a plain
+	 * object, so no $state read lands in the per-frame draw path) and bumps the
+	 * tuning revision (tuning.svelte.js), which is ScrollyVisual's cue to drop its
+	 * cached layouts and redraw. Same wiring as RaceYBandDev, minus the curve
+	 * editor — this is a single scalar.
 	 *
 	 * Only mounted under `import.meta.env.DEV` (dynamically imported by Index).
 	 */
 	import { onMount } from "svelte";
 	import localStorage from "$utils/localStorage.js";
-	import { story } from "./story.svelte.js";
-	import { getRaceSpeedScale, setRaceSpeedScale } from "./layouts/race.js";
+	import { story } from "../story.svelte.js";
+	import { raceTuning } from "../layouts/race.js";
+	import { retune } from "./tuning.svelte.js";
 
-	const STORE_KEY = "kb-race-speed-scale";
-	const HIDDEN_KEY = "kb-race-speed-scale-hidden";
-	const MIN = 0.5;
-	const MAX = 3;
-	const SHIPPED = getRaceSpeedScale();
+	const STORE_KEY = "kb-race-px-per-year";
+	const HIDDEN_KEY = "kb-race-px-per-year-hidden";
+	const MIN = 20;
+	const MAX = 140;
+	const SHIPPED = raceTuning.pxPerYear;
 
 	function restore() {
 		const saved = localStorage.get(STORE_KEY);
@@ -32,22 +32,30 @@
 			: SHIPPED;
 	}
 
-	/** @type {number} the live speed-scale value */
-	let scale = $state(restore());
+	/** @type {number} the live px-per-year value */
+	let px = $state(restore());
+
+	/** install the value and tell ScrollyVisual to drop its cached layouts */
+	function commit() {
+		raceTuning.pxPerYear = px;
+		localStorage.set(STORE_KEY, px);
+		retune();
+	}
+
+	// Install whatever the panel opened with, so a restored session reaches the
+	// chart before the reader sees a frame drawn off the shipped value.
 	onMount(() => {
-		if (scale !== SHIPPED) setRaceSpeedScale(scale);
+		if (px !== SHIPPED) commit();
 	});
 
 	function onInput(e) {
-		scale = Number(e.currentTarget.value);
-		setRaceSpeedScale(scale);
-		localStorage.set(STORE_KEY, scale);
+		px = Number(e.currentTarget.value);
+		commit();
 	}
 
 	function resetAll() {
-		scale = SHIPPED;
-		setRaceSpeedScale(scale);
-		localStorage.set(STORE_KEY, scale);
+		px = SHIPPED;
+		commit();
 	}
 
 	let hidden = $state(localStorage.get(HIDDEN_KEY) === true);
@@ -59,33 +67,34 @@
 
 {#if story.race.cam && hidden}
 	<button class="reopen" type="button" onclick={() => setHidden(false)}>
-		speed
+		px/yr
 	</button>
 {:else if story.race.cam}
-	<div class="speed-dev">
-		<span class="tag">speed</span>
+	<div class="px-dev">
+		<span class="tag">px/yr</span>
 		<input
 			type="range"
 			min={MIN}
 			max={MAX}
-			step="0.1"
-			value={scale}
+			step="1"
+			value={px}
 			oninput={onInput}
 		/>
-		<output class="value">{scale.toFixed(1)}x</output>
+		<output class="value">{px}</output>
 		<button type="button" onclick={() => setHidden(true)}>hide</button>
 		<button type="button" onclick={resetAll}>reset</button>
 	</div>
 {/if}
 
 <style>
-	/* A small strip hung under the chart, below RacePxPerYearDev's (72%) so all
-	   three dev panels can be open at once without overlapping. */
-	.speed-dev {
+	/* A small strip hung under the chart, below where RaceYBandDev sits (64%) so
+	   both can be open at once without overlapping, and clear of the plot's own
+	   x-axis labels (plotBottom is 60% of canvas height, see plot.js). */
+	.px-dev {
 		position: absolute;
 		left: 0;
 		right: 0;
-		top: 80%;
+		top: 72%;
 		z-index: 5;
 		padding: 0.35rem 0.75rem;
 		display: flex;
@@ -102,7 +111,7 @@
 	.reopen {
 		position: absolute;
 		right: 0.5rem;
-		top: 80%;
+		top: 72%;
 		z-index: 5;
 		background: var(--color-bg, #fff);
 		font-family: var(--font-mono);
@@ -120,7 +129,7 @@
 		opacity: 0.6;
 	}
 	.value {
-		min-width: 3.5ch;
+		min-width: 3ch;
 		text-align: right;
 	}
 	input[type="range"] {

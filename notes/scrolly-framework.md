@@ -600,7 +600,7 @@ What the window costs is the top of the plot: the record's best year inside it i
 the crown rides 57% of the way down with the field spread under it (21 lines on
 scale at 2006, 29 at 2025, all ten names on scale at every camera). That trade is
 the one dial — `RaceYBandDev`'s "min y" slider moves the top edge live through
-`setRaceDevFixedYMin` and touches nothing else. The takeover ring sinks to 60%
+`raceTuning.yFixedMin` and touches nothing else. The takeover ring sinks to 60%
 down the plot with it, which is what pushes its note (always below the ring, see
 `raceTakeoverCallout`) onto the axis row on a landscape phone; accepted for now.
 
@@ -614,15 +614,15 @@ below 2000 is untouched by all of this: its cameras fit exactly as they did.
 Nothing anywhere clips off the top — no actor in the window comes closer to the
 centre than 2.0839.
 
-**Tuning it.** `RaceYBandDev.svelte` is a dev-only curve editor (dynamically
+**Tuning it.** `dev/RaceYBandDev.svelte` is a dev-only curve editor (dynamically
 imported in `Index.svelte` under `import.meta.env.DEV`, so a build drops the chunk
 entirely — a static import survives tree-shaking, which is why it isn't just an
 `{#if}`). It is a full-width strip hung under the plot: drag a control point to
 reshape the curve, click to add one, alt-click to drop one, with the shipped curve
 behind as a dashed ghost and the chart's live playhead year riding along as a
-marker. It hands the points to `race.js` through `setRaceDevBands` (a plain module
-variable, so nothing reactive lands in the per-frame draw path) and bumps
-`story.raceYBandsRev`, which is `ScrollyVisual`'s cue to drop its cached layouts
+marker. It installs the curve as `raceTuning.bandSegs` in `race.js` (a plain
+object, so nothing reactive lands in the per-frame draw path) and bumps the tuning
+revision (`dev/tuning.svelte.js`), which is `ScrollyVisual`'s cue to drop its cached layouts
 and redraw. "copy" puts a replacement `RACE_Y_BAND_POINTS` on the clipboard; edits
 persist in `localStorage` between reloads, and "reset" goes back to the shipped
 curve. The same strip carries the fixed window's **"min y"** slider, on the same

@@ -1,28 +1,29 @@
 <script>
 	// @ts-check
 	/**
-	 * DEV-ONLY tuner for the race chart's x-axis density: pixels between
-	 * consecutive year labels (see PX_PER_YEAR's replacement, pxPerYear, in
-	 * layouts/race.js).
+	 * DEV-ONLY tuner for the race chart's choreographed animation speed: a single
+	 * multiplier over every entry draw-on and rewind leg's duration (see
+	 * raceTuning.speedScale in layouts/race.js, and `scaled` / rewindMs under its
+	 * "Choreographies"). 1 is the originally-tuned pace, >1 slows it down, <1
+	 * speeds it up.
 	 *
-	 * It writes the value straight into race.js through setRacePxPerYear (a plain
-	 * module variable, so no $state read lands in the per-frame draw path) and
-	 * bumps story.racePxPerYearRev, which is ScrollyVisual's cue to drop its
-	 * cached layouts and redraw. Same wiring as RaceYBandDev, minus the curve
-	 * editor — this is a single scalar.
+	 * Unlike RacePxPerYearDev/RaceYBandDev, this needs no tuning revision bump:
+	 * nothing here is cached by layout — each animation reads the scale once,
+	 * when it starts, so a live edit only affects the NEXT triggered animation
+	 * (a rewind already in flight keeps the pace it started with).
 	 *
 	 * Only mounted under `import.meta.env.DEV` (dynamically imported by Index).
 	 */
 	import { onMount } from "svelte";
 	import localStorage from "$utils/localStorage.js";
-	import { story } from "./story.svelte.js";
-	import { getRacePxPerYear, setRacePxPerYear } from "./layouts/race.js";
+	import { story } from "../story.svelte.js";
+	import { raceTuning } from "../layouts/race.js";
 
-	const STORE_KEY = "kb-race-px-per-year";
-	const HIDDEN_KEY = "kb-race-px-per-year-hidden";
-	const MIN = 20;
-	const MAX = 140;
-	const SHIPPED = getRacePxPerYear();
+	const STORE_KEY = "kb-race-speed-scale";
+	const HIDDEN_KEY = "kb-race-speed-scale-hidden";
+	const MIN = 0.5;
+	const MAX = 3;
+	const SHIPPED = raceTuning.speedScale;
 
 	function restore() {
 		const saved = localStorage.get(STORE_KEY);
@@ -31,30 +32,22 @@
 			: SHIPPED;
 	}
 
-	/** @type {number} the live px-per-year value */
-	let px = $state(restore());
-
-	/** install the value and tell ScrollyVisual to drop its cached layouts */
-	function commit() {
-		setRacePxPerYear(px);
-		localStorage.set(STORE_KEY, px);
-		story.racePxPerYearRev++;
-	}
-
-	// Install whatever the panel opened with, so a restored session reaches the
-	// chart before the reader sees a frame drawn off the shipped value.
+	/** @type {number} the live speed-scale value */
+	let scale = $state(restore());
 	onMount(() => {
-		if (px !== SHIPPED) commit();
+		if (scale !== SHIPPED) raceTuning.speedScale = scale;
 	});
 
 	function onInput(e) {
-		px = Number(e.currentTarget.value);
-		commit();
+		scale = Number(e.currentTarget.value);
+		raceTuning.speedScale = scale;
+		localStorage.set(STORE_KEY, scale);
 	}
 
 	function resetAll() {
-		px = SHIPPED;
-		commit();
+		scale = SHIPPED;
+		raceTuning.speedScale = scale;
+		localStorage.set(STORE_KEY, scale);
 	}
 
 	let hidden = $state(localStorage.get(HIDDEN_KEY) === true);
@@ -66,34 +59,33 @@
 
 {#if story.race.cam && hidden}
 	<button class="reopen" type="button" onclick={() => setHidden(false)}>
-		px/yr
+		speed
 	</button>
 {:else if story.race.cam}
-	<div class="px-dev">
-		<span class="tag">px/yr</span>
+	<div class="speed-dev">
+		<span class="tag">speed</span>
 		<input
 			type="range"
 			min={MIN}
 			max={MAX}
-			step="1"
-			value={px}
+			step="0.1"
+			value={scale}
 			oninput={onInput}
 		/>
-		<output class="value">{px}</output>
+		<output class="value">{scale.toFixed(1)}x</output>
 		<button type="button" onclick={() => setHidden(true)}>hide</button>
 		<button type="button" onclick={resetAll}>reset</button>
 	</div>
 {/if}
 
 <style>
-	/* A small strip hung under the chart, below where RaceYBandDev sits (64%) so
-	   both can be open at once without overlapping, and clear of the plot's own
-	   x-axis labels (plotBottom is 60% of canvas height, see plot.js). */
-	.px-dev {
+	/* A small strip hung under the chart, below RacePxPerYearDev's (72%) so all
+	   three dev panels can be open at once without overlapping. */
+	.speed-dev {
 		position: absolute;
 		left: 0;
 		right: 0;
-		top: 72%;
+		top: 80%;
 		z-index: 5;
 		padding: 0.35rem 0.75rem;
 		display: flex;
@@ -110,7 +102,7 @@
 	.reopen {
 		position: absolute;
 		right: 0.5rem;
-		top: 72%;
+		top: 80%;
 		z-index: 5;
 		background: var(--color-bg, #fff);
 		font-family: var(--font-mono);
@@ -128,7 +120,7 @@
 		opacity: 0.6;
 	}
 	.value {
-		min-width: 3ch;
+		min-width: 3.5ch;
 		text-align: right;
 	}
 	input[type="range"] {

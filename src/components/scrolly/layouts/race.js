@@ -96,42 +96,6 @@ import { PULLBACK_ZOOM_MS } from "./hop-bands.js";
 //                            span has unspooled (right to left).
 // ---------------------------------------------------------------------------
 
-// px between consecutive years. The one dial for axis density: a horizontal
-// 4-digit `.tick` label (0.65rem) is ~24px, so this leaves clear space between
-// neighbouring years. Paired with the name-gutter fraction in racePlot — those
-// two decide how many years a phone can show at once, so buying more padding
-// here costs visible years.
-//
-// A plain module variable rather than a const: RacePxPerYearDev (DEV only)
-// tunes it live through setRacePxPerYear. Kept as a bare variable, not a rune,
-// so the per-frame draw loop below never touches reactive state — same
-// rationale as devBandSegs.
-let pxPerYear = 76;
-export function setRacePxPerYear(px) {
-	pxPerYear = px;
-}
-export function getRacePxPerYear() {
-	return pxPerYear;
-}
-
-// Multiplies every choreographed race animation's duration (the draw-on and
-// every camera leg — see `scaled` and rewindMs under "Choreographies"): 1 is
-// the originally-tuned pace, >1 slows it down, <1 speeds it up. 1.5 is the
-// shipped default — the widened x scale above (pxPerYear) made the rewind pans
-// read as noticeably faster, so this pulls the pace back down.
-//
-// Same plain-module-variable pattern as pxPerYear: RaceSpeedDev (DEV only)
-// tunes it live through setRaceSpeedScale. It never needs to bump a story
-// revision or clear the layout cache the way pxPerYear does — nothing here is
-// cached, each animation only reads the current scale once, when it starts.
-let speedScale = 1.5;
-export function setRaceSpeedScale(scale) {
-	speedScale = scale;
-}
-export function getRaceSpeedScale() {
-	return speedScale;
-}
-
 // full-series monotone-cubic segments per race actor, built once (the data is
 // static). Shared by the static layout and the per-frame sweep so both read the
 // same curve — window-edge tangents never come from a clipped subset.
@@ -374,8 +338,8 @@ const RACE_Y_PAD_MIN = 0.0025;
 // The points are drawn by eye against the live chart, not fitted: an earlier
 // rule fitted the band to a fixed COUNT of lines at the playhead, which tracked
 // the crowd's noise instead of the story and made the plot breathe on every pan.
-// RaceYBandDev.svelte is the editor they were drawn in; it seeds itself from
-// this table and hands an edited one back through setRaceDevBands.
+// RaceYBandDev.svelte (scrolly/dev) is the editor they were drawn in; it seeds
+// itself from this table and installs an edited one as raceTuning.bandSegs.
 // ---------------------------------------------------------------------------
 
 // ---------------------------------------------------------------------------
@@ -394,7 +358,7 @@ const RACE_Y_PAD_MIN = 0.0025;
 // window is 2.0839, so ~23% of the plot is always empty above the crown, and at
 // the 2006 end the crown rides 57% of the way down. That trade is what
 // RaceYBandDev's "min y" slider is for — it moves this top edge live
-// (setRaceDevFixedYMin) and touches nothing else.
+// (raceTuning.yFixedMin) and touches nothing else.
 //
 // Below the window the fit takes back over, RAMPED in over
 // RACE_Y_FIXED_FADE..RACE_Y_FIXED_FROM rather than switched: raceFull's entry
@@ -436,20 +400,6 @@ export const RACE_GENZ_Y_MIN = 2.3;
 /** ...and its bottom edge */
 export const RACE_GENZ_Y_MAX = 3.0;
 
-/** live values, plain module variables for the same reason as raceYFixedMin */
-let genzYMin = RACE_GENZ_Y_MIN;
-let genzYMax = RACE_GENZ_Y_MAX;
-
-/**
- * Dev hook: move the Gen-Z window's two edges. Called only from
- * RaceYBandDev.svelte, which only mounts under `npm run dev`.
- * @param {number} lo top edge @param {number} hi bottom edge
- */
-export function setRaceDevGenzWindow(lo, hi) {
-	genzYMin = lo;
-	genzYMax = hi;
-}
-
 /** first year of the window; raceRecent's extent starts here too */
 export const RACE_Y_FIXED_FROM = 2004;
 /** ...and where, panning back, the camera fit has fully taken over again */
@@ -458,22 +408,6 @@ const RACE_Y_FIXED_FADE = 2000;
 export const RACE_Y_FIXED_MAX = 2.2;
 /** its top edge, and the shipped value of the dev slider below */
 export const RACE_Y_FIXED_MIN = 2.05;
-
-/**
- * The window's live top edge. A plain module variable rather than a rune for the
- * same reason as devBandSegs: the per-frame draw path reads it.
- */
-let raceYFixedMin = RACE_Y_FIXED_MIN;
-
-/**
- * Dev hook: move the fixed window's top edge — the LOWER of its two
- * avg-distances, so the higher edge of the plot. Called only from
- * RaceYBandDev.svelte, which only mounts under `npm run dev`.
- * @param {number} v
- */
-export function setRaceDevFixedYMin(v) {
-	raceYFixedMin = v;
-}
 
 // The first year a camera can put on its right edge: every step's playhead is
 // clamped to at least this by raceFloorPlayhead, and the band is read at the
@@ -497,19 +431,43 @@ export const RACE_Y_BAND_POINTS = /** @type {[number, number][]} */ ([
 const RACE_Y_BAND_SEGS = monotoneSegments(RACE_Y_BAND_POINTS);
 
 /**
- * A curve the dev editor has installed in place of the table, as monotone
- * segments. Null in every normal run; written ONLY by setRaceDevBands.
+ * The race chart's live tuning: the dials the dev tuners (scrolly/dev, DEV
+ * only) turn while the chart is on screen. A plain object rather than a rune,
+ * because the per-frame draw path reads it and nothing reactive may land
+ * there. Each field starts at its shipped value; a tuner writes the field and
+ * bumps `tuning.rev` (scrolly/dev/tuning.svelte.js), which is ScrollyVisual's
+ * cue to drop its cached layouts and rebuild the same state, params and box.
  */
-let devBandSegs = null;
-
-/**
- * Dev hook: install an edited band curve (or null to go back to the table).
- * Called only from RaceYBandDev.svelte, which only mounts under `npm run dev`.
- * @param {[number, number][] | null} points [year, band], ascending in year
- */
-export function setRaceDevBands(points) {
-	devBandSegs = points && points.length > 1 ? monotoneSegments(points) : null;
-}
+export const raceTuning = {
+	/**
+	 * px between consecutive years. The one dial for axis density: a horizontal
+	 * 4-digit `.tick` label (0.65rem) is ~24px, so this leaves clear space
+	 * between neighbouring years. Paired with the name-gutter fraction in
+	 * racePlot — those two decide how many years a phone can show at once, so
+	 * buying more padding here costs visible years.
+	 */
+	pxPerYear: 76,
+	/**
+	 * Multiplies every choreographed race animation's duration (the draw-on and
+	 * every camera leg — see `scaled` and rewindMs under "Choreographies"): 1 is
+	 * the originally-tuned pace, >1 slows it down, <1 speeds it up. 1.5 is the
+	 * shipped default — the widened x scale (pxPerYear) made the rewind pans read
+	 * as noticeably faster, so this pulls the pace back down. Nothing caches it:
+	 * each animation reads the scale once, when it starts, so retuning it needs
+	 * no rebuild.
+	 */
+	speedScale: 1.5,
+	/** the Gen-Z window's live edges, [top, bottom] in avg distance */
+	genzY: [RACE_GENZ_Y_MIN, RACE_GENZ_Y_MAX],
+	/** the fixed window's live top edge (the LOWER of its two avg-distances) */
+	yFixedMin: RACE_Y_FIXED_MIN,
+	/**
+	 * A band curve the dev editor has installed in place of RACE_Y_BAND_POINTS,
+	 * as monotone segments (see raceBandAt). Null in every normal run.
+	 * @type {ReturnType<typeof monotoneSegments> | null}
+	 */
+	bandSegs: null
+};
 
 /**
  * The band at any year. `curveYAt` clamps past both ends of the control points,
@@ -518,7 +476,7 @@ export function setRaceDevBands(points) {
  * @param {number} year
  */
 function raceBandAt(year) {
-	return curveYAt(devBandSegs ?? RACE_Y_BAND_SEGS, year);
+	return curveYAt(raceTuning.bandSegs ?? RACE_Y_BAND_SEGS, year);
 }
 
 /**
@@ -547,8 +505,8 @@ function raceWindowYFit(camLeft, camRight, yOpen = 0, yClose = 0) {
 	// the ground opens below it.
 	const win = yOpen
 		? [
-				base[0] + (genzYMin - base[0]) * yOpen,
-				base[1] + (genzYMax - base[1]) * yOpen
+				base[0] + (raceTuning.genzY[0] - base[0]) * yOpen,
+				base[1] + (raceTuning.genzY[1] - base[1]) * yOpen
 			]
 		: base;
 	if (!yClose) return /** @type {[number, number]} */ (win);
@@ -566,13 +524,14 @@ function raceWindowYFit(camLeft, camRight, yOpen = 0, yClose = 0) {
 
 /** the chapter's own axis at a camera — everything above yOpen 0 */
 function raceChapterYFit(camLeft, camRight) {
-	if (camRight >= RACE_Y_FIXED_FROM) return [raceYFixedMin, RACE_Y_FIXED_MAX];
+	if (camRight >= RACE_Y_FIXED_FROM)
+		return [raceTuning.yFixedMin, RACE_Y_FIXED_MAX];
 	const fit = raceCameraYFit(camLeft, camRight);
 	if (camRight <= RACE_Y_FIXED_FADE) return fit;
 	const t =
 		(camRight - RACE_Y_FIXED_FADE) / (RACE_Y_FIXED_FROM - RACE_Y_FIXED_FADE);
 	return [
-		fit[0] + (raceYFixedMin - fit[0]) * t,
+		fit[0] + (raceTuning.yFixedMin - fit[0]) * t,
 		fit[1] + (RACE_Y_FIXED_MAX - fit[1]) * t
 	];
 }
@@ -751,7 +710,7 @@ export function racePlot(w, h) {
 /** years that fit across the plot at the fixed scale — a function of width only */
 export function raceVisibleSpan(w, h) {
 	const plot = racePlot(w, h);
-	return (plot.right - plot.left) / pxPerYear;
+	return (plot.right - plot.left) / raceTuning.pxPerYear;
 }
 
 /**
@@ -776,7 +735,7 @@ export function raceVisibleSpan(w, h) {
  */
 function raceCamera(w, h, playhead) {
 	const plot = racePlot(w, h);
-	const visibleSpan = (plot.right - plot.left) / pxPerYear;
+	const visibleSpan = (plot.right - plot.left) / raceTuning.pxPerYear;
 	const camLeft = playhead - visibleSpan;
 	return {
 		...plot,
@@ -784,7 +743,7 @@ function raceCamera(w, h, playhead) {
 		camLeft,
 		camRight: playhead,
 		playhead,
-		xS: (yr) => plot.left + (yr - camLeft) * pxPerYear
+		xS: (yr) => plot.left + (yr - camLeft) * raceTuning.pxPerYear
 	};
 }
 
@@ -821,7 +780,7 @@ function raceCamera(w, h, playhead) {
 export function raceMaxPlayhead(w, h, step) {
 	const tail = raceTailPx(w, h, step);
 	if (tail !== null) {
-		return RACE_DATA_END - tail / pxPerYear + raceVisibleSpan(w, h);
+		return RACE_DATA_END - tail / raceTuning.pxPerYear + raceVisibleSpan(w, h);
 	}
 	return step.maxPlayhead ?? step.extent[1];
 }
@@ -870,7 +829,7 @@ function raceTailPx(w, h, step) {
 	if (step.tailYears === undefined) return null;
 	const plot = racePlot(w, h);
 	return Math.min(
-		step.tailYears * pxPerYear,
+		step.tailYears * raceTuning.pxPerYear,
 		(plot.right - plot.left) * RACE_TAIL_MAX_FRAC
 	);
 }
@@ -1452,7 +1411,7 @@ export function raceLeadAt(year, visible) {
 
 // Scratch for writeRaceSweepFrame's two passes, indexed by position in RACE_IDS
 // (which is RACE_SLOT's index). Module-scope and reused every frame for the same
-// reason pxPerYear is a plain variable: nothing in the per-frame path allocates.
+// reason raceTuning is a plain object: nothing in the per-frame path allocates.
 const dotYrs = new Float64Array(RACE_IDS.length);
 const dotVs = new Float64Array(RACE_IDS.length);
 const dotMs = new Float64Array(RACE_IDS.length);
@@ -2929,13 +2888,13 @@ const SHOWN_DEPART_END = 0.35;
 // cleared, not as a second slow reveal riding the whole draw-on.
 const SHOWN_ARRIVE_END = 0.15;
 
-// every duration above is multiplied by the live speed scale (see
-// setRaceSpeedScale), so the dev tuner retimes the whole chapter at once
-const scaled = (ms) => ms * speedScale;
+// every duration above is multiplied by the live speed scale
+// (raceTuning.speedScale), so the dev tuner retimes the whole chapter at once
+const scaled = (ms) => ms * raceTuning.speedScale;
 
 /** how long a camera pan from one year to another takes, at REWIND_PX_PER_SEC */
 function rewindMs(fromP, toP) {
-	const px = Math.abs(toP - fromP) * pxPerYear;
+	const px = Math.abs(toP - fromP) * raceTuning.pxPerYear;
 	return scaled(
 		clamp((px / REWIND_PX_PER_SEC) * 1000, REWIND_MS_MIN, REWIND_MS_MAX)
 	);

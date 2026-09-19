@@ -325,32 +325,16 @@
 		}
 	});
 
-	// The race chart's y-band tuner. Pulled in dynamically rather than imported at
-	// the top so a production build drops it entirely: `import.meta.env.DEV` is
-	// substituted with `false`, the branch goes dead, and nothing references the
-	// chunk. A static import survives tree-shaking (the compiled block and its CSS
-	// still land in the bundle), which is why this isn't just an {#if} in the markup.
-	let raceYBandDev = $state(null);
+	// The race chart's dev tuners (scrolly/dev). Pulled in dynamically rather
+	// than imported at the top so a production build drops them entirely:
+	// `import.meta.env.DEV` is substituted with `false`, the branch goes dead,
+	// and nothing references the chunk. A static import survives tree-shaking
+	// (the compiled block and its CSS still land in the bundle), which is why
+	// this isn't just an {#if} in the markup.
+	let devTuners = $state(null);
 	onMount(async () => {
 		if (!import.meta.env.DEV) return;
-		raceYBandDev = await import("$components/scrolly/RaceYBandDev.svelte");
-	});
-
-	// The race chart's x-axis density tuner. Same dynamic-import rationale as
-	// raceYBandDev above.
-	let racePxPerYearDev = $state(null);
-	onMount(async () => {
-		if (!import.meta.env.DEV) return;
-		racePxPerYearDev =
-			await import("$components/scrolly/RacePxPerYearDev.svelte");
-	});
-
-	// The race chart's animation speed tuner. Same dynamic-import rationale as
-	// raceYBandDev above.
-	let raceSpeedDev = $state(null);
-	onMount(async () => {
-		if (!import.meta.env.DEV) return;
-		raceSpeedDev = await import("$components/scrolly/RaceSpeedDev.svelte");
+		devTuners = await import("$components/scrolly/dev/Tuners.svelte");
 	});
 
 	$effect(() => {
@@ -662,18 +646,12 @@
 							→
 						</div>
 					{/if}
-					<!-- dev-only y-band tuner. Mounted outside stepConfigs so it spans the
-				     whole race chapter and keeps its table installed across step
-				     changes; it renders nothing until story.race.cam exists, i.e. off
+					<!-- dev-only race tuners. Mounted outside stepConfigs so they span
+				     the whole race chapter and keep their values installed across step
+				     changes; they render nothing until story.race.cam exists, i.e. off
 				     the race chapter. -->
-					{#if raceYBandDev}
-						<raceYBandDev.default />
-					{/if}
-					{#if racePxPerYearDev}
-						<racePxPerYearDev.default />
-					{/if}
-					{#if raceSpeedDev}
-						<raceSpeedDev.default />
+					{#if devTuners}
+						<devTuners.default />
 					{/if}
 				{/if}
 			</div>

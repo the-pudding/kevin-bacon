@@ -30,7 +30,7 @@ export const TITLE_BAND = 26;
 // It is a module variable rather than a seventh layout argument because
 // `plotBottom(h)` is read from ten layout modules and from the render path,
 // none of which are handed the page's layout mode — the same idiom
-// `setRaceDevBands` uses for the dev curve. ScrollyVisual owns the setter AND
+// `raceTuning` uses for the race dials (layouts/race.js). ScrollyVisual owns the setter AND
 // puts the fraction in its layout cache key, which is what stops a chart built
 // for one mode being handed back in the other: `w` changes with the mode today,
 // so the key would usually miss anyway, but relying on that would make this a
