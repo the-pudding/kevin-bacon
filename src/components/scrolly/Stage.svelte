@@ -212,14 +212,24 @@
 			bind:clientWidth={visualWidth}
 			bind:clientHeight={visualHeight}
 		>
-			<!-- once exited, the canvas is parked on the same ambient
-			     full-bleed dot field the chapter cards use (chapterCenters) —
-			     a fixed backdrop behind the credits rather than a step's
-			     chart, see the .scrolly-visual.exited rule below -->
+			<!-- Exiting to the credits changes nothing the canvas is showing:
+			     the last step (outro) already rests on a full-bleed sky with a
+			     flight of its own, and that flight simply carries on behind the
+			     credits — see the .scrolly-visual.exited rule below, which is
+			     the whole of what "exited" does to the visual.
+
+			     It used to be handed `chapterCenters` here instead, from back
+			     when the outro was a still frame and the card's field was the
+			     only drifting one to borrow. Now it restarts the sky: a state
+			     change abandons the running flight and tweens to the new
+			     state's STATIC layout, and every galaxy layout is authored at
+			     the flow's t = 0 (sky.js), so the crowd flew back to the start
+			     of its trip and set off again the moment the reader stepped
+			     off the story. -->
 			<ScrollyVisual
 				bind:this={visual}
-				state={steps.exited ? "chapterCenters" : steps.state}
-				params={steps.exited ? undefined : steps.config?.params}
+				state={steps.state}
+				params={steps.config?.params}
 				coldStart={steps.coldStart}
 				stepsHeight={overlayHeight}
 				{beside}
@@ -320,10 +330,28 @@
 </section>
 
 <style>
+	/* The story is a wizard: one viewport, no scrolling, right up until the
+	   credits — so the credits are what make the page scrollable, and on a
+	   platform with classic (space-taking) scrollbars that is a bar appearing
+	   mid-flight. It narrows the body, which moves the centred column, and a
+	   column that moves under a running sky is a resize as far as
+	   ScrollyVisual is concerned (fitBox's `dx !== 0 && choreo.active`): it
+	   snaps the crowd instead of letting it drift on. Reserving the gutter for
+	   the whole read means the column never moves. A no-op where scrollbars
+	   are overlays, which is every phone and macOS by default. */
+	:global(html) {
+		scrollbar-gutter: stable;
+	}
+
+	/* --column / --column-gutter: the reading column's own geometry. Named
+	   because the exited canvas has to reproduce it exactly (see
+	   .scrolly-visual.exited) — two literals in two rules would drift apart. */
 	#scrolly {
-		max-width: 700px;
+		--column: 700px;
+		--column-gutter: 1rem;
+		max-width: var(--column);
 		margin: 0 auto;
-		padding: 0 1rem;
+		padding: 0 var(--column-gutter);
 	}
 
 	/* --tap-gutter: how wide the two tap regions at the far edges are. A
@@ -351,6 +379,16 @@
 		height: var(--viewport-height);
 		--tap-gutter: clamp(56px, 12%, 88px);
 		--progress-band: 30px;
+		/* --visual-l / --visual-r: how far the canvas box is inset from the
+		   column's two edges. Zero here — the canvas has the whole column and
+		   the prose lies over it — and one of them becomes the prose measure
+		   once the two sit abreast (below), which side depending on the flip.
+		   They are properties rather than three copies of `left`/`right`
+		   because the credits backdrop has to reproduce this box against the
+		   VIEWPORT (see .scrolly-visual.exited), and it can only do that from
+		   numbers it can read. */
+		--visual-l: 0px;
+		--visual-r: 0px;
 		/* --title-band — space for each chart's title, between the dot bar and the
 		   canvas's own MARGIN-based top clearance — is set inline above, from
 		   TITLE_BAND in plot.js: the render path needs the same number,
@@ -369,9 +407,9 @@
 	.scrolly-visual {
 		position: absolute;
 		top: var(--title-band);
-		right: 0;
+		right: var(--visual-r);
 		bottom: 0;
-		left: 0;
+		left: var(--visual-l);
 	}
 
 	/* once the reader has left the wizard for the credits, the canvas is no
@@ -380,19 +418,49 @@
 	   page is scrolled. .scrolly-layout collapses to no height alongside this
 	   (below) so the credits section sits directly under #scrolly in flow.
 
-	   The box keeps the same --title-band offset and the same height it had
-	   docked — only its containing block changes. Anything else moves the
-	   drawing origin: inset: 0 here would lift it by the band, carrying every
-	   dot up with it on the step into the credits, and the 26px of extra height
-	   would resize the canvas and snap the crowd there rather than tween it.
-	   The band is still covered — the canvas element bleeds up through it (see
-	   ScrollyVisual's canvas rule), which is the whole point of the bleed. */
+	   The box keeps the same --title-band offset, the same height and the same
+	   WIDTH it had docked — only its containing block changes. Anything else
+	   moves the drawing origin: inset: 0 here would lift it by the band,
+	   carrying every dot up with it on the step into the credits, and the 26px
+	   of extra height would resize the canvas and snap the crowd there rather
+	   than tween it. The band is still covered — the canvas element bleeds up
+	   through it (see ScrollyVisual's canvas rule), which is the whole point of
+	   the bleed.
+
+	   The width is why the column's geometry is restated here. Fixed resolves
+	   left/right against the viewport, not against #scrolly, so `left: 0;
+	   right: 0` alone widened the box from the reading column to the whole
+	   screen on the step into the credits — a resize, which ScrollyVisual
+	   answers by snapping (see arrivalKind), and the sky is authored from that
+	   width (galaxyBox), so every dot jumped to a new place instantly instead
+	   of drifting on. Nothing about that snap is worth having: the canvas
+	   ELEMENT is 100vw either way and the sky already reaches well past the
+	   screen, so the backdrop is full-bleed at any box — the box is only the
+	   coordinate frame the crowd was placed in, and changing it moves every
+	   dot for no gain.
+
+	   So the box is rebuilt here from the column's own numbers. `left` and
+	   `right` carry the gutter and the prose inset — which is the whole of it
+	   on a screen narrower than #scrolly's max-width, where the column is just
+	   the body less its gutters. Past that the column stops growing and starts
+	   centring instead, which is what `max-width` and the auto margins are for:
+	   the box is over-constrained, so the margins split what is left equally
+	   and land it on #scrolly's own edges.
+
+	   Insets and a max-width rather than padding, deliberately: padding puts
+	   the answer on the wrong side of `box-sizing`, and getting that backwards
+	   is what left this box 114px in from the left at 1000px wide when the
+	   docked one was 16px in at 796px. With no padding and no border on the
+	   element there is no box model to get wrong — every number here is a
+	   distance from a viewport edge. */
 	.scrolly-visual.exited {
 		position: fixed;
 		top: var(--title-band);
-		right: 0;
 		bottom: 0;
-		left: 0;
+		left: calc(var(--column-gutter) + var(--visual-l));
+		right: calc(var(--column-gutter) + var(--visual-r));
+		max-width: calc(var(--column) - var(--visual-l) - var(--visual-r));
+		margin: 0 auto;
 		z-index: -1;
 	}
 
@@ -675,15 +743,15 @@
 	   between two columns. */
 	@media (min-width: 75rem) {
 		#scrolly {
-			max-width: 1400px;
+			--column: 1400px;
 		}
 
 		.scrolly-layout {
 			--prose-w: 25rem;
-		}
-
-		.scrolly-visual {
-			left: var(--prose-w);
+			/* the prose takes a column of its own off the canvas's left edge —
+			   stated as the inset rather than as `left` so the credits backdrop
+			   can rebuild the same box (see .scrolly-visual.exited) */
+			--visual-l: var(--prose-w);
 		}
 
 		/* no longer over the canvas, so it is centred in a column of its own
@@ -712,12 +780,13 @@
 		/* THE SWAP. Every chapter puts the prose on the other side, so the reader
 		   crosses the screen as the argument turns over — right, centre, left and
 		   back, with a full-bleed chapter card holding the middle beat each time.
-		   `:not(.exited)` keeps the credits backdrop out of it: once the reader
-		   has left the wizard the canvas is a fixed full-screen drift behind the
-		   roll and belongs to neither column. */
-		.scrolly-layout.flipped .scrolly-visual:not(.exited) {
-			left: 0;
-			right: var(--prose-w);
+		   The two insets swap rather than `left`/`right`, so the credits
+		   backdrop keeps whichever side the last chapter left the canvas on —
+		   the reader steps off the story into the same frame they were reading
+		   in, and the crowd does not move to meet them. */
+		.scrolly-layout.flipped {
+			--visual-l: 0px;
+			--visual-r: var(--prose-w);
 		}
 
 		.scrolly-layout.flipped .scrolly-steps {
