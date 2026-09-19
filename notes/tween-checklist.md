@@ -23,6 +23,12 @@ tween actually plays — landing on a step by URL paints it without a transition
 
   labels don't collide, and the step card doesn't cover what the copy points at.
 
+`npm run sheet -- <from> <to>` captures the same arrival frame by frame, both
+
+directions, on a faked clock (`sheets/<from>-<to>-mobile/sheet.png`); the rules
+
+to read it against are `notes/design/motion.md`.
+
 Watch for, on every arrival: dots travel rather than snap; nothing pops in at
 
 full opacity before the tween lands; text gated on `story.settled` appears after

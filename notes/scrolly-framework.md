@@ -21,6 +21,7 @@ and the measurements that were taken — lives in `notes/design/`.
 | `notes/design/title-card.md`      | The title card and the opening flight into `lone`.                                                                                        |
 | `notes/design/race-chart.md`      | The race chart: fixed x scale, the camera, the y axis's two regimes, the future strip, the Gen Z field, the closing chart.                |
 | `notes/design/simulation-race.md` | The simulation replay.                                                                                                                    |
+| `notes/design/motion.md`          | The motion rules every transition is held to (2026-09-19), what each looks like on a contact sheet, and the open questions.               |
 | `notes/design/interactions.md`    | The agreed interaction rules (2026-07-05, revised 2026-09-11 and 2026-09-19), the five gated steps and the rank → race handoff in detail. |
 | `notes/tween-checklist.md`        | The manual sign-off record for every step transition, and the rules `npm run stale` applies to it.                                        |
 
@@ -326,6 +327,14 @@ What the tests cannot see — whether a tween reads as motion, whether a name
 arrives with its dot, whether the sky twitches at the handover — is
 `notes/tween-checklist.md`: one row per step, forwards, backwards and on a phone.
 `npm run stale` marks the rows a change affects; only Owen marks one `[x]`.
+
+Between the two sits `npm run sheet -- <from> <to>` (`scripts/tween-sheet.js`):
+Playwright drives the dev server with the page's clock faked, so
+`performance.now`, `Date` and `requestAnimationFrame` advance only when told
+to, and the frames of one transition are captured at exact times and tiled into
+a contact sheet with the pixel change between neighbours. It is how a transition
+is _looked at_ before the checklist is asked to sign it off, and the rules it is
+read against are `notes/design/motion.md`.
 
 Some properties are cheap to measure and invisible in a frame — the sky's
 stationarity over minutes, a writer's cost per frame, the beat's no-repeat

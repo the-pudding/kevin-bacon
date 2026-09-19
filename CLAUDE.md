@@ -11,6 +11,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Lint (Prettier check, then ESLint per `eslint.config.js`): `npm run lint`
 - Test (vitest): `npm run test`. Regenerate the layout goldens after an intentional layout change: `npx vitest run -u`
 - Stale the tween checklist's rows from the staged diff: `npm run stale` (`--check` only reports; the pre-commit gate runs it)
+- Contact sheet of one step transition, frame by frame on a faked clock: `npm run sheet -- <from> <to>` (both directions, mobile box; `--box desktop|wide`, `--click Start` for a gated step). Output under `sheets/`, gitignored. The `tween-sheet` skill is the workflow.
 - All quality gates as CI runs them (lint, svelte-check, vitest): `npm run gates`
 - Format: `npm run format`
 - Sync Google Docs/Sheets micro-CMS content into `src/data` (per `google.config.js`): `npm run gdoc`
@@ -49,6 +50,10 @@ transition — the only regression net the story's motion has.
 - **ALWAYS** renumber the checklist rows when a `<Step>` is added, removed or
   reordered.
 - **NEVER** mark a row `[x]`. Only Owen signs a row off, after looking at it.
+- **ALWAYS** read the transition's contact sheets (`npm run sheet`, the
+  `tween-sheet` skill) against `notes/design/motion.md` before reporting a
+  motion change as working. A claim about what the canvas does that no sheet
+  backs is a guess.
 
 ## Architecture
 
