@@ -6,8 +6,8 @@
 //
 // Grouped by the interaction that owns the fields: `intro` (step 1's tour and
 // taps), `rank` (the guess-the-rank ladder), `race` (the race chart's camera
-// and its Gen Z draw-on), `quiz` (the pair quiz), `predict` (the prediction
-// scatter's toggle) and `sim` (the simulation replay). The four top-level
+// and its Gen Z draw-on), `quiz` (the pair quiz) and `sim` (the simulation
+// replay). The four top-level
 // fields are the framework's own: what the reader has asked for, what is
 // playing, what has landed, and whether a step's prose is still held back.
 //
@@ -158,12 +158,6 @@ export const story = $state({
 		 * states.js's `quizDone` is the one predicate both the gate and the panel
 		 * read, so they cannot disagree */
 		revealed: false
-	},
-
-	/** the prediction scatter (PredictToggles, layouts/prediction.js) */
-	predict: {
-		/** false = film count alone, true = the full model */
-		insights: false
 	},
 
 	/** the simulation replay (layouts/sim-race.js) */

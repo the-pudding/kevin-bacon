@@ -280,10 +280,6 @@ ranked layouts plot by sampled rank order, never by raw rank against
   full height, so any control in a step card must clear them: lift it to
   `--z-tap-above` (the inline InfoTerm triggers) or inset it by `--tap-gutter`
   (GuessRank's controls). A step card that grows can cover a layout's `hits`.
-- `predictionScatter` and `scatterGenZ` are registered states no `<Step>`
-  declares, and `PredictToggles.svelte` and `GenZMovers.svelte` are components
-  nothing mounts (`GenZMovers` since the movers panel left Index). They are kept
-  for now; the goldens still pin the two layouts.
 - Overlay label swaps use `{#key}`: the new label fades in, the old is removed
   instantly.
 - The canvas hop colours in `palette.js` are hard-coded rgb of the tokens in

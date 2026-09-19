@@ -1330,11 +1330,11 @@ export function raceDotSpec(lead = false) {
 }
 
 /**
- * A NAMED Gen-Z contender's dot, on the one step that draws them. Lifted
- * verbatim from `scatterGenZ`'s GENZ_NAMED_MARK so the seven wear the same mark
- * on both charts: a name beside an identical grey dot in a column of identical
- * grey dots reads as a caption on the cluster rather than on one actor. The
- * other 92 take raceDotSpec's field treatment unchanged.
+ * A NAMED Gen-Z contender's dot, on the one step that draws them: ink at r 5,
+ * darker and larger than the 92 it sits among, because a name beside an
+ * identical grey dot in a column of identical grey dots reads as a caption on
+ * the cluster rather than on one actor. The other 92 take raceDotSpec's field
+ * treatment unchanged.
  */
 const GENZ_NAMED_DOT = { r: 5, rgb: INK, alpha: 1 };
 
@@ -1884,8 +1884,8 @@ function writeProjectionLines(attrsBuf, trailBuf, cam, yS, vMin, vMax, proj) {
  * The ink here is NOT the chapter's crown ink, and it is not an exception to the
  * rule either. On this step no race actor is on the plot at all — the camera has
  * panned off them — so nothing is being identified as "in front"; these seven
- * are the ones the story names, drawn exactly as `scatterGenZ` already draws
- * them (INK at r 5), so a reader meets the same seven marks on both charts.
+ * are the ones the story names, drawn in INK at r 5 so each name belongs to
+ * one dot rather than to the cluster.
  *
  * @param {Float64Array} attrsBuf @param {Float64Array} trailBuf
  * @param {ReturnType<typeof raceCamera>} cam

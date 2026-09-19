@@ -17,7 +17,7 @@
 	 *
 	 * Gutters, not a full-bleed left/right split: the middle of the canvas is
 	 * where the story's own interactions live (the race scrubber's drag, the
-	 * quiz cards, the movers rows, step 1's actor targets). Anything that must
+	 * quiz cards, step 1's actor targets). Anything that must
 	 * stay tappable *through* a gutter is lifted to --z-tap-above instead — see
 	 * the z ladder in Stage.svelte.
 	 */
@@ -52,8 +52,8 @@
 		}
 	}
 
-	// A gutter lies over two scrollable lists (the rank ladder and the Gen Z
-	// movers). A touch-drag that starts on the gutter is the reader trying to
+	// A gutter lies over a scrollable list (the rank ladder). A touch-drag that
+	// starts on the gutter is the reader trying to
 	// scroll the list under it, but the browser still fires `click` on release —
 	// which would step the story out from under them. Measure the travel and
 	// swallow those.

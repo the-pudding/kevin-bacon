@@ -8,7 +8,6 @@
 			"$routes/*": ["./src/routes/*"],
 			"$runes/*": ["./src/runes/*"],
 			"$styles/*": ["./src/styles/*"],
-			"$svg/*": ["./src/svg/*"],
 			"$utils/*": ["./src/utils/*"]
 		}
 	},
@@ -20,7 +19,6 @@
 			"$routes/*": "./src/routes/*",
 			"$runes/*": "./src/runes/*",
 			"$styles/*": "./src/styles/*",
-			"$svg/*": "./src/svg/*",
 			"$utils/*": "./src/utils/*"
 		}
 	},

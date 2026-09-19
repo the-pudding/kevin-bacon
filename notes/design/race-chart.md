@@ -546,11 +546,9 @@ year carries its own label only while the scale never moves.
 chapter's rule is that no actor is identified BY a colour and the only ink belongs
 to whoever leads at the camera. On this step no race actor is on the plot at all,
 so nothing is being identified as "in front"; the seven are the ones the story
-names, drawn exactly as `scatterGenZ` already draws them (`INK` at r 5). Who the
-seven are lives in `cast.js` as `GENZ_NAMED_IDS`, because both charts
-read it and they must not be able to drift apart; what stays in `scatters.js` is
-only each name's side, which is a fact about that frame's crowding (the race chart
-puts every name in the right-hand gutter).
+names, drawn in `INK` at r 5 so each name belongs to one dot. Who the seven are
+lives in `cast.js` as `GENZ_NAMED_IDS` (the retired Gen Z scatter read the same
+list, so the two charts could never drift apart).
 
 **It reuses the simulation's 99 trail slots** (`SIM_TRAIL_SLOTS`) rather than
 allocating a second block for the same 99 actors: a contender's trajectory line

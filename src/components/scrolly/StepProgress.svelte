@@ -98,9 +98,9 @@
 <style>
 	/* Absolute over the top of the canvas, never in flow: .scrolly-layout is
 	   exactly the window height, so a sibling above it would push the page past
-	   one viewport and start it scrolling. Above --z-tap-above so the movers
-	   panel (top: 0, opaque) can't cover it and the quiz's backdrop-filter can't
-	   blur it. No background — it lands on white everywhere, and a plate would
+	   one viewport and start it scrolling. Above --z-tap-above so no over-canvas
+	   panel can cover it and the quiz's backdrop-filter can't blur it. No
+	   background — it lands on white everywhere, and a plate would
 	   be the only thing in the piece punching a rectangle out of the canvas.
 	   What the marks get instead is --bar-halo, the same hold-out the chapter
 	   title and the step prose carry: a full-bleed state runs its crowd up under

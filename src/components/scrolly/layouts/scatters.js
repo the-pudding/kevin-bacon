@@ -1,7 +1,7 @@
 import story from "$data/scrolly-story.json";
 import { ATTR_SIZE, set } from "../attr-buffer.js";
-import { SLJ, CAGE, idOf, GENZ_NAMED_IDS } from "../cast.js";
-import { CROWD, INK } from "../palette.js";
+import { SLJ, CAGE, idOf } from "../cast.js";
+import { CROWD } from "../palette.js";
 import { MARGIN, plotBottom, lin } from "../plot.js";
 import {
 	scatterPosition,
@@ -224,165 +224,6 @@ const layoutDegScatter = (nodes, w, h) =>
 		labelOf: (t) => String(deLogFilms(t))
 	});
 
-// The Gen Z frame is zoomed onto the candidate pool rather than sharing the
-// corpus-wide films axis: no candidate has more than 37 films, so the shared
-// scale (up to SLJ's 116) spends its right-hand half on actors this chapter
-// never mentions, and its SLJ-driven y domain leaves the green cloud sagging in
-// the lower band with the thinnest candidates clamped off the bottom: base
-// frame from avgScatter, then every position rewritten through locally fitted
-// scales. The shared scatterPosition scale is deliberately left alone — five
-// other chapters park their hidden dots on it.
-// the thinnest candidate has 5 films, which is also the corpus floor the node
-// file carries in full — so the window opens exactly where the backdrop crowd
-// stops being a complete population
-const GENZ_FILM_MIN = FILM_MIN_SHOWN;
-const GENZ_FILM_MAX = 40;
-/** actors the zoomed frame draws in grey behind the candidates */
-const inGenzWindow = (n) =>
-	n.films >= GENZ_FILM_MIN && n.films <= GENZ_FILM_MAX;
-
-// The cloud is 99 dots packed within ~10px of each other, so naming all of
-// them is impossible and naming none of them leaves the reader with a contest
-// and no contestants. These seven are named instead: the five likeliest
-// winners, which the simulation chapter goes on to talk about, and two from the
-// remote end of the same cloud.
-//
-// Every one is placed beside its dot rather than left to the default
-// below-dot placement: below-dot labels sit outside the decollider's pool (see
-// ScrollyVisual's drawScene), so at this density two of these names would land
-// on top of each other. The side is hand-picked per dot from where the zoomed
-// frame leaves room, the same way QUIZ_LABEL_DIRS is tuned above. Moretz sits
-// at 36 films against the zoom's clamped ceiling of 40, so a name to her right
-// runs off canvas — the constraint SLJ and Cage hit on scatterCenters. At every
-// viewport width this leaves at least a line-height between the names on a
-// side, so the decollider never has to nudge one and no leader stubs are drawn;
-// it stays as insurance rather than the mechanism.
-//
-// WHO the seven are lives in cast.js as GENZ_NAMED_IDS, because the race
-// chart's Gen-Z step names the same seven and the two must not be able to drift
-// apart. What lives here is only where each name sits relative to its dot, which
-// is a fact about THIS frame's crowding — on the race chart every name goes in
-// the right-hand gutter like every other race label.
-//
-// Keyed by tmdb id like PORTMAN/KENDRICK above, not by position in the
-// win-sorted candidate list: a data rebuild that reorders the field would
-// otherwise leave seven hand-tuned sides attached to seven different actors,
-// silently. An id that drops out of the corpus throws from idOf instead.
-//
-// The last two are from the far end of the same cloud. Every other contender is
-// up in the well-connected band, which leaves the bottom of the frame reading as
-// anonymous filler when it is the more surprising half: Sink and Elordi are as
-// famous as anyone here and sit among the most remote actors in the pool. The
-// band is sparse enough to take a name where the top is not.
-const GENZ_LABEL_SIDES = {
-	[idOf(56734)]: "left", // Chloë Grace Moretz
-	[idOf(1767250)]: "left", // Ariana Greenblatt
-	[idOf(1903874)]: "left", // Maya Hawke
-	[idOf(1428070)]: "right", // Isabela Merced
-	[idOf(2099497)]: "right", // Fred Hechinger
-	[idOf(1590797)]: "left", // Sadie Sink
-	[idOf(2034418)]: "right" // Jacob Elordi
-};
-// ...so a name added to (or dropped from) the shared list without a side here
-// fails at module load rather than rendering with no label direction.
-const GENZ_LABEL_DIRS = Object.fromEntries(
-	GENZ_NAMED_IDS.map((id) => {
-		const dir = GENZ_LABEL_SIDES[id];
-		if (!dir) throw new Error(`Gen Z name ${id} has no scatter label side`);
-		return [id, dir];
-	})
-);
-const GENZ_LABELS = GENZ_NAMED_IDS;
-
-// CGM is candidates[0], so she wears the same candidate mark
-const GENZ_MARK = { rgb: CROWD, r: 3.5, alpha: 0.9 };
-// A named dot is drawn darker and larger than the 92 it sits among, because a
-// name beside an identical grey dot in an identical grey column doesn't say
-// which dot it belongs to — the label reads as a caption on the whole cluster.
-// Size and ink rather than a hue, the same way scatterCenters marks its
-// subject: the piece spends colour on hop distance, not on emphasis.
-const GENZ_NAMED_MARK = { rgb: INK, r: 5, alpha: 1 };
-const GENZ_HIGHLIGHTS = new Map(
-	story.genz.candidates.map((c) => [
-		c.id,
-		GENZ_LABEL_DIRS[c.id] ? GENZ_NAMED_MARK : GENZ_MARK
-	])
-);
-
-/**
- * The zoomed frame's scales and the spot it gives a node. Shared by the layout
- * and by `seedGenzCandidates` below, so a candidate that arrives hidden enters
- * on the row the layout will hold it at.
- */
-function genzFrame(nodes, w, h) {
-	// y fits everything the frame actually draws — candidates *and* the crowd
-	// inside the film window. Fitting the candidates alone would clamp the ~150
-	// crowd dots that are better connected than CGM into a stripe on the top edge
-	let vMin = Infinity;
-	let vMax = -Infinity;
-	for (const n of nodes) {
-		if (!GENZ_HIGHLIGHTS.has(n.id) && !inGenzWindow(n)) continue;
-		vMin = Math.min(vMin, n.avgDistance);
-		vMax = Math.max(vMax, n.avgDistance);
-	}
-	const xLogMin = Math.log(GENZ_FILM_MIN);
-	const xLogMax = Math.log(GENZ_FILM_MAX);
-	const xPad = (xLogMax - xLogMin) * 0.04;
-	const vPad = (vMax - vMin) * 0.04;
-	const top = MARGIN + 8;
-	const bottom = plotBottom(h);
-	const xS = (films) =>
-		lin(Math.log(films), xLogMin - xPad, xLogMax + xPad, MARGIN, w - MARGIN);
-	const yS = (v) => lin(v, vMin - vPad, vMax + vPad, top, bottom); // inverted
-	// unlike the corpus-wide frame this one has an end to fall off, and the crowd
-	// avgScatter draws runs past it. Everyone outside the window parks on the
-	// clamped edge at alpha 0 — a zoom carries its surplus off frame, and letting
-	// the 84 actors past the ceiling pile up on the boundary instead would read
-	// as a real cluster. Parked dots are clamped on both axes: an unclamped y
-	// would fling the long tail of thin, distant actors hundreds of pixels off
-	// canvas, and the neighbouring states would tween them all the way back in.
-	const place = (n) => [
-		xS(Math.min(GENZ_FILM_MAX, Math.max(GENZ_FILM_MIN, n.films))),
-		yS(Math.min(vMax, Math.max(vMin, n.avgDistance)))
-	];
-	return { vMin, vMax, bottom, xS, yS, place };
-}
-
-// No seeding step here any more: the thinnest Gen Z candidate has 5 films, which
-// is the shared scatter floor, so every candidate is already on screen in the
-// crowd on the step scatterGenZ arrives from. The zoom is the only thing that
-// moves them, which is what the old off-canvas parking was arranging by hand.
-
-/** @type {import("../layout-types.js").LayoutFn} */
-function layoutScatterGenZ(nodes, w, h) {
-	const result = avgScatter(nodes, w, h, GENZ_HIGHLIGHTS);
-	const { attrs } = result;
-	const { vMin, vMax, bottom, xS, yS, place } = genzFrame(nodes, w, h);
-	for (const n of nodes) {
-		const hi = GENZ_HIGHLIGHTS.get(n.id);
-		const shown = hi || inGenzWindow(n);
-		const [x, y] = place(n);
-		const { r, rgb, alpha } = dotStyle(hi);
-		set(attrs, n.id, x, y, r, rgb, shown ? alpha : 0);
-	}
-	// both axes are re-ticked against the local scales — avgScatter's ticks were
-	// positioned by the corpus-wide y domain this frame just replaced. 0.25 steps
-	// because the zoomed band is only ~0.7 wide and filmsScatter's 0.5 default
-	// would leave it with a single tick
-	const y = [];
-	for (let t = Math.ceil(vMin / 0.25) * 0.25; t <= vMax; t += 0.25) {
-		y.push({ pos: yS(t), label: t.toFixed(2) });
-	}
-	// the shared films axis is described but never quantified (see filmsScatter);
-	// this one is narrow enough to label
-	result.axes = {
-		x: [5, 10, 20, 40].map((f) => ({ pos: xS(f), label: String(f) })),
-		xBase: bottom + 10,
-		y
-	};
-	return result;
-}
-
 // the y-axis direction is conveyed by the pinned "lower"/"higher" mini-labels
 // (see ScrollyVisual's .y-hint), not by an arrow in the title
 const AVG_OVERLAY = {
@@ -476,15 +317,5 @@ export const states = {
 			xLabel: "Film count (log scale)",
 			yLabel: "Costar film count average (log scale)"
 		}
-	},
-	scatterGenZ: {
-		layout: layoutScatterGenZ,
-		title: "Films vs. remoteness",
-		// plain names, no labelText: the win percentages that pick five of these
-		// seven are the simulation chapter's payoff, and printing them on the
-		// contenders' first appearance gives the ending away
-		labels: GENZ_LABELS,
-		labelDirs: GENZ_LABEL_DIRS,
-		overlay: AVG_OVERLAY
 	}
 };

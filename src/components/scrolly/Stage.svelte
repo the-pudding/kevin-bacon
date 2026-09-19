@@ -340,7 +340,7 @@
 	   never a jump target.
 
 	   The z ladder over this box, lowest first:
-	     auto  canvas, rank/movers/scrubber panels, chapter card, step card
+	     auto  canvas, rank/scrubber panels, chapter card, step card
 	     5     the dev-only race tuners
 	     20    --z-tap: the two tap gutters
 	     21    --z-tap-above: what must stay reachable through them — .hits,

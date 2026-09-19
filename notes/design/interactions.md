@@ -104,7 +104,7 @@ Three rules:
    tick twice for it. `Index.svelte` derives `dotSteps` (no `chapter`, no
    `skipback`) and `dotStep` (the gated step lights its successor's), and
    `StepProgress` renders those — it never counts steps by hand. 24 dots today
-   (the Gen Z step is gated and `skipback`, so it shares `scatterGenZ`'s dot and
+   (the Gen Z step is gated and `skipback`, so it shares its payoff's dot and
    adding it moved the count by nothing).
 
 Exception: a visual that abandons the dot metaphor entirely gains nothing from

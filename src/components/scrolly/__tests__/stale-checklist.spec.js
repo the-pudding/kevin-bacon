@@ -220,7 +220,6 @@ describe("the real checklist", () => {
 			"rank",
 			"race",
 			"scatters",
-			"prediction",
 			"career",
 			"sim-race"
 		];

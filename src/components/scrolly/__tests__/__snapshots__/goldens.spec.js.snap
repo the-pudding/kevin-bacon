@@ -330,66 +330,6 @@ exports[`layout goldens > outro null @stacked 1`] = `
 }
 `;
 
-exports[`layout goldens > predictionScatter {"mode":"all"} @beside 1`] = `
-{
-  "attrs": "d7c72706b1f3f193",
-  "decor": "522abf27324ef923",
-  "delays": null,
-  "trailDelays": null,
-  "trails": "ed38c38888720af9",
-}
-`;
-
-exports[`layout goldens > predictionScatter {"mode":"all"} @phone 1`] = `
-{
-  "attrs": "0645eee5ac8750b6",
-  "decor": "bddfcd96ff3c2cca",
-  "delays": null,
-  "trailDelays": null,
-  "trails": "3e8b03928462d977",
-}
-`;
-
-exports[`layout goldens > predictionScatter {"mode":"all"} @stacked 1`] = `
-{
-  "attrs": "a736003941c9052e",
-  "decor": "57b503366819a3e3",
-  "delays": null,
-  "trailDelays": null,
-  "trails": "84e09be5d9dc11f9",
-}
-`;
-
-exports[`layout goldens > predictionScatter {"mode":"film"} @beside 1`] = `
-{
-  "attrs": "145b64f1dc1fe591",
-  "decor": "522abf27324ef923",
-  "delays": null,
-  "trailDelays": null,
-  "trails": "ed38c38888720af9",
-}
-`;
-
-exports[`layout goldens > predictionScatter {"mode":"film"} @phone 1`] = `
-{
-  "attrs": "0881a5247e937aaf",
-  "decor": "bddfcd96ff3c2cca",
-  "delays": null,
-  "trailDelays": null,
-  "trails": "3e8b03928462d977",
-}
-`;
-
-exports[`layout goldens > predictionScatter {"mode":"film"} @stacked 1`] = `
-{
-  "attrs": "77ef9e6cd00b5844",
-  "decor": "57b503366819a3e3",
-  "delays": null,
-  "trailDelays": null,
-  "trails": "84e09be5d9dc11f9",
-}
-`;
-
 exports[`layout goldens > raceClose {"playhead":2006} @beside 1`] = `
 {
   "attrs": "6055d6a96f6107e1",
@@ -924,36 +864,6 @@ exports[`layout goldens > scatterCenters {"showPair":true} @stacked 1`] = `
 {
   "attrs": "25103531f8241408",
   "decor": "bbc0c7b6c446d5de",
-  "delays": null,
-  "trailDelays": null,
-  "trails": null,
-}
-`;
-
-exports[`layout goldens > scatterGenZ null @beside 1`] = `
-{
-  "attrs": "a598c04f3da47910",
-  "decor": "536b8de0d780cf37",
-  "delays": null,
-  "trailDelays": null,
-  "trails": null,
-}
-`;
-
-exports[`layout goldens > scatterGenZ null @phone 1`] = `
-{
-  "attrs": "fb8f37f33ca856e3",
-  "decor": "9f34bd387db4e967",
-  "delays": null,
-  "trailDelays": null,
-  "trails": null,
-}
-`;
-
-exports[`layout goldens > scatterGenZ null @stacked 1`] = `
-{
-  "attrs": "781ffdcfdad366d9",
-  "decor": "13432b8ff09fbd20",
   "delays": null,
   "trailDelays": null,
   "trails": null,

@@ -18,7 +18,6 @@ import {
 	QUIZ_IDS,
 	QUIZ_PAIRS
 } from "./layouts/scatters.js";
-import { states as predictionStates } from "./layouts/prediction.js";
 import { states as careerStates } from "./layouts/career.js";
 import { states as simRaceStates } from "./layouts/sim-race.js";
 import { states as chapterStates } from "./layouts/chapters.js";
@@ -40,7 +39,6 @@ const REGISTRY = {
 	...rankStates,
 	...raceStates,
 	...scattersStates,
-	...predictionStates,
 	...careerStates,
 	...simRaceStates,
 	...chapterStates

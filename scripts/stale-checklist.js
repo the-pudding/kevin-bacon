@@ -18,7 +18,7 @@
 // renumbers every row after it. Only Owen signs a row off ([x]); this only ever
 // takes a mark back to [!].
 import { execFileSync } from "node:child_process";
-import { readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const ROOT = new URL("../", import.meta.url);
@@ -232,7 +232,11 @@ function main(args) {
 	const steps = parseSteps(read(INDEX));
 	const checklist = read(CHECKLIST);
 	const rows = parseRows(checklist);
-	const statesOf = (m) => layoutStatesOf(read(`${SCROLLY}layouts/${m}.js`));
+	// a module the diff deleted has no states left to stale
+	const statesOf = (m) => {
+		const path = new URL(`${SCROLLY}layouts/${m}.js`, ROOT);
+		return existsSync(path) ? layoutStatesOf(readFileSync(path, "utf8")) : [];
+	};
 	const errors = files.includes(INDEX) ? numberingErrors(rows, steps) : [];
 	const { text, fresh } = markStale(
 		checklist,

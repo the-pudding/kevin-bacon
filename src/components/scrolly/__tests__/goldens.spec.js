@@ -30,7 +30,6 @@ const INTERACTIONS = [
 	{ rank: { guesses: [SLJ], focusBar: { x: 120, y: 300, w: 400 } } },
 	{ rank: { gaveUp: true } },
 	{ quiz: { picks: { 0: 1 }, revealed: true } },
-	{ predict: { insights: true } },
 	{ sim: { runs: SIM_N_SIMS, names: 5 } },
 	{ race: { genzLinesShown: true } },
 	{ intro: { focus: INTRO_IDS[3] } },
