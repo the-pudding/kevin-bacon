@@ -7,7 +7,7 @@ export const MARGIN = 32;
 /**
  * px of strip reserved above the canvas box for each chart's title, between the
  * progress bar and the canvas's own MARGIN clearance. This is the source of the
- * `--title-band` custom property, which Index.svelte sets from it — canvas can't
+ * `--title-band` custom property, which Stage.svelte sets from it — canvas can't
  * read CSS custom properties, and the render path needs the number.
  *
  * The canvas ELEMENT bleeds up into the strip (see ScrollyVisual's render
@@ -23,7 +23,7 @@ export const TITLE_BAND = 26;
 // and the x-axis ticks + axis label (drawn ~32px below this line) need to clear
 // the tallest step cards too, so keep the plot clear of the bottom ~40%.
 //
-// BESIDE the prose (a wide viewport — see Index.svelte's side-by-side rule) the
+// BESIDE the prose (a wide viewport — see Stage.svelte's side-by-side rule) the
 // step card is not over the canvas at all, so the only thing left to clear is
 // the axis furniture and the plot takes nearly the whole column.
 //

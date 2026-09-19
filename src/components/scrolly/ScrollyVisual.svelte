@@ -1980,7 +1980,7 @@
 		margin: 0;
 		pointer-events: auto;
 		/* RaceScrubber's own full-bleed .drag-surface sits later in the DOM
-		   (Index.svelte mounts the panel after ScrollyVisual) and would
+		   (Stage.svelte mounts the panel after ScrollyVisual) and would
 		   otherwise intercept the click before it reaches this trigger — as
 		   would the right-hand tap gutter, which is why this is now on the
 		   gutters' own layer rather than a bare 1 */

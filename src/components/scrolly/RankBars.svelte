@@ -188,7 +188,7 @@
 
 	// The collapse clock. This panel owns it — it is the one that knows when its
 	// own transitions have finished — and publishes the single moment the canvas
-	// waits for. Index.svelte unmounts the whole overlay off the same flag, so the
+	// waits for. Stage.svelte unmounts the whole overlay off the same flag, so the
 	// canvas can never take over while any of this is still on screen.
 	//
 	// Stepping back out of the collapse (Prev before it lands) clears the flag and
@@ -354,7 +354,7 @@
 	 * Scroll the list so `row` sits in the middle, then publish where its bar
 	 * landed for the canvas handoff: `list`'s offsetParent is the rank-bars-panel
 	 * div, which sits inside the same absolutely-positioned box as the canvas
-	 * (see Index.svelte/layouts/rank.js), so the row's landing position in that
+	 * (see Stage.svelte/layouts/rank.js), so the row's landing position in that
 	 * shared coordinate space is what Bacon's hop bar should tween to meet. The
 	 * `.bar` element itself, not the row's overall centre — the row also carries
 	 * the label text above the bar, so centring on the whole row overshoots

@@ -14,8 +14,8 @@
 	 * renders NOTHING here: the title has to play an out-transition as the reader
 	 * moves on, and content rendered from the active step's registration (the way
 	 * `panel` is) is destroyed the instant the index changes, with no chance to
-	 * transition out. So Index.svelte renders the card itself from
-	 * `stepConfigs[value].chapter`, inside a stable {#if} block Svelte can
+	 * transition out. So Stage.svelte renders the card itself from the
+	 * registry's active config, inside a stable {#if} block Svelte can
 	 * transition both ways.
 	 *
 	 * `params` reaches the canvas state exactly as <Step>'s does — the cards share

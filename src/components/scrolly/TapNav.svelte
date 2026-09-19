@@ -19,7 +19,7 @@
 	 * where the story's own interactions live (the race scrubber's drag, the
 	 * quiz cards, the movers rows, step 1's actor targets). Anything that must
 	 * stay tappable *through* a gutter is lifted to --z-tap-above instead — see
-	 * the z ladder in Index.svelte.
+	 * the z ladder in Stage.svelte.
 	 */
 	import { getContext } from "svelte";
 
@@ -75,7 +75,7 @@
 		if (dragged) return;
 		if (direction === "prev") steps.prev();
 		// forward off the last step leaves the wizard for the credits, one-way —
-		// there is nothing beyond it in stepConfigs for next()/go() to land on
+		// there is nothing beyond it in the registry for next()/go() to land on
 		else if (atEnd) steps.exit();
 		else steps.next();
 	}

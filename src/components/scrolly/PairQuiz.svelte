@@ -7,7 +7,7 @@
 	// dot (the same neutral grey the canvas lands it in) and lands at its true
 	// avg-distance position, then stays there labelled. Neutral reveal: no ✓/✗,
 	// no numbers — the dot's height (closer = higher) is the answer. This is a
-	// `panel` snippet rendered over the canvas by Index.svelte (see
+	// `panel` snippet rendered over the canvas by Stage.svelte (see
 	// notes/scrolly-framework.md "Exception").
 	import { story } from "./story.svelte.js";
 	import { INTERACTIVE_IDS, nodeName, nodeRank, quizDone } from "./states.js";

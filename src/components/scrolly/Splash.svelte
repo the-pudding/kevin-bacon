@@ -12,7 +12,7 @@
 	 * <Chapter> do, and like <Chapter> renders NOTHING here: the card has to play
 	 * an out-transition as the reader moves on, and content rendered from the
 	 * active step's registration is destroyed the instant the index changes. So
-	 * Index.svelte renders it from `stepConfigs[value].splash`, inside a stable
+	 * Stage.svelte renders it from the registry's active config, inside a stable
 	 * {#if} block Svelte can transition both ways.
 	 *
 	 * The copy comes in as snippets rather than strings so it lives in

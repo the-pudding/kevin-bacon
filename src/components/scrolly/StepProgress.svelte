@@ -8,7 +8,7 @@
 	 * a gated interaction step: it and the step that reads out its answer are
 	 * one move to the reader, so they share a dot and the bar doesn't tick twice
 	 * for it. The registry works out which steps own a dot and which dot the
-	 * active step lights (`dotSteps` / `dotStep` in Index.svelte) — nothing here
+	 * active step lights (`dotSteps` / `dotStep` on the step registry) — nothing here
 	 * counts steps by hand.
 	 *
 	 * Indicator only — the dots take no pointer events, so a tap over the bar
@@ -45,7 +45,7 @@
 		});
 	});
 
-	// Crossfades the bar against the chapter card's own fade (Index.svelte):
+	// Crossfades the bar against the chapter card's own fade (Stage.svelte):
 	// the bar leaves on the title's slow, delayed arrival, and returns on the
 	// title's quick exit — one transition, not two independent ones.
 	const reducedMotion = new MediaQuery(

@@ -11,7 +11,7 @@
 // init; the derived views (chapterStarts, dotSteps, …) are getters over that
 // state rather than $derived, so a consumer's own $derived tracks them and the
 // registry stays a plain object under test.
-import { onMount } from "svelte";
+import { onMount, untrack } from "svelte";
 import urlParams from "$utils/urlParams.js";
 import { story } from "./story.svelte.js";
 
@@ -230,5 +230,21 @@ export function createStepRegistry({ navigate }) {
 			exited = true;
 		}
 	};
+
+	// --- a step that carries the reader on itself ---
+	// A gated step's own control is the only way past it, and one of them isn't
+	// a button press but the thing the press starts: the simulation's 10,000
+	// runs ARE the payoff, and the next step names the winner, so the story
+	// waits for the race and then moves on by itself. The step declares when
+	// that has happened as `advanceon`, and this watches whichever step is
+	// active — so a reader who steps away mid-run disarms it by leaving, with
+	// no flag to clear.
+	//
+	// advance() is untracked because it writes the step this effect reads:
+	// without it the write re-runs the effect against the step it just left.
+	$effect(() => {
+		if (active()?.advanceon?.()) untrack(() => steps.advance());
+	});
+
 	return steps;
 }
