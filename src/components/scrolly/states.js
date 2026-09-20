@@ -376,10 +376,20 @@ export const STATE_REQUESTS = pick("requests");
  * and rebuilds its base with it — the same arguments, or the base is a different
  * frame from the one the arrival landed on and the t = 0 contract above breaks.
  *
+ * `clocked` says the loop takes a seventh argument — the sky clock its arrival
+ * landed on — and continues the story's flow from there instead of starting at
+ * the flow's own zero. Only a loop whose t = 0 frame is therefore a FUNCTION of
+ * that clock may declare it, and a clock is only ever handed over between two
+ * states that both declare it (see ScrollyVisual's skyHandoff). At clock 0 it
+ * must reduce exactly to the unclocked loop, which is what keeps the t = 0
+ * contract above true and what contracts.spec.js checks.
+ *
  * @typedef {Object} AmbientAnim
  * @property {(nodes: import("./nodes.js").ActorNode[], w: number, h: number,
- *   edges: import("./nodes.js").Edge[], params?: Object, bleed?: number) =>
+ *   edges: import("./nodes.js").Edge[], params?: Object, bleed?: number,
+ *   t0?: number) =>
  *   (attrs: Float32Array, trails: Float32Array, t: number) => void} frames
+ * @property {boolean} [clocked]
  * @type {Partial<Record<LayoutState, AmbientAnim>>}
  */
 export const STATE_AMBIENT = pick("ambient");

@@ -8,6 +8,7 @@
 	import { createTweener } from "./tween.js";
 	import { createChoreographer } from "./choreographer.js";
 	import { createRaceCamera } from "./race-camera.js";
+	import { skyFlight } from "./sky.js";
 	import {
 		ALPHA_SEEN,
 		clearCanvas,
@@ -1139,7 +1140,15 @@
 		choreo.stop();
 		tweener.stop();
 		trailTweener.stop();
-		const write = anim.frames(nodes, width, height, edges, layoutParams, bleed);
+		const write = anim.frames(
+			nodes,
+			width,
+			height,
+			edges,
+			layoutParams,
+			bleed,
+			skyLanding
+		);
 		// armed AFTER stop() above, which would otherwise read the flag this call
 		// is about to set and drop the cache for a flight that had not started
 		skyFlying = true;
@@ -1187,6 +1196,55 @@
 	function land() {
 		furnitureHeld = false;
 		if (story.settledStep !== step) story.settledStep = step;
+	}
+
+	/** how long the reader watches each kind of arrival before it settles */
+	const ARRIVAL_MS = {
+		cold: 0,
+		snap: 0,
+		popIn: ENTER_MS,
+		state: TWEEN_MS,
+		params: PARAM_TWEEN_MS,
+		entry: TWEEN_MS
+	};
+	/**
+	 * The sky's clock this arrival lands the crowd on, and the clock the ambient
+	 * then starts from. Zero is the flow's own beginning, where every galaxy
+	 * layout is authored — what a cold load, a resize and reduced motion get.
+	 *
+	 * Between two states that BOTH fly, it is where the sky will be when the
+	 * arrival lands, not where it is now: landing on the present frame would
+	 * freeze the whole sky for the length of the tween and then start it again,
+	 * which is a beginning the reader can notice (motion.md rule 9).
+	 */
+	let skyLanding = 0;
+	function skyHandoff(from, kind) {
+		if (!STATE_AMBIENT[stateName]?.clocked) return 0;
+		if (!STATE_AMBIENT[from]?.clocked) return 0;
+		return skyFlight.t + ARRIVAL_MS[kind];
+	}
+	/**
+	 * Land the arrival on the ambient's own first frame.
+	 *
+	 * An ambient's t = 0 frame IS the frame its arrival is meant to land on —
+	 * that is AmbientAnim's contract, asserted for every state in
+	 * contracts.spec.js — so for a clocked one carrying a handoff, that frame is
+	 * the flow at `skyLanding`. Running the writer here makes the arrival and the
+	 * ambient the same call rather than two frames that have to be kept in
+	 * agreement, which is what stops the chapter card re-dealing the sky: the
+	 * crowd's target IS where it will already be.
+	 */
+	function landOnSky(attrs, trails) {
+		if (!skyLanding) return;
+		STATE_AMBIENT[stateName].frames(
+			nodes,
+			width,
+			height,
+			edges,
+			layoutParams,
+			bleed,
+			skyLanding
+		)(attrs, trails, 0);
 	}
 
 	// -- The reader's pan -------------------------------------------------------
@@ -1745,9 +1803,26 @@
 			return;
 		}
 		const from = prevState;
+		const firstPaint = !entered;
+		entered = true;
+		const stateChange = stateName !== from;
+		const entryAnim = stateChange ? entryFor(stateName, from) : undefined;
+		// classified BEFORE the target is built, because the target now depends on
+		// it: how long this arrival takes is how far the sky will have flown by the
+		// time it lands (skyHandoff)
+		const kind = arrivalKind({
+			firstPaint,
+			resized: box.resized,
+			stateChange,
+			entryAnim
+		});
+		skyLanding = skyHandoff(from, kind);
+		prevState = stateName;
+		prevParamsKey = paramsKey;
 		const layout = layoutFor(stateName, width, height, layoutParams, bleed);
 		swapFurniture(staticDecor(layout), from, box);
-		// a copy, because parkLeavers rewrites it and `layout.attrs` is cached
+		// a copy, because parkLeavers and landOnSky rewrite it and `layout.attrs`
+		// is cached
 		const attrs = layout.attrs.slice();
 		parkLeavers(attrs);
 		/** @type {Target} */
@@ -1758,18 +1833,7 @@
 			delays: layout.delays,
 			trailDelays: layout.trailDelays
 		};
-		const firstPaint = !entered;
-		entered = true;
-		const stateChange = stateName !== from;
-		prevState = stateName;
-		prevParamsKey = paramsKey;
-		const entryAnim = stateChange ? entryFor(stateName, from) : undefined;
-		const kind = arrivalKind({
-			firstPaint,
-			resized: box.resized,
-			stateChange,
-			entryAnim
-		});
+		landOnSky(target.attrs, target.trails);
 		ARRIVE[kind](target, from, entryAnim);
 	});
 

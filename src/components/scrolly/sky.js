@@ -454,6 +454,31 @@ export function skyToColumn(w, h, bleed) {
  * @param {number[]} ids
  * @returns {import("./states.js").AmbientAnim["frames"]}
  */
+/**
+ * The same flight, started at `t0` on the sky's clock instead of at the flow's
+ * own zero: `t` is elapsed since the loop began, so this writer is the flow at
+ * `t0 + t` and its t = 0 frame is the frame the reader's sky is already showing.
+ *
+ * The rays are still derived from the state's static layout — the flow at zero —
+ * so this is purely a change of clock and nothing about the volume moves with
+ * it. That matters: `makeFlight` divides each dot's entry offset by the
+ * magnification its RESTING phase implies, so handing it a base authored at
+ * some other time would scale every ray by up to 4x and the sky would spread a
+ * little further on every visit.
+ *
+ * `t0 = 0` reduces to `makeFlight` exactly, which is what every state that is
+ * not continuing a flight gets — and what holds the ambient's t = 0 contract.
+ *
+ * @param {import("./states.js").AmbientAnim["frames"]} frames
+ * @returns {import("./states.js").AmbientAnim["frames"]}
+ */
+export const onSkyClock =
+	(frames) =>
+	(nodes, w, h, edges, params, bleed = NO_BLEED, t0 = 0) => {
+		const write = frames(nodes, w, h, edges, params, bleed);
+		return (attrs, trails, t) => write(attrs, trails, t0 + t);
+	};
+
 export function makeFlight(layoutFn, ids) {
 	return (nodes, w, h, edges, params, bleed = NO_BLEED) => {
 		const { attrs: base } = layoutFn(nodes, w, h, edges, params, bleed);

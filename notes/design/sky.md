@@ -15,6 +15,23 @@ story the constellation reads as foreground. Both of those also have an `entry`
 leg — the ambient starts when the pull-back settles, because `settle()` is the
 common terminus of both paths.
 
+**The flight is handed over, not restarted.** `hopSeed` and `chapterCenters`
+both declare `clocked` ambients (`AmbientAnim.clocked`, `onSkyClock`), so
+stepping between them carries the sky's clock across: the arrival lands the
+crowd on the frame the flow _will_ be showing when it gets there, which for
+these two states is exactly where the crowd already is, so nothing travels.
+Without it the card's layout was the flow at t = 0 and the arrival dragged
+twelve thousand dots back to it — ~800ms of the whole sky re-dealing, at roughly
+the rate the flow itself runs, which is why it read as motion rather than as a
+fault. Measured on a phone, the arrival's peak frame-to-frame change fell from
+25.7% to 15.1% against a flying sky's own 9.7%.
+
+The card's flight runs two clocks, and must: the crowd is continuing a flight,
+but the intro fifteen have been standing still in front of it and are authored
+at `cardSpot` rather than at a flow position, so resuming _their_ clock would
+carry them out along their own rays and sweep the constellation apart on
+arrival. See `cardSky`.
+
 **Declared, not a defect:** on that step the fifteen are drawn at the crowd's
 grey and radius with no links between them, so the only thing separating them
 from the sky is that they are the part of it holding still. Read cold that can

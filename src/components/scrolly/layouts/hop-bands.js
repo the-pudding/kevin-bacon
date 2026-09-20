@@ -9,6 +9,7 @@ import { parkHidden } from "../scatter-scales.js";
 import {
 	writeFieldCrowd,
 	makeFlight,
+	onSkyClock,
 	galaxyBox,
 	cardSpot,
 	flowSpot,
@@ -266,7 +267,13 @@ export const states = {
 		// the reader to find Bacon in, and a diagram that drifts is not one — and
 		// holding them still puts them in front of a sky with parallax, which is
 		// the one place in the story the constellation reads as foreground.
-		ambient: { frames: makeFlight(layoutHopSeed, FIELD_IDS) }
+		// `clocked`, so the flight can be handed on to the chapter card's and taken
+		// back from it: the two states fly the same ids off the same box, so a
+		// handoff moves nothing at all and the sky simply never stops.
+		ambient: {
+			clocked: true,
+			frames: onSkyClock(makeFlight(layoutHopSeed, FIELD_IDS))
+		}
 	},
 	hopBands: {
 		layout: (n, w, h, e, _p, bleed) => layoutHopBands(n, w, h, e, {}, bleed),

@@ -11,6 +11,7 @@ import {
 	writeFieldCrowd,
 	galaxyBox,
 	makeFlight,
+	onSkyClock,
 	fieldDepth,
 	depthSize,
 	depthFade,
@@ -33,12 +34,46 @@ import {
 // ---------------------------------------------------------------------------
 
 /**
- * Everyone the card shows. FIELD_IDS is every reachable actor bar the curated
- * fifteen, who are excluded there because hopSeed draws them as a constellation;
- * here that constellation is over, so they join the crowd on the same terms.
- * Between them these cover every node with a hop — the rest park hidden.
+ * The card's sky: two clocks, not one.
+ *
+ * The crowd is CONTINUING a flight the reader has been watching — hopSeed flies
+ * the same ids off the same box — so it rides the story's clock and nothing
+ * about it re-deals on arrival. The fifteen have been standing still in front of
+ * that flight, and their base is where hopSeed's camera left them rather than a
+ * flow position, so carrying them on the same clock would fly the constellation
+ * out along its own rays the instant the card arrived. They get their own trip
+ * from zero.
+ *
+ * At t0 = 0 the two are one frame and this is the static layout, which is what
+ * holds the ambient's t = 0 contract.
+ *
+ * @type {import("../states.js").AmbientAnim["frames"]}
  */
-const UNIVERSE_IDS = [...FIELD_IDS, ...INTRO_IDS];
+function cardSky(nodes, w, h, edges, params, bleed = NO_BLEED, t0 = 0) {
+	const joiners = makeFlight(layoutChapterCenters, INTRO_IDS)(
+		nodes,
+		w,
+		h,
+		edges,
+		params,
+		bleed
+	);
+	const crowd = onSkyClock(makeFlight(layoutChapterCenters, FIELD_IDS))(
+		nodes,
+		w,
+		h,
+		edges,
+		params,
+		bleed,
+		t0
+	);
+	return (attrs, trails, t) => {
+		joiners(attrs, trails, t);
+		// last, so the clock published to skyFlight — which hopBands' departure
+		// columns read to find the crowd — is the story's and not the fifteen's
+		crowd(attrs, trails, t);
+	};
+}
 
 /**
  * The intro fifteen (Bacon included) joining the field where they stand. They
@@ -99,7 +134,8 @@ export const states = {
 		// galaxy state where they have stopped being a constellation, so holding
 		// them still would pick them back out of the sky they just joined
 		ambient: {
-			frames: makeFlight(layoutChapterCenters, UNIVERSE_IDS)
+			clocked: true,
+			frames: cardSky
 		}
 	}
 };
