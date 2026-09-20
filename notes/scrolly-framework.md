@@ -322,6 +322,16 @@ ranked layouts plot by sampled rank order, never by raw rank against
   `stepsHeight`.
 - The canvas hop colours in `palette.js` are hard-coded rgb of the tokens in
   `src/styles/variables.css`.
+- A race step's resting camera is declared per STATE (`restPlayhead`), but the
+  two steps resting in `raceRecent` want two different ones: the first opens on
+  the present and asks for a press, the second is where the rewind has parked.
+  The choreographies put the camera right on every path the reader can walk —
+  `holdCamera` forward, `landAt` backward, and a published hold now moves the
+  camera so `publish` cannot overwrite it — but a COLD `?step=10` has run no
+  choreography and rests on the present, under prose about 2006. Declaring the
+  waypoint on the state instead is not the fix: the rewind's plan returns no
+  legs when the camera is already at the year it pans to, so it silences the
+  chapter's subject.
 - A `RequestAnim` cannot declare `cardAfter`, so a reader-started run cannot
   release its step's words at a leg boundary the way an entry can. It does not
   bite today — a request's prose has already landed before the reader presses —

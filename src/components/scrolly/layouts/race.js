@@ -2332,19 +2332,16 @@ export const RACE_REWIND_WAYPOINT_YEAR = 2006;
 // the cast.
 // raceRecent is about SLJ taking over from Hackman, so those two are the names
 // it guarantees; the ink is separate and belongs to whoever leads at the camera.
-export const RACE_RECENT_STEP = {
-	extent: RACE_RECENT_EXTENT,
-	// Where the step rests, and the year its prose reads out. Without it the
-	// rest fell through to the extent's end (2025), so the step only ever showed
-	// the waypoint if the reader had just watched the rewind pan there: a cold
-	// `?step=10` opened on 2025 under words about 2006, and stepping back from
-	// raceFull landed on 2025 too — `landAt` writes the hold but not the camera,
-	// and `camera.publish` resolves a hold that disagrees with the camera in the
-	// camera's favour. Resting both states on the same year removes the
-	// disagreement rather than papering over it.
-	restPlayhead: RACE_REWIND_WAYPOINT_YEAR,
-	highlight: [SLJ, HACKMAN]
-};
+// NO `restPlayhead`, deliberately: the two steps that rest in this one state
+// want two different cameras. The first opens on the present and asks the reader
+// to press Start; the second is where the rewind has parked, on the 2006
+// takeover its prose reads out. A per-state rest can only serve one of them, and
+// declaring the waypoint here silences the rewind entirely — its plan returns no
+// legs when the camera is already at the year it pans to, which is the whole
+// chapter's subject gone. So the resting year falls through to the extent's end
+// and the choreographies put the camera where each step wants it, which is what
+// `landAt` is for.
+export const RACE_RECENT_STEP = { extent: RACE_RECENT_EXTENT, highlight: [SLJ, HACKMAN] }; // prettier-ignore
 // raceFull shows the whole cast, so it has to name its subject: without a
 // highlight, `subject` falls back to everything visible and every line on the
 // chart would claim the foreground at once. Hackman is the one it labels, so he

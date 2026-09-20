@@ -917,6 +917,14 @@
 		story.entryHeld = false;
 		if (anim.finish) {
 			anim.finish(story, lastCamera ?? undefined);
+			// A finish that publishes a hold is naming where the chart now IS, so
+			// the camera has to agree with it. `camera.publish` below resolves a
+			// disagreement in the CAMERA's favour, so a finish that names a year the
+			// camera was never moved to — `landAt`, which the backward retrace ends
+			// on — had its hold overwritten and the step rested nineteen years away
+			// from the one its prose reads out. `holdCamera` publishes the live
+			// camera, so this is a no-op for every other finish.
+			if (story.race.view) camera.apply(story.race.view);
 		} else {
 			tweener.to(finalAttrs, 0);
 			trailTweener.to(finalTrails, 0);
