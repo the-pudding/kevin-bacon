@@ -86,9 +86,19 @@ travelling is something the reader has to re-find.
 10. **Durations belong to the framework.** The step tween is 700 ms cubic
     in-out with a hashed stagger of up to half its length; an entry is 900 ms;
     an in-state param change is 450 ms (`ScrollyVisual.svelte`). A leg longer
-    than a second exists only for motion with a real-world rate (the race sweep,
-    the rewind, the simulation replay), and such a leg is always something the
-    reader started. A state does not pick its own tempo.
+    than a second exists only for motion with a real-world rate — the race
+    sweep, the rewind, the simulation replay — and that rate is expressed as a
+    rate in the code, px/sec or years/sec, never as a duration that happens to
+    look right on one box. A state does not pick its own tempo.
+
+    Such a leg is **usually** something the reader started, and where it is not,
+    the chart's own note says so and says why. Four are declared rather than
+    gated: the two future pans (`openFuture` / `closeFuture`), the closing
+    projection draw (`drawProjections`) and the career fan. Each is the subject
+    of the step it belongs to rather than a flourish on the way in — the strip
+    opening IS the sentence about the future — so putting a Start in front of
+    them would ask the reader to consent to the thing they pressed Next for.
+    A leg that is not the step's subject still needs a press.
 
 11. **The stagger orders reading; it never decorates.** A per-node delay exists
     so the reader's eye is led: top to bottom, near to far, cast before crowd. A

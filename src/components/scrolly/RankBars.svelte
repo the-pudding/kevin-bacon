@@ -41,8 +41,16 @@
 	// row-in's own timing (delay, then duration), shared with the CSS keyframe
 	// via --row-in-delay/--row-in-ms below so the `entered` timer (see there)
 	// can't drift out of step with the animation it's timing itself against.
-	const ROW_IN_DELAY_MS = 1750;
-	const ROW_IN_MS = 1400;
+	//
+	// These used to be 1750 + 1400, so the neighbour rows arrived 3.15s after the
+	// panel mounted — well over a second after the step's own words had landed
+	// and settled, which read as the list still assembling itself while the
+	// reader was already being told what it said. The long delay was buying "wait
+	// until the canvas bar has landed"; the panel's fade-in now waits for the
+	// arrival to settle on its own (see story.rank.revealed in Stage.svelte), so
+	// the rows only have to clear that fade and come in WITH the prose.
+	const ROW_IN_DELAY_MS = 350;
+	const ROW_IN_MS = 900;
 
 	// the reveal cascade: paced to feel like a fast countdown landing, not a
 	// progress bar. Only the top of the list cascades one row at a time — the
@@ -595,10 +603,11 @@
 		transition: opacity 0.25s ease;
 	}
 
-	/* everyone but Bacon starts invisible and fades in slowly, after the canvas
-	   bar has landed and the step text has had its moment (see Index.svelte's
-	   rank-focus-text) — known rows (Bacon's included) are exempted below so his
-	   is there from the start, matching the bar dissolving into it.
+	/* everyone but Bacon starts invisible and fades in, arriving with the step's
+	   words rather than on a timer of their own — the panel's fade-in is what
+	   waits for the canvas bar to land (see story.rank.revealed in Stage.svelte).
+	   Known rows (Bacon's included) are exempted below so his is there from the
+	   start, matching the bar dissolving into it.
 
 	   Scoped to `.rows:not(.entered)` — once `entered` (set once, after the
 	   animation's own delay + duration have genuinely elapsed; see the script)

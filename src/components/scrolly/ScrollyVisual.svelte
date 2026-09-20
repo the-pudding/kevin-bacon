@@ -115,6 +115,9 @@
 	// fraction of the remaining distance to the target each frame (exponential
 	// ease-out — feels like a weighted reel). Reduced motion uses 1 (snap).
 	const SCRUB_EASE = 0.22;
+	// how long a name whose text changes takes to cross over with its own new
+	// string (see nameSwap, beside reducedMotion below)
+	const LABEL_SWAP_MS = 200;
 	const LABEL_LINE_GAP_PX = 16; // ~11px label line-height * 1.15, matches reference
 	// how close a below-dot name may sit to the canvas edge before it stops
 	// sliding outward (see the .node-label transform)
@@ -543,12 +546,34 @@
 				for (let k = 0; k < TRAIL_POINTS; k++) buf[base + k * 2] -= dx;
 			}
 		});
+		// Repaint now, in this flush. Svelte has already moved `.annotations` with
+		// the column, but `tracked` still holds the transforms built against the
+		// OLD origin, and the next paint is the arrival tween's first frame — so
+		// without this every name spends one frame a whole prose column away from
+		// its dot. drawScene rebuilds `tracked` from the restated buffer.
+		drawScene();
 	}
 
 	// live, so DevTools' emulation (and a reader changing the OS setting mid-story)
 	// stands every animation down straight away
 	const motionQuery = new MediaQuery("(prefers-reduced-motion: reduce)", false);
 	const reducedMotion = $derived(motionQuery.current);
+
+	/**
+	 * A name swap crossfades on a channel of its OWN, multiplied into the
+	 * element's opacity against the dot's live alpha (see .node-label's CSS).
+	 *
+	 * It cannot be a fade on `opacity` itself: svelte/transition's fade injects
+	 * @keyframes on that property, which outranks the inline per-frame write for
+	 * the length of the fade and then snaps back to whatever the live alpha has
+	 * become. A name introduced while its dot is still fading up would sample
+	 * ~0, animate 0 → 0 and pop; and on the race chart, where a name rides its
+	 * dot's alpha through a pan, every swap would freeze that ramp and jump.
+	 */
+	const nameSwap = (_node) => ({
+		duration: reducedMotion ? 0 : LABEL_SWAP_MS,
+		css: (t) => `--name-alpha: ${t}`
+	});
 
 	// -- What the template reads ------------------------------------------------
 	/** @type {import("./annotations.js").TrackedLabel[]} */
@@ -659,9 +684,21 @@
 	const yLabelTop = $derived(height ? (MARGIN + 8 + plotFloor) / 2 : 0);
 	// x-axis title sits just under the plot, but never behind the step card: on
 	// long-prose steps the card climbs into the plot, so clamp the title up to
-	// stay above it (text-shadow keeps it legible over any dots it then overlaps)
+	// stay above it (text-shadow keeps it legible over any dots it then
+	// overlaps). The lift has its own floor at the tick row: lifted past that
+	// the title lands ON the years it is titling, which is what printed the
+	// career chart's "Care age year" through its own 10/20/30/40.
+	const X_LABEL_LINE_PX = 14;
+	const xLabelFloor = $derived(
+		decor?.axes?.xBase != null ? decor.axes.xBase - X_LABEL_LINE_PX : 0
+	);
 	const xLabelTop = $derived(
-		height ? Math.min(plotFloor + 32, height - stepsHeight - 24) : 0
+		height
+			? Math.max(
+					xLabelFloor,
+					Math.min(plotFloor + 32, height - stepsHeight - 24)
+				)
+			: 0
 	);
 	// pinned homes for the "lower"/"higher" mini-labels — the same plot-rect
 	// top/bottom that yLabelTop above centres the axis title within
@@ -1663,25 +1700,37 @@
 				<div class="pulse-ring"></div>
 			</div>
 		{/if}
-		{#each tracked as t (t.id)}
+		<!-- Keyed on the TEXT as well as the id, so a name whose string changes is
+		     two elements for the length of a crossfade rather than one text node
+		     mutated in place at full opacity. Both copies sit at the same
+		     transform, so they cross over where the name already is and nothing
+		     moves; on the scatter that swap is the whole beat, because the number
+		     in the name is what the sentence is about. -->
+		{#each tracked as t (`${t.id}:${t.name}`)}
 			<!-- a per-node override ("left"/"right") sits the label beside the dot,
-			     vertically centred; otherwise it hangs below, centred on the dot and
-			     clamped to the canvas (.visual clips, so a name must not spill). The
+			     vertically centred; otherwise it hangs below, centred on the dot. All
+			     three are clamped to the canvas: .annotations clips, so an unclamped
+			     name is simply cut, which is what took the last letters off the race
+			     chart's right-hand gutter and off the quiz's left-hand names. The
 			     clamp is CSS, not px arithmetic here, because the percentages resolve
 			     against the name's own rendered box — so it slides only as far as it
 			     actually has to. On a phone the graph sits within LABEL_EDGE_GAP_PX of
 			     both edges and most names still fit centred; nudging every one of them
 			     a fixed distance inward instead threw them across the constellation. -->
 			{@const dir = labelDirs[t.id]}
+			{@const gap = LABEL_EDGE_GAP_PX}
+			{@const edge = `calc(${width - LABEL_EDGE_GAP_PX}px - 100%)`}
 			{@const transform =
 				dir === "right"
-					? `translate(${t.x + t.r + 4}px, calc(${t.y + t.labelOffset}px - 50%))`
+					? `translate(clamp(${gap}px, ${t.x + t.r + 4}px, ${edge}), calc(${t.y + t.labelOffset}px - 50%))`
 					: dir === "left"
-						? `translate(calc(${t.x - t.r - 4}px - 100%), calc(${t.y + t.labelOffset}px - 50%))`
-						: `translate(clamp(${LABEL_EDGE_GAP_PX}px, calc(${t.x}px - 50%), calc(${width - LABEL_EDGE_GAP_PX}px - 100%)), ${t.y + t.r + 4}px)`}
+						? `translate(clamp(${gap}px, calc(${t.x - t.r - 4}px - 100%), ${edge}), calc(${t.y + t.labelOffset}px - 50%))`
+						: `translate(clamp(${gap}px, calc(${t.x}px - 50%), ${edge}), ${t.y + t.r + 4}px)`}
 			<p
 				class="node-label"
-				style="transform: {transform}; opacity: {t.labelAlpha}"
+				style="transform: {transform}; --dot-alpha: {t.labelAlpha}"
+				in:nameSwap
+				out:nameSwap
 			>
 				{t.name}
 			</p>
@@ -1980,6 +2029,10 @@
 			0 0 8px var(--color-bg, #fff),
 			0 0 8px var(--color-bg, #fff),
 			0 0 12px var(--color-bg, #fff);
+		/* two channels multiplied: --dot-alpha is the dot's own alpha, written
+		   inline every frame, and --name-alpha is a text swap crossfading over it
+		   (see nameSwap). The transition rides --dot-alpha as it always did. */
+		opacity: calc(var(--dot-alpha, 1) * var(--name-alpha, 1));
 		transition: opacity 0.3s ease;
 	}
 
@@ -1989,18 +2042,18 @@
 		transition: opacity 0.3s ease;
 	}
 
-	.pulse-ring,
-	.pulse-ring::after {
+	/* One ring, once, on arrival — not two rings repeating forever. A target lock
+	   says "this one" and then stops; a repeating ripple is the only thing still
+	   moving once the story is at rest, which is the one thing ambient motion is
+	   allowed to be (motion.md rule 9, and the sky is already it). `both` holds
+	   the ring at its final frame, so it ends invisible rather than snapping back
+	   to full. */
+	.pulse-ring {
 		position: absolute;
 		inset: 0;
 		border: 2px solid rgba(34, 34, 34, 0.45);
 		border-radius: 50%;
-		animation: ripple 1.8s ease-out infinite;
-	}
-
-	.pulse-ring::after {
-		content: "";
-		animation-delay: -0.9s;
+		animation: ripple 1.8s ease-out both;
 	}
 
 	@keyframes ripple {
@@ -2068,17 +2121,10 @@
 			transition: none;
 		}
 
-		.pulse-ring,
-		.pulse-ring::after {
-			animation: none;
-		}
-
+		/* the ring's resting state, which is the ripple's last frame held still */
 		.pulse-ring {
+			animation: none;
 			transform: scale(1.3);
-		}
-
-		.pulse-ring::after {
-			content: none;
 		}
 	}
 

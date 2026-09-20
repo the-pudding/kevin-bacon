@@ -111,6 +111,39 @@
 			? { duration: 0 }
 			: { y: -PROSE_RISE_PX, duration: PROSE_OUT_MS, easing: cubicInOut }
 	);
+
+	// Where this copy is standing while it is the active one. Captured in a PRE
+	// effect, on the flush that deactivates it and before the DOM updates, which
+	// is the only moment it is both still laid out and not yet moved: above
+	// 1200px a chapter card swaps the prose column to the other side of the
+	// screen (see `flipped` in Stage.svelte), and the outgoing copy is a grid
+	// item of the column that just moved — so without this it is teleported a
+	// full column's width and fades out over there.
+	/** @type {HTMLElement | null} */
+	let el = $state(null);
+	/** @type {DOMRect | null} */
+	let leftFrom = null;
+	let wasActive = false;
+	$effect.pre(() => {
+		if (wasActive && !active && el) leftFrom = el.getBoundingClientRect();
+		wasActive = active;
+	});
+
+	/**
+	 * The exit, pinned to the side the words were read on. Freezing the box the
+	 * copy already occupied is what lets the column move underneath it: the old
+	 * words leave where they were, and the new ones arrive wherever the column
+	 * now is.
+	 */
+	function proseLeave(node, params) {
+		if (leftFrom) {
+			node.style.position = "fixed";
+			node.style.left = `${leftFrom.left}px`;
+			node.style.top = `${leftFrom.top}px`;
+			node.style.width = `${leftFrom.width}px`;
+		}
+		return fly(node, params);
+	}
 </script>
 
 <!-- The wrapper is what fades, and it is a grid item of the prose column (see
@@ -121,7 +154,12 @@
      stepsHeight. The column's aria-live is unaffected: a live region announces
      what ARRIVES, and the copy on its way out is only being removed. -->
 {#if active && !hold}
-	<div class="step-prose" in:fly={proseIn} out:fly={proseOut}>
+	<div
+		class="step-prose"
+		bind:this={el}
+		in:fly={proseIn}
+		out:proseLeave={proseOut}
+	>
 		{@render children()}
 	</div>
 {/if}

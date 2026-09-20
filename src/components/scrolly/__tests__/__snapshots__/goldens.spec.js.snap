@@ -632,31 +632,31 @@ exports[`layout goldens > raceRecent {"playhead":2006} @stacked 1`] = `
 
 exports[`layout goldens > raceRecent null @beside 1`] = `
 {
-  "attrs": "6c98c2133008a495",
-  "decor": "f96f75b832a40516",
+  "attrs": "d02b5ee0e7bbef58",
+  "decor": "2610c635a65eb991",
   "delays": null,
   "trailDelays": "e3a9a68dbd3b414a",
-  "trails": "bdc1e28e1ecc48ce",
+  "trails": "279b0b60ae6b1fc1",
 }
 `;
 
 exports[`layout goldens > raceRecent null @phone 1`] = `
 {
-  "attrs": "1d508a318fefbb06",
-  "decor": "49c9c1e14c7da9eb",
+  "attrs": "99e855c7dd2bfda0",
+  "decor": "cf8bd73b9865ef14",
   "delays": null,
   "trailDelays": "e3a9a68dbd3b414a",
-  "trails": "614e3f5063aa1cbf",
+  "trails": "1fe0b66f0bd8c187",
 }
 `;
 
 exports[`layout goldens > raceRecent null @stacked 1`] = `
 {
-  "attrs": "2d1e3ec235295e91",
-  "decor": "257cae12d2c32286",
+  "attrs": "58cb3280323e3c8a",
+  "decor": "ec41b6f956d29b77",
   "delays": null,
   "trailDelays": "e3a9a68dbd3b414a",
-  "trails": "154be98beb72839c",
+  "trails": "c655d2da886b0eb1",
 }
 `;
 

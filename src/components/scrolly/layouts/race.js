@@ -2332,7 +2332,19 @@ export const RACE_REWIND_WAYPOINT_YEAR = 2006;
 // the cast.
 // raceRecent is about SLJ taking over from Hackman, so those two are the names
 // it guarantees; the ink is separate and belongs to whoever leads at the camera.
-export const RACE_RECENT_STEP = { extent: RACE_RECENT_EXTENT, highlight: [SLJ, HACKMAN] }; // prettier-ignore
+export const RACE_RECENT_STEP = {
+	extent: RACE_RECENT_EXTENT,
+	// Where the step rests, and the year its prose reads out. Without it the
+	// rest fell through to the extent's end (2025), so the step only ever showed
+	// the waypoint if the reader had just watched the rewind pan there: a cold
+	// `?step=10` opened on 2025 under words about 2006, and stepping back from
+	// raceFull landed on 2025 too — `landAt` writes the hold but not the camera,
+	// and `camera.publish` resolves a hold that disagrees with the camera in the
+	// camera's favour. Resting both states on the same year removes the
+	// disagreement rather than papering over it.
+	restPlayhead: RACE_REWIND_WAYPOINT_YEAR,
+	highlight: [SLJ, HACKMAN]
+};
 // raceFull shows the whole cast, so it has to name its subject: without a
 // highlight, `subject` falls back to everything visible and every line on the
 // chart would claim the foreground at once. Hackman is the one it labels, so he
@@ -2844,8 +2856,16 @@ const RACE_CLOSE_LABELS = {
 // (story.race.view), so the param retarget that follows moves nothing.
 // ---------------------------------------------------------------------------
 
-/** the draw-on's length: the lines unspool leftward across the visible span */
-const SWEEP_MS = 4000;
+// The draw-on's speed: the lines unspool leftward across the visible span, so
+// this is px/sec like the camera pans and for the same reason. As a fixed
+// duration it was one length for every box, and since the phone's visible span
+// is a third of the desktop's the phone drew at a third of the speed — about
+// 14px per 400ms, slow enough to read as a still picture that happened to
+// change. The floor is what keeps the shortest box from finishing before the
+// top-to-bottom order can be read (motion.md rule 11).
+const SWEEP_PX_PER_SEC = 300;
+const SWEEP_MS_MIN = 2000;
+const SWEEP_MS_MAX = 5000;
 // px/sec the camera pans during a rewind leg — one consistent on-screen speed
 // for every leg, rather than a fixed duration regardless of how many years it
 // covers (a 19yr and a 12yr leg at the same duration read as two different
@@ -2878,7 +2898,7 @@ const CLOSE_DRAW_MS = 2600;
 // away first, leaving the actors the step is about.
 const SHOWN_DEPART_END = 0.35;
 // how far into raceRecent's draw-on its actors fade fully in. Short, relative
-// to the 4s sweep — they should read as "arriving" once the rank crowd has
+// to the sweep — they should read as "arriving" once the rank crowd has
 // cleared, not as a second slow reveal riding the whole draw-on.
 const SHOWN_ARRIVE_END = 0.15;
 
@@ -2886,12 +2906,27 @@ const SHOWN_ARRIVE_END = 0.15;
 // (raceTuning.speedScale), so the dev tuner retimes the whole chapter at once
 const scaled = (ms) => ms * raceTuning.speedScale;
 
-/** how long a camera pan from one year to another takes, at REWIND_PX_PER_SEC */
+/**
+ * How long a camera pan from one year to another takes, at REWIND_PX_PER_SEC.
+ *
+ * NOT `scaled`. A leg derived from a pixel rate is already invariant to
+ * pxPerYear — that is the whole point of expressing it as a rate — so taking
+ * the global duration scale on top of it made the shipped rate 200px/sec when
+ * the tuned constant says 300, and put the ceiling at 9s when REWIND_MS_MAX
+ * says 6. `scaled` belongs to the legs that ARE authored as durations.
+ */
 function rewindMs(fromP, toP) {
 	const px = Math.abs(toP - fromP) * raceTuning.pxPerYear;
-	return scaled(
-		clamp((px / REWIND_PX_PER_SEC) * 1000, REWIND_MS_MIN, REWIND_MS_MAX)
-	);
+	return clamp((px / REWIND_PX_PER_SEC) * 1000, REWIND_MS_MIN, REWIND_MS_MAX);
+}
+
+/**
+ * How long the draw-on takes to unspool across the box, at SWEEP_PX_PER_SEC.
+ * Not `scaled`, for rewindMs' reason.
+ */
+function sweepMs(w, h) {
+	const px = raceVisibleSpan(w, h) * raceTuning.pxPerYear;
+	return clamp((px / SWEEP_PX_PER_SEC) * 1000, SWEEP_MS_MIN, SWEEP_MS_MAX);
 }
 
 // The frame builders. All of them hold the state's content extent fixed — only
@@ -3135,7 +3170,7 @@ const drawOn = raceChoreography(
 				: 0;
 		return [
 			{
-				ms: scaled(SWEEP_MS),
+				ms: sweepMs(ctx.w, ctx.h),
 				frame: entryFrame(RACE_RECENT_STEP),
 				yCap: RACE_RECENT_YCAP,
 				alpha: arrive
@@ -3168,9 +3203,14 @@ const retraceRewind = raceChoreography(
 		const { w, h } = ctx;
 		const fromP = ctx.exit.playhead ?? raceFullRestPlayhead(w, h);
 		const toP = RACE_REWIND_WAYPOINT_YEAR;
-		// the camera already sits at or ahead of the waypoint — on a viewport wide
-		// enough for that there was no pan to retrace
-		if (fromP >= toP) return [];
+		// A retrace pans BACK, so there is something to retrace only when the
+		// camera is ahead of the waypoint — which happens when the reader has
+		// panned raceFull forward. Both states now rest on the waypoint, so the
+		// untouched case is fromP === toP and no leg plays either way. (This test
+		// used to be the other way round, which meant the retrace could only fire
+		// on a camera panned BEHIND the waypoint — a forward pan, the opposite of
+		// what this entry is named for.)
+		if (fromP <= toP) return [];
 		return [
 			{
 				ms: rewindMs(fromP, toP),

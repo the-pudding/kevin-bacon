@@ -17,7 +17,8 @@
 	/**
 	 * @type {{ visual?: { locate: (id: number) => { x: number, y: number } | null } }}
 	 */
-	let { visual } = $props();
+	/** @type {{ visual: any, overlayHeight?: number }} */
+	let { visual, overlayHeight = 0 } = $props();
 
 	const PROMPT = "Who is closer to the center of Hollywood?";
 	const FLIGHT_MS = 900;
@@ -185,6 +186,16 @@
 
 {#if pair}
 	<div class="quiz" class:asking={phase === "asking"}>
+		<!-- The wash and blur, clipped off the step card. Its own element rather
+		     than a background on .quiz, because .quiz has to stay the full box for
+		     the cards to fly across the whole scatter, and on the stacked layout
+		     that box runs under the prose — so tinting it greyed out the very
+		     sentence asking the question. Every other over-canvas panel already
+		     takes this clearance (see .rank-bars-panel and .race-scrubber-panel);
+		     this one was simply never handed it. -->
+		{#if phase === "asking"}
+			<div class="quiz__dim" style="bottom: {overlayHeight}px"></div>
+		{/if}
 		<div class="quiz__inner">
 			{#if phase === "asking"}
 				<p class="quiz__prompt">{PROMPT}</p>
@@ -223,8 +234,13 @@
 		z-index: var(--z-tap-above);
 	}
 
-	/* blur the scatter behind the overlay only while a question is showing */
-	.quiz.asking {
+	/* blur the scatter behind the overlay only while a question is showing, and
+	   only over the canvas — `bottom` is the step card's measured height */
+	.quiz__dim {
+		position: absolute;
+		top: 0;
+		right: 0;
+		left: 0;
 		backdrop-filter: blur(6px);
 		-webkit-backdrop-filter: blur(6px);
 		background: color-mix(in srgb, var(--color-bg, #fff) 55%, transparent);

@@ -91,14 +91,22 @@
 	// rankReveal's, so without this every row would shift a few px away from what
 	// the reader was looking at (and away from where the canvas has been aimed) at
 	// the very moment it collapses. Hold the last height a rank step measured.
+	//
+	// It also has to stop moving DURING a prose swap. `.scrolly-steps` is one
+	// grid cell holding both copies, so while they cross over it measures the
+	// taller of the two and `overlayHeight` changes twice — once when the old
+	// copy unmounts and once when the new one mounts. The panel is `overflow:
+	// hidden`, so each change clipped whatever no longer fit, which is how rows
+	// went missing mid-transition. So the height is only taken once the arriving
+	// step has landed, and held until then; the first rank arrival seeds it
+	// immediately, since there is nothing yet to hold.
 	let rankStepsHeight = $state(0);
 	$effect(() => {
-		if (isRankState(currentState) && overlayHeight)
+		if (!isRankState(currentState) || !overlayHeight) return;
+		if (!rankStepsHeight || story.settled === currentState)
 			rankStepsHeight = overlayHeight;
 	});
-	const rankPanelBottom = $derived(
-		(isRankState(currentState) ? overlayHeight : rankStepsHeight) + 12
-	);
+	const rankPanelBottom = $derived(rankStepsHeight + 12);
 	// The panel's own fade-in used to run on a fixed delay timed to land after
 	// the hopBands→rankFocus bar retarget; now it waits for that retarget to
 	// actually settle instead. Once true it stays true: the panel outlives
@@ -115,8 +123,16 @@
 	// `story.settled` read "rankFocus" again, so the hold was permanent: the
 	// ladder sat at opacity 0 for good, over a canvas carrying nothing but Bacon's
 	// bar — which this panel is placed to cover (see layouts/rank.js).
+	//
+	// Both clauses ask `story.settled`, not the live step. Asking the live step
+	// raised the ladder in the frame of the press, so stepping back out of the
+	// race it faded up at full ink over a chart that had not begun to leave —
+	// furniture arriving before the canvas it belongs to, which is the beat this
+	// whole pass is about (motion.md rule 6). `settled` names the state whose
+	// arrival has landed, so rankReveal still satisfies it on the reload and the
+	// step-back this clause exists for; it just waits for the dots first.
 	$effect(() => {
-		if (story.settled === "rankFocus" || currentState === "rankReveal")
+		if (story.settled === "rankFocus" || story.settled === "rankReveal")
 			story.rank.revealed = true;
 	});
 	// the overlay is up through the rank chapter, and for the collapse that opens

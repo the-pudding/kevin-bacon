@@ -555,6 +555,20 @@ allocating a second block for the same 99 actors: a contender's trajectory line
 here becomes their win-count climb in `simRace` four steps later. `raceLayout`
 therefore skips those slots instead of retracting them when `step.genz` is set.
 
+Sharing the slots is about the buffer, not about the line. The two charts do
+**not** declare each other in `TRAIL_CONSTANCY` (`trails.js`), so a slot crossing
+between them fades out where it lies and re-enters at its new geometry rather
+than morphing: a trajectory through remoteness-over-time and a cumulative win
+count are not the same line, and tweening one into the other drew a shape that
+belongs to neither chart. The race chapter's own steps DO declare each other,
+because there the same curve is genuinely being shown under a moved camera.
+
+**Declared, not a defect:** the seven names ride their dots for the whole
+three-second arrival rather than waiting at the right edge for them. On this step
+that is the point — the dots enter at the left and carry their names across with
+them, so the reader can follow one person in, which is the opposite of the race
+chapter's gutter where a name captions a dot that has always been there.
+
 **The field ARRIVES, it does not draw on.** The race chapter's own entry unspools
 a line leftward from a dot pinned at the plot's right edge, because there the
 camera is a time machine and the reader is being shown history that already

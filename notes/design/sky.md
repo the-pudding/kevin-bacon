@@ -15,6 +15,15 @@ story the constellation reads as foreground. Both of those also have an `entry`
 leg — the ambient starts when the pull-back settles, because `settle()` is the
 common terminus of both paths.
 
+**Declared, not a defect:** on that step the fifteen are drawn at the crowd's
+grey and radius with no links between them, so the only thing separating them
+from the sky is that they are the part of it holding still. Read cold that can
+look like the flight has snagged rather than like a diagram in front of it. It
+stays as it is: the step's job is to hand the constellation over to the crowd,
+and re-inking the fifteen here would re-assert a diagram the next step exists to
+dissolve. If it is ever changed, the change is to draw them at the network's ink
+and radius — not to fly them, which is the one thing that would cost the beat.
+
 **The flight is a flow, not a displacement**, and that is the one way it departs
 from the shape everything else here has. The sky is a volume and the camera moves
 forward through it forever: a dot enters at the far plane, is carried outward

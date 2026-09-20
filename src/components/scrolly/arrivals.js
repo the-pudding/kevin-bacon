@@ -6,7 +6,13 @@
 // post-render $effect would leave it painting the blurred question for a frame
 // before being told not to.
 import { entryFor, isRankState } from "./states.js";
-import { resetGenzLines, resetSimRace, story } from "./story.svelte.js";
+import {
+	resetGenzLines,
+	resetSimRace,
+	settleGenzLines,
+	settleSimRace,
+	story
+} from "./story.svelte.js";
 
 /** @typedef {import("./step-registry.svelte.js").Move} Move */
 
@@ -27,15 +33,22 @@ const ARRIVALS = {
 	// watch rather than the finished chart under a dead Start button. Forward
 	// arrivals from OUTSIDE the state only: the steps inside it that read the
 	// result out must keep the settled chart they describe.
+	// A BACKWARD arrival is the other half of the same rule, and it was missing:
+	// the reader is coming from the steps that read the result out, so the chart
+	// they are stepping back onto has to be the finished one those steps
+	// describe. Without it a cold `?step=28` and then Previous landed on an
+	// empty simulation under prose naming the winner.
 	simRace: ({ forward, from }) => {
 		if (forward && from !== "simRace") resetSimRace();
+		else if (!forward) settleSimRace();
 	},
 	// ...and the same for the Gen Z step, which is one step rather than a
-	// chapter: its whole payoff is the draw-on, so an arrival must find the
-	// plot empty and the button live. It is `skipback`, so the only arrival
-	// there is a forward one.
+	// chapter: its whole payoff is the draw-on, so a forward arrival must find
+	// the plot empty and the button live, and a backward one — which `skipback`
+	// makes possible from the step after it — must find the field drawn.
 	raceGenz: ({ forward }) => {
 		if (forward) resetGenzLines();
+		else settleGenzLines();
 	}
 };
 

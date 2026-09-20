@@ -128,7 +128,7 @@
 			<!-- the pair quiz renders as a blurred overlay over the scatter; the
 		     step below it just sets up the question -->
 			{#snippet quizPanel()}
-				<PairQuiz visual={layout.visual} />
+				<PairQuiz visual={layout.visual} overlayHeight={layout.overlayHeight} />
 			{/snippet}
 			<!-- raceFull pan control: drag surface + year slider over the plot. Only
 		     raceFull gets it — the raceRecent steps are carried by their own

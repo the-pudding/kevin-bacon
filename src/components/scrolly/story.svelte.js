@@ -19,6 +19,11 @@
 // fifth (the quiz) opens a gate the reader's own Next then walks through. The
 // fields below are what those gates are asked about; see `gate` / `skipback` /
 // `advanceon` in Step.svelte.
+import simStory from "$data/scrolly-story.json";
+import { SIM_LABEL_N } from "./cast.js";
+
+const SIM_N_SIMS = simStory.genz.nSims;
+
 export const story = $state({
 	/** name of the state whose arrival tween has finished, else null. Set by
 	 * ScrollyVisual — a layout reads it to hold an interaction back until its
@@ -211,4 +216,22 @@ export function resetGenzLines() {
 export function resetSimRace() {
 	story.sim.runs = 0;
 	story.sim.names = 0;
+}
+
+/** Put the Gen Z race step in the state its NEXT step's prose describes: the
+ * field drawn. The mirror of resetGenzLines, for a reader who reaches that
+ * prose without the draw-on having run — a cold deep link and then Previous.
+ * Without it the step reads out a result over an empty plot. */
+export function settleGenzLines() {
+	story.race.genzLinesShown = true;
+}
+
+/** Put the simulation race in the state its own later steps describe: every run
+ * replayed and every winner named. The mirror of resetSimRace, and both fields
+ * together for that function's reason — the label selectors fall back to
+ * `names` below the threshold, so a full playhead with no names draws the
+ * finished chart with nobody on it. */
+export function settleSimRace() {
+	story.sim.runs = SIM_N_SIMS;
+	story.sim.names = SIM_LABEL_N;
 }

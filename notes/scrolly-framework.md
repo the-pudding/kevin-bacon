@@ -164,7 +164,15 @@ flight.
 Labels and the pulse ring are HTML, glued to their dots each frame from the live
 buffer (`trackLabels`); a name rides its dot's alpha and is stacked off its
 neighbours by `createLabelStacker`. Every id a dynamic `labels` function can
-return must be in `STATE_TRACKED`, or it has no element to render into. A layout's
+return must be in `STATE_TRACKED`, or it has no element to render into.
+
+The pulse ring is **one ring, played once on arrival** — not two rings repeating.
+A target lock says "this one" and then stops; a ring that ripples forever is the
+only thing still moving once the story is at rest, and ambient motion is the
+sky's job alone (rule 9). A name whose TEXT changes crossfades with its own new
+string on `--name-alpha`, a channel multiplied into the element's opacity against
+the dot's live alpha — never a transition on `opacity` itself, which would
+outrank the per-frame inline write for the length of the fade. A layout's
 `axes`, `notes`, `legend`, `band` and `hits` are rendered in the overlay; the race
 chart's per-frame furniture (the takeover callout, the future block) rides the
 frame writer's return so it stays glued through a pan.
