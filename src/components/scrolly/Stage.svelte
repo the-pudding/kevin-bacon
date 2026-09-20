@@ -810,11 +810,19 @@
 		/* no longer over the canvas, so it is centred in a column of its own
 		   rather than pinned to the bottom of the layout */
 		.scrolly-steps {
-			top: 50%;
+			/* Full height and centred by the grid, NOT by `top: 50%` and a
+			   translate. A transform makes its element the containing block for
+			   `position: fixed` descendants, and the departing copy of a step's
+			   prose is pinned that way while the column swaps sides beneath it (see
+			   Step.svelte's proseLeave) — so the viewport coordinates it was pinned
+			   at resolved against this box instead and dropped it ~400px down the
+			   screen, to the bottom left corner. Nothing here is measured on this
+			   breakpoint (`overlayHeight` is 0 beside the prose), so the taller box
+			   costs nothing. */
+			top: 0;
 			right: auto;
-			bottom: auto;
+			bottom: 0;
 			width: var(--prose-w);
-			transform: translateY(-50%);
 			/* the column is centred in its own column now, so that is the edge the
 			   two copies of a swap share (see the grid note above) */
 			align-items: center;
