@@ -36,6 +36,7 @@ import {
 	TRAIL_POINTS,
 	TRAIL_META,
 	RACE_SLOT,
+	RACE_TRAIL_SLOTS,
 	SIM_SLOT,
 	SIM_TRAIL_SLOTS,
 	BACKDROP_SLOT,
@@ -578,13 +579,6 @@ function raceCameraYFit(camLeft, camRight) {
  * raceStepVisible.
  */
 export const RACE_CAST = new Set(RACE_IDS);
-
-/**
- * The trail slots the chapter owns — one line per cast member. Everything a
- * race frame writes lives in RACE_CAST (dots) and these (lines); every other
- * slot on the canvas belongs to whatever chapter the reader came from.
- */
-export const RACE_TRAIL_SLOTS = new Set(RACE_SLOT.values());
 
 // the race actors who count as contenders over [year0, year1]: their clipped
 // series must exist and dip to (or below) yCap. Reached through
@@ -3433,7 +3427,7 @@ export const states = {
 		layout: RACE_CLOSE_LAYOUT,
 		// not the chapter's shared title: two thirds of the ink on this chart is
 		// modelled, and the axis it is drawn on runs past the end of the record
-		title: "Where the center of Hollywood could be in 2030",
+		title: "Where the center of Hollywood could be in future",
 		race: RACE_CLOSE_STEP,
 		yCap: RACE_CLOSE_YCAP,
 		...RACE_CLOSE_LABELS,

@@ -4,6 +4,7 @@
 // small stateful stacker; nothing here touches the DOM or the story.
 import { STRIDE } from "./attr-buffer.js";
 import { createLabelDecollider } from "./label-decollide.js";
+import { ALPHA_SEEN } from "./render.js";
 
 /**
  * @typedef {Object} TrackedLabel
@@ -42,7 +43,7 @@ export function raceLabelCut(attrs, { highlight, labelIds, onPlot, top }) {
 		// a name whose dot the frame has faded out — or whose dot the draw pass
 		// is culling off the plot — isn't shown either way, and must not eat one
 		// of the slots on its way off the plot
-		if (keep.has(id) || attrs[id * STRIDE + 6] <= 0.004 || !onPlot(id)) {
+		if (keep.has(id) || attrs[id * STRIDE + 6] <= ALPHA_SEEN || !onPlot(id)) {
 			continue;
 		}
 		rest.push([id, attrs[id * STRIDE + 1]]);

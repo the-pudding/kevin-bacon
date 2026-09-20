@@ -218,11 +218,11 @@ function layoutHopSeed(nodes, w, h, edges, _params, bleed = NO_BLEED) {
 	// camera pulls back, because the step is about the network as a whole again
 	writeNetwork(attrs, nodes, w, h, null, PULLBACK_ZOOM, HOP_SEED_EDGE_FADE);
 	writeFieldCrowd(attrs, w, h, PULLBACK_ZOOM, galaxyBox(w, h, bleed));
-	// an all-zero clock, opting out of the default edge lag: that lag is for links
-	// fading IN behind travelling dots, and these are fading OUT over a frame
-	// where nothing moves — so they go with the names, not half a beat later. It
-	// also keeps the pull-back starting the moment the fade lands.
-	return { attrs, delays: new Float64Array(DELAY_SIZE) };
+	// No delay clock of its own: every link on this arrival is fading OUT, and
+	// ScrollyVisual's arrivalDelays lags only a link that is fading IN, so the
+	// computed clock is already all-zero here. This used to need a hand-written
+	// zero array to opt out of a shared edge lag that applied in both directions.
+	return { attrs };
 }
 
 /**

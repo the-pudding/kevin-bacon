@@ -8,6 +8,15 @@ import { EDGE_GREY, EDGE_HIGHLIGHT, INK } from "./palette.js";
 import { TITLE_BAND } from "./plot.js";
 import { TRAIL_STRIDE, TRAIL_POINTS, TRAIL_META } from "./trails.js";
 
+/**
+ * Below this a mark is not drawn. Exported because it is the renderer's own
+ * floor and the arrival path has to ask the same question — "can the reader see
+ * this?" — when it decides what is leaving and what is arriving. A difference
+ * this small is also Float32 noise, which matters when the live frame and a
+ * target are compared across the two precisions.
+ */
+export const ALPHA_SEEN = 0.004;
+
 const TAU = Math.PI * 2;
 // one Path2D per (quantised rgb, alpha bucket): batches ~1k dots into a
 // handful of fills instead of a fillStyle + fill per dot
@@ -15,6 +24,18 @@ const dotBuckets = new Map();
 // slots drawn in the second trail pass, reused rather than allocated per frame
 /** @type {number[]} */
 const inkedTrails = [];
+
+/**
+ * An edge's stroke at `alpha`, blended from grey toward the highlight colour by
+ * `hi` (slot 2) so a highlighted route animates in with everything else.
+ */
+function edgeStroke(hi, alpha) {
+	if (!hi) return `rgba(${EDGE_GREY.join(", ")}, ${alpha})`;
+	const rgb = EDGE_GREY.map((c, k) =>
+		Math.round(c + (EDGE_HIGHLIGHT[k] - c) * hi)
+	);
+	return `rgba(${rgb.join(", ")}, ${alpha})`;
+}
 
 /**
  * Clear the bled canvas: past the column on both sides and above its top edge.
@@ -63,7 +84,7 @@ export function drawTrails(ctx, trailAttrs) {
 		const alpha = trailAttrs[base + TRAIL_POINTS * 2];
 		if (alpha <= 0.008) continue;
 		const hi = trailAttrs[base + TRAIL_POINTS * 2 + 1];
-		if (hi > 0.004) inkedTrails.push(t);
+		if (hi > ALPHA_SEEN) inkedTrails.push(t);
 		else strokeTrail(ctx, trailAttrs, t, alpha, 0);
 	}
 	for (const t of inkedTrails) {
@@ -86,9 +107,12 @@ export function drawTrails(ctx, trailAttrs) {
  * A live (target alpha > 0) line's far endpoint is drawn at its FINAL spot,
  * not its live position, so the line points to where the actor is going and
  * the actor slides onto it, instead of the angle swinging as the actor tweens
- * into place; a dying line (faded out in the target frame) tracks both live
- * dots instead — the target's endpoint positions belong to a layout this edge
- * isn't part of. "Where it is going" is the TWEENER's target, not the state's
+ * into place; a dying line (faded out in the target frame) is drawn to the frame
+ * the tween left instead — BOTH ends — because it is leaving, and what is
+ * leaving holds still while it fades (motion.md rule 2). The target says nothing
+ * about it (those endpoint positions belong to a layout this edge isn't part of)
+ * and the live buffer would drag it across the canvas behind two travelling
+ * dots. "Where it is going" is the TWEENER's target, not the state's
  * static layout: an entry choreography arrives onto its own frame 0 first, and
  * aiming at the static layout through that arrival detaches every link from
  * its dots. While a choreography owns the frame (`liveEnds`) it is writing
@@ -97,27 +121,32 @@ export function drawTrails(ctx, trailAttrs) {
  * @param {CanvasRenderingContext2D} ctx
  * @param {Float32Array} attrs the live frame
  * @param {Float64Array | null} target where the frame is heading
+ * @param {Float32Array} start the frame an in-flight tween is easing from
  * @param {[number, number][]} edgeEnds node pair per edge slot, lower hop first
  * @param {boolean} liveEnds draw every edge to live endpoints
  */
-export function drawEdges(ctx, attrs, target, edgeEnds, liveEnds) {
+export function drawEdges(ctx, attrs, target, start, edgeEnds, liveEnds) {
 	for (let e = 0; e < edgeEnds.length; e++) {
 		const i = EDGE_BASE + e * STRIDE;
 		const progress = attrs[i];
 		const alpha = attrs[i + 1];
-		if (alpha <= 0.004 || progress <= 0.004) continue;
+		if (alpha <= ALPHA_SEEN || progress <= ALPHA_SEEN) continue;
 		const [from, to] = edgeEnds[e];
-		const live = liveEnds || !target || target[i + 1] <= 0.004;
-		const xa = attrs[from * STRIDE];
-		const ya = attrs[from * STRIDE + 1];
-		const xb = live ? attrs[to * STRIDE] : target[to * STRIDE];
-		const yb = live ? attrs[to * STRIDE + 1] : target[to * STRIDE + 1];
+		// while a choreography owns the frame nothing but the live buffer means
+		// anything; a dying line reads both ends off the frame it left; a live one
+		// keeps its near end live and aims its far end at the target
+		const dying = !target || target[i + 1] <= ALPHA_SEEN;
+		const held = liveEnds ? attrs : dying ? start : null;
+		const near = held || attrs;
+		const far = held || target;
+		const xa = near[from * STRIDE];
+		const ya = near[from * STRIDE + 1];
+		const xb = far[to * STRIDE];
+		const yb = far[to * STRIDE + 1];
 		// slot 2 blends the stroke toward the highlight colour and thickens it,
 		// so a highlighted route animates in with everything else
 		const hi = attrs[i + 2];
-		ctx.strokeStyle = hi
-			? `rgba(${EDGE_GREY.map((c, k) => Math.round(c + (EDGE_HIGHLIGHT[k] - c) * hi)).join(", ")}, ${alpha})`
-			: `rgba(${EDGE_GREY.join(", ")}, ${alpha})`;
+		ctx.strokeStyle = edgeStroke(hi, alpha);
 		ctx.lineWidth = 1 + hi * 1.25;
 		ctx.beginPath();
 		ctx.moveTo(xa, ya);
@@ -139,7 +168,7 @@ export function drawDots(ctx, attrs, skip) {
 	dotBuckets.clear();
 	for (let i = 0; i < EDGE_BASE; i += STRIDE) {
 		const alpha = attrs[i + 6];
-		if (alpha <= 0.004) continue;
+		if (alpha <= ALPHA_SEEN) continue;
 		if (skip && skip(i)) continue;
 		const rB = attrs[i + 3] >> 4;
 		const gB = attrs[i + 4] >> 4;

@@ -8,6 +8,7 @@
 	import { createChoreographer } from "./choreographer.js";
 	import { createRaceCamera } from "./race-camera.js";
 	import {
+		ALPHA_SEEN,
 		clearCanvas,
 		drawTrails,
 		drawEdges,
@@ -54,7 +55,8 @@
 		TRAIL_SIZE,
 		TRAIL_STRIDE,
 		TRAIL_POINTS,
-		TRAIL_META
+		TRAIL_META,
+		sameLine
 	} from "./trails.js";
 	import {
 		MARGIN,
@@ -89,34 +91,26 @@
 	const TWEEN_JITTER = 0.5;
 
 	const { nodes, edges } = makeNodes();
-	// the fallback delays for any arrival with no authored choreography of its
-	// own, and for one whose choreography this direction skips (see
-	// STATE_REVEAL_FROM below): dots retarget in unison, but edges hold back
-	// until the dots have mostly landed — edges draw toward their endpoints'
-	// *final* spots, so fading them in earlier strings lines between mid-flight
-	// dots and far-away destinations
+	// How long a link fading IN holds back: edges draw toward their endpoints'
+	// *final* spots, so fading one in earlier strings a line between a mid-flight
+	// dot and a far-away destination. It is only ever applied to a link that is
+	// arriving — see arrivalDelays, which is where the rule now lives.
 	const EDGE_LAG_MS = TWEEN_MS * 0.75;
-	const EDGE_LAG_DELAYS = new Float64Array(DELAY_SIZE);
-	EDGE_LAG_DELAYS.fill(EDGE_LAG_MS, nodes.length);
-	// titleGalaxy's own arrival: stepping back onto it from `lone` fades the
-	// constellation's links and names out over a frame where nothing moves (the
-	// fourteen co-stars shrink/fade in place; only Bacon's sky trip is actually
-	// travelling) — the same case `layoutHopSeed` opts out of the lag for, and for
-	// the same reason: EDGE_LAG_DELAYS is for links fading IN behind travelling
-	// dots, so applying it here left the constellation's links on screen for most
-	// of the tween instead of going out with its names. Handled here rather than
-	// in `layoutTitleGalaxy` itself, because that layout's own `delays` also feeds
-	// the once-only cold-start pop-in (below), where the fallback jitter stagger
-	// across the whole crowd is worth keeping.
-	const TITLE_GALAXY_STATE = "titleGalaxy";
-	const EDGE_UNISON_DELAYS = new Float64Array(DELAY_SIZE);
-	// how long a departing trail (one the landing state doesn't draw) takes to
-	// fade to invisible, in place, before the arrival's real tween starts — so
-	// a stale line from a state the reader has left disappears FIRST instead of
-	// visibly sliding or shrinking across the canvas while it crossfades toward
-	// wherever the tweener parks it. Short: it's decluttering, not a beat the
-	// reader is meant to watch.
-	const TRAIL_FADE_MS = 220;
+	// Names this arrival introduces are held back until the dots have mostly
+	// landed (motion.md rule 2: a name captioning a dot mid-air is naming empty
+	// space). Three quarters of the travel, and NOT the edge lag it used to
+	// borrow: that lag is now 0 on most arrivals, and a hold of 0 would put every
+	// new name on screen beside a dot still in flight. It must also stay strictly
+	// SHORTER than the tween — drawScene has no timer of its own, so a hold that
+	// outlasted the tween would never lift.
+	const LABEL_HOLD_MS = TWEEN_MS * 0.75;
+	// how long a departing mark (one the landing state doesn't draw) takes to
+	// fade to invisible, in place, before anything travels — so a stale line or
+	// link from a state the reader has left disappears FIRST instead of visibly
+	// sliding or shrinking across the canvas while it crossfades toward wherever
+	// the tweener parks it. Short: it's decluttering, not a beat the reader is
+	// meant to watch.
+	const DEPART_FADE_MS = 220;
 	// per-frame smoothing factor for the pan glide: the playhead moves this
 	// fraction of the remaining distance to the target each frame (exponential
 	// ease-out — feels like a weighted reel). Reduced motion uses 1 (snap).
@@ -171,25 +165,116 @@
 	const trailTweener = createTweener(TRAIL_SIZE, drawScene, TRAIL_STRIDE);
 
 	/**
-	 * Two-phase trail arrival. Phase one fades every trail heading to alpha 0
-	 * to invisible, geometry untouched (so it doesn't move while it's still
-	 * visible); every other trail's "fade target" is just its own current
-	 * value, so phase one is a no-op for it. Phase two is the ordinary tween
-	 * to `target`, unchanged — so a trail heading to a REAL alpha still morphs
-	 * over the whole of `ms` once it starts: on the race/career choreographies
-	 * that motion is the object-constancy morph the slot exists for (a
-	 * simulation line becoming a race line, say), and phase one never touches
-	 * it.
+	 * The attrs half of the out beat: every link the arriving state does not draw
+	 * loses its alpha AND its highlight where it stands.
+	 *
+	 * The highlight goes with it, and that is the whole of the two-fade-rates
+	 * reading on a lit route leaving. drawEdges lerps EDGE_GREY toward
+	 * EDGE_HIGHLIGHT by that channel and thickens the stroke, so a lit route and
+	 * the grey field fading on one ramp from two very different starting weights
+	 * read as two rates: a third of the way through, the field's alpha has gone
+	 * under the eye's floor and the route is still a black line. Released
+	 * together — the route de-inking and thinning as it fades — they read as one.
+	 *
+	 * Null when nothing is leaving, which is most arrivals.
+	 * @returns {Float64Array | null}
 	 */
-	function tweenTrails(target, ms, delays = null, onDone = null) {
-		const fadeTarget = Float64Array.from(trailTweener.current);
+	function departEdges(next) {
+		const live = tweener.current;
+		let fade = null;
+		for (let e = 0; e < edgeEnds.length; e++) {
+			const i = EDGE_BASE + e * STRIDE;
+			if (live[i + 1] <= ALPHA_SEEN) continue; // nothing visible to release
+			if (next[i + 1] > ALPHA_SEEN) continue; // the arriving state draws it
+			fade ??= Float64Array.from(live);
+			fade[i + 1] = 0;
+			fade[i + 2] = 0;
+		}
+		return fade;
+	}
+
+	/**
+	 * The trails half of the out beat. A slot loses its alpha where it lies when
+	 * the arriving state does not draw it, and ALSO when both states draw it but
+	 * they do not agree it is the same line (TRAIL_CONSTANCY) — so a chart change
+	 * fades out and re-enters instead of morphing through a shape that is in
+	 * neither chart. Geometry is untouched here; `reenter` names the slots whose
+	 * geometry is restated once they are invisible.
+	 *
+	 * The ink is left alone, for fadeOutTrails' reason: a departing leader fades
+	 * out in the colour it had rather than crossfading back to grey on its way
+	 * off.
+	 * @returns {{ fade: Float64Array, reenter: number[] } | null}
+	 */
+	function departTrails(next, from) {
+		const live = trailTweener.current;
+		/** @type {number[]} */
+		const reenter = [];
+		let fade = null;
 		for (let t = 0; t < TRAIL_META.length; t++) {
 			const a = t * TRAIL_STRIDE + TRAIL_POINTS * 2;
-			if (target[a] <= 0) fadeTarget[a] = 0;
+			if (live[a] <= 0) continue;
+			const leaving = next[a] <= 0;
+			if (!leaving && sameLine(t, from, stateName)) continue;
+			fade ??= Float64Array.from(live);
+			fade[a] = 0;
+			if (!leaving) reenter.push(t);
 		}
-		trailTweener.to(fadeTarget, TRAIL_FADE_MS, 0, null, () => {
-			trailTweener.to(target, ms, 0, delays, onDone);
+		return fade && { fade, reenter };
+	}
+
+	/**
+	 * A re-entering line's geometry, restated while it is invisible: it has just
+	 * faded out where it lay, so it can be MOVED to where it will stand without
+	 * anything drawn moving — which is what makes the second beat a pure fade-in
+	 * rather than a fade-in that travels (motion.md rule 2). `reframe` is the
+	 * tweener's own restater and writes both the live frame and the frame a tween
+	 * eases from, so the move is not undone on the next tick.
+	 */
+	function restateTrails(slots, next) {
+		trailTweener.reframe((buf) => {
+			for (const t of slots) {
+				const base = t * TRAIL_STRIDE;
+				for (let k = 0; k < TRAIL_POINTS * 2; k++)
+					buf[base + k] = next[base + k];
+			}
 		});
+	}
+
+	/**
+	 * The out beat. Everything the arriving state will not draw fades where it
+	 * stands, and nothing travels until it has — motion.md rule 2, which the
+	 * framework asserted but did not implement: the old two-phase trail tween ran
+	 * its fade concurrently with the dot tween, and only for trails.
+	 *
+	 * `then` is the arrival, run at once when there is nothing to release — so
+	 * the common arrival is still one 700ms tween and the chain is never delayed
+	 * by an empty beat (which is what the old tweenTrails did on every arrival
+	 * that had any trail at all).
+	 */
+	function departFade(target, from, then) {
+		const attrs = departEdges(target.attrs);
+		const trails = departTrails(target.trails, from);
+		if (!attrs && !trails) {
+			then();
+			return;
+		}
+		const land = () => {
+			if (trails) restateTrails(trails.reenter, target.trails);
+			then();
+		};
+		// chain off whichever tweener has work, so an arrival that releases only
+		// links does not also push a full no-op trail target through the tweener
+		if (trails) {
+			trailTweener.to(
+				trails.fade,
+				DEPART_FADE_MS,
+				0,
+				null,
+				attrs ? null : land
+			);
+		}
+		if (attrs) tweener.to(attrs, DEPART_FADE_MS, 0, null, land);
 	}
 	/**
 	 * The trail target for a state that draws none: every slot keeps the geometry
@@ -213,6 +298,35 @@
 			target[base + TRAIL_POINTS * 2 + 1] = live[base + TRAIL_POINTS * 2 + 1];
 		}
 		return target;
+	}
+
+	/**
+	 * Park every id the arriving state does not draw where the frame the reader
+	 * is looking at has it, so it fades out where it stands instead of being
+	 * lerped across the canvas to a park spot it is invisible at anyway — the
+	 * career crowd climbing off the top of the plot, the race cast crossing the
+	 * chart inside the future block, the sky sliding onto the films scatter.
+	 *
+	 * The live mark is restated WHOLE — position, radius and colour — so a leaver
+	 * crossfades nothing on its way out; exactly what fadeOutTrails does for a
+	 * departing line's geometry and its ink. The alpha is left at the layout's
+	 * own, because that alpha IS the fade.
+	 *
+	 * "Does not draw" is the renderer's own floor, so a dot that was already
+	 * invisible keeps the park its layout authored and `parkHidden`'s arrival
+	 * case is untouched: a dot the reader has never seen still fades in where a
+	 * later scatter chapter wants it. On a cold start the live frame is all
+	 * zeros, so this is a no-op by construction.
+	 *
+	 * Writes into the per-arrival copy, never `layout.attrs` — that array is
+	 * cached, and mutating it would poison every later visit to the state.
+	 */
+	function parkLeavers(attrs) {
+		const live = tweener.current;
+		for (let i = 0; i < EDGE_BASE; i += STRIDE) {
+			if (attrs[i + 6] > ALPHA_SEEN || live[i + 6] <= ALPHA_SEEN) continue;
+			for (let k = 0; k < 6; k++) attrs[i + k] = live[i + k];
+		}
 	}
 
 	// trapezoidal speed profile (ported from the reference _animate): R = ramp
@@ -606,7 +720,7 @@
 	/** @type {Set<number> | null} */
 	let entryLabels = null;
 	// Names this arrival is introducing — labelled now, but not by the state we
-	// came from — held back for the same beat as the edges (EDGE_LAG_MS), so the
+	// came from — held back for LABEL_HOLD_MS, so the
 	// annotation layer arrives together, once the dots have mostly landed, rather
 	// than gliding along beside them. Names carried over from the previous state
 	// are never held; blanking one already on screen would blink it off and back
@@ -732,7 +846,11 @@
 			chartVeiled = false;
 			runLegs(p.anim, p.write, p.ctx, p.finalAttrs, p.finalTrails);
 		});
-		tweenTrails(p.startTrails, TWEEN_MS);
+		// coterminous with the attrs tween, so runLegs' trailTweener.stop() can no
+		// longer strand a slot part-way: the old two-phase fade pushed the real
+		// trail tween out past the legs' start and left every slot the entry's
+		// writer does not itself stamp frozen at whatever fraction it had reached
+		trailTweener.to(p.startTrails, TWEEN_MS, 0);
 	}
 
 	// An arrival that plays an entry choreography (EntryAnim in states.js). The
@@ -1079,7 +1197,14 @@
 		const attrs = tweener.current;
 		clearCanvas(ctx, width, height, bleed);
 		drawTrails(ctx, trailTweener.current);
-		drawEdges(ctx, attrs, tweener.target, edgeEnds, choreo.active);
+		drawEdges(
+			ctx,
+			attrs,
+			tweener.target,
+			tweener.start,
+			edgeEnds,
+			choreo.active
+		);
 		drawDots(ctx, attrs, dotCull(attrs));
 		// held names (see heldLabels) are still waiting out their lag; drawScene
 		// runs every frame of the arrival tween, which always outlasts the hold, so
@@ -1273,11 +1398,11 @@
 	 */
 	function tweenToState(target, stateDelays, introduced) {
 		heldLabels = introduced.size ? introduced : null;
-		labelHoldUntil = performance.now() + EDGE_LAG_MS;
+		labelHoldUntil = performance.now() + LABEL_HOLD_MS;
 		tweener.to(target.attrs, TWEEN_MS, TWEEN_JITTER, stateDelays, () =>
 			settle(stateName)
 		);
-		tweenTrails(target.trails, TWEEN_MS, target.trailDelays);
+		trailTweener.to(target.trails, TWEEN_MS, 0, target.trailDelays);
 	}
 	/**
 	 * An interaction: retarget quickly, no choreography (delays would make a
@@ -1352,17 +1477,42 @@
 		paramsKey === prevParamsKey;
 
 	/**
-	 * The delays a plain arrival tweens on: the state's authored reveal when it
-	 * was choreographed for where the reader is coming from (STATE_REVEAL_FROM),
-	 * else the edge lag — or, onto the title card, unison (EDGE_UNISON_DELAYS).
+	 * The arrival's own clock. Node slots are the state's authored reveal, where
+	 * it was choreographed for the direction the reader is coming from
+	 * (STATE_REVEAL_FROM); edge slots are the lag, and ONLY where a link is
+	 * fading IN — that is the one thing the lag is for.
+	 *
+	 * A link fading OUT goes with the names (motion.md rule 2), so an arrival
+	 * with no link arriving carries an all-zero array. That is what makes the
+	 * tween settle on time: `tick` holds `onDone` back until the LAST delayed
+	 * group lands, so a shared 525ms edge lag meant a nominally 700ms arrival did
+	 * not settle for 1225ms — on states with no arriving edges at all — and
+	 * everything chained off the settle (an entry's legs, the sky, the prose)
+	 * inherited the dead half-second.
+	 *
+	 * One array per arrival, never per frame: `to()` copies it into the tweener's
+	 * own `delays`, so nothing retains this.
 	 */
 	function arrivalDelays(from, target) {
 		const revealFrom = STATE_REVEAL_FROM[stateName];
 		const playReveal = !revealFrom || revealFrom.includes(from);
-		if (playReveal && target.delays != null) return target.delays;
-		return stateName === TITLE_GALAXY_STATE
-			? EDGE_UNISON_DELAYS
-			: EDGE_LAG_DELAYS;
+		const delays = new Float64Array(DELAY_SIZE);
+		if (playReveal && target.delays != null) {
+			// node slots only: the one layout that authors edge delays is
+			// layoutLone, whose own entry replays them inside its leg writer
+			delays.set(target.delays.subarray(0, nodes.length));
+		}
+		const live = tweener.current;
+		for (let e = 0; e < edgeEnds.length; e++) {
+			const i = EDGE_BASE + e * STRIDE + 1;
+			// `+ ALPHA_SEEN`, not a bare `>`: `live` is Float32 and the target is
+			// Float64, so an unchanged alpha differs by rounding and a bare compare
+			// would hand a 525ms lag to a link that is not moving
+			if (target.attrs[i] > live[i] + ALPHA_SEEN) {
+				delays[nodes.length + e] = EDGE_LAG_MS;
+			}
+		}
+		return delays;
 	}
 
 	// How each arrival kind lands. The first paint's names are on screen at
@@ -1383,16 +1533,27 @@
 			resetArrivalGates(from);
 			snapTo(target);
 		},
+		// The two kinds that are transitions get the out beat in front: what the
+		// arriving state does not draw fades where it stands before anything
+		// travels. `snap`, `cold` and `popIn` do not — a resize, a cold start and
+		// reduced motion are where motion is impossible (rules 7, 12, 13) — and
+		// neither does `params`, a 450ms retarget inside one state that kills no
+		// link and changes no chart.
+		//
+		// The beat wraps `arrive` rather than sitting inside `startArrival`
+		// because `ownsArrival` bypasses the arrival tween entirely: without it,
+		// stepping off the title card snapped up to eighty highlight-beat spokes
+		// off in a single frame.
 		entry: (target, from, entryAnim) => {
 			resetArrivalGates(from);
-			arrive(entryAnim, from, target, arrivalDelays(from, target));
+			const delays = arrivalDelays(from, target);
+			departFade(target, from, () => arrive(entryAnim, from, target, delays));
 		},
-		state: (target, from) =>
-			tweenToState(
-				target,
-				arrivalDelays(from, target),
-				resetArrivalGates(from)
-			),
+		state: (target, from) => {
+			const introduced = resetArrivalGates(from);
+			const delays = arrivalDelays(from, target);
+			departFade(target, from, () => tweenToState(target, delays, introduced));
+		},
 		params: (target, from) => {
 			resetArrivalGates(from);
 			tweenToParams(target);
@@ -1412,9 +1573,12 @@
 		const layout = layoutFor(stateName, width, height, layoutParams, bleed);
 		decor = staticDecor(layout);
 		chartVeiled = false;
+		// a copy, because parkLeavers rewrites it and `layout.attrs` is cached
+		const attrs = layout.attrs.slice();
+		parkLeavers(attrs);
 		/** @type {Target} */
 		const target = {
-			attrs: layout.attrs,
+			attrs,
 			// states without trails fade the previous ones out where they lie
 			trails: layout.trails ?? fadeOutTrails(),
 			delays: layout.delays,

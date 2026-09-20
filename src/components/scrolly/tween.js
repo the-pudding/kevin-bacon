@@ -7,6 +7,12 @@ export const easeCubicInOut = (t) =>
 /**
  * @typedef {Object} Tweener
  * @property {Float32Array} current live rendered values
+ * @property {Float32Array} start the frame an in-flight tween is easing FROM —
+ *   where the marks a departing state left are standing. `drawEdges` draws a
+ *   dying line to it, so a line that is leaving holds still while it fades
+ *   instead of being stretched between two travelling dots (motion.md rule 2).
+ *   Re-snapshotted from `current` by every timed `to()`, so an interrupted
+ *   departure freezes at exactly the pixel the last frame drew.
  * @property {Float64Array | null} target the frame `current` is heading for —
  *   the last frame handed to `to()`, whether it is being tweened toward or was
  *   set instantly. Read it to know where a mark is going; null before the first
@@ -105,6 +111,11 @@ export function createTweener(size, draw, stride = 1) {
 	 * layout's own array and is cached, so mutating it would poison the cache for
 	 * every later visit; a caller that needs a new target rebuilds the layout.
 	 *
+	 * This is the live frame's restater in general, not only for a moved origin:
+	 * anything that needs a mark to be somewhere else without anything drawn
+	 * appearing to move goes through here, because writing `current` alone would
+	 * be undone on the next tick by the tween easing from an unmoved `start`.
+	 *
 	 * @param {(buf: Float32Array) => void} apply
 	 */
 	function reframe(apply) {
@@ -121,6 +132,7 @@ export function createTweener(size, draw, stride = 1) {
 	// `target` and `running` change on every `to`, so they are exposed as getters
 	return {
 		current,
+		start,
 		get target() {
 			return target;
 		},

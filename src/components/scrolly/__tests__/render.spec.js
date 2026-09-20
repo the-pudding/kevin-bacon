@@ -59,12 +59,16 @@ describe("drawEdges", () => {
 	const target = Float64Array.from(attrs);
 	set(target, 1, 100, 0, 2, [0, 0, 0], 1); // where it is going
 	setEdge(target, 0, 1, 1);
+	// the frame the tween eased from: both ends further left than the live frame
+	const start = Float32Array.from(attrs);
+	set(start, 0, -20, 0, 2, [0, 0, 0], 1);
+	set(start, 1, 30, 0, 2, [0, 0, 0], 1);
 
 	test("a live edge points at its far end's TARGET, drawn by its progress", () => {
 		const frame = Float64Array.from(attrs);
 		setEdge(frame, 0, 0.5, 1);
 		const { ctx, calls } = fakeContext();
-		drawEdges(ctx, frame, target, [[0, 1]], false);
+		drawEdges(ctx, frame, target, start, [[0, 1]], false);
 		expect(calls.find(([op]) => op === "lineTo")).toEqual(["lineTo", 50, 0]);
 	});
 
@@ -72,15 +76,28 @@ describe("drawEdges", () => {
 		const frame = Float64Array.from(attrs);
 		setEdge(frame, 0, 1, 1);
 		const { ctx, calls } = fakeContext();
-		drawEdges(ctx, frame, target, [[0, 1]], true);
+		drawEdges(ctx, frame, target, start, [[0, 1]], true);
 		expect(calls.find(([op]) => op === "lineTo")).toEqual(["lineTo", 50, 0]);
+	});
+
+	test("a dying edge holds still: both ends read off the frame it left", () => {
+		// alpha 0 in the target is what makes it dying; it is still visible now
+		const dyingTarget = Float64Array.from(target);
+		setEdge(dyingTarget, 0, 1, 0);
+		const frame = Float64Array.from(attrs);
+		setEdge(frame, 0, 1, 1);
+		const { ctx, calls } = fakeContext();
+		drawEdges(ctx, frame, dyingTarget, start, [[0, 1]], false);
+		// neither the live frame (0 → 50) nor the target (0 → 100): the start
+		expect(calls.find(([op]) => op === "moveTo")).toEqual(["moveTo", -20, 0]);
+		expect(calls.find(([op]) => op === "lineTo")).toEqual(["lineTo", 30, 0]);
 	});
 
 	test("an edge at alpha 0 or progress 0 is not drawn", () => {
 		const frame = Float64Array.from(attrs);
 		setEdge(frame, 0, 0, 1);
 		const { ctx, calls } = fakeContext();
-		drawEdges(ctx, frame, target, [[0, 1]], false);
+		drawEdges(ctx, frame, target, start, [[0, 1]], false);
 		expect(calls).toEqual([]);
 	});
 });

@@ -49,6 +49,13 @@ export function scatterPosition(n, w, h) {
  * Hidden park spot for any node not placed by the current state: its position
  * on the distance-vs-films scatter (alpha 0), so it fades in where a later
  * scatter chapter will want it and rides one tween into place.
+ *
+ * That is the ARRIVAL case, and it is the only one this still serves. A dot the
+ * reader can currently SEE is parked where it stands instead, by ScrollyVisual's
+ * parkLeavers, which overrides this spot on the way out — otherwise a departing
+ * crowd is lerped to a scatter it is invisible at, in full view, which is what
+ * sent the career crowd climbing off the top of the plot. A dot that has never
+ * been drawn is untouched and still lands here.
  */
 export function parkHidden(attrs, n, w, h) {
 	const [x, y] = scatterPosition(n, w, h);

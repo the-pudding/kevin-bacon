@@ -89,6 +89,53 @@ export const BACKDROP_TRAIL_SLOTS = new Set(BACKDROP_SLOT.values());
 
 export const RULE_SLOT = TRAIL_META.length - 1;
 
+/**
+ * The race chapter's own block — one line per cast member. Everything a race
+ * frame writes lives in RACE_CAST (dots) and these (lines); every other slot on
+ * the canvas belongs to whatever chapter the reader came from.
+ */
+export const RACE_TRAIL_SLOTS = new Set(RACE_SLOT.values());
+
+/** the career chapter's: the hero, the two comparisons and the cohort fan */
+export const CAREER_TRAIL_SLOTS = new Set([
+	SWEENEY_SLOT,
+	DENIRO_SLOT,
+	CHASE_SLOT,
+	...story.careers.cohort.map((_c, i) => COHORT_SLOT + i)
+]);
+
+/**
+ * Which states agree that a shared slot is ONE LINE — the object constancy a
+ * block was allocated for, declared rather than inferred.
+ *
+ * A slot alive in two states that are not listed together here is a line from
+ * one chart being bent into a line from another (a win-count climb into a
+ * projection curve, a prediction diagonal into a Gen-Z number line), which is a
+ * shape that exists in neither chart: it fades out where it lies and re-enters
+ * instead of morphing (see ScrollyVisual's departTrails). RULE_SLOT and the
+ * simulation block are deliberately absent for exactly that reason.
+ *
+ * Inferring this from the geometry is not an option: the live frame is Float32
+ * and a target is Float64, so identical lines differ by rounding — and the race
+ * chart's slots change geometry between every race step and must morph, so a
+ * geometry test would flash the whole chart out and in on 9 → 10.
+ * @type {{ slots: Set<number>, states: string[] }[]}
+ */
+export const TRAIL_CONSTANCY = [
+	{
+		slots: RACE_TRAIL_SLOTS,
+		states: ["raceRecent", "raceFull", "raceFuture", "raceGenz", "raceClose"]
+	},
+	{ slots: BACKDROP_TRAIL_SLOTS, states: ["raceGenz"] },
+	{ slots: CAREER_TRAIL_SLOTS, states: ["careerTrio", "careerMany"] }
+];
+
+/** do `a` and `b` draw trail slot `t` as the same line? */
+export const sameLine = (t, a, b) =>
+	TRAIL_CONSTANCY.some(
+		(g) => g.slots.has(t) && g.states.includes(a) && g.states.includes(b)
+	);
+
 /** monotone-cubic segments through `points`: one cubic [p0, c1, c2, p3] per interval */
 export function monotoneSegments(points) {
 	const n = points.length;
