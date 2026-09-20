@@ -109,7 +109,7 @@ Four ways a state's frame comes to be on screen, all landing on the same
   params its `finish` publishes); a reader who steps on mid-flight supersedes
   the arrival, so the legs never start. `labelsAfter` and `cardAfter` gate the
   names and the prose to a leg; `hold` waits for a story flag before the legs
-  start (the rank handoff); `seed` and `veil` shape what the first frame shows;
+  start (the rank handoff); `seed` shapes what the first frame shows;
   `ownsArrival` takes the rAF from the press with no arrival tween in front.
 - **A request** (`RequestAnim`, `STATE_REQUESTS`). The same legs, started by the
   reader: a `StartButton` calls `request(kind)`, ScrollyVisual runs the state's
@@ -154,10 +154,24 @@ covers the moves.
 write into its interaction groups; a state's `params` selector reads them; a
 frame's `FrameOutput.story` publishes into them one group deep, each write
 equality-checked (a write that changes nothing would still retarget the tweener).
-The four framework fields: `settled` names the state whose arrival has landed
-(set-only — stepping away un-arms every gate on it by itself), `entryHeld` holds
-a step's prose back, `request` is the reader's ask and `running` the request in
-flight.
+The framework's own fields: `settled` names the STATE whose arrival has landed
+(set-only — stepping away un-arms every gate on it by itself), `settledStep` the
+STEP index, `entryHeld` holds a step's prose back, `request` is the reader's ask
+and `running` the request in flight.
+
+`settledStep` is the one almost everything that arrives with a step reads, via
+`steps.held`: the chart furniture, the step's panel, its prose and the progress
+bar. A state name cannot answer "has this step landed?", because six steps share
+a state with their neighbour — both `hopBands` steps, both `raceRecent` steps,
+both `simRace` steps and three of the five `scatterCenters` steps — so on the
+second of any pair `settled` already reads that state before its arrival has
+begun. It is written by `land()`, which fires when the dots reach their places:
+a plain arrival's settle, an entry's arrival tween (its legs are the step's
+authored reveal, and its prose describes them, so the words are not held for the
+whole of a 4s sweep), the `cardAfter` beat where an entry declares one, and a
+step change that moves nothing at all. `settled` keeps its state-scoped meaning
+for the three readers that genuinely ask a state question: the actor tour, its
+caption and the rank ladder's latch.
 
 ### Annotations and chart furniture
 
@@ -300,17 +314,19 @@ ranked layouts plot by sampled rank order, never by raw rank against
   full height, so any control in a step card must clear them: lift it to
   `--z-tap-above` (the inline InfoTerm triggers) or inset it by `--tap-gutter`
   (GuessRank's controls). A step card that grows can cover a layout's `hits`.
-- Overlay label swaps use `{#key}`: the new label fades in, the old is removed
-  instantly.
 - A step's prose swaps sequentially rather than as a crossfade: 200ms out, a
-  beat, 300ms in, both ends drifting 8px upward (`Step.svelte`, where `hold`
-  also keeps a step's prose off screen while the arrival it describes is still
-  playing). The two copies overlap in the DOM for that window, so
+  beat, 300ms in, both ends drifting 8px upward (`Step.svelte`). The two copies
+  overlap in the DOM for that window, so
   `.scrolly-steps` is a single-cell grid — in normal flow the column would
   measure as tall as both steps at once and shove every clearance taken off
   `stepsHeight`.
 - The canvas hop colours in `palette.js` are hard-coded rgb of the tokens in
   `src/styles/variables.css`.
+- A `RequestAnim` cannot declare `cardAfter`, so a reader-started run cannot
+  release its step's words at a leg boundary the way an entry can. It does not
+  bite today — a request's prose has already landed before the reader presses —
+  but it is the missing half of the pair, and `runLegs` already calls the same
+  `onBeat` for both.
 
 ## Verify
 

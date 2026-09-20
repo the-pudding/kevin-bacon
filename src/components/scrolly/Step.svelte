@@ -39,16 +39,20 @@
 	 * (the outro) that wants the full-bleed canvas to itself, the way a chapter
 	 * card already does.
 	 *
-	 * `hold` keeps the prose off the screen while the arrival it describes is
-	 * still playing — a step whose words would otherwise narrate a frame the
-	 * reader has not been shown yet (`story.entryHeld`, or `story.settled` not
-	 * yet naming this step's state). It belongs here rather than as an `{#if}`
-	 * inside the prose because the wrapper below is what fades: gate the prose
-	 * from within and the box animates empty, then the words appear with no
-	 * motion of their own.
+	 * The prose is held off screen while the arrival it describes is still
+	 * playing — every step, not a declared few. It is read off the registry
+	 * (`steps.held`, i.e. story.settledStep) rather than passed in, because the
+	 * answer is the same for all of them and the question is one nothing but the
+	 * canvas can answer. This used to be a `hold` prop set on five steps out of
+	 * thirty, and it could not be set on the rest: the signal available was a
+	 * STATE name, and six steps share a state with their neighbour.
+	 *
+	 * The gate is on the wrapper rather than an `{#if}` inside the prose because
+	 * the wrapper is what fades: gate the prose from within and the box animates
+	 * empty, then the words appear with no motion of their own.
 	 *
 	 * @see notes/scrolly-framework.md
-	 * @type {{ state: import("./states.js").VisualState, params?: unknown, panel?: import("svelte").Snippet, gate?: () => boolean, skipback?: boolean, advanceon?: () => boolean, hideBar?: boolean, hold?: boolean, children: import("svelte").Snippet }}
+	 * @type {{ state: import("./states.js").VisualState, params?: unknown, panel?: import("svelte").Snippet, gate?: () => boolean, skipback?: boolean, advanceon?: () => boolean, hideBar?: boolean, children: import("svelte").Snippet }}
 	 */
 	let {
 		state: layoutState,
@@ -58,7 +62,6 @@
 		skipback,
 		advanceon,
 		hideBar,
-		hold,
 		children
 	} = $props();
 
@@ -153,7 +156,7 @@
      column that measured both at once would shove every clearance taken off
      stepsHeight. The column's aria-live is unaffected: a live region announces
      what ARRIVES, and the copy on its way out is only being removed. -->
-{#if active && !hold}
+{#if active && !steps.held}
 	<div
 		class="step-prose"
 		bind:this={el}

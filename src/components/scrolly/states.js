@@ -130,6 +130,19 @@ export const STATE_YCAP = pick("yCap");
 export const STATE_RACE = pick("race");
 
 /**
+ * Which states share one set of chart furniture. States naming the same scene
+ * assert that their `title` and `overlay` are the same and that their axes are
+ * the same axes, so a step change between them neither fades the furniture out
+ * nor mounts it again — see ScrollyVisual's swapFurniture, and the invariant
+ * that checks the assertion in registry.spec.js.
+ *
+ * A state that declares nothing is its own scene, which is the common case: two
+ * different charts always swap.
+ * @type {Partial<Record<LayoutState, string>>}
+ */
+export const STATE_SCENE = pick("scene");
+
+/**
  * Per-state list of prior states the layout's `delays` choreography is
  * authored for. Arriving from any other state (e.g. stepping backwards)
  * skips the delays — one plain tween instead of replaying the reveal.
@@ -244,10 +257,13 @@ export const STATE_REVEAL_FROM = pick("revealFrom");
  * `frame` writes that frame over copies of the live buffers and `until` is the
  * gate, read reactively. The rank list's collapse into the race chart is the
  * one user — the canvas holds a copy of what the HTML overlay is showing and
- * moves only once the overlay has stood down. `veil` hides the chart furniture
- * (title, axes, callouts) from the arrival until the legs begin, and
- * `arrivalJitter` overrides the arrival tween's hashed per-node stagger — 0 for
- * a flight whose top-to-bottom order the reader is meant to read.
+ * moves only once the overlay has stood down. `arrivalJitter` overrides the
+ * arrival tween's hashed per-node stagger — 0 for a flight whose top-to-bottom
+ * order the reader is meant to read.
+ *
+ * There is no `veil` any more: holding the chart's furniture back until the
+ * arrival lands is what EVERY arrival does now (see ScrollyVisual's
+ * furnitureHeld), so it needs no per-entry declaration.
  *
  * `seed` replaces leg 0's frame 0 as the arrival target, for the one case the
  * two must differ: the race draw-on's dots arrive already lit out of the rank
@@ -267,7 +283,6 @@ export const STATE_REVEAL_FROM = pick("revealFrom");
  * @property {number[][]} [labelsAfter]
  * @property {number} [cardAfter]
  * @property {boolean} [ownsArrival]
- * @property {boolean} [veil]
  * @property {number} [arrivalJitter]
  * @property {{ until: (story: Object) => boolean, frame: SeedWriterFactory }} [hold]
  * @property {SeedWriterFactory} [seed]

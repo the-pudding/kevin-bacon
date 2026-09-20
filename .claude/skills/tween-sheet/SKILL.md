@@ -29,6 +29,14 @@ evidence.
      `--click "Start"` (or the button's visible text).
    - A long choreography (the race sweep, the simulation) needs a wider window:
      `--ms 5000 --frames 16`.
+   - **The HTML layer needs `--real-clock`.** The faked clock is exact for the
+     canvas, but a transition that has not started yet has no animation to seek
+     and one starting between frames is dated to the later frame — which is
+     enough to mis-time the prose, the axes, the bar and a panel, and cost the
+     2026-09-19 audit three retracted findings. Its floor is the cost of a
+     screenshot (~200ms), so it shows the ORDER things arrive in, not the shape
+     of a 200ms fade; for that, read computed styles at fixed delays instead of
+     taking pictures.
    - The script starts its own dev server; pass `--url http://localhost:5173/`
      to reuse one that is already running.
 5. **Read every sheet** with the Read tool (`sheets/<from>-<to>-<box>/sheet.png`),
@@ -56,7 +64,13 @@ evidence.
 ## Limits
 
 - CSS animations and Svelte transitions are seeked to the same timeline, but
-  one that starts between two frames is dated to the later frame.
+  one that starts between two frames is dated to the later frame. Use
+  `--real-clock` for anything in HTML (see step 4).
+- Run against a static build served from a scratch directory, not a dev server:
+  every vite server and `npm run build` in this checkout share `.svelte-kit/`,
+  and a regeneration reloads the page under the sheet and swallows the press
+  ("!! landed on step N, not M"). Build once, serve `build/` with
+  `python3 -m http.server`, and pass `--url`; runs then go four-wide.
 - Reduced motion is not covered; check it by hand.
 - Whether a stagger *feels* right is still a judgement. The sheet shows the
   order; it does not show the pace between frames finer than the interval.

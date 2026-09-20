@@ -33,7 +33,8 @@
 	import {
 		CHAPTER_IN_MS,
 		CHAPTER_IN_DELAY_MS,
-		CHAPTER_OUT_MS
+		CHAPTER_OUT_MS,
+		PANEL_OUT_MS
 	} from "./chapterFade.js";
 
 	// Beside, rather than over. Below this width the prose is a card lying across
@@ -188,6 +189,13 @@
 			? { duration: 0 }
 			: { duration: CHAPTER_OUT_MS, easing: cubicInOut }
 	);
+	// The step's own panel. `{#key}`ed on the snippet so two steps declaring
+	// different panels back to back would swap rather than mutate; today the two
+	// panel steps are never adjacent, so this only ever mounts and unmounts.
+	const activePanel = $derived(steps.config?.panel);
+	const panelOut = $derived(
+		reducedMotion.current ? { duration: 0 } : { duration: PANEL_OUT_MS }
+	);
 	// centred on the whole visual box, because that is now the field's box too: a
 	// chapter card drops the plot area and spreads its crowd over the entire
 	// canvas (galaxyBox), so there is no empty ground below the universe for a
@@ -245,6 +253,7 @@
 			<ScrollyVisual
 				bind:this={visual}
 				state={steps.state}
+				step={steps.current ?? -1}
 				params={steps.config?.params}
 				coldStart={steps.coldStart}
 				stepsHeight={overlayHeight}
@@ -279,11 +288,26 @@
 						/>
 					</div>
 				{/if}
-				<!-- the active step's over-canvas panel, if it declared one — the
+				<!-- The active step's over-canvas panel, if it declared one — the
 			     markup lives next to the <Step> that owns it. After the ladder
 			     above, so a step's own controls (raceRecent's Start button) sit
-			     over it rather than under it -->
-				{@render steps.config?.panel?.()}
+			     over it rather than under it.
+
+			     Wrapped in a stable {#if} for the same reason the chapter card
+			     below is, and the file already said why: a bare snippet render
+			     cannot carry a transition, so the panel was cut in and out in the
+			     frame of the press. The quiz painted its blurred question over a
+			     scatter that had not begun to re-plot, and the race scrubber
+			     mounted reading a year the chart would not reach for another nine
+			     seconds. Gating on `steps.held` fixes both by asking the same
+			     question everything else that arrives with a step now asks. -->
+				{#key activePanel}
+					{#if activePanel && !steps.held}
+						<div class="panel-layer" out:fade={panelOut}>
+							{@render activePanel()}
+						</div>
+					{/if}
+				{/key}
 				<!-- a chapter card's title. Rendered from the registry rather than by
 			     <Chapter> itself so this {#if} is stable and Svelte can play the
 			     out-transition; the panel render above cannot, which is the whole
@@ -482,6 +506,19 @@
 
 	.scrolly-layout.exited {
 		height: 0;
+	}
+
+	/* The step's panel, in a box of its own so it can carry an out-transition.
+	   Static positioning, so it forms no containing block and the panels inside
+	   still resolve against .scrolly-visual exactly as they did.
+
+	   The z-lift is HERE rather than on the panels' own roots: an opacity
+	   out-transition forms a stacking context that a child's lift cannot escape
+	   at any value, and the quiz's cards and the year slider have to beat the tap
+	   gutters for the whole of the fade. Same idiom as .quiz and .route. */
+	.panel-layer {
+		pointer-events: none;
+		z-index: var(--z-tap-above);
 	}
 
 	/* the rank chapter's "everyone else" list: sits below the space where

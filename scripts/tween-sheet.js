@@ -12,6 +12,13 @@
 //                 and how long after the window the final "settled" frame is taken
 //   --url http://localhost:5173/   drive a dev server that is already running instead
 //                                  of starting one                  --out sheets
+//   --real-clock  take the frames on the WALL clock instead: nothing faked and
+//                 nothing seeked. The only honest way to time the HTML layer —
+//                 the prose, the axes, the bar, a panel (see realTimeline). Use
+//                 the faked clock for the canvas and this for everything over it.
+//                 Its floor is the cost of a screenshot, ~200-250ms, so it
+//                 resolves the ORDER things arrive in and not a 200ms fade's
+//                 shape; for that, read computed styles at fixed delays instead.
 //
 // Why a faked clock: the tweens are sub-second and a screenshot taken on the wall
 // clock lands wherever it lands. Playwright's clock replaces performance.now,
@@ -76,7 +83,8 @@ function readOptions() {
 			settle: { type: "string", default: "5000" },
 			click: { type: "string" },
 			url: { type: "string" },
-			out: { type: "string", default: "sheets" }
+			out: { type: "string", default: "sheets" },
+			"real-clock": { type: "boolean", default: false }
 		}
 	});
 	const [from, to] = positionals.map(Number);
@@ -91,6 +99,7 @@ function readOptions() {
 		from,
 		to,
 		...values,
+		realClock: values["real-clock"],
 		frames: Number(values.frames),
 		ms: Number(values.ms),
 		settle: Number(values.settle)
@@ -152,6 +161,38 @@ function timeline(page) {
 }
 
 /**
+ * The same timeline on the WALL clock: nothing is faked, nothing is seeked, and
+ * a frame is taken after really waiting.
+ *
+ * The faked clock is exact for the canvas, which reads `performance.now`
+ * directly, and it seeks every live Animation to the same timeline — but a
+ * transition that has not STARTED yet has no Animation to seek, and one that
+ * starts between two frames is dated to the later frame. That is enough to
+ * mis-time the HTML layer, where the whole question is which of the prose, the
+ * furniture, the bar and the panel arrives first, and it is what produced three
+ * retracted findings in the 2026-09-19 audit. So the HTML beat is signed off on
+ * this clock and the canvas on the other.
+ *
+ * `t` is the true elapsed time since the press, so a screenshot's own cost
+ * shows up honestly as drift in the caption rather than being hidden.
+ */
+function realTimeline(page) {
+	let origin = Date.now();
+	return {
+		async advance(by) {
+			await page.waitForTimeout(by);
+		},
+		async sync() {},
+		mark() {
+			origin = Date.now();
+		},
+		get t() {
+			return Date.now() - origin;
+		}
+	};
+}
+
+/**
  * Lands on `move.from` by URL and lets its arrival settle on the paused clock.
  * The clock is paused only once the story has mounted — the tap gutters are
  * TapNav's, rendered after the registry exists — because a press before that
@@ -166,14 +207,16 @@ async function openAt(browser, base, move, opts) {
 		reducedMotion: "no-preference"
 	});
 	const page = await context.newPage();
-	await page.clock.install({ time: T0 });
-	await page.addInitScript(SEEK_ANIMATIONS);
+	if (!opts.realClock) {
+		await page.clock.install({ time: T0 });
+		await page.addInitScript(SEEK_ANIMATIONS);
+	}
 	await page.goto(`${base}?step=${move.from}`);
 	await page.waitForSelector(".tap-gutter.next");
 	await page.waitForSelector(".scrolly-visual canvas");
 	await page.evaluate(() => document.fonts.ready);
-	await page.clock.pauseAt(PAUSE_AT);
-	const time = timeline(page);
+	if (!opts.realClock) await page.clock.pauseAt(PAUSE_AT);
+	const time = opts.realClock ? realTimeline(page) : timeline(page);
 	await time.advance(opts.settle);
 	return { page, time };
 }

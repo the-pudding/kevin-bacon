@@ -12,6 +12,8 @@ import {
 	STATE_AMBIENT,
 	STATE_RACE,
 	STATE_TITLE,
+	STATE_SCENE,
+	OVERLAYS,
 	entryFor
 } from "../states.js";
 import { NODE_COUNT } from "../nodes.js";
@@ -154,6 +156,30 @@ describe("state registry", () => {
 		for (const [state, title] of Object.entries(STATE_TITLE)) {
 			expect(title, state).toBeTypeOf("string");
 			expect(title.trim().length, state).toBeGreaterThan(0);
+		}
+	});
+
+	// A scene is an assertion, not a hint: ScrollyVisual does not swap the
+	// furniture between two states that share one, so if their title or their
+	// overlay actually differed the reader would be left looking at the wrong
+	// chart's text with no transition to explain it.
+	test("states sharing a scene declare the same title and overlay", () => {
+		/** @type {Record<string, string[]>} */
+		const byScene = {};
+		for (const [state, scene] of Object.entries(STATE_SCENE)) {
+			(byScene[scene] ??= []).push(state);
+		}
+		expect(Object.keys(byScene).length).toBeGreaterThan(0);
+		for (const [scene, members] of Object.entries(byScene)) {
+			const [first] = members;
+			for (const state of members) {
+				expect(STATE_TITLE[state], `${scene}: ${state} title`).toBe(
+					STATE_TITLE[first]
+				);
+				expect(OVERLAYS[state], `${scene}: ${state} overlay`).toBe(
+					OVERLAYS[first]
+				);
+			}
 		}
 	});
 });

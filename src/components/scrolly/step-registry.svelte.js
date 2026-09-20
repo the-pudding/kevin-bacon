@@ -154,6 +154,13 @@ export function createStepRegistry({ navigate }) {
 		get hideBar() {
 			return !!active()?.hideBar || story.entryHeld;
 		},
+		// The active step's arrival is still playing, so everything that arrives
+		// WITH the words — the prose itself, the step's panel, the bar coming back
+		// off a card — is still waiting on the canvas. Step-scoped rather than
+		// state-scoped, which is the whole point: see story.settledStep.
+		get held() {
+			return story.settledStep !== value;
+		},
 		// the active step's gate is shut, so the reader's Next has nothing to do —
 		// TapNav reads this to disable the right-hand gutter, so a held step reads
 		// as held rather than as a dead tap

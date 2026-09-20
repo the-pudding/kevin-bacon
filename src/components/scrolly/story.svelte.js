@@ -25,11 +25,27 @@ import { SIM_LABEL_N } from "./cast.js";
 const SIM_N_SIMS = simStory.genz.nSims;
 
 export const story = $state({
-	/** name of the state whose arrival tween has finished, else null. Set by
-	 * ScrollyVisual — a layout reads it to hold an interaction back until its
-	 * own authored reveal has landed (see layouts/intro.js). Cleared on every
-	 * step change, so an interrupted reveal never arms. */
+	/** name of the STATE whose arrival has finished, else null. Set by
+	 * ScrollyVisual's settle(), and set-only: stepping away un-arms every gate
+	 * on it by itself, because the name stops matching. Read by the things that
+	 * genuinely ask a state question — the actor tour and its caption, the rank
+	 * ladder's latch. */
 	settled: null,
+	/** index of the STEP whose arrival has finished, -1 before the first paint.
+	 * The step-scoped twin of `settled`, and the signal almost everything that
+	 * arrives with a step actually wants.
+	 *
+	 * A state name cannot answer "has this step landed?", because six steps
+	 * share a state with their neighbour — both hopBands steps, both raceRecent
+	 * steps, both simRace steps and three of the five scatterCenters steps — so
+	 * on the second of any pair `settled` already reads that state before the
+	 * arrival has begun. That gap is why the overlay's hold had to be hard-coded
+	 * to one state, why `veil` existed for exactly one entry, and why the prose
+	 * could only be held back on five steps out of thirty.
+	 *
+	 * Written only by ScrollyVisual's land(). No layout params selector reads
+	 * it, so writing it can never retarget a tween. */
+	settledStep: -1,
 	/** an entry choreography is running and has not yet reached the leg that
 	 * earns its step's prose (see EntryAnim's `cardAfter`). Written by
 	 * ScrollyVisual: raised on an arrival that declares one, dropped when that

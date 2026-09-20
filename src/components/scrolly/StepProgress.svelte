@@ -60,9 +60,25 @@
 	const barIn = $derived(
 		reducedMotion.current ? { duration: 0 } : { duration: CHAPTER_OUT_MS }
 	);
+
+	// The bar comes back with the words, and once up it STAYS up.
+	//
+	// A latch rather than a live read, for the reason story.rank.revealed is one:
+	// the dots ARE the step change, so an ordinary step must not blink the bar
+	// out and back. It is only coming back off a chapter card or a hideBar step
+	// that it arrives at all, and there it waits for the arriving step's prose
+	// like every other piece of arriving furniture — it used to be fully in 300ms
+	// after the press while the words were still 260ms from starting, so the bar
+	// announced a position the reader had not been given yet.
+	const down = $derived(steps.chapter || steps.hideBar);
+	let up = $state(false);
+	$effect(() => {
+		if (down) up = false;
+		else if (!steps.held) up = true;
+	});
 </script>
 
-{#if !steps.chapter && !steps.hideBar}
+{#if !down && up}
 	<div
 		class="step-progress"
 		role="group"

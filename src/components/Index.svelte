@@ -177,7 +177,7 @@
 		     the motion is asking. Every other arrival here — a cold start, a
 		     step back from `networkIntro` — never raises the gate, so the card
 		     speaks straight away. -->
-			<Step state="lone" hold={story.entryHeld}>
+			<Step state="lone">
 				<p>
 					The "Six Degrees of Kevin Bacon" is a game where players try to
 					connect an actor to Kevin Bacon via movies they've starred in with
@@ -258,7 +258,7 @@
 		     that finish before being told what it means. Both steps below rest in
 		     the one hopBands state (see layouts/hop-bands.js), so the gate holds
 		     for the whole pair, not just the first arrival. -->
-			<Step state="hopBands" hold={story.settled !== "hopBands"}>
+			<Step state="hopBands">
 				<p>
 					No doubt, he's well connected. With
 					<InfoTerm>
@@ -290,7 +290,7 @@
 					no one can be reached by everyone within 3.
 				</p>
 			</Step>
-			<Step state="hopBands" hold={story.settled !== "hopBands"}>
+			<Step state="hopBands">
 				<p>
 					We need a better way to measure the connectivity of actors in this
 					highly congested network. For this, we use how many movies on average
@@ -307,12 +307,7 @@
 		     registry's advance() itself, and stepping back off the reveal
 		     skips this step so its search box isn't left sitting under the
 		     answer (see `gate` / `skipback` in Step.svelte) -->
-			<Step
-				state="rankFocus"
-				hold={story.settled !== "rankFocus"}
-				gate={NEVER}
-				skipback
-			>
+			<Step state="rankFocus" gate={NEVER} skipback>
 				<div class="rank-focus-text">
 					<p>
 						As mentioned earlier, Kevin Bacon is not the center of Hollywood.
@@ -322,7 +317,7 @@
 					<GuessRank />
 				</div>
 			</Step>
-			<Step state="rankReveal" hold={story.settled !== "rankReveal"}>
+			<Step state="rankReveal">
 				<p>
 					Samuel L. Jackson is the <i>center of Hollywood</i>, with a remoteness
 					of just 2.09. Willem Dafoe is second with 2.13, Robert De Niro third

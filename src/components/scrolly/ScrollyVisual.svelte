@@ -2,6 +2,7 @@
 	// @ts-check
 	import { untrack } from "svelte";
 	import { MediaQuery } from "svelte/reactivity";
+	import { fade } from "svelte/transition";
 	import InfoTerm from "$components/ui/InfoTerm.svelte";
 	import { makeNodes } from "./nodes.js";
 	import { createTweener } from "./tween.js";
@@ -35,6 +36,7 @@
 	import {
 		STATES,
 		OVERLAYS,
+		STATE_SCENE,
 		STATE_LABELS,
 		STATE_TITLE,
 		STATE_LABEL_TEXT,
@@ -72,9 +74,10 @@
 	import { tuning } from "./dev/tuning.svelte.js";
 
 	// undefined until the <Step> registry has populated (first client render)
-	/** @type {{ state: import("./states.js").VisualState, params?: Object, stepsHeight?: number, coldStart?: boolean, beside?: boolean }} */
+	/** @type {{ state: import("./states.js").VisualState, step?: number, params?: Object, stepsHeight?: number, coldStart?: boolean, beside?: boolean }} */
 	let {
 		state: stateName,
+		step = -1,
 		params,
 		stepsHeight = 0,
 		coldStart = false,
@@ -118,6 +121,8 @@
 	// how long a name whose text changes takes to cross over with its own new
 	// string (see nameSwap, beside reducedMotion below)
 	const LABEL_SWAP_MS = 200;
+	/** no name shown, allocated once — drawScene runs every frame */
+	const EMPTY_LABELS = new Set();
 	const LABEL_LINE_GAP_PX = 16; // ~11px label line-height * 1.15, matches reference
 	// how close a below-dot name may sit to the canvas edge before it stops
 	// sliding outward (see the .node-label transform)
@@ -426,6 +431,56 @@
 		return true;
 	}
 	/** the static chart furniture a layout hands the template */
+	/**
+	 * Everything the overlay draws for ONE state, as one value — so the departing
+	 * copy goes on rendering its own text at its own coordinates while it fades,
+	 * instead of being re-read from whatever the arriving state now says.
+	 */
+	function furnitureSet(d, name) {
+		return {
+			decor: d,
+			title: STATE_TITLE[name],
+			overlay: OVERLAYS[name],
+			xTop: xLabelTop,
+			yTop: yLabelTop,
+			hintTop: yHintTop,
+			hintBottom: yHintBottom,
+			// raceFuture as well as raceFull: its arrival pan starts from raceFull's
+			// camera, so 1980 can be on the plot for the leg's first frames
+			infoTick: name === RACE_FULL_STATE || name === RACE_FUTURE_STATE,
+			takeover: story.running !== "rewind"
+		};
+	}
+
+	/**
+	 * The out beat's HTML half. Within one scene the furniture is the same
+	 * furniture and simply keeps rendering. Across a scene change the departing
+	 * set is frozen and held for one out-fade while the arriving set waits for
+	 * the beat — "out, travel, in" in one place rather than per state.
+	 *
+	 * A resize, a bare column move and reduced motion take neither beat: the
+	 * coordinates the old copy would fade at have already moved (rules 7, 12, 13).
+	 */
+	function swapFurniture(next, from, box) {
+		const sceneChange = sceneOf(stateName) !== sceneOf(from);
+		if (!sceneChange || box.resized || box.moved || reducedMotion) {
+			decor = next;
+			if (sceneChange) furnitureHeld = true;
+			return;
+		}
+		if (leavingRaf) cancelAnimationFrame(leavingRaf);
+		leaving = untrack(() => furnitureSet(decor, from));
+		decor = next;
+		furnitureHeld = true;
+		// One frame is all Svelte needs to mount the copy; clearing it then is what
+		// plays its out-fade, because a block created and destroyed inside one
+		// flush never transitions at all.
+		leavingRaf = requestAnimationFrame(() => {
+			leavingRaf = 0;
+			leaving = null;
+		});
+	}
+
 	const staticDecor = (layout) => ({
 		axes: layout.axes,
 		notes: layout.notes,
@@ -581,24 +636,31 @@
 	// static per-state chart furniture (ticks/callouts/legend) from the layout result
 	/** @type {{ axes?: { x?: import("./layout-types.js").Tick[], y?: import("./layout-types.js").Tick[], xBase?: number, yBase?: number }, notes?: import("./states.js").Note[], takeover?: import("./layout-types.js").TakeoverCallout|null, band?: import("./layout-types.js").FutureBand|null, legend?: import("./layout-types.js").LegendItem[], legendY?: number, hits?: import("./layout-types.js").Hit[] } | null} */
 	let decor = $state(null);
-	// true while an arrival is clearing the previous scene off the canvas before
-	// its own chart may appear: the axis furniture (ticks, callouts, legend, axis
-	// titles) stays unmounted until it drops, so the graph doesn't sit behind the
-	// outgoing scene. Raised by an entry that declares `veil` (the rank bar fades
-	// out in place over the very region the axes occupy) and dropped when its legs
-	// take the rAF; reset by every render pass, so an arrival cut short mid-fade
-	// can't leave the chart hidden.
-	let chartVeiled = $state(false);
-	// hopBands' title + labelled bands: unlike every other state's furniture
-	// (which mounts alongside the dots and fades in over its own arrival), this
-	// one waits for the arrival tween to actually land (story.settled), so the
-	// bands read once the crowd has sorted into them rather than over the
-	// tween. Steps 4 and 5 both rest in this one state (see layouts/hop-bands.js),
-	// so settling once on arrival covers both; a resize/reduced-motion snap still
-	// calls settle() immediately, so this never sticks veiled.
-	const hopBandsVeiled = $derived(
-		stateName === "hopBands" && story.settled !== "hopBands"
-	);
+	/**
+	 * The arriving chart's furniture waits for the beat. What is leaving fades
+	 * out where it stood, the dots travel, and only then does the new chart's
+	 * text appear — motion.md rule 6, applied once here rather than per state.
+	 *
+	 * Raised by swapFurniture on an arrival that changes scene, and dropped by
+	 * land(). Dropped EARLY by the first frame that publishes furniture of its
+	 * own (see applyFrame): a choreographed pan IS its axes moving, and a pan
+	 * with no ticks says nothing at all.
+	 *
+	 * This replaces two special cases that each did it for one state — an entry's
+	 * `veil` flag, declared by exactly one entry, and a hard-coded test for
+	 * hopBands — neither of which could be generalised while the signal was a
+	 * state name (see story.settledStep).
+	 */
+	let furnitureHeld = $state(false);
+	/**
+	 * The furniture the state the reader has LEFT was showing, kept for one
+	 * out-fade at its own coordinates. A frozen snapshot, not a live read: it has
+	 * to go on rendering its own text at its own places while the arriving state
+	 * is already building.
+	 * @type {ReturnType<typeof furnitureSet> | null}
+	 */
+	let leaving = $state.raw(null);
+	let leavingRaf = 0;
 	// tappable chart regions (layout `hits` + the state's `pick`): rendered as
 	// transparent buttons over the canvas, so a pick is keyboard- and
 	// screen-reader-reachable without any canvas hit-testing
@@ -607,16 +669,25 @@
 	// a choreography on the race chart) — a reader's scrub grab is ignored while
 	// it is set, so a choreographed pan is never fought by the scrubber mid-motion.
 	let camPanning = $state(false);
-	const overlay = $derived(OVERLAYS[stateName]);
-	// Scene identity for the axes and the takeover callout, which the template
-	// keys on to replay their mount fade. Every race step draws the same two axes
-	// off the same camera and recomputes them per frame through a pan, so the
-	// whole chapter is ONE scene here: keyed on stateName instead, stepping
-	// raceRecent -> raceFull remounted every tick and faded an identical axis back
-	// in from nothing, which is the only motion the reader saw at that step
-	// change. The overlay labels below solve the same problem by keying on their
-	// own text; ticks change too often for that, so they key on the scene.
-	const axesScene = $derived(STATE_RACE[stateName] ? "race" : stateName);
+	/** the furniture the state the reader is ON wants drawn */
+	const arriving = $derived(furnitureSet(decor, stateName));
+	/** how long the departing furniture keeps its place before it goes. The HTML
+	 *  twin of DEPART_FADE_MS: decluttering, not a beat the reader watches. */
+	const DECOR_OUT_MS = 220;
+	const furnitureOut = $derived(
+		reducedMotion ? { duration: 0 } : { duration: DECOR_OUT_MS }
+	);
+	// Which states share one set of chart furniture, so a step change INSIDE one
+	// neither fades it out nor mounts it again. Every race step draws the same two
+	// axes off the same camera and recomputes them per frame through a pan, so
+	// those steps are one scene: treated as separate, stepping raceRecent ->
+	// raceFull faded an identical axis out and back in, which was the only motion
+	// the reader saw at that step change.
+	//
+	// This is also the only declaration the overlay's gate needs. It replaces an
+	// exemption list, because two rules cover the rest: a scene that has not
+	// changed is not swapped at all, and a frame that publishes furniture owns it.
+	const sceneOf = (name) => STATE_SCENE[name] ?? name;
 	// the active state's race descriptor — its camera extent and the actors the
 	// step is about — or undefined off the race chapter, whose presence is what
 	// makes a step pannable
@@ -747,6 +818,7 @@
 	// -- Arrival state ----------------------------------------------------------
 	let prevState = null;
 	let prevParamsKey = null;
+	let prevStep = -1;
 	let entered = false;
 	// While an entry choreography is playing, the set of ids whose names have
 	// been introduced so far (see EntryAnim.labelsAfter); null = no gate, every
@@ -778,7 +850,13 @@
 	let lastCamera = null;
 	function applyFrame(out) {
 		if (!out) return;
-		if (out.decor) decor = { ...decor, ...out.decor };
+		if (out.decor) {
+			decor = { ...decor, ...out.decor };
+			// This frame is drawing its own furniture, so it owns it: a choreographed
+			// pan IS its axes moving, and holding the ticks back would pan an empty
+			// chart. The generalisation of what `veil` used to do for one entry.
+			furnitureHeld = false;
+		}
 		if (out.camera) {
 			camera.apply(out.camera);
 			lastCamera = camera.hold();
@@ -836,7 +914,6 @@
 		camPanning = false;
 		entryLabels = null;
 		story.entryHeld = false;
-		if (story.running !== null) story.running = null;
 		if (anim.finish) {
 			anim.finish(story, lastCamera ?? undefined);
 		} else {
@@ -845,6 +922,14 @@
 			settle(stateName);
 		}
 		camera.publish(raceStep, width, height);
+		// The last frame IS the layout, so the beat is over here rather than after
+		// the param retarget a `finish` hands off to — otherwise the words waited
+		// out another 450ms of a tween that moves nothing.
+		land();
+		// Last, so the button's `disabled` and the step's own `advanceon` flip in
+		// the SAME flush as everything above. Cleared first, it left the button
+		// live and pressable for the flush between the clear and the step change.
+		if (story.running !== null) story.running = null;
 	}
 
 	// One leg after another on the choreographer, each frame written straight
@@ -866,8 +951,13 @@
 			(i) => {
 				introduceLabels(anim, i + 1);
 				// what the step's prose was waiting for is on screen now, so the
-				// card can speak (see EntryAnim.cardAfter)
-				if (i === anim.cardAfter) story.entryHeld = false;
+				// card can speak (see EntryAnim.cardAfter) — and the beat counts as
+				// landed, which is what stops a long opening flight holding the
+				// words back for the whole of it
+				if (i === anim.cardAfter) {
+					story.entryHeld = false;
+					land();
+				}
 			},
 			() => finishChoreography(anim, finalAttrs, finalTrails)
 		);
@@ -880,7 +970,13 @@
 	function startArrival(p) {
 		const jitter = p.anim.arrivalJitter ?? TWEEN_JITTER;
 		tweener.to(p.startAttrs, TWEEN_MS, jitter, p.stateDelays, () => {
-			chartVeiled = false;
+			// The dots are in place: THIS is the landing the words were waiting for,
+			// not the end of the legs that follow. The legs are the step's authored
+			// reveal and its prose describes them, so holding the card for the whole
+			// of a 1.6s fan or a 4s sweep leaves it blank over the very motion it is
+			// captioning. An entry that genuinely needs the words later says so with
+			// cardAfter, which runLegs honours at its own beat.
+			if (p.anim.cardAfter == null) land();
 			runLegs(p.anim, p.write, p.ctx, p.finalAttrs, p.finalTrails);
 		});
 		// coterminous with the attrs tween, so runLegs' trailTweener.stop() can no
@@ -950,10 +1046,14 @@
 			// legs own the rAF from the step change at whatever rate they author
 			tweener.to(startAttrs, 0);
 			trailTweener.to(startTrails, 0);
+			// frame 0 IS the departing frame, so nothing is travelling and there is
+			// no landing to wait for: the legs ARE this step's subject and its words
+			// are their caption. Unless the entry names a later beat (cardAfter),
+			// which is how the opening flight holds its card for three seconds.
+			if (anim.cardAfter == null) land();
 			runLegs(anim, write, ctx, target.attrs, target.trails);
 			return;
 		}
-		chartVeiled = !!anim.veil;
 		if (!anim.hold) {
 			startArrival(pending);
 			return;
@@ -997,7 +1097,6 @@
 		if (tweener.running) tweener.to(tweener.target, 0);
 		if (trailTweener.running) trailTweener.to(trailTweener.target, 0);
 		pendingArrival = null;
-		chartVeiled = false;
 		entryLabels = null;
 		story.entryHeld = false;
 		const write = anim.frames(
@@ -1069,11 +1168,25 @@
 	function settle(name) {
 		if (name !== stateName) return;
 		story.settled = name;
+		land();
 		// Safe to start from inside the render effect (which the snap branches do):
 		// the choreographer's `active` is not reactive, so setting it invalidates
 		// nothing — see its declaration for why that matters.
 		const ambient = STATE_AMBIENT[name];
 		if (ambient) playAmbient(ambient);
+	}
+
+	/**
+	 * The BEAT has landed: the step's words may speak, the arriving furniture may
+	 * mount and the step's panel may come up.
+	 *
+	 * Step-scoped, not state-scoped — see story.settledStep for why a state name
+	 * cannot answer this. Idempotent, and guarded by the live step, so a callback
+	 * that outlived its beat cannot land the wrong one.
+	 */
+	function land() {
+		furnitureHeld = false;
+		if (story.settledStep !== step) story.settledStep = step;
 	}
 
 	// -- The reader's pan -------------------------------------------------------
@@ -1249,7 +1362,14 @@
 		const holding = heldLabels && performance.now() < labelHoldUntil;
 		const nextTracked = trackLabels(attrs, TRACKED_IDS, {
 			names: (id) => labelTexts[id] ?? nodes[id].name,
-			shown: shownLabels(attrs),
+			// A name is overlay furniture like any other, so it waits for the beat.
+			// The four states the audit named (hopBands, careerMany, scatterQuiz,
+			// raceClose) declare neither `labelsAfter` nor an entry, so nothing held
+			// their names and they rode their dots for the whole of the travel —
+			// up to 558px of it. `furnitureHeld` is dropped by land(), and by the
+			// first frame that publishes furniture of its own, so a choreographed
+			// pan still carries its names.
+			shown: furnitureHeld ? EMPTY_LABELS : shownLabels(attrs),
 			gate: entryLabels,
 			held: holding ? heldLabels : null
 		});
@@ -1582,7 +1702,12 @@
 		// stepping off the title card snapped up to eighty highlight-beat spokes
 		// off in a single frame.
 		entry: (target, from, entryAnim) => {
-			resetArrivalGates(from);
+			// threaded through the way ARRIVE.state does: an entry arrival used to
+			// discard this and so never got the introduced-name hold at all, which
+			// meant an entry was the one arrival whose new names rode the dots
+			const introduced = resetArrivalGates(from);
+			heldLabels = introduced.size ? introduced : null;
+			labelHoldUntil = performance.now() + LABEL_HOLD_MS;
 			const delays = arrivalDelays(from, target);
 			departFade(target, from, () => arrive(entryAnim, from, target, delays));
 		},
@@ -1604,12 +1729,24 @@
 		// blank the canvas until the next resize
 		if (!canvasReady()) return;
 		const box = fitBox();
+		// A new beat, taken before the early returns below and independently of
+		// the state: a step change is a beat even where the state and its params
+		// are identical, which is exactly the case six steps in this story are.
+		const beat = step !== prevStep;
+		prevStep = step;
 		if (!box) return;
 		const paramsKey = JSON.stringify(layoutParams) ?? "";
-		if (unchanged(box, cacheDropped, paramsKey)) return;
+		if (unchanged(box, cacheDropped, paramsKey)) {
+			// Two steps resting on one layout: nothing travels, so nothing is kept
+			// waiting. `beat` is load-bearing — the identity-only re-runs this guard
+			// exists for must NOT land, or a publish mid-arrival would release the
+			// words early.
+			if (beat) land();
+			return;
+		}
+		const from = prevState;
 		const layout = layoutFor(stateName, width, height, layoutParams, bleed);
-		decor = staticDecor(layout);
-		chartVeiled = false;
+		swapFurniture(staticDecor(layout), from, box);
 		// a copy, because parkLeavers rewrites it and `layout.attrs` is cached
 		const attrs = layout.attrs.slice();
 		parkLeavers(attrs);
@@ -1623,7 +1760,6 @@
 		};
 		const firstPaint = !entered;
 		entered = true;
-		const from = prevState;
 		const stateChange = stateName !== from;
 		prevState = stateName;
 		prevParamsKey = paramsKey;
@@ -1641,6 +1777,7 @@
 		tweener.stop();
 		trailTweener.stop();
 		choreo.stop();
+		if (leavingRaf) cancelAnimationFrame(leavingRaf);
 	});
 </script>
 
@@ -1676,7 +1813,7 @@
 		     the field is monochrome-plus-ink by design (see layouts/race.js) because
 		     no actor is identified BY a colour. This colours a REGION, not an actor,
 		     so that rule survives intact. -->
-		{#if decor?.band && !chartVeiled}
+		{#if decor?.band && !furnitureHeld}
 			{@const b = decor.band}
 			<div class="band fade-in">
 				<span
@@ -1736,208 +1873,208 @@
 			</p>
 		{/each}
 	</div>
-	<div class="overlay">
-		{#key STATE_TITLE[stateName]}
-			{#if STATE_TITLE[stateName] && !chartVeiled && !hopBandsVeiled}
-				<p class="chart-title fade-in">{STATE_TITLE[stateName]}</p>
-			{/if}
-		{/key}
-		{#key overlay?.xLabel}
-			{#if overlay?.xLabel && !chartVeiled}
-				<p class="x-label fade-in" style="top: {xLabelTop}px; bottom: auto">
-					{overlay.xLabel}
-				</p>
-			{/if}
-		{/key}
-		{#key overlay?.yLabel}
-			{#if overlay?.yLabel && !chartVeiled}
-				<!-- centre the axis title on the graph's y-axis extent, not the tall canvas -->
-				<p class="y-label fade-in" style="top: {yLabelTop}px">
-					{overlay.yLabel}
-				</p>
-			{/if}
-		{/key}
-		{#key overlay?.yTopLabel}
-			{#if overlay?.yTopLabel && !chartVeiled}
-				<p class="y-hint y-hint-top fade-in" style="top: {yHintTop}px">
-					{overlay.yTopLabel}
-				</p>
-			{/if}
-		{/key}
-		{#key overlay?.yBottomLabel}
-			{#if overlay?.yBottomLabel && !chartVeiled}
-				<p class="y-hint y-hint-bottom fade-in" style="top: {yHintBottom}px">
-					{overlay.yBottomLabel}
-				</p>
-			{/if}
-		{/key}
-		{#key axesScene}
-			<!-- axes and the takeover ring are recomputed every frame during the race
-			     sweep/scrub animations (see writeRaceSweepFrame), so they stay
-			     pixel-accurate throughout and don't need to hide. Anything that comes
-			     off the layout result instead — `notes` — has no per-frame equivalent,
-			     so its coordinates freeze for the length of a live scrub/pan and jump
-			     on release. Nothing emits notes, and the takeover callout below is why
-			     the slot is still empty: it is prose positioned on the plot, i.e.
-			     exactly what `notes` is for, but it rides `takeover` in the frame
-			     writer's payload instead so that it pans. Anything else on the race
-			     chart belongs there too.
+	<!-- ONE set of chart furniture, rendered twice: the arriving state's, held
+	     until its beat lands, and the departing state's, frozen and fading out at
+	     its own coordinates. That is "out, travel, in" (motion.md rule 6) for the
+	     HTML layer, in one place instead of a per-state opt-in.
 
-			     `chartVeiled` holds the whole lot back while an arrival is still
-			     fading the previous scene off the canvas; dropping it mounts these,
-			     so each one plays its own fade-in then rather than at the step change.
-			     `hopBandsVeiled` holds the same lot back on hopBands specifically,
-			     until its own arrival tween lands — see its declaration. -->
-			{#if !chartVeiled && !hopBandsVeiled}
-				{#each decor?.axes?.x ?? [] as tick}
-					<!-- raceFuture as well as raceFull: its arrival pan starts from
-					     raceFull's camera, so 1980 can be on the plot for the first
-					     frames of the leg, and gating this on raceFull alone would blink
-					     the term off the moment the reader pressed Next.
+	     Nothing here is `{#key}`ed any more. Those blocks existed to replay a
+	     mount fade when a string changed, and cut the old string in the same
+	     frame; the gate below now unmounts and remounts the whole set on a scene
+	     change, which IS the crossfade they were approximating, and within a
+	     scene the strings do not change (registry.spec.js checks that). -->
+	{#snippet chartFurniture(set)}
+		{#if set.title}
+			<p class="chart-title fade-in">{set.title}</p>
+		{/if}
+		{#if set.overlay?.xLabel}
+			<p class="x-label fade-in" style="top: {set.xTop}px; bottom: auto">
+				{set.overlay.xLabel}
+			</p>
+		{/if}
+		{#if set.overlay?.yLabel}
+			<!-- centre the axis title on the graph's y-axis extent, not the tall canvas -->
+			<p class="y-label fade-in" style="top: {set.yTop}px">
+				{set.overlay.yLabel}
+			</p>
+		{/if}
+		{#if set.overlay?.yTopLabel}
+			<p class="y-hint y-hint-top fade-in" style="top: {set.hintTop}px">
+				{set.overlay.yTopLabel}
+			</p>
+		{/if}
+		{#if set.overlay?.yBottomLabel}
+			<p class="y-hint y-hint-bottom fade-in" style="top: {set.hintBottom}px">
+				{set.overlay.yBottomLabel}
+			</p>
+		{/if}
+		<!-- axes and the takeover ring are recomputed every frame during the race
+		     sweep/scrub animations (see writeRaceSweepFrame), so they stay
+		     pixel-accurate throughout and don't need to hide. Anything that comes
+		     off the layout result instead — `notes` — has no per-frame equivalent,
+		     so its coordinates freeze for the length of a live scrub/pan and jump
+		     on release. Nothing emits notes, and the takeover callout below is why
+		     the slot is still empty: it is prose positioned on the plot, i.e.
+		     exactly what `notes` is for, but it rides `takeover` in the frame
+		     writer's payload instead so that it pans. Anything else on the race
+		     chart belongs there too. -->
+		{#each set.decor?.axes?.x ?? [] as tick}
+			<!-- raceFuture as well as raceFull: its arrival pan starts from
+			     raceFull's camera, so 1980 can be on the plot for the first
+			     frames of the leg, and gating this on raceFull alone would blink
+			     the term off the moment the reader pressed Next.
 
-					     Keyed off `tick.year`, not the label: every race year now renders
-					     in two digits (raceTickLabel), so the text is lossy. -->
-					{#if (stateName === RACE_FULL_STATE || stateName === RACE_FUTURE_STATE) && tick.year === 1980}
-						<InfoTerm
-							class="tick tick-x tick-1980 fade-in"
-							style="left: {tick.pos}px; {decor.axes.xBase != null
-								? `top: ${decor.axes.xBase}px`
-								: ''}"
-							title="Why 1980?"
-						>
-							{tick.label}
-							{#snippet info()}
-								<!-- TODO(copy): explain why the chart is tracked back to
-								     1970 (the lines extend that far) but the interactive
-								     window only pans back to 1980. Owen to write final
-								     copy. -->
-								<p>PLACEHOLDER — copy pending.</p>
-							{/snippet}
-						</InfoTerm>
-					{:else}
-						<p
-							class="tick tick-x fade-in"
-							style="left: {tick.pos}px; {decor.axes.xBase != null
-								? `top: ${decor.axes.xBase}px`
-								: ''}"
-						>
-							<!-- the strip's years recede toward the horizon with the block above
-							     them (raceFutureTicks); historical years carry no alpha and render
-							     flat. On an inner span so it MULTIPLIES with .fade-in's mount
-							     animation rather than being outranked by it — that animation
-							     targets opacity on the <p> with fill-mode `both`. -->
-							<span style={tick.alpha != null ? `opacity: ${tick.alpha}` : null}
-								>{tick.label}</span
-							>
-						</p>
-					{/if}
-				{/each}
-				{#each decor?.axes?.y ?? [] as tick}
-					<p class="tick tick-y fade-in" style="top: {tick.pos}px">
-						{tick.label}
-					</p>
-				{/each}
-				<!-- the takeover callout: the one moment the race chapter is about,
-				     stated on the crossing itself rather than behind a click. Only the
-				     race layout emits `takeover`, and the wholesale decor write above
-				     clears it on every other state, so this needs no state gate. Its
-				     geometry rides the per-frame payload next to `axes` (see
-				     applyFrame/scrubLoop), so the note stays glued to the crossing
-				     through a pan instead of freezing the way a `notes` entry would.
-				     The wrapper carries the mount fade and the payload's own `alpha`
-				     rides each child, because the two must MULTIPLY: an animation with
-				     fill-mode `both` outranks an inline opacity for good, so putting
-				     both on one element would leave the cull ramp with no effect.
+			     Keyed off `tick.year`, not the label: every race year now renders
+			     in two digits (raceTickLabel), so the text is lossy. -->
+			{#if set.infoTick && tick.year === 1980}
+				<InfoTerm
+					class="tick tick-x tick-1980 fade-in"
+					style="left: {tick.pos}px; {set.decor.axes.xBase != null
+						? `top: ${set.decor.axes.xBase}px`
+						: ''}"
+					title="Why 1980?"
+				>
+					{tick.label}
+					{#snippet info()}
+						<!-- TODO(copy): explain why the chart is tracked back to
+						     1970 (the lines extend that far) but the interactive
+						     window only pans back to 1980. Owen to write final
+						     copy. -->
+						<p>PLACEHOLDER — copy pending.</p>
+					{/snippet}
+				</InfoTerm>
+			{:else}
+				<p
+					class="tick tick-x fade-in"
+					style="left: {tick.pos}px; {set.decor.axes.xBase != null
+						? `top: ${set.decor.axes.xBase}px`
+						: ''}"
+				>
+					<!-- the strip's years recede toward the horizon with the block above
+					     them (raceFutureTicks); historical years carry no alpha and render
+					     flat. On an inner span so it MULTIPLIES with .fade-in's mount
+					     animation rather than being outranked by it — that animation
+					     targets opacity on the <p> with fill-mode `both`. -->
+					<span style={tick.alpha != null ? `opacity: ${tick.alpha}` : null}
+						>{tick.label}</span
+					>
+				</p>
+			{/if}
+		{/each}
+		{#each set.decor?.axes?.y ?? [] as tick}
+			<p class="tick tick-y fade-in" style="top: {tick.pos}px">
+				{tick.label}
+			</p>
+		{/each}
+		<!-- the takeover callout: the one moment the race chapter is about,
+		     stated on the crossing itself rather than behind a click. Only the
+		     race layout emits `takeover`, and the wholesale decor write above
+		     clears it on every other state, so this needs no state gate. Its
+		     geometry rides the per-frame payload next to `axes` (see
+		     applyFrame/scrubLoop), so the note stays glued to the crossing
+		     through a pan instead of freezing the way a `notes` entry would.
+		     The wrapper carries the mount fade and the payload's own `alpha`
+		     rides each child, because the two must MULTIPLY: an animation with
+		     fill-mode `both` outranks an inline opacity for good, so putting
+		     both on one element would leave the cull ramp with no effect.
 
-				     `story.running` — the rewind's ask — is what holds it back until the Start rewind
-				     has landed. The pan brings the crossing on camera with about a
-				     third of its travel still to go, and without this the note mounted
-				     there and then rode ~270px across the plot to its resting spot:
-				     fine for an 11px ring, seasick for a block of prose. So it waits,
-				     and the wrapper's fade-in is then the only motion it makes.
-				     `running` and not `story.settled`, which is the usual
-				     wait-for-the-reveal gate: both race steps share one state, so
-				     `settled` is already open when Start fires, and raceFull's arrival
-				     never sets it at all (it is a plain tween onto its resting camera).
-				     Not `camPanning`/`sweeping` either — a reader's scrub raises both,
-				     and the note should track the crossing through a drag, not blink on
-				     every grab. This flag names exactly the one animation in question. -->
-				{#if decor?.takeover && story.running !== "rewind"}
-					{@const t = decor.takeover}
-					{@const arrowD = `M ${t.arrow.ax} ${t.arrow.ay} L ${t.arrow.bx} ${t.arrow.by}`}
-					<div class="callout fade-in">
-						<!-- decoration: the ring marks where, the note says what, and the
-						     note is real text, so it is the note that carries this to AT -->
-						<svg
-							class="callout-arrow"
-							viewBox="0 0 {width} {height}"
-							aria-hidden="true"
-							style="opacity: {t.alpha}"
-						>
-							<!-- the halo pass, under the stroke: the leader crosses live
-							     chart lines, and SVG has no text-shadow to lean on -->
-							<path class="arrow-halo" d={arrowD} />
-							<path class="arrow-line" d={arrowD} />
-							<path
-								class="arrow-head"
-								d="M {t.arrow.bx} {t.arrow.by} L {t.arrow.h1x} {t.arrow
-									.h1y} L {t.arrow.h2x} {t.arrow.h2y} Z"
-							/>
-						</svg>
+		     `set.takeover` is the rewind's ask (`story.running`), which holds the
+		     note back until the Start rewind has landed. The pan brings the
+		     crossing on camera with about a third of its travel still to go, and
+		     without this the note mounted there and then rode ~270px across the
+		     plot to its resting spot: fine for an 11px ring, seasick for a block
+		     of prose. So it waits, and the wrapper's fade-in is then the only
+		     motion it makes. Not `camPanning`/`sweeping` either — a reader's
+		     scrub raises both, and the note should track the crossing through a
+		     drag, not blink on every grab. -->
+		{#if set.decor?.takeover && set.takeover}
+			{@const t = set.decor.takeover}
+			{@const arrowD = `M ${t.arrow.ax} ${t.arrow.ay} L ${t.arrow.bx} ${t.arrow.by}`}
+			<div class="callout fade-in">
+				<!-- decoration: the ring marks where, the note says what, and the
+				     note is real text, so it is the note that carries this to AT -->
+				<svg
+					class="callout-arrow"
+					viewBox="0 0 {width} {height}"
+					aria-hidden="true"
+					style="opacity: {t.alpha}"
+				>
+					<!-- the halo pass, under the stroke: the leader crosses live
+					     chart lines, and SVG has no text-shadow to lean on -->
+					<path class="arrow-halo" d={arrowD} />
+					<path class="arrow-line" d={arrowD} />
+					<path
+						class="arrow-head"
+						d="M {t.arrow.bx} {t.arrow.by} L {t.arrow.h1x} {t.arrow.h1y} L {t
+							.arrow.h2x} {t.arrow.h2y} Z"
+					/>
+				</svg>
+				<span
+					class="takeover-mark"
+					aria-hidden="true"
+					style="left: {t.ring.x}px; top: {t.ring.y}px; opacity: {t.alpha}"
+				></span>
+				<p
+					class="takeover-note"
+					style="left: {t.note.x}px; top: {t.note.y}px; width: {t.note
+						.width}px; opacity: {t.alpha}"
+				>
+					{TAKEOVER_NOTE}
+				</p>
+			</div>
+		{/if}
+		{#each set.decor?.notes ?? [] as note}
+			<p
+				class="note fade-in {note.align ?? 'left'}"
+				class:strong={note.strong}
+				class:wrap={note.wrap}
+				style="left: {note.x}px; top: {note.y}px{note.wrapWidth
+					? `; width: ${note.wrapWidth}px; max-width: none`
+					: ''}"
+			>
+				{note.text}
+			</p>
+		{/each}
+		{#each set.decor?.legend?.filter((item) => item.x != null) ?? [] as item}
+			<p
+				class="legend-item pinned fade-in"
+				style="left: {item.x}px; top: {item.y}px"
+			>
+				{item.label}
+			</p>
+		{/each}
+		{#if set.decor?.legend?.some((item) => item.x == null)}
+			<ul
+				class="legend fade-in"
+				style={set.decor.legendY != null
+					? `top: ${set.decor.legendY}px; bottom: auto`
+					: ""}
+			>
+				{#each set.decor.legend as item}
+					<li class="legend-item">
 						<span
-							class="takeover-mark"
-							aria-hidden="true"
-							style="left: {t.ring.x}px; top: {t.ring.y}px; opacity: {t.alpha}"
+							class="legend-swatch"
+							style="background: rgb({item.color.join(',')})"
 						></span>
-						<p
-							class="takeover-note"
-							style="left: {t.note.x}px; top: {t.note.y}px; width: {t.note
-								.width}px; opacity: {t.alpha}"
-						>
-							{TAKEOVER_NOTE}
-						</p>
-					</div>
-				{/if}
-				{#each decor?.notes ?? [] as note}
-					<p
-						class="note fade-in {note.align ?? 'left'}"
-						class:strong={note.strong}
-						class:wrap={note.wrap}
-						style="left: {note.x}px; top: {note.y}px{note.wrapWidth
-							? `; width: ${note.wrapWidth}px; max-width: none`
-							: ''}"
-					>
-						{note.text}
-					</p>
-				{/each}
-				{#each decor?.legend?.filter((item) => item.x != null) ?? [] as item}
-					<p
-						class="legend-item pinned fade-in"
-						style="left: {item.x}px; top: {item.y}px"
-					>
 						{item.label}
-					</p>
+					</li>
 				{/each}
-				{#if decor?.legend?.some((item) => item.x == null)}
-					<ul
-						class="legend fade-in"
-						style={decor.legendY != null
-							? `top: ${decor.legendY}px; bottom: auto`
-							: ""}
-					>
-						{#each decor.legend as item}
-							<li class="legend-item">
-								<span
-									class="legend-swatch"
-									style="background: rgb({item.color.join(',')})"
-								></span>
-								{item.label}
-							</li>
-						{/each}
-					</ul>
-				{/if}
-			{/if}
-		{/key}
+			</ul>
+		{/if}
+	{/snippet}
+	<div class="overlay">
+		<!-- The arriving layer carries no transition of its own: its children
+		     already fade in with .fade-in, and an opacity transition on this
+		     wrapper would form a stacking context that the 1980 tick's own z-lift
+		     could not escape at any value. -->
+		{#if !furnitureHeld}
+			<div class="layer">{@render chartFurniture(arriving)}</div>
+		{/if}
+		{#if leaving}
+			<div class="layer gone" aria-hidden="true" out:fade={furnitureOut}>
+				{@render chartFurniture(leaving)}
+			</div>
+		{/if}
 	</div>
 	{#if pick}
 		<div class="hits">
@@ -2070,6 +2207,18 @@
 	.overlay {
 		position: absolute;
 		inset: 0;
+		pointer-events: none;
+	}
+
+	/* The two furniture sets stack in the same box, so the departing one fades
+	   out over exactly the ground the arriving one will occupy. No colour, no
+	   size: every rule below is a descendant selector, so nesting is inert. */
+	.layer {
+		position: absolute;
+		inset: 0;
+	}
+
+	.layer.gone {
 		pointer-events: none;
 	}
 

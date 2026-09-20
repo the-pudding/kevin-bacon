@@ -3178,8 +3178,6 @@ const drawOn = raceChoreography(
 		];
 	},
 	{
-		// the chart's furniture waits behind the rank list until the flight lands
-		veil: true,
 		// the flight is the list re-spacing itself into the chart; a hashed
 		// per-node start would scramble the top-to-bottom order the reader reads
 		arrivalJitter: 0,
@@ -3404,13 +3402,21 @@ const drawProjections = raceChoreography(
 			}
 		];
 	},
-	{ finish: holdCamera }
+	// the six names wait for the draw to finish rather than riding their curves
+	// out to 2030 — a name captioning a dot in flight is naming empty space
+	// (motion.md rule 2), and because the label cut re-ranks on screen y every
+	// frame, the whole stack re-sorted as the lines crossed
+	{ labelsAfter: [[]], finish: holdCamera }
 );
 
 export const states = {
 	raceRecent: {
 		layout: raceLayout(RACE_RECENT_STEP, RACE_RECENT_YCAP),
 		title: "The center of Hollywood, over time",
+		// one scene with the other panning race steps: same title, same overlay, same
+		// two axes off the same camera, so a step change inside the chapter must not
+		// fade the furniture out and mount it again (see STATE_SCENE)
+		scene: "race",
 		race: RACE_RECENT_STEP,
 		yCap: RACE_RECENT_YCAP,
 		// its camera runs between its own extent's ends — the rewind parks it on
@@ -3427,6 +3433,10 @@ export const states = {
 	raceFull: {
 		layout: raceLayout(RACE_FULL_STEP, Infinity),
 		title: "The center of Hollywood, over time",
+		// one scene with the other panning race steps: same title, same overlay, same
+		// two axes off the same camera, so a step change inside the chapter must not
+		// fade the furniture out and mount it again (see STATE_SCENE)
+		scene: "race",
 		race: RACE_FULL_STEP,
 		// the whole chapter's span: its camera floor is the pan floor on a narrow
 		// viewport and later on a wide one (raceFullRestPlayhead), and the reader
@@ -3447,6 +3457,10 @@ export const states = {
 		// is off this step entirely and the Gen-Z lines have the plot to themselves
 		layout: raceLayout(RACE_GENZ_STEP, RACE_GENZ_YCAP),
 		title: "The center of Hollywood, over time",
+		// one scene with the other panning race steps: same title, same overlay, same
+		// two axes off the same camera, so a step change inside the chapter must not
+		// fade the furniture out and mount it again (see STATE_SCENE)
+		scene: "race",
 		race: RACE_GENZ_STEP,
 		yCap: RACE_GENZ_YCAP,
 		// the seven the story names, in the chapter's own gutter position. Not
@@ -3518,6 +3532,10 @@ export const states = {
 		// run forward to the present with a fitted strip of future beside it
 		layout: raceLayout(RACE_FUTURE_STEP, Infinity),
 		title: "The center of Hollywood, over time",
+		// one scene with the other panning race steps: same title, same overlay, same
+		// two axes off the same camera, so a step change inside the chapter must not
+		// fade the furniture out and mount it again (see STATE_SCENE)
+		scene: "race",
 		race: RACE_FUTURE_STEP,
 		// raceFull's names exactly — the union over the arrival pan's range, which
 		// covers every year the forward leg crosses. See RACE_FULL_LABELS.
