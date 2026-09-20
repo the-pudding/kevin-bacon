@@ -116,15 +116,34 @@ for (const entry of top200) {
 	);
 }
 
-// hop distance from Kevin Bacon: the shared 10k tree first (same source as
-// the network sample), then the KB-specific 10k tree for famous actors the
-// shared slice misses; -1 = unknown, hidden in hop-coloured states
-const hopByPid = new Map();
-const kbTree = raw("hop-tree-kevin-bacon-10000.json");
-for (const n of kbTree.nodes) hopByPid.set(n.person_id, n.hop);
-hopTree.nodes.forEach((n, i) =>
-	hopByPid.set(n.person_id, hopTree.centres[String(KEVIN_BACON)].hop[i])
+// Hop distance from Kevin Bacon, for every actor in the corpus graph.
+//
+// This used to come off the hop TREES — 10k-node drawing samples — so an actor
+// the sample missed got no hop, and Block 3's whole scatter population (10,433
+// of the 22,530 nodes here) was written as -1. The states that hide an actor
+// with no hop then hid two thirds of the corpus from the galaxy while the
+// scatters plotted it, which made every galaxy <-> scatter move a crossfade
+// between two near-disjoint casts rather than one crowd travelling.
+//
+// The BFS behind those trees always knew the answer; it just wasn't exported.
+// It reaches 162,230 actors and bottoms out at hop 4 — there is no unreachable
+// bucket — so every node here gets a real distance and `hop` means what it says.
+const kbHops = raw("hop-by-person-kevin-bacon.json");
+const hopByPid = new Map(
+	Object.entries(kbHops.hops).map(([pid, hop]) => [Number(pid), hop])
 );
+
+/**
+ * One actor's distance from the anchor. A miss is a build error rather than a
+ * -1: every actor this file plots comes from the same corpus the BFS ran over,
+ * so a gap means the two have drifted apart, and writing -1 would hand that
+ * drift to the canvas as an actor silently hidden from every hop-aware state.
+ */
+function hopOf(pid, name) {
+	const hop = hopByPid.get(pid);
+	assert(hop !== undefined, `no hop for ${name} (${pid})`);
+	return hop;
+}
 
 // ---------------------------------------------------------------------------
 // Block 1 (ids stable vs. previous builds): curated intro network + the
@@ -138,7 +157,7 @@ const introPids = new Set(intro.nodes.map((n) => n.id));
 const sample = intro.nodes.map((n) => {
 	const treeHop = hopByPid.get(n.id);
 	assert(
-		treeHop === undefined || treeHop === n.hop,
+		treeHop === n.hop,
 		`intro hop ${n.hop} !== hop-tree hop ${treeHop} for ${n.name}`
 	);
 	return { pid: n.id, name: n.name, hop: n.hop };
@@ -301,7 +320,7 @@ for (const pid of appended) {
 		db.prepare("SELECT name FROM actor_metrics WHERE person_id = ?").get(pid)
 			?.name;
 	assert(name, `no name for appended pid ${pid}`);
-	sample.push({ pid, name, hop: hopByPid.get(pid) ?? -1 });
+	sample.push({ pid, name, hop: hopOf(pid, name) });
 }
 
 // ---------------------------------------------------------------------------
@@ -334,7 +353,7 @@ for (const row of scatterPop) {
 	sample.push({
 		pid: row.person_id,
 		name: row.name,
-		hop: hopByPid.get(row.person_id) ?? -1
+		hop: hopOf(row.person_id, row.name)
 	});
 }
 
@@ -482,7 +501,7 @@ const introXY = intro.nodes.map((n) => [n.x, n.y]);
 
 // hop bands: true corpus bucket totals must reproduce KB's avg distance
 const bacon = metricsStmt.get(KEVIN_BACON);
-const bucketTotals = kbTree.bucket_totals;
+const bucketTotals = kbHops.bucket_totals;
 assert(
 	bucketTotals["0"] === 1 && bucketTotals["1"] === bacon.total_costars,
 	"bucket totals drifted from KB's costar count"

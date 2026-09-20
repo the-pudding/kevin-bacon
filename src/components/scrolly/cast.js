@@ -111,10 +111,16 @@ export const RACE_IDS = Object.keys(story.raceSeries)
 	.sort((a, b) => a - b);
 
 /**
- * The crowd that arrives as the camera pulls back: every actor the corpus can
- * place at hop 1–4 — the exact set hopBands is about to sort into rows, so the
- * bands sort the crowd the reader just met rather than swapping it for a bigger
- * one. Unreachable actors (hop -1) stay out: they have no band to land in.
+ * The crowd that arrives as the camera pulls back: every actor at hop 1–4 — the
+ * exact set hopBands is about to sort into rows, so the bands sort the crowd the
+ * reader just met rather than swapping it for a bigger one.
+ *
+ * Hop 4 is where the corpus bottoms out, so this is the whole corpus bar the
+ * fifteen: the galaxy and the films scatters draw the SAME actors, and crossing
+ * between them is one crowd travelling rather than two casts trading places. It
+ * used to be two thirds of that, because an actor the hop-tree sample missed was
+ * written with no hop and this bound excluded them — see the hop note in
+ * tasks/build-scrolly-nodes.js.
  *
  * The intro fifteen are excluded: they are drawn by the constellation writer,
  * and including them would drag them out of the graph into the field.

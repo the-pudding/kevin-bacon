@@ -512,11 +512,8 @@ function withAnchorInSky(framesFn) {
  * beat can neither name him early nor hang a spoke off him.
  * @type {import("../layout-types.js").LayoutFn}
  */
-function layoutTitleGalaxy(nodes, w, h, _edges, _params, bleed = NO_BLEED) {
+function layoutTitleGalaxy(_nodes, w, h, _edges, _params, bleed = NO_BLEED) {
 	const attrs = new Float64Array(ATTR_SIZE);
-	// unreachable actors have no place in a crowd of degrees of separation —
-	// parked where every other galaxy state parks them, so they never move
-	for (const n of nodes) if (n.hop < 0) parkHidden(attrs, n, w, h);
 	writeFieldCrowd(attrs, w, h, PULLBACK_ZOOM, galaxyBox(w, h, bleed));
 	for (const id of INTRO_IDS) {
 		if (id === ANCHOR_ID) continue;

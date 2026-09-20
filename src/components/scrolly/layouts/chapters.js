@@ -4,7 +4,6 @@ import { FIELD_IDS } from "../cast.js";
 import { PULLBACK_DOT_R, PULLBACK_ZOOM } from "../intro-geometry.js";
 import { CROWD } from "../palette.js";
 import { NO_BLEED } from "../plot.js";
-import { parkHidden } from "../scatter-scales.js";
 import {
 	FIELD_ALPHA,
 	cardSpot,
@@ -105,14 +104,11 @@ function writeIntroIntoField(attrs, w, h) {
 }
 
 /** @type {import("../layout-types.js").LayoutFn} */
-function layoutChapterCenters(nodes, w, h, _edges, _params, bleed = NO_BLEED) {
+function layoutChapterCenters(_nodes, w, h, _edges, _params, bleed = NO_BLEED) {
 	const attrs = new Float64Array(ATTR_SIZE);
 	// the sky: the canvas and well past it on every side, so the crowd thins out
 	// across something bigger than the screen rather than tiling it
 	const box = galaxyBox(w, h, bleed);
-	// unreachable actors have no place in a crowd of degrees of separation; park
-	// them where hopBands parks them too, so they never move across the handoff
-	for (const n of nodes) if (n.hop < 0) parkHidden(attrs, n, w, h);
 	// PULLBACK_ZOOM is the landed camera, so this is hopSeed's closing frame
 	// re-authored across the wider box — same dots, same radius, same grey, each
 	// carried out to its place in the sky by the arrival tween

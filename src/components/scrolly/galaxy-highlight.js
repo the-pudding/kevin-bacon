@@ -181,8 +181,8 @@ const GALAXY_TARGET_DRAWS = 1500;
  * already the right pool — every actor at hop 1–4 bar the intro fifteen — which
  * matters twice over: the fifteen are held OUT of the flight on `hopSeed` and
  * `outro`, so a cast clear of them stays usable if the beat ever extends to
- * those states, and an unreachable actor (hop -1) is parked hidden and could
- * never be lit at all.
+ * those states, and the pool is the whole corpus bar the fifteen, so the beat
+ * can light any actor the story ever plots.
  *
  * `films` is the story's only stand-in for degree — the corpus has no co-star
  * count — and it is a fair one: an actor's co-stars scale with the films they

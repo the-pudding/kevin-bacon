@@ -5,7 +5,6 @@ import { NETWORK_HOP_DELAY_MS, PULLBACK_ZOOM } from "../intro-geometry.js";
 import { HOP_RGB, HOP_DOT_ALPHA } from "../palette.js";
 import { MARGIN, plotBottom, NO_BLEED } from "../plot.js";
 import { hopFractions, hopShareLabels } from "../rank-geometry.js";
-import { parkHidden } from "../scatter-scales.js";
 import {
 	writeFieldCrowd,
 	makeFlight,
@@ -71,7 +70,8 @@ const HOP_SHARE = hopShareLabels(hopFractions(ANCHOR_ID));
  * simple: a dot the reader can SEE falls straight down from where they see it,
  * and a dot they cannot takes a column of its own. The crowd that does land in
  * the plot fills it evenly, so a flat hash for the rest keeps the bands even —
- * the same reasoning `parkHidden` uses for an actor with no hop to stand in.
+ * the same reasoning the scatters' own park spot uses for a dot they do not
+ * plot.
  */
 function departureColumn(id, w, h, skyBox, contraction) {
 	if (isIntroActor(id)) return cardSpot(id, w, h)[0];
@@ -148,7 +148,7 @@ function layoutHopBands(nodes, w, h, _edges, params, bleed = NO_BLEED) {
 	const attrs = new Float64Array(ATTR_SIZE);
 	const delays = new Float64Array(DELAY_SIZE);
 	const counts = [0, 0, 0, 0, 0];
-	for (const n of nodes) if (n.hop >= 0) counts[n.hop]++;
+	for (const n of nodes) counts[n.hop]++;
 	// the sky the crowd arrives from, and how far one of its pixels travels as it
 	// funnels back into the reading column. Struck once, outside the loop
 	const frame = {
@@ -160,10 +160,6 @@ function layoutHopBands(nodes, w, h, _edges, params, bleed = NO_BLEED) {
 		...bandGeometry(counts, h)
 	};
 	for (const n of nodes) {
-		if (n.hop < 0) {
-			parkHidden(attrs, n, w, h);
-			continue;
-		}
 		placeInBand(attrs, n, frame);
 		// bands cascade 1→4, and each node jitters within its hop so the row fills
 		// in rather than snapping on all at once. Arriving from the chapter card

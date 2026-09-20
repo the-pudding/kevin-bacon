@@ -27,8 +27,9 @@ export const EDGE_PAIRS = data.edges.map(([source, target]) => [
  * @property {number} id stable index into the attr array — never changes
  * @property {number} pid TMDB person_id
  * @property {string} name
- * @property {number} hop degrees of separation from the anchor (0–4; -1 =
- *   unknown, hide in hop-coloured states)
+ * @property {number} hop degrees of separation from the anchor, 0–4. Every
+ *   actor in the corpus has one: the graph bottoms out at hop 4 (see
+ *   tasks/build-scrolly-nodes.js), so no state has an unplaceable dot
  * @property {number} films
  * @property {number} avgDistance
  * @property {number} rank position in the full corpus sorted by avgDistance

@@ -62,7 +62,7 @@ exports[`layout goldens > careerTrio null @stacked 1`] = `
 
 exports[`layout goldens > chapterCenters null @beside 1`] = `
 {
-  "attrs": "fe37077034df58df",
+  "attrs": "435db61c4edbb832",
   "decor": "bf21a9e8fbc5a384",
   "delays": null,
   "trailDelays": null,
@@ -72,7 +72,7 @@ exports[`layout goldens > chapterCenters null @beside 1`] = `
 
 exports[`layout goldens > chapterCenters null @phone 1`] = `
 {
-  "attrs": "fea6062cd575dbb9",
+  "attrs": "31108aefe1ca0255",
   "decor": "bf21a9e8fbc5a384",
   "delays": null,
   "trailDelays": null,
@@ -82,7 +82,7 @@ exports[`layout goldens > chapterCenters null @phone 1`] = `
 
 exports[`layout goldens > chapterCenters null @stacked 1`] = `
 {
-  "attrs": "2094daac9c5297ca",
+  "attrs": "795eaf5e7dd6832c",
   "decor": "bf21a9e8fbc5a384",
   "delays": null,
   "trailDelays": null,
@@ -122,9 +122,9 @@ exports[`layout goldens > degScatter null @stacked 1`] = `
 
 exports[`layout goldens > hopBands null @beside 1`] = `
 {
-  "attrs": "c5c0947cb26d6f14",
-  "decor": "eed8b83f42e994e1",
-  "delays": "2f86d50f473de4e6",
+  "attrs": "9a96837384c72ac9",
+  "decor": "444144cfce5205c4",
+  "delays": "81adf7d1bf8819f7",
   "trailDelays": null,
   "trails": null,
 }
@@ -132,9 +132,9 @@ exports[`layout goldens > hopBands null @beside 1`] = `
 
 exports[`layout goldens > hopBands null @phone 1`] = `
 {
-  "attrs": "b8554d1355baa134",
-  "decor": "9f34faa3aabd5ef9",
-  "delays": "2f86d50f473de4e6",
+  "attrs": "2f7d2cffec85a741",
+  "decor": "ce6a6c42ee933f80",
+  "delays": "81adf7d1bf8819f7",
   "trailDelays": null,
   "trails": null,
 }
@@ -142,9 +142,9 @@ exports[`layout goldens > hopBands null @phone 1`] = `
 
 exports[`layout goldens > hopBands null @stacked 1`] = `
 {
-  "attrs": "96238deca8776902",
-  "decor": "57ff9ae665910fe1",
-  "delays": "2f86d50f473de4e6",
+  "attrs": "4591aad09fe7b853",
+  "decor": "52bd339a49a26d6a",
+  "delays": "81adf7d1bf8819f7",
   "trailDelays": null,
   "trails": null,
 }
@@ -152,7 +152,7 @@ exports[`layout goldens > hopBands null @stacked 1`] = `
 
 exports[`layout goldens > hopSeed null @beside 1`] = `
 {
-  "attrs": "5eac0c03d9dc8754",
+  "attrs": "965fe05026ad8bec",
   "decor": "bf21a9e8fbc5a384",
   "delays": null,
   "trailDelays": null,
@@ -162,7 +162,7 @@ exports[`layout goldens > hopSeed null @beside 1`] = `
 
 exports[`layout goldens > hopSeed null @phone 1`] = `
 {
-  "attrs": "39b67fadc4f32216",
+  "attrs": "9925e3dc67696217",
   "decor": "bf21a9e8fbc5a384",
   "delays": null,
   "trailDelays": null,
@@ -172,7 +172,7 @@ exports[`layout goldens > hopSeed null @phone 1`] = `
 
 exports[`layout goldens > hopSeed null @stacked 1`] = `
 {
-  "attrs": "a12aeb49efaa20b6",
+  "attrs": "540851b9d1ba5dbb",
   "decor": "bf21a9e8fbc5a384",
   "delays": null,
   "trailDelays": null,
@@ -182,7 +182,7 @@ exports[`layout goldens > hopSeed null @stacked 1`] = `
 
 exports[`layout goldens > lone null @beside 1`] = `
 {
-  "attrs": "f0b77dd437288a1e",
+  "attrs": "358faa4d35a54e5f",
   "decor": "bf21a9e8fbc5a384",
   "delays": "af0a2200819002d9",
   "trailDelays": null,
@@ -192,7 +192,7 @@ exports[`layout goldens > lone null @beside 1`] = `
 
 exports[`layout goldens > lone null @phone 1`] = `
 {
-  "attrs": "e503cd6a6a4ace01",
+  "attrs": "fbbcc533e5d02a00",
   "decor": "bf21a9e8fbc5a384",
   "delays": "af0a2200819002d9",
   "trailDelays": null,
@@ -202,7 +202,7 @@ exports[`layout goldens > lone null @phone 1`] = `
 
 exports[`layout goldens > lone null @stacked 1`] = `
 {
-  "attrs": "fabab52c654c944f",
+  "attrs": "eb37a2af46337f74",
   "decor": "bf21a9e8fbc5a384",
   "delays": "af0a2200819002d9",
   "trailDelays": null,
@@ -212,7 +212,7 @@ exports[`layout goldens > lone null @stacked 1`] = `
 
 exports[`layout goldens > networkIntro {"focus":3} @beside 1`] = `
 {
-  "attrs": "b20a98c592bb6680",
+  "attrs": "abfa754e2987ec5f",
   "decor": "8dd5b5ea90ee296f",
   "delays": null,
   "trailDelays": null,
@@ -222,7 +222,7 @@ exports[`layout goldens > networkIntro {"focus":3} @beside 1`] = `
 
 exports[`layout goldens > networkIntro {"focus":3} @phone 1`] = `
 {
-  "attrs": "b3fefc02bc56a709",
+  "attrs": "d95100eddfa7a8f3",
   "decor": "37169a917f2f47cd",
   "delays": null,
   "trailDelays": null,
@@ -232,7 +232,7 @@ exports[`layout goldens > networkIntro {"focus":3} @phone 1`] = `
 
 exports[`layout goldens > networkIntro {"focus":3} @stacked 1`] = `
 {
-  "attrs": "3dff071c5d359dd7",
+  "attrs": "655457b3286e8977",
   "decor": "8dd5b5ea90ee296f",
   "delays": null,
   "trailDelays": null,
@@ -242,7 +242,7 @@ exports[`layout goldens > networkIntro {"focus":3} @stacked 1`] = `
 
 exports[`layout goldens > networkIntro {"focus":null} @beside 1`] = `
 {
-  "attrs": "f0b77dd437288a1e",
+  "attrs": "358faa4d35a54e5f",
   "decor": "a08dbc91da2d8877",
   "delays": null,
   "trailDelays": null,
@@ -252,7 +252,7 @@ exports[`layout goldens > networkIntro {"focus":null} @beside 1`] = `
 
 exports[`layout goldens > networkIntro {"focus":null} @phone 1`] = `
 {
-  "attrs": "e503cd6a6a4ace01",
+  "attrs": "fbbcc533e5d02a00",
   "decor": "1e5e936ee2a6c912",
   "delays": null,
   "trailDelays": null,
@@ -262,7 +262,7 @@ exports[`layout goldens > networkIntro {"focus":null} @phone 1`] = `
 
 exports[`layout goldens > networkIntro {"focus":null} @stacked 1`] = `
 {
-  "attrs": "fabab52c654c944f",
+  "attrs": "eb37a2af46337f74",
   "decor": "a08dbc91da2d8877",
   "delays": null,
   "trailDelays": null,
@@ -272,7 +272,7 @@ exports[`layout goldens > networkIntro {"focus":null} @stacked 1`] = `
 
 exports[`layout goldens > outro {"playhead":2006} @beside 1`] = `
 {
-  "attrs": "04549eb75c7c1f0a",
+  "attrs": "4967ba0dbf3a175a",
   "decor": "bf21a9e8fbc5a384",
   "delays": null,
   "trailDelays": null,
@@ -282,7 +282,7 @@ exports[`layout goldens > outro {"playhead":2006} @beside 1`] = `
 
 exports[`layout goldens > outro {"playhead":2006} @phone 1`] = `
 {
-  "attrs": "edc75d696081c5f6",
+  "attrs": "e9bcf932b9059406",
   "decor": "bf21a9e8fbc5a384",
   "delays": null,
   "trailDelays": null,
@@ -292,7 +292,7 @@ exports[`layout goldens > outro {"playhead":2006} @phone 1`] = `
 
 exports[`layout goldens > outro {"playhead":2006} @stacked 1`] = `
 {
-  "attrs": "e9149eb4c63bbd05",
+  "attrs": "f0fb89bff910d0c2",
   "decor": "bf21a9e8fbc5a384",
   "delays": null,
   "trailDelays": null,
@@ -302,7 +302,7 @@ exports[`layout goldens > outro {"playhead":2006} @stacked 1`] = `
 
 exports[`layout goldens > outro null @beside 1`] = `
 {
-  "attrs": "4608cccb87bb416b",
+  "attrs": "5717dabd133901e0",
   "decor": "bf21a9e8fbc5a384",
   "delays": null,
   "trailDelays": null,
@@ -312,7 +312,7 @@ exports[`layout goldens > outro null @beside 1`] = `
 
 exports[`layout goldens > outro null @phone 1`] = `
 {
-  "attrs": "5a78f3eafaac974b",
+  "attrs": "84af82ab145d00ff",
   "decor": "bf21a9e8fbc5a384",
   "delays": null,
   "trailDelays": null,
@@ -322,7 +322,7 @@ exports[`layout goldens > outro null @phone 1`] = `
 
 exports[`layout goldens > outro null @stacked 1`] = `
 {
-  "attrs": "7de3dffc306f4c2f",
+  "attrs": "5470a17e185729a7",
   "decor": "bf21a9e8fbc5a384",
   "delays": null,
   "trailDelays": null,
@@ -662,7 +662,7 @@ exports[`layout goldens > raceRecent null @stacked 1`] = `
 
 exports[`layout goldens > rankFocus {"bar":{"x":120,"y":300,"w":400}} @beside 1`] = `
 {
-  "attrs": "17031ab613c1e297",
+  "attrs": "ef4a5110c6e29864",
   "decor": "bf21a9e8fbc5a384",
   "delays": null,
   "trailDelays": null,
@@ -672,7 +672,7 @@ exports[`layout goldens > rankFocus {"bar":{"x":120,"y":300,"w":400}} @beside 1`
 
 exports[`layout goldens > rankFocus {"bar":{"x":120,"y":300,"w":400}} @phone 1`] = `
 {
-  "attrs": "b8b212128f65594b",
+  "attrs": "ef4a5110c6e29864",
   "decor": "bf21a9e8fbc5a384",
   "delays": null,
   "trailDelays": null,
@@ -682,7 +682,7 @@ exports[`layout goldens > rankFocus {"bar":{"x":120,"y":300,"w":400}} @phone 1`]
 
 exports[`layout goldens > rankFocus {"bar":{"x":120,"y":300,"w":400}} @stacked 1`] = `
 {
-  "attrs": "16a48709f9b93fd1",
+  "attrs": "ef4a5110c6e29864",
   "decor": "bf21a9e8fbc5a384",
   "delays": null,
   "trailDelays": null,
@@ -692,7 +692,7 @@ exports[`layout goldens > rankFocus {"bar":{"x":120,"y":300,"w":400}} @stacked 1
 
 exports[`layout goldens > rankFocus {"bar":null} @beside 1`] = `
 {
-  "attrs": "5476fd10f84f215c",
+  "attrs": "61264c35ade46041",
   "decor": "bf21a9e8fbc5a384",
   "delays": null,
   "trailDelays": null,
@@ -702,7 +702,7 @@ exports[`layout goldens > rankFocus {"bar":null} @beside 1`] = `
 
 exports[`layout goldens > rankFocus {"bar":null} @phone 1`] = `
 {
-  "attrs": "345044712ffabf31",
+  "attrs": "135546ead4035805",
   "decor": "bf21a9e8fbc5a384",
   "delays": null,
   "trailDelays": null,
@@ -712,7 +712,7 @@ exports[`layout goldens > rankFocus {"bar":null} @phone 1`] = `
 
 exports[`layout goldens > rankFocus {"bar":null} @stacked 1`] = `
 {
-  "attrs": "b1ac859003c913e1",
+  "attrs": "61264c35ade46041",
   "decor": "bf21a9e8fbc5a384",
   "delays": null,
   "trailDelays": null,
@@ -722,7 +722,7 @@ exports[`layout goldens > rankFocus {"bar":null} @stacked 1`] = `
 
 exports[`layout goldens > rankReveal {"bar":{"x":120,"y":300,"w":400}} @beside 1`] = `
 {
-  "attrs": "17031ab613c1e297",
+  "attrs": "ef4a5110c6e29864",
   "decor": "bf21a9e8fbc5a384",
   "delays": null,
   "trailDelays": null,
@@ -732,7 +732,7 @@ exports[`layout goldens > rankReveal {"bar":{"x":120,"y":300,"w":400}} @beside 1
 
 exports[`layout goldens > rankReveal {"bar":{"x":120,"y":300,"w":400}} @phone 1`] = `
 {
-  "attrs": "b8b212128f65594b",
+  "attrs": "ef4a5110c6e29864",
   "decor": "bf21a9e8fbc5a384",
   "delays": null,
   "trailDelays": null,
@@ -742,7 +742,7 @@ exports[`layout goldens > rankReveal {"bar":{"x":120,"y":300,"w":400}} @phone 1`
 
 exports[`layout goldens > rankReveal {"bar":{"x":120,"y":300,"w":400}} @stacked 1`] = `
 {
-  "attrs": "16a48709f9b93fd1",
+  "attrs": "ef4a5110c6e29864",
   "decor": "bf21a9e8fbc5a384",
   "delays": null,
   "trailDelays": null,
@@ -752,7 +752,7 @@ exports[`layout goldens > rankReveal {"bar":{"x":120,"y":300,"w":400}} @stacked 
 
 exports[`layout goldens > rankReveal {"bar":null} @beside 1`] = `
 {
-  "attrs": "5476fd10f84f215c",
+  "attrs": "61264c35ade46041",
   "decor": "bf21a9e8fbc5a384",
   "delays": null,
   "trailDelays": null,
@@ -762,7 +762,7 @@ exports[`layout goldens > rankReveal {"bar":null} @beside 1`] = `
 
 exports[`layout goldens > rankReveal {"bar":null} @phone 1`] = `
 {
-  "attrs": "345044712ffabf31",
+  "attrs": "135546ead4035805",
   "decor": "bf21a9e8fbc5a384",
   "delays": null,
   "trailDelays": null,
@@ -772,7 +772,7 @@ exports[`layout goldens > rankReveal {"bar":null} @phone 1`] = `
 
 exports[`layout goldens > rankReveal {"bar":null} @stacked 1`] = `
 {
-  "attrs": "b1ac859003c913e1",
+  "attrs": "61264c35ade46041",
   "decor": "bf21a9e8fbc5a384",
   "delays": null,
   "trailDelays": null,
@@ -992,7 +992,7 @@ exports[`layout goldens > simRace {"runs":10000,"names":5} @stacked 1`] = `
 
 exports[`layout goldens > titleGalaxy null @beside 1`] = `
 {
-  "attrs": "299d9cf28e2cb56b",
+  "attrs": "bab195008fba6df9",
   "decor": "bf21a9e8fbc5a384",
   "delays": null,
   "trailDelays": null,
@@ -1002,7 +1002,7 @@ exports[`layout goldens > titleGalaxy null @beside 1`] = `
 
 exports[`layout goldens > titleGalaxy null @phone 1`] = `
 {
-  "attrs": "bbfcc036b9b172bf",
+  "attrs": "3a3d9e66202508b0",
   "decor": "bf21a9e8fbc5a384",
   "delays": null,
   "trailDelays": null,
@@ -1012,7 +1012,7 @@ exports[`layout goldens > titleGalaxy null @phone 1`] = `
 
 exports[`layout goldens > titleGalaxy null @stacked 1`] = `
 {
-  "attrs": "fb5cae013879ebf4",
+  "attrs": "c0bd3ec3880986a3",
   "decor": "bf21a9e8fbc5a384",
   "delays": null,
   "trailDelays": null,
