@@ -562,6 +562,11 @@
 						<span class="name">Owen Lacey</span>
 					</p>
 				</div>
+				<!-- renders nothing at all without a Supabase project, without
+				     enough finished quiz-takers to compare against, or without a
+				     result of this reader's own — heading included, which is why
+				     the whole block lives inside the component -->
+				<QuizResults />
 				<div class="credits-block">
 					<h2>Author notes</h2>
 					<p>
@@ -578,11 +583,6 @@
 						> focussed on Hollywood connection trivia.
 					</p>
 				</div>
-				<!-- renders nothing at all without a Supabase project, without
-				     enough finished quiz-takers to compare against, or without a
-				     result of this reader's own — heading included, which is why
-				     the whole block lives inside the component -->
-				<QuizResults />
 			</div>
 		</section>
 	{/if}
