@@ -53,7 +53,13 @@
 		STATE_AMBIENT,
 		STATE_TRACKED
 	} from "./states.js";
-	import { ATTR_SIZE, DELAY_SIZE, STRIDE, EDGE_BASE } from "./attr-buffer.js";
+	import {
+		ATTR_SIZE,
+		DELAY_SIZE,
+		STRIDE,
+		EDGE_BASE,
+		ALPHA_OFFSET
+	} from "./attr-buffer.js";
 	import {
 		TRAIL_SIZE,
 		TRAIL_STRIDE,
@@ -168,7 +174,7 @@
 	// one choreographer. The tweeners lerp between two frames; the choreographer
 	// runs a writer per tick straight into the tweeners' live buffers. Only one
 	// of them owns the rAF at a time — see choreographer.js.
-	const tweener = createTweener(ATTR_SIZE, drawScene, STRIDE);
+	const tweener = createTweener(ATTR_SIZE, drawScene, STRIDE, ALPHA_OFFSET);
 	// trails (race/career lines) tween on their own array so polylines morph
 	// with the same interruption-safe semantics as dots
 	const trailTweener = createTweener(TRAIL_SIZE, drawScene, TRAIL_STRIDE);

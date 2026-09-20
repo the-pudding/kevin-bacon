@@ -13,6 +13,15 @@ import { TRAIL_META, TRAIL_POINTS, TRAIL_STRIDE } from "./trails.js";
 // blends the stroke grey → EDGE_HIGHLIGHT and thickens it; see setEdge)
 export const STRIDE = 7;
 
+/**
+ * Where a node's alpha sits in its group. Named because the tweener has to
+ * single it out — it eases on a shorter window than the rest of the group (see
+ * tween.js's FADE_LEAD) — and an edge group's unused tail sits at the same
+ * offset holding zero, so leading it there is a no-op rather than a special
+ * case.
+ */
+export const ALPHA_OFFSET = 6;
+
 export const EDGE_BASE = NODE_COUNT * STRIDE;
 
 /**

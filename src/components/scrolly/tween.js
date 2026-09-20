@@ -5,6 +5,29 @@ export const easeCubicInOut = (t) =>
 	t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2;
 
 /**
+ * The share of a tween in which a mark's ALPHA finishes. Position takes the
+ * whole tween; opacity is done in the first FADE_LEAD of it.
+ *
+ * Every value in a group used to share one eased `t`, which meant a dot was at
+ * half its opacity at exactly the half-way point of its travel. The crowd rests
+ * at alpha 0.31, so "half opacity" is a 15%-grey 2px dot, and a dot that had to
+ * fade in did most of its flying at opacities nobody can track — measured on the
+ * chapter-card arrival, 61% of the travel happened below alpha 0.15 and 13% of
+ * it before the renderer drew the dot at all. The motion was real and unseen,
+ * which is why an arrival read as an apparition rather than a landing.
+ *
+ * Leading the fade fixes both ends of motion.md rule 6 (out, travel, in): what
+ * is leaving is gone before the crowd has moved far, and what is arriving is
+ * legible for the whole of its flight instead of the last third. It is a ramp
+ * and not a step — the same cubic, run over a shorter window — so nothing pops
+ * (rule 7), and it lands on the same frame at t = 1 either way, which is what
+ * keeps a settle byte-identical to its tween's last frame.
+ */
+export const FADE_LEAD = 0.4;
+
+const easeFade = (t) => easeCubicInOut(Math.min(1, t / FADE_LEAD));
+
+/**
  * @typedef {Object} Tweener
  * @property {Float32Array} current live rendered values
  * @property {Float32Array} start the frame an in-flight tween is easing FROM —
@@ -34,9 +57,12 @@ export const easeCubicInOut = (t) =>
  * @param {number} size total number of values
  * @param {(attrs: Float64Array) => void} draw called every frame
  * @param {number} stride values per group (one group per node)
+ * @param {number} fadeOffset the offset within a group holding the mark's
+ *   alpha, which eases on `FADE_LEAD`'s shorter window instead of the tween's
+ *   own. -1 for a buffer whose groups carry no alpha to lead.
  * @returns {Tweener}
  */
-export function createTweener(size, draw, stride = 1) {
+export function createTweener(size, draw, stride = 1, fadeOffset = -1) {
 	const groups = Math.ceil(size / stride);
 	// Float32 for the per-frame hot arrays; layout `target` stays Float64
 	const current = new Float32Array(size);
@@ -60,6 +86,14 @@ export function createTweener(size, draw, stride = 1) {
 			const end = Math.min((g + 1) * stride, size);
 			for (let i = g * stride; i < end; i++) {
 				current[i] = start[i] + (target[i] - start[i]) * eased;
+			}
+			// ...then restate the one value that leads, over the same start and
+			// target, so alpha is the only thing running on the shorter window
+			if (fadeOffset >= 0) {
+				const a = g * stride + fadeOffset;
+				if (a < end) {
+					current[a] = start[a] + (target[a] - start[a]) * easeFade(t);
+				}
 			}
 		}
 		draw(current);
