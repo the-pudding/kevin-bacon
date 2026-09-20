@@ -125,11 +125,6 @@
 		     single-step panels nest inside <Step> directly). The rank ladder
 		     is NOT one of them: it spans the step change into raceRecent, so
 		     Stage.svelte mounts it beside the canvas instead. -->
-			<!-- the pair quiz renders as a blurred overlay over the scatter; the
-		     step below it just sets up the question -->
-			{#snippet quizPanel()}
-				<PairQuiz visual={layout.visual} overlayHeight={layout.overlayHeight} />
-			{/snippet}
 			<!-- raceFull pan control: drag surface + year slider over the plot. Only
 		     raceFull gets it — the raceRecent steps are carried by their own
 		     camera choreography, so they need no pan control of their own, and
@@ -422,15 +417,18 @@
 			</Step>
 			<!-- the one gate the reader's own Next walks through once it opens:
 		     the quiz has no single completing press, so finishing the last
-		     pair is what unblocks it. Stepping back to 18 stays open, and
+		     pair is what unblocks it. Stepping back to 19 stays open, and
 		     `quizDone` is the same predicate PairQuiz seeds itself from, so
-		     the gate can never hold a panel with nothing left to ask -->
-			<Step state="scatterQuiz" panel={quizPanel} gate={() => quizDone(story)}>
+		     the gate can never hold the reader on a quiz with nothing left
+		     to ask. PairQuiz sits in the card, under the sentence putting the
+		     question — see its own file for why it stopped being a panel -->
+			<Step state="scatterQuiz" gate={() => quizDone(story)}>
 				<p>
 					Let's test our knowledge with a few more examples. For these actors
 					with similar film counts, who do you think works with more "big dogs"
 					and is therefore closer to the center?
 				</p>
+				<PairQuiz visual={layout.visual} />
 			</Step>
 			<Chapter
 				state="chapterCenters"

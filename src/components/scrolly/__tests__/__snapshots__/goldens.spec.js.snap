@@ -870,9 +870,9 @@ exports[`layout goldens > scatterCenters {"showPair":true} @stacked 1`] = `
 }
 `;
 
-exports[`layout goldens > scatterQuiz {"picks":{"0":true,"1":true,"2":true,"3":true,"4":true}} @beside 1`] = `
+exports[`layout goldens > scatterQuiz {"picks":{"0":1},"revealAll":true} @beside 1`] = `
 {
-  "attrs": "6c5ea70edf956b64",
+  "attrs": "2dd5cb02adfce873",
   "decor": "8f4ddee0611f9e16",
   "delays": null,
   "trailDelays": null,
@@ -880,9 +880,9 @@ exports[`layout goldens > scatterQuiz {"picks":{"0":true,"1":true,"2":true,"3":t
 }
 `;
 
-exports[`layout goldens > scatterQuiz {"picks":{"0":true,"1":true,"2":true,"3":true,"4":true}} @phone 1`] = `
+exports[`layout goldens > scatterQuiz {"picks":{"0":1},"revealAll":true} @phone 1`] = `
 {
-  "attrs": "b5dbbaa91d503cd3",
+  "attrs": "0ea8cd99e702471f",
   "decor": "3b6dd0eef9339c12",
   "delays": null,
   "trailDelays": null,
@@ -890,9 +890,9 @@ exports[`layout goldens > scatterQuiz {"picks":{"0":true,"1":true,"2":true,"3":t
 }
 `;
 
-exports[`layout goldens > scatterQuiz {"picks":{"0":true,"1":true,"2":true,"3":true,"4":true}} @stacked 1`] = `
+exports[`layout goldens > scatterQuiz {"picks":{"0":1},"revealAll":true} @stacked 1`] = `
 {
-  "attrs": "95c52d40e8056aeb",
+  "attrs": "5ece39f5dbc10041",
   "decor": "bbc0c7b6c446d5de",
   "delays": null,
   "trailDelays": null,
@@ -900,7 +900,7 @@ exports[`layout goldens > scatterQuiz {"picks":{"0":true,"1":true,"2":true,"3":t
 }
 `;
 
-exports[`layout goldens > scatterQuiz {"picks":{}} @beside 1`] = `
+exports[`layout goldens > scatterQuiz {"picks":{},"revealAll":false} @beside 1`] = `
 {
   "attrs": "55d6100215b40c10",
   "decor": "8f4ddee0611f9e16",
@@ -910,7 +910,7 @@ exports[`layout goldens > scatterQuiz {"picks":{}} @beside 1`] = `
 }
 `;
 
-exports[`layout goldens > scatterQuiz {"picks":{}} @phone 1`] = `
+exports[`layout goldens > scatterQuiz {"picks":{},"revealAll":false} @phone 1`] = `
 {
   "attrs": "9984c41becad4180",
   "decor": "3b6dd0eef9339c12",
@@ -920,7 +920,7 @@ exports[`layout goldens > scatterQuiz {"picks":{}} @phone 1`] = `
 }
 `;
 
-exports[`layout goldens > scatterQuiz {"picks":{}} @stacked 1`] = `
+exports[`layout goldens > scatterQuiz {"picks":{},"revealAll":false} @stacked 1`] = `
 {
   "attrs": "15546f55b3769f67",
   "decor": "bbc0c7b6c446d5de",

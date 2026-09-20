@@ -1,6 +1,7 @@
 # Interactive steps
 
-> Design notes for the agreed interaction rules (2026-07-05, revised 2026-09-11 and 2026-09-19) and the rank → race handoff, moved out of `notes/scrolly-framework.md` on
+> Design notes for the agreed interaction rules (2026-07-05, revised 2026-09-11,
+> 2026-09-19 and 2026-09-20) and the rank → race handoff, moved out of `notes/scrolly-framework.md` on
 > 2026-09-19. The framework map there carries the contracts; this carries the
 > reasoning behind them and the measurements that were taken.
 
@@ -28,12 +29,26 @@ Three rules:
    at one end of the screen and Start at the other, and made the button read as
    chart furniture. They are in the card now, under the sentence that names
    them, which is what this rule asked for and what `GuessRank` had always
-   done. The cost is the one every card-hosted control pays: the tap gutters
+   done. `PairQuiz` followed them on 2026-09-20 — it was the last control still
+   over the canvas, and it carried a blurred wash over the scatter as well, so
+   the reader could not see the chart they were being asked about. The cost is
+   the one every card-hosted control pays: the tap gutters
    run the full height of the layout and lie over the card's left and right
    edges, so the control insets itself past them
    (`padding-inline: var(--tap-gutter)`) rather than lifting — see
    `GuessRank.svelte`'s note on why a `z-index` lift cannot escape a step
    wrapper that forms a stacking context.
+
+   A card-hosted control that ANIMATES takes one more rule with it: it must not
+   change the card's height while it runs. The card is measured (`stepsHeight` →
+   `overlayHeight`) for half the canvas's bottom clearances, so a control that
+   grows or collapses walks the prose and the x-axis title up the screen. That
+   is why `PairQuiz` reserves its chips' box whether or not it is holding chips,
+   keeps the block mounted past the last pair, and flies the chips on a
+   transform rather than pinning them `position: fixed` and letting the flex
+   column close up behind them. The transform is also the only safe frame: the
+   step wrapper carries an `in:fly` transform for its first ~560ms, which makes
+   it the containing block for any `fixed` descendant.
 
 2. **A gated question owns the way out of its step** (revised 2026-09-11;
    this replaces "every question is skippable / Next must always be
@@ -85,14 +100,16 @@ Three rules:
      off the payoff lands on step 7; re-entering `raceRecent` from another
      state resets `renderPlayhead` to the present, so the pan has its full
      travel again.
-   - **Step 19, the pair quiz** (`gate` opens on completion; **no** `skipback`).
+   - **Step 20, the pair quiz** (`gate` opens on completion; **no** `skipback`).
      The one gate the reader's own Next walks through: the quiz has no single
      completing press, so answering the last pair is what unblocks it. Prev
      stays open throughout, and `states.js`'s `quizDone` is the single
-     predicate both the gate and `PairQuiz`'s own starting cursor read — a
-     panel with nothing left to ask must be a step the gate lets the reader
+     predicate both the gate and `PairQuiz`'s own starting cursor read — a quiz
+     with nothing left to ask must be a step the gate lets the reader
      leave, or a reader who reloaded past the quiz and stepped back into it is
-     stuck.
+     stuck. Because the gate opens silently — the right-hand gutter simply
+     stops being disabled — the block stays on screen past the last pair to say
+     so; it is the only signal the reader gets.
    - **Step 25, the simulation** (`gate` never opens; `skipback`; `advanceon`).
      Start asks for the run; the run _is_ the payoff and the next step names
      the winner, so the story waits and then moves on by itself once
@@ -128,7 +145,10 @@ snippet on the `<Step>`s that use it (Step registers it alongside
 state/params; `Index.svelte` renders the active step's panel over the canvas)
 so the markup lives next to the step that owns it. Steps sharing one visual
 must pass the same snippet reference — that's what keeps the component alive
-across the step change. `RankBars.svelte` (the rank chapter's scrollable
+across the step change. Two panels are left (`RankBars` and `RaceScrubber`);
+the pair quiz was the third until 2026-09-20, and it was never really an
+exception — its chips are a control, not a visual, and rule 1 above is what
+actually governs them. `RankBars.svelte` (the rank chapter's scrollable
 "everyone else" bar list, shown during `rankFocus`/`rankReveal`) is the built
 example. Its rows are hop-bands charts turned on their side, drawn as
 individual dots: `rank-geometry.js`'s `hopDotSlots` generates the dot lattice

@@ -51,8 +51,8 @@ and the measurements that were taken — lives in `notes/design/`.
 | `scrolly/layouts/*.js`                                               | One module per chart: `intro`, `hop-bands`, `chapters`, `rank`, `race`, `scatters`, `prediction`, `career`, `sim-race`. Each exports a `states` object; everything about one state is in its entry.                                                                    |
 | `scrolly/states.js`                                                  | Merges every module's `states` into the registry and derives the per-state maps (`STATES`, `STATE_LABELS`, `STATE_PARAMS`, `STATE_ENTRIES`, `STATE_REQUESTS`, `STATE_AMBIENT`, `STATE_RACE`, …), `entryFor`, `isRankState`, `quizDone` and the typedefs below.         |
 | `scrolly/layout-types.js`                                            | JSDoc only: `LayoutFn`, `LayoutResult`, `Tick`, `Note`, `TakeoverCallout`, `FutureBand`, `LegendItem`, `Hit`.                                                                                                                                                          |
-| `scrolly/RankBars.svelte`, `PairQuiz`, `RaceScrubber`, `RouteFilms`  | The over-canvas panels (see "Panels").                                                                                                                                                                                                                                 |
-| `scrolly/GuessRank.svelte`, `StartButton`                            | The step controls: they live in the step card, in the prose flow, under the sentence that asks for the press (see "Interactive steps").                                                                                                                                |
+| `scrolly/RankBars.svelte`, `RaceScrubber`, `RouteFilms`              | The over-canvas panels (see "Panels").                                                                                                                                                                                                                                 |
+| `scrolly/GuessRank.svelte`, `StartButton`, `PairQuiz`                | The step controls: they live in the step card, in the prose flow, under the sentence that asks for the press (see "Interactive steps"). `PairQuiz` also flies its chips out of the card onto the canvas, off `layout.visual`'s `locate()`.                             |
 | `scrolly/dev/`                                                       | DEV only, dynamically imported by `Stage`: the race tuners (`RaceYBandDev`, `RacePxPerYearDev`, `RaceSpeedDev`) behind `Tuners.svelte`, writing `raceTuning` in `layouts/race.js` and bumping `tuning.rev` (`tuning.svelte.js`) so the visual drops its layout cache.  |
 | `scrolly/__tests__/`                                                 | The vitest suite (see "Verify").                                                                                                                                                                                                                                       |
 | `scripts/stale-checklist.js`                                         | Marks the tween checklist's rows stale from a diff (`npm run stale`), and checks them in the pre-commit gate.                                                                                                                                                          |
@@ -252,6 +252,12 @@ past it (`story.rank.handoff`), because its bars collapse into the race chart's
 dots on that arrival — the panel owns the clock (`story.rank.collapsed`) and the
 canvas waits on it (the entry's `hold`). `rank-geometry.js` is the one source of
 the bar's lattice for both the canvas and the HTML.
+
+A CONTROL is not a panel, even one that draws on the canvas. `PairQuiz` was a
+panel until 2026-09-20 on the strength of its blurred overlay; it is a step
+control now (see "Interactive steps" rule 1), and it reaches the canvas the same
+way any card-hosted control would — through `layout.visual`, which is handed to
+the prose for exactly this.
 
 ## How to add a state
 

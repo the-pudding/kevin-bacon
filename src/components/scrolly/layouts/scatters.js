@@ -1,7 +1,8 @@
 import story from "$data/scrolly-story.json";
+import rawNodes from "$data/scrolly-nodes.json";
 import { ATTR_SIZE, set } from "../attr-buffer.js";
 import { SLJ, CAGE, idOf } from "../cast.js";
-import { CROWD } from "../palette.js";
+import { CROWD, GREEN, RED } from "../palette.js";
 import { MARGIN, plotBottom, lin } from "../plot.js";
 import {
 	scatterPosition,
@@ -128,6 +129,23 @@ export const QUIZ_PAIRS = story.quiz.filter(
 );
 export const QUIZ_IDS = QUIZ_PAIRS.flatMap((p) => [p.a, p.b]);
 
+const rankOf = (id) => rawNodes.nodes[id][5];
+
+/**
+ * The closer-to-the-center actor in a quiz pair: the lower corpus rank wins,
+ * which is the same order the chart plots them in (rank IS the sort on
+ * avgDistance), so the answer can never disagree with the dot heights the
+ * reader is reading it off.
+ *
+ * The ONE place that answer is decided. PairQuiz marks its chips from it,
+ * `layoutScatterQuiz` below colours the landed dots from it, and the analytics
+ * write reports it — three consumers, one rule. It lives here rather than in
+ * states.js beside `nodeRank` because states.js imports QUIZ_IDS from this
+ * module, so the other direction is a cycle.
+ */
+export const quizWinner = (pair) =>
+	rankOf(pair.a) < rankOf(pair.b) ? pair.a : pair.b;
+
 // single-subject highlight discipline (prototype): exactly one ringed subject
 // per state, no supporting-cast dots, no on-canvas callouts — the facts live
 // in the step prose. SLJ takes the default red highlight.
@@ -156,9 +174,19 @@ const layoutScatterCenters = (nodes, w, h, _edges, params) => {
 	return avgScatter(nodes, w, h, highlights);
 };
 
-// every pair index marked picked: the shape layoutScatterQuiz's picks-lookup
-// expects, forcing its "answered" highlight regardless of story.quiz.picks
-const ALL_PICKED = Object.fromEntries(QUIZ_PAIRS.map((_, i) => [i, true]));
+// Is this pair on the chart? Either the reader has settled it, or they have
+// been past the step and every pair is shown whether they answered it or not
+// (`revealAll`, see the params selector below).
+const pairShown = (params, i) =>
+	params?.revealAll || params?.picks?.[i] !== undefined;
+
+// A shown dot's colour. Crowd grey unless it is the one the reader actually
+// picked, which goes green or red on whether it was the closer of the two —
+// so colour says "you called this one, and here is how it went" and never
+// competes with height, which is still the whole of who is closer. A pair the
+// reader never answered has no picked dot, so it stays grey on both sides.
+const verdictRgb = (pair, id, picked) =>
+	id !== picked ? CROWD : id === quizWinner(pair) ? GREEN : RED;
 
 // Label placement for the quiz dots, to keep names off each other in the tight
 // cluster: high-film pairs sit on the right of the cloud so their labels go
@@ -180,13 +208,12 @@ export const QUIZ_LABEL_DIRS = {
 /** @type {import("../layout-types.js").LayoutFn} */
 function layoutScatterQuiz(nodes, w, h, _edges, params) {
 	const highlights = new Map();
-	const picks = params?.picks ?? {};
-	// Neutral reveal: both actors in an answered pair get the same larger mark.
-	// The dot's height (closer = higher) is the answer — no colour coding.
 	QUIZ_PAIRS.forEach((pair, i) => {
-		if (picks[i] === undefined) return;
-		highlights.set(pair.a, { rgb: CROWD, r: 5.5 });
-		highlights.set(pair.b, { rgb: CROWD, r: 5.5 });
+		if (!pairShown(params, i)) return;
+		const choice = params?.picks?.[i];
+		const picked = choice === undefined ? null : [pair.a, pair.b][choice];
+		highlights.set(pair.a, { rgb: verdictRgb(pair, pair.a, picked), r: 5.5 });
+		highlights.set(pair.b, { rgb: verdictRgb(pair, pair.b, picked), r: 5.5 });
 	});
 	return avgScatter(nodes, w, h, highlights);
 }
@@ -281,17 +308,21 @@ export const states = {
 	scatterQuiz: {
 		layout: layoutScatterQuiz,
 		title: "Films vs. remoteness",
-		labels: (params) => {
-			const picks = params?.picks ?? {};
-			return QUIZ_PAIRS.flatMap((pair, i) =>
-				picks[i] === undefined ? [] : [pair.a, pair.b]
-			);
-		},
-		// once the reader has been past this step, every pair reads as answered:
-		// the reveal is unconditional, so a skipped quiz is revealed too rather
-		// than left blank (see story.svelte.js — "every interaction is skippable")
+		labels: (params) =>
+			QUIZ_PAIRS.flatMap((pair, i) =>
+				pairShown(params, i) ? [pair.a, pair.b] : []
+			),
+		// Once the reader has been past this step every pair is SHOWN, answered or
+		// not: the reveal is unconditional, so a skipped quiz is revealed too
+		// rather than left blank (see story.svelte.js — "every interaction is
+		// skippable"). `revealAll` carries that as its own flag rather than as a
+		// synthetic set of picks, which is what it used to be: a fabricated pick
+		// threw away WHICH option the reader had chosen, and that is exactly what
+		// the verdict colour is read off — so stepping back into the step used to
+		// erase the reader's own answers from the chart.
 		params: (s) => ({
-			picks: s.quiz.revealed ? ALL_PICKED : { ...s.quiz.picks }
+			picks: { ...s.quiz.picks },
+			revealAll: s.quiz.revealed
 		}),
 		labelDirs: QUIZ_LABEL_DIRS,
 		overlay: AVG_OVERLAY
