@@ -150,12 +150,14 @@
 </script>
 
 <!-- The wrapper is what fades, and it is a grid item of the prose column (see
-     .scrolly-steps in Stage.svelte): the outgoing copy is still mounted while
-     the incoming one plays its delay, and stacking them in one cell keeps the
-     column's height at the taller of the two rather than the sum of them — a
-     column that measured both at once would shove every clearance taken off
-     stepsHeight. The column's aria-live is unaffected: a live region announces
-     what ARRIVES, and the copy on its way out is only being removed. -->
+     .scrolly-steps in Stage.svelte): the outgoing copy can still be mounted
+     when the incoming one arrives, and one shared cell lays them over each
+     other rather than stacking them, so the words on their way out do not
+     slide up the screen to make room. What the column MEASURES across a swap
+     is neither of them — proseLeave above takes the departing copy out of flow
+     — and Stage holds the last card height for the span (`cardHeight`). The
+     column's aria-live is unaffected: a live region announces what ARRIVES,
+     and the copy on its way out is only being removed. -->
 {#if active && !steps.held}
 	<div
 		class="step-prose"

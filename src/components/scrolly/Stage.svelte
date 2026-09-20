@@ -51,8 +51,9 @@
 	// ScrollyVisual instance, for the pair quiz's locate() flight targets
 	/** @type {ScrollyVisual | undefined} */
 	let visual = $state();
-	// measured height of the step card + nav overlaying the canvas bottom, so
-	// panels sized against it (rank-bars) neither overlap it nor leave a gap
+	// Live height of the step card overlaying the canvas bottom. RAW: it reads 0
+	// for the whole of every step change, so nothing consumes it directly — see
+	// `cardHeight` below, which is what everything sized against the card uses.
 	let stepsHeight = $state(0);
 	// the canvas box, measured here as well as inside ScrollyVisual, so step 1's
 	// caption can be placed off the constellation's own geometry (see introBottom)
@@ -75,32 +76,75 @@
 	);
 	const flipped = $derived(beside && chapterOrdinal % 2 === 1);
 
+	// The card's height, HELD across a step change — the one measurement every
+	// clearance is taken off, so it is held here rather than by each consumer.
+	//
+	// `.scrolly-steps` is a single grid cell holding both copies of a swap, and
+	// for the whole of that swap it measures NOTHING. The outgoing copy is
+	// pinned `position: fixed` the instant it starts leaving (Step.svelte's
+	// proseLeave), so it is out of flow while still a child; the arriving copy
+	// is not rendered at all until its step has landed (`steps.held`). Measured
+	// through a real 24 → 25 press at 375x667 that is ~720ms of `stepsHeight`
+	// reading 0 — long enough for the x-axis title to drop 36px, sit there, and
+	// jump back, inside a single scene. That is the furniture walk motion.md
+	// rule 7 forbids, and it was on EVERY step change, not just that one.
+	//
+	// So the measurement is only taken while the box is showing the step it is
+	// meant to be showing, and the last one stands until then. `steps.held` is
+	// the same question Step.svelte asks before it renders the prose at all,
+	// which is what makes it safe to key a hold on: a hold that never released
+	// would be a step whose words never arrived, and the story would already be
+	// broken. It releases on every step — a gated one included (a gate is asked
+	// before the reader LEAVES, never on arrival), a `skipback` one trivially
+	// (the registry never lands on one), and a chapter or title card, which
+	// renders no prose at all, so 0 is its true height and the hold hands that
+	// straight over.
+	let cardHeight = $state(0);
+	$effect(() => {
+		if (steps.held) return;
+		cardHeight = stepsHeight;
+	});
+
 	// How much of the canvas's bottom edge the step card actually covers. Stacked,
 	// that is the card's own height and half a dozen things are measured off it —
 	// the over-canvas panels, the tour caption's floor, the x-axis title. Beside
 	// the prose it covers NONE of it: the card is in a column of its own, so every
 	// one of those clearances gets the whole box back, and a chart that goes on
 	// dodging a card that is not there leaves a band of empty canvas under it.
-	const overlayHeight = $derived(beside ? 0 : stepsHeight);
+	const overlayHeight = $derived(beside ? 0 : cardHeight);
 
 	const currentState = $derived(steps.state);
 
 	// The rank panel outlives the rank chapter by one step: raceRecent keeps it
 	// mounted so its bars can collapse into the race chart's own dots (see
 	// RankBars' `collapse`). Its box has to stop moving for that — the panel is
-	// sized off `stepsHeight`, and raceRecent's prose is shorter than
-	// rankReveal's, so without this every row would shift a few px away from what
-	// the reader was looking at (and away from where the canvas has been aimed) at
+	// sized off the card, and raceRecent's card is 34px taller than rankReveal's
+	// at 375x667, so without this every row would shift away from what the
+	// reader was looking at (and away from where the canvas has been aimed) at
 	// the very moment it collapses. Hold the last height a rank step measured.
 	//
-	// It also has to stop moving DURING a prose swap. `.scrolly-steps` is one
-	// grid cell holding both copies, so while they cross over it measures the
-	// taller of the two and the measurement changes twice — once when the old
-	// copy unmounts and once when the new one mounts. The panel is `overflow:
-	// hidden`, so each change clipped whatever no longer fit, which is how rows
-	// went missing mid-transition. So the height is only taken once the arriving
-	// step has landed, and held until then; the first rank arrival seeds it
-	// immediately, since there is nothing yet to hold.
+	// Surviving a prose swap is no longer part of its job: `cardHeight` above is
+	// already held across one, for every consumer. What is left here is the
+	// carry-over into raceRecent, which is a step CHANGE and so a height the
+	// general hold is right to let go of and this one is not.
+	//
+	// AND TODAY IT INSURES A GAP THAT NOTHING ELSE PINS. Measured at 375x667,
+	// the panel's last frame is at 559ms after the press and `cardHeight`
+	// releases at 1275ms, so the general hold would in fact serve: the ladder is
+	// already gone before the taller card can reach it. That 716ms is not two
+	// clocks passing each other, though — it is one tween. `story.rank.collapsed`
+	// does BOTH jobs: it drops `showRankPanel` below, and it opens the raceRecent
+	// arrival's `hold.until` (layouts/race.js), which starts the arrival tween
+	// whose completion callback calls land() — and land() is what releases
+	// `cardHeight`. So the margin IS `TWEEN_MS`, 700ms, plus a frame.
+	//
+	// Which is why this stays rather than being deleted as redundant. It is
+	// redundant only for as long as that arrival takes a tween to land: give
+	// raceRecent an entry that lands on the frame the gate opens and the margin
+	// is zero, the ladder takes the frame in which `stepsHeight` reads 0 (the
+	// arriving card is measured a frame later), and every row jumps 205px in the
+	// last frame the reader sees of it. Two lines to insure a number no test
+	// holds is the cheaper side of that trade.
 	//
 	// What is held is the RAW card measurement, not `overlayHeight`. Whether any
 	// of that card covers the canvas is a live question — `beside` answers it,
@@ -115,9 +159,7 @@
 	// hold doing only the job it is for.
 	let rankStepsHeight = $state(0);
 	$effect(() => {
-		if (!isRankState(currentState) || !stepsHeight) return;
-		if (!rankStepsHeight || story.settled === currentState)
-			rankStepsHeight = stepsHeight;
+		if (isRankState(currentState)) rankStepsHeight = cardHeight;
 	});
 	const rankPanelBottom = $derived((beside ? 0 : rankStepsHeight) + 12);
 	// The panel's own fade-in used to run on a fixed delay timed to land after
@@ -747,14 +789,17 @@
 		right: 0;
 		bottom: 0;
 		/* ONE CELL, not a stack. A step's prose fades out while the next one waits
-		   out its delay (see Step.svelte), so for a couple of hundred ms the column
-		   holds two copies. In normal flow that makes it as tall as both of them
-		   together, and this box is measured (`stepsHeight` above) for every
-		   clearance the canvas takes off it — the whole layout would lurch on each
-		   step. Sharing one grid cell puts the height at the TALLER of the two
-		   instead, which is never worse than the instant jump it replaces. Bottom
-		   aligned because the column is pinned to the bottom edge here: that is the
-		   edge the two copies have in common. */
+		   on its arrival (see Step.svelte), so the column can hold two copies at
+		   once; in normal flow they would stack, and the words the reader is
+		   leaving would slide up the screen to make room for the ones arriving.
+		   One grid cell lays them over each other instead, bottom aligned — the
+		   column is pinned to the bottom edge here, so that is the edge the two
+		   have in common.
+
+		   It does NOT keep the box measurable across the swap, and never did: the
+		   departing copy pins itself `position: fixed` on its way out, so for the
+		   whole of a step change this box measures 0 whether it holds one copy or
+		   two. That is what `cardHeight` in the script holds against. */
 		display: grid;
 		align-items: end;
 		/* halo, not a plate — the same reason .chapter-card h2 carries one. A
