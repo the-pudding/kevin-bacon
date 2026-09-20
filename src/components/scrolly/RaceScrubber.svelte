@@ -108,9 +108,16 @@
 		flex-direction: column;
 	}
 	/* covers the plot so the reader can pan the timeline from anywhere; pan-y
-	   lets a vertical swipe still scroll the page */
+	   lets a vertical swipe still scroll the page.
+
+	   Opts back in: the panel layer this renders into is pointer-events:none
+	   (Stage.svelte), so without this the whole scrubber is inert and the
+	   canvas takes every press. Unpositioned, so it stays in the z-auto paint
+	   layer and the tap gutters (--z-tap) still cover it where they overlap —
+	   which is the asymmetry the .control note below describes. */
 	.drag-surface {
 		flex: 1 1 auto;
+		pointer-events: auto;
 		touch-action: pan-y;
 		cursor: ew-resize;
 	}
@@ -127,8 +134,14 @@
 		position: relative;
 		z-index: var(--z-tap-above);
 	}
+	/* The track is the only operable thing in the row, so it is the only part
+	   that takes pointer events — the row itself stays transparent to them, so
+	   a press on the year readout or the row's padding still reaches the gutter
+	   underneath. Same idiom as Index's .route and ScrollyVisual's .hits: a
+	   pointer-events:none container, lifted, whose one child opts in. */
 	.control :global(.bits-slider) {
 		flex: 1 1 auto;
+		pointer-events: auto;
 	}
 	.year {
 		flex: none;

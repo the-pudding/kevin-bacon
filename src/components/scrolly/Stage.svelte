@@ -48,7 +48,7 @@
 	const BESIDE_MIN_W = 1200;
 	const beside = $derived(dimensions.width >= BESIDE_MIN_W);
 
-	// ScrollyVisual instance, for the pair-quiz panel's locate() flight targets
+	// ScrollyVisual instance, for the pair quiz's locate() flight targets
 	/** @type {ScrollyVisual | undefined} */
 	let visual = $state();
 	// measured height of the step card + nav overlaying the canvas bottom, so
@@ -95,19 +95,31 @@
 	//
 	// It also has to stop moving DURING a prose swap. `.scrolly-steps` is one
 	// grid cell holding both copies, so while they cross over it measures the
-	// taller of the two and `overlayHeight` changes twice — once when the old
+	// taller of the two and the measurement changes twice — once when the old
 	// copy unmounts and once when the new one mounts. The panel is `overflow:
 	// hidden`, so each change clipped whatever no longer fit, which is how rows
 	// went missing mid-transition. So the height is only taken once the arriving
 	// step has landed, and held until then; the first rank arrival seeds it
 	// immediately, since there is nothing yet to hold.
+	//
+	// What is held is the RAW card measurement, not `overlayHeight`. Whether any
+	// of that card covers the canvas is a live question — `beside` answers it,
+	// and the answer flips during the first frames of every cold load, before the
+	// viewport has been measured. Holding the gated value froze the wrong side of
+	// that flip: a page opened straight onto a rank step (?step=7, ?step=8) seeded
+	// this from the stacked layout's ~800px, `overlayHeight` then went to 0 for
+	// good on a desktop viewport, the `!overlayHeight` guard that used to stand
+	// here early-returned on every run after, and the ladder was left with
+	// `bottom: 812px` on a 774px canvas — no height at all, over a canvas carrying
+	// nothing but Bacon's hop bar. Gating at the point of use instead leaves the
+	// hold doing only the job it is for.
 	let rankStepsHeight = $state(0);
 	$effect(() => {
-		if (!isRankState(currentState) || !overlayHeight) return;
+		if (!isRankState(currentState) || !stepsHeight) return;
 		if (!rankStepsHeight || story.settled === currentState)
-			rankStepsHeight = overlayHeight;
+			rankStepsHeight = stepsHeight;
 	});
-	const rankPanelBottom = $derived(rankStepsHeight + 12);
+	const rankPanelBottom = $derived((beside ? 0 : rankStepsHeight) + 12);
 	// The panel's own fade-in used to run on a fixed delay timed to land after
 	// the hopBands→rankFocus bar retarget; now it waits for that retarget to
 	// actually settle instead. Once true it stays true: the panel outlives

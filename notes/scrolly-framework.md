@@ -110,7 +110,10 @@ Four ways a state's frame comes to be on screen, all landing on the same
   the arrival, so the legs never start. `labelsAfter` and `cardAfter` gate the
   names and the prose to a leg; `hold` waits for a story flag before the legs
   start (the rank handoff); `seed` shapes what the first frame shows;
-  `ownsArrival` takes the rAF from the press with no arrival tween in front.
+  `ownsArrival` takes the rAF from the press with no arrival tween in front;
+  `ownsFurniture` says the legs publish their own `axes`/`takeover`/`band`, so
+  within one scene those three keep what is on screen until the first leg tick
+  rather than jumping to the arriving step's resting ones (`swapFurniture`).
 - **A request** (`RequestAnim`, `STATE_REQUESTS`). The same legs, started by the
   reader: a `StartButton` calls `request(kind)`, ScrollyVisual runs the state's
   `requests[kind]` from the live camera and names it in `story.running`. The

@@ -1,8 +1,13 @@
-import { ANCHOR_ID, hash01 } from "../nodes.js";
+import { ANCHOR_ID, INTRO_IDS, hash01 } from "../nodes.js";
 import { ATTR_SIZE, DELAY_SIZE, set } from "../attr-buffer.js";
-import { FIELD_IDS, isIntroActor } from "../cast.js";
-import { NETWORK_HOP_DELAY_MS, PULLBACK_ZOOM } from "../intro-geometry.js";
-import { HOP_RGB, HOP_DOT_ALPHA } from "../palette.js";
+import { SKY_IDS, isIntroActor } from "../cast.js";
+import {
+	NETWORK_HOP_DELAY_MS,
+	NETWORK_INTRO_RADIUS,
+	PULLBACK_ZOOM,
+	introPosition
+} from "../intro-geometry.js";
+import { CROWD, HOP_RGB, HOP_DOT_ALPHA } from "../palette.js";
 import { MARGIN, plotBottom, NO_BLEED } from "../plot.js";
 import { hopFractions, hopShareLabels } from "../rank-geometry.js";
 import {
@@ -12,6 +17,7 @@ import {
 	galaxyBox,
 	cardSpot,
 	flowSpot,
+	restingSkyDot,
 	skyFlight,
 	skyToColumn
 } from "../sky.js";
@@ -189,15 +195,58 @@ function layoutHopBands(nodes, w, h, _edges, params, bleed = NO_BLEED) {
 // (invisible) at its hopBands position, so only the 15 named actors have any
 // distance left to travel here.
 //
+// The pull-back is also where they stop being a diagram: over the same travel
+// that brings the crowd in around them the fifteen are drawn into it (see
+// writeIntroIntoSky), and once the camera lands they fly with it like anyone
+// else. The reader gets the network while the camera is still close enough to
+// read it, and a single sky once it isn't.
+//
 // This step no longer hands straight to hopBands: the chapter card sits between
 // them and opens on this exact closing frame (see layouts/chapters.js). It is
 // the same frame in the literal sense — the crowd is authored across the card's
 // `galaxyBox`, not the plot's `fieldBox`, so the pull-back lands on a sky that
 // already fills the screen and stepping onto the card moves nothing: the title
-// fades up, the dot bar fades out, and the fifteen grey into the crowd where
-// they stand. The network itself still sits in the column; only the field
-// around it is full-bleed.
+// fades up and the dot bar fades out, over a sky that does not so much as
+// blink. The network itself still sits in the column; only the field around it
+// is full-bleed.
 // ---------------------------------------------------------------------------
+
+const mix = (a, b, e) => a + (b - a) * e;
+
+/**
+ * The fifteen letting go of the diagram and joining the sky.
+ *
+ * `blend` is how far through that they are: at 0 they are drawn exactly as
+ * `writeNetwork` draws them — the constellation at the camera's `scale` — and
+ * at 1 as any other dot resting in the flow, in the crowd's grey at whatever
+ * size and alpha their own depth gives them. Their POSITIONS are the camera's
+ * throughout: joining is a change of drawing, not of geometry, so the pull-back
+ * is the same move it always was and the network is still a network while the
+ * reader can read it.
+ *
+ * Called after `writeNetwork` rather than instead of it, so the links keep the
+ * full draw progress that lets them fade in place (see HOP_SEED_EDGE_FADE).
+ *
+ * At blend 1 this is `restingSkyDot` and nothing else, which is what lets the
+ * flight take the fifteen: `makeFlight` redraws a flown dot from the crowd's
+ * landed constants, so a frame it starts from has to already be at them.
+ */
+function writeIntroIntoSky(attrs, nodes, w, h, scale, blend) {
+	for (const id of INTRO_IDS) {
+		const [x, y] = introPosition(id, w, h, scale);
+		const [skyR, skyA] = restingSkyDot(id);
+		const rgb = id === ANCHOR_ID ? HOP_RGB[0] : CROWD;
+		set(
+			attrs,
+			id,
+			x,
+			y,
+			mix(NETWORK_INTRO_RADIUS[nodes[id].hop] * scale, skyR, blend),
+			rgb.map((c, k) => mix(c, CROWD[k], blend)),
+			mix(1, skyA, blend)
+		);
+	}
+}
 
 // "slowly" — the whole pull-back is one long leg, long enough that the reader
 // reads the line while the camera is still moving. Exported so the outro
@@ -215,6 +264,9 @@ function layoutHopSeed(nodes, w, h, edges, _params, bleed = NO_BLEED) {
 	// camera pulls back, because the step is about the network as a whole again
 	writeNetwork(attrs, nodes, w, h, null, PULLBACK_ZOOM, HOP_SEED_EDGE_FADE);
 	writeFieldCrowd(attrs, w, h, PULLBACK_ZOOM, galaxyBox(w, h, bleed));
+	// the camera has landed, so the fifteen have finished joining: this frame is
+	// the flight's own t = 0 and they are drawn here as the flight will draw them
+	writeIntroIntoSky(attrs, nodes, w, h, PULLBACK_ZOOM, 1);
 	// No delay clock of its own: every link on this arrival is fading OUT, and
 	// ScrollyVisual's arrivalDelays lags only a link that is fading IN, so the
 	// computed clock is already all-zero here. This used to need a hand-written
@@ -228,8 +280,9 @@ function layoutHopSeed(nodes, w, h, edges, _params, bleed = NO_BLEED) {
  * TWEEN_MS. Frame 0 holds networkIntro's geometry with the links already at
  * alpha 0, so the arrival tween that precedes the leg fades them out (with the
  * names) while nothing moves; frame 1 reproduces layoutHopSeed call for call, so
- * the runner's settle is a zero-duration retarget. Only the intro slots are
- * touched: the crowd's invisible band parks come from the static layout.
+ * the runner's settle is a zero-duration retarget. Both ends hold because the
+ * blend rides the leg's own `e`: at 0 the fifteen are `writeNetwork`'s dots
+ * exactly, at 1 they are the sky's.
  *
  * The box is struck once from the layout's own `bleed`, outside the closure, so
  * every frame of the leg and the static layout it settles onto are the same
@@ -242,6 +295,9 @@ function zoomOutFrames(nodes, w, h, _edges, _params, bleed = NO_BLEED) {
 		const scale = 1 + (PULLBACK_ZOOM - 1) * e;
 		writeNetwork(attrs, nodes, w, h, null, scale, HOP_SEED_EDGE_FADE);
 		writeFieldCrowd(attrs, w, h, scale, box);
+		// the camera's travel IS the blend: the fifteen let go of the diagram at
+		// the rate the crowd arrives around them, so the two finish together
+		writeIntroIntoSky(attrs, nodes, w, h, scale, e);
 	};
 }
 
@@ -259,16 +315,16 @@ export const states = {
 		entry: { phases: [PULLBACK_ZOOM_MS], frames: zoomOutFrames },
 		// once the pull-back stops, the sky it stopped in front of keeps moving, so
 		// the beat rests on something alive rather than on a still photograph.
-		// The crowd only: the fifteen are still drawn here as a constellation for
-		// the reader to find Bacon in, and a diagram that drifts is not one — and
-		// holding them still puts them in front of a sky with parallax, which is
-		// the one place in the story the constellation reads as foreground.
+		// The fifteen move with it: by the time the camera lands they have been
+		// drawn into the crowd (see writeIntroIntoSky), so they stream, brighten,
+		// swell and wrap behind the same fade as the dots around them, with
+		// nothing left to tell them apart.
 		// `clocked`, so the flight can be handed on to the chapter card's and taken
 		// back from it: the two states fly the same ids off the same box, so a
 		// handoff moves nothing at all and the sky simply never stops.
 		ambient: {
 			clocked: true,
-			frames: onSkyClock(makeFlight(layoutHopSeed, FIELD_IDS))
+			frames: onSkyClock(makeFlight(layoutHopSeed, SKY_IDS))
 		}
 	},
 	hopBands: {

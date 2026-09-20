@@ -50,6 +50,42 @@ export const plotBottom = (h) => h * plotBottomFrac;
 export const lin = (v, d0, d1, r0, r1) =>
 	r0 + ((v - d0) / (d1 - d0)) * (r1 - r0);
 
+// Where the x-axis title sits, in canvas coordinates. The title's own home is
+// below the tick row; the lifted home is above it, over the bottom of the plot
+// (its text-shadow is what makes that legible over the dots).
+const X_LABEL_DROP = 32;
+const X_LABEL_LIFT = 14;
+// clear air kept between the title and the top of the step card
+const X_LABEL_CARD_GAP = 24;
+
+/**
+ * The `top` of the x-axis title, given the canvas height, how much of the
+ * canvas's bottom edge the step card covers (`overlayHeight` — zero beside the
+ * prose), and the top of the tick row the layout drew (`axes.xBase`).
+ *
+ * TWO homes and nothing between them. On a long-prose step the card climbs up
+ * the canvas and covers the title's own home under the ticks, so the title
+ * crosses the tick row and sits above it instead.
+ *
+ * The in-between is the part that has to be refused, and a clamp cannot: the
+ * two rows are barely a line apart, so a title lifted PART of the way off its
+ * home lands on the very numbers it is titling. `Math.max(xBase - 14, ...)`
+ * used to allow exactly that — it kept the title from being lifted PAST the
+ * ticks without keeping it from being lifted INTO them — and at 375x667 the
+ * careerMany card (two paragraphs where careerTrio has one) was 16px tall
+ * enough to land in the gap and print "Care20 age30year40" through its own
+ * 10/20/30/40. careerTrio cleared the same ticks by 0.2px.
+ *
+ * Choosing between the homes rather than sliding between them also holds the
+ * title still across a scene: careerTrio and careerMany share one scene and
+ * their cards differ in height, so a continuous rule walked the title 16px on a
+ * step change that is supposed to leave the furniture alone (motion.md rule 7).
+ */
+export const xLabelTop = (h, cardHeight, xBase) =>
+	h - cardHeight - X_LABEL_CARD_GAP >= plotBottom(h) + X_LABEL_DROP
+		? plotBottom(h) + X_LABEL_DROP
+		: xBase - X_LABEL_LIFT;
+
 /**
  * How far the canvas ELEMENT extends past the reading column, per side, in the
  * CSS pixels every layout is authored in. Two numbers rather than one because

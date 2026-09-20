@@ -247,21 +247,36 @@ ul {
 
 /* desktop (mouse-enabled device) */
 @media (hover: hover) and (pointer: fine) {
-	button:hover,
-	a[role="button"]:hover,
-	input[type="button"]:hover,
-	input[type="submit"]:hover,
-	input[type="reset"]:hover {
-		background: oklch(from var(--color-button-bg-primary) calc(l - 0.1) c h);
-	}
+	/* A dead control takes no hover treatment, so the darkening is scoped away
+	   from disabled buttons rather than painted on and then painted back off.
+	   The second half of that pair used to exist: `button:disabled:hover`,
+	   restating the primary fill. It reached 0,2,1 — a pseudo-class more than
+	   a component's own `.foo:hover` or plain `.foo` (0,2,0) — so a button that
+	   went disabled under a resting pointer was repainted in the primary dark
+	   fill, over whatever background its component had given it. That caught
+	   every ui.*.css control (the select trigger, the switch, the togglegroup
+	   item, both InfoTerm buttons) and any component leaning on its own base
+	   rule for the paint. Only a Svelte-scoped `:hover`/`:disabled` rule
+	   cleared it, at 0,3,0 — which is why the tap gutters never showed it. The
+	   story's pair quiz was the case that did: the chip the reader had just
+	   clicked went near-black behind its own near-black name and the ✓ it had
+	   just been given. Excluding disabled buttons is the fix, because a rule that never
+	   matches one has nothing to undo — and `button:disabled` above already
+	   carries the opacity and the cursor, hovered or not.
 
-	button:disabled:hover,
-	a[role="button"]:disabled:hover,
-	input[type="button"]:disabled:hover,
-	input[type="submit"]:disabled:hover,
-	input[type="reset"]:disabled:hover {
-		opacity: 0.5;
-		cursor: not-allowed;
-		background: var(--color-button-bg-primary, lightgray);
+	   The exclusion is wrapped in `:where()`, which contributes no specificity,
+	   so these stay at 0,1,1 — exactly what a bare `button:hover` weighed. That
+	   matters as much as the exclusion itself: this rule is MEANT to be easy to
+	   overrule, and half the ui.*.css files restate a background at 0,2,0 for
+	   no other purpose (see the note in ui.infoterm.css). A plain
+	   `:not(:disabled)` would weigh 0,2,1 and quietly take every one of those
+	   over, turning the term, the select trigger, the switch and the quiz chip
+	   black under the pointer while they were still live. */
+	button:where(:not(:disabled)):hover,
+	a[role="button"]:where(:not(:disabled)):hover,
+	input[type="button"]:where(:not(:disabled)):hover,
+	input[type="submit"]:where(:not(:disabled)):hover,
+	input[type="reset"]:where(:not(:disabled)):hover {
+		background: oklch(from var(--color-button-bg-primary) calc(l - 0.1) c h);
 	}
 }

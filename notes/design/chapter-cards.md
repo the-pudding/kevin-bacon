@@ -63,9 +63,11 @@ or the window cannot leave a stale number behind.
 `hopSeed` sharing the card's box is what makes the step onto the card a no-op.
 Both write the same crowd through `writeFieldCrowd` at `PULLBACK_ZOOM` against
 the same `galaxyBox`, and the fifteen are already at `cardSpot`'s
-`introPosition(PULLBACK_ZOOM)`, so the arrival tween has nothing to carry: the
-title fades up, the dot bar fades out, the fifteen shrink and grey, and not one
-dot moves. The blooming-outward move belongs to the pull-back that precedes it —
+`introPosition(PULLBACK_ZOOM)` and already drawn as sky, so the arrival tween has
+nothing to carry at all: the title fades up, the dot bar fades out, and not one
+dot moves. The fifteen used to shrink and grey on this arrival; the pull-back now
+does that too (`writeIntroIntoSky`), so the only thing the card adds is the
+words. The blooming-outward move belongs to the pull-back that precedes it —
 `zoomOutFrames` expands the sky over 4s while the reader reads the line — rather
 than to the card's arrival.
 
@@ -198,11 +200,23 @@ Three things about that branch:
   layout's own array and is CACHED, so mutating it would poison the cache for
   every later visit. The state's layout is rebuilt against the new bleed
   immediately below, which is where a new target comes from.
-- **A sweep cannot survive a bare move**, because a frame writer closes over the
-  box it was built for. Nothing in the story does it — the swap lands on a card
-  arrival, where the state change has already abandoned the previous sweep — so
-  rather than carry a rebuild path that never runs, `dx !== 0 && sweeping` falls
-  back to the snap.
+- **A choreography cannot survive a bare move**, because a frame writer closes
+  over the box it was built for. Nothing in the story does it — every swap is a
+  card arriving or departing, and the state change abandons the choreography —
+  so rather than carry a rebuild path that never runs, `isResize` counts a bare
+  move as a resize when a choreography OUTLIVES the run, and that falls back to
+  the snap.
+
+  The qualifier is the whole of it, and leaving it off cost the story three
+  arrivals. `choreo` owns the card's ambient sky as well as the sweeps the rule
+  was written for, and a card drifts its sky forever, so a choreography is
+  running on **both** sides of every swap: `dx !== 0 && choreo.active` alone
+  scored every departure from a card as a resize. Stepping back from a card, the
+  chart the reader returned to was simply there in its final positions under a
+  fading title, with not one dot travelling (measured: the canvas bitmap
+  identical from the frame of the press to settled). It is `stateName ===
+prevState` that separates a choreography this run abandons from one that will
+  still be writing on the next tick.
 
 Known, and not yet retuned: `raceFuture` and `raceClose` give the future strip
 whatever plot width the pan leaves over, which was right when five years at
@@ -233,12 +247,16 @@ animate. That was tried, and it snapped outro's 4s pull-back on arrival from
 `raceClose`. Nothing in the render path may make `width`, `height` or
 `canvasWidth` depend on the band.
 
-The intro fifteen are the exception that stays put: `cardSpot` gives them
-`introPosition` at `PULLBACK_ZOOM` — hopSeed's landed camera — and only their
-radius, grey and edge ramp change to the crowd's, Bacon included. So what
+The intro fifteen arrive already dissolved. `cardSpot` gives them `introPosition`
+at `PULLBACK_ZOOM` — hopSeed's landed camera — which is the mark the pull-back
+left them on, and the pull-back has already taken their radius, grey and alpha to
+the crowd's over its own travel (`writeIntroIntoSky`), Bacon included. So what
 dissolves is the diagram, not their positions: the constellation becomes the
 crowd where it stands rather than scattering into it, which is the visual form of
-the line the reader has just read.
+the line the reader has just read. The card then carries them on the same flight
+as everyone else, off the same clock, which is why stepping between step 3 and
+the card moves nothing: one `makeFlight` over `SKY_IDS` on both sides, checked at
+every box and at several clocks to be identical to the last bit.
 
 **The handoff out is a contraction, and the x ordering survives it.** `hopBands`
 takes each dot's x from `cardSpot`, which is the **column** box (`fieldBox`) —
@@ -270,8 +288,28 @@ assumed: of the dots visible on the card, none lands outside the plot — so the
 rule is simple. A dot the reader can SEE falls straight down from where they see
 it; a dot they cannot takes a flat hashed column of its own. The crowd that does
 land in the plot fills it evenly, so the bands come out uniform either way
-(measured at ±5% across twelve columns). The intro fifteen are outside the flow
-entirely (`isIntroActor`) and simply keep their column.
+(measured at ±5% across twelve columns).
+
+**Latent, and not visible: the intro fifteen take a stale column off a card.**
+`departureColumn` branches on `isIntroActor` and hands them their resting
+`cardSpot` column on the grounds that they are outside the flow. They are not,
+and have not been since the card started flying them: the card carries them on
+`SKY_IDS` like everyone else, so the column they get is not the contraction of
+the column they are standing in.
+
+Measured against the crowd's own rule applied to their live position — which
+reproduces every crowd dot's column to 0.00px, so the metric is the rule — the
+fourteen (the anchor is placed at `w / 2` by the hop-0 branch and is not
+affected) are off by a median of 12–54px on a phone and 134–220px beside the
+prose, worst 160px and 327px, depending where in the cycle the reader taps.
+Fourteen dots of 12,097, inside a curtain where the dots either side of them are
+travelling further than that; the 4 → 5 sheets at both boxes show no streak, no
+clump and band edges as crisp as the baseline's. So it is a correctness gap and
+not something a reader can see.
+
+Fixing it needs the fifteen's ray, which `makeFlight` derives from their base and
+keeps to itself, exposed as a function of `(id, t)` the way `flowSpot` is for the
+crowd.
 
 What is published is the flow's **clock** — one number, `skyFlight.t` — and not
 the twelve thousand positions it implies, so there is still exactly one definition

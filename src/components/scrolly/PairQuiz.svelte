@@ -376,18 +376,13 @@
 	}
 
 	/* A picked chip is disabled at once — it is showing an answer now, not
-	   offering a choice — and reset.css aims three global rules at a disabled
-	   BUTTON on the assumption that it is a dead control: `button:disabled`
-	   fades it to 0.5, and inside `@media (hover: hover)`
-	   `button:disabled:hover` repaints it in the primary button's dark fill with
-	   a not-allowed cursor. That last selector is 0,2,1 and outranks a plain
-	   `.quiz__card:disabled`, so on a mouse the chip the reader had just clicked
-	   went dark — swallowing its own name and the ✓ it had just been given —
-	   for the whole of the mark, and only came back when the flight's own
-	   keyframes took the paint over. Restated here at 0,3,0. */
-	.quiz__card:disabled,
-	.quiz__card:disabled:hover {
-		background: var(--color-bg, #fff);
+	   offering a choice — while reset.css treats a disabled BUTTON as a dead
+	   control: it fades it to 0.5 and gives it a not-allowed cursor. Neither is
+	   true of a chip mid-answer, which has to stay legible through the mark and
+	   the flight, so both are overturned here. The background is not: the reset
+	   leaves a disabled button's paint alone, hovered or not, so the rule above
+	   holds. */
+	.quiz__card:disabled {
 		opacity: 1;
 		cursor: default;
 	}

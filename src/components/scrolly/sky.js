@@ -349,6 +349,28 @@ export function cardSpot(id, w, h, box = fieldBox(w, h)) {
 }
 
 /**
+ * How one dot is DRAWN once it is resting in the flow: the size and alpha its
+ * own depth gives it at the landed camera, spread about `PULLBACK_DOT_R` and
+ * `FIELD_ALPHA` and behind the entry/exit window.
+ *
+ * These are exactly the constants `makeFlight` draws a flown dot with, so a
+ * layout that hands a dot to the flight has to land it here or the loop's first
+ * tick would resize and rebrighten it. That is the whole reason this is one
+ * function rather than four lines in each caller: the crowd's own writer below,
+ * the constellation joining the sky on `hopSeed` and the fifteen greying into
+ * the card all have to agree with the flight to the last decimal.
+ *
+ * @returns {[number, number]} radius, alpha
+ */
+export function restingSkyDot(id) {
+	const z = fieldDepth(id);
+	return [
+		PULLBACK_DOT_R * depthSize(z),
+		FIELD_ALPHA * depthFade(z) * flightWindow(skyFrac(id, 0))
+	];
+}
+
+/**
  * @param {Set<number>} [skip] ids to leave untouched — a caller drawing some of
  * these ids itself elsewhere in the same frame, whose position/alpha this
  * writer would otherwise overwrite with a fieldSpot placement

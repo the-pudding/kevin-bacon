@@ -152,7 +152,7 @@ exports[`layout goldens > hopBands null @stacked 1`] = `
 
 exports[`layout goldens > hopSeed null @beside 1`] = `
 {
-  "attrs": "965fe05026ad8bec",
+  "attrs": "0fafc25f849e9af2",
   "decor": "bf21a9e8fbc5a384",
   "delays": null,
   "trailDelays": null,
@@ -162,7 +162,7 @@ exports[`layout goldens > hopSeed null @beside 1`] = `
 
 exports[`layout goldens > hopSeed null @phone 1`] = `
 {
-  "attrs": "9925e3dc67696217",
+  "attrs": "366706f63875f9d5",
   "decor": "bf21a9e8fbc5a384",
   "delays": null,
   "trailDelays": null,
@@ -172,7 +172,7 @@ exports[`layout goldens > hopSeed null @phone 1`] = `
 
 exports[`layout goldens > hopSeed null @stacked 1`] = `
 {
-  "attrs": "540851b9d1ba5dbb",
+  "attrs": "1fa6dc7f7b93dca0",
   "decor": "bf21a9e8fbc5a384",
   "delays": null,
   "trailDelays": null,

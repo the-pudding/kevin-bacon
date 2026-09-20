@@ -3057,6 +3057,12 @@ function writeLeg(attrs, trails, w, h, leg, e) {
 function raceChoreography(plan, fields = {}) {
 	return {
 		...fields,
+		// Every leg publishes the axes, the callout and the future block it drew
+		// (writeLeg), so on this chapter the chart furniture belongs to the frame
+		// writer from its first tick. ScrollyVisual reads this to keep the
+		// arriving step's RESTING furniture out of the out beat — see
+		// swapFurniture.
+		ownsFurniture: true,
 		phases: (ctx) => plan(ctx).map((leg) => leg.ms),
 		frames: (_nodes, w, h, _edges, _params, _bleed, ctx) => {
 			const legs = plan(ctx);

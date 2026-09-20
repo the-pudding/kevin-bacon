@@ -283,6 +283,8 @@ export const STATE_REVEAL_FROM = pick("revealFrom");
  * @property {number[][]} [labelsAfter]
  * @property {number} [cardAfter]
  * @property {boolean} [ownsArrival]
+ * @property {boolean} [ownsFurniture] its frames publish their own `decor`, so
+ *   the arriving state's static chart furniture is never put up in front of them
  * @property {number} [arrivalJitter]
  * @property {{ until: (story: Object) => boolean, frame: SeedWriterFactory }} [hold]
  * @property {SeedWriterFactory} [seed]

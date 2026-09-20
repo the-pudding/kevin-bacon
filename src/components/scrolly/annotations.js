@@ -87,6 +87,44 @@ export function trackLabels(attrs, ids, { names, shown, gate, held }) {
 }
 
 /**
+ * This frame's side for every name on screen: the state's own `labelDirs` for
+ * the names it shows, and the side it last had for a name that is on its way
+ * out.
+ *
+ * `labelDirs` belongs to the ARRIVING state, and a name that state no longer
+ * labels is still on screen for the length of its fade-out — so reading the
+ * live map for it drops it back to the default below-and-centred placement in
+ * the frame of the press. That is the flip: "Samuel L. Jackson · 116 films"
+ * stepping from beside its dot to under it at 14 → 15, and the eight Gen Z
+ * names leaving their right-hand stack to pile up on one column at 23 → 24.
+ * A name that is leaving fades out where it stood (motion.md rule 2), so it
+ * keeps both the side and the nudge it had on the last frame that showed it.
+ *
+ * @param {TrackedLabel[]} labels
+ * @param {Record<number, "left" | "right">} dirs the arriving state's map
+ * @param {Map<number, {dir: "left" | "right", offset: number}>} lastShown
+ * @returns {Record<number, "left" | "right">}
+ */
+function frameSides(labels, dirs, lastShown) {
+	/** @type {Record<number, "left" | "right">} */
+	const side = {};
+	for (const t of labels) {
+		if (t.labelAlpha > 0) {
+			// re-recorded below once this frame's sweep has nudged it
+			lastShown.delete(t.id);
+			if (dirs[t.id] != null) side[t.id] = dirs[t.id];
+			continue;
+		}
+		const was = lastShown.get(t.id);
+		if (was) {
+			side[t.id] = was.dir;
+			t.labelOffset = was.offset;
+		}
+	}
+	return side;
+}
+
+/**
  * Vertical de-collision for beside-dot names (labelDirs "left"/"right"):
  * nudges apart labels whose dots have landed within a line-height of each
  * other, easing the displacement per id so a rank swap slides names past each
@@ -108,10 +146,19 @@ export function trackLabels(attrs, ids, { names, shown, gate, held }) {
 export function createLabelStacker(gapPx) {
 	const left = createLabelDecollider();
 	const right = createLabelDecollider();
+	/**
+	 * Each name's side and nudge on the last frame that SHOWED it, so a name
+	 * fading out can keep them instead of being re-placed by the state that no
+	 * longer labels it (see frameSides).
+	 * @type {Map<number, {dir: "left" | "right", offset: number}>}
+	 */
+	const lastShown = new Map();
 	return {
 		/**
 		 * Nudge this frame's beside-dot names apart, writing each one's
-		 * `labelOffset`. Returns the names moved and whether the stack has come to
+		 * `labelOffset`. Returns the names moved, the side every name on screen is
+		 * drawn on (departing ones included — the caller places its labels from
+		 * this, not from the state's own map) and whether the stack has come to
 		 * rest — a de-collider relaxes toward its target a little per frame, so a
 		 * caller keeps drawing until it has.
 		 * @param {TrackedLabel[]} labels
@@ -119,17 +166,20 @@ export function createLabelStacker(gapPx) {
 		 * @param {number | null} floor
 		 */
 		stack(labels, dirs, floor) {
+			const side = frameSides(labels, dirs, lastShown);
 			const beside = labels.filter(
-				(t) => t.labelAlpha > 0 && dirs[t.id] != null
+				(t) => t.labelAlpha > 0 && side[t.id] != null
 			);
-			if (beside.length === 0) return { moved: beside, settled: true };
+			if (beside.length === 0) {
+				return { moved: beside, dirs: side, settled: true };
+			}
 			const offsets = new Map([
 				...left(
-					beside.filter((t) => dirs[t.id] === "left"),
+					beside.filter((t) => side[t.id] === "left"),
 					gapPx
 				),
 				...right(
-					beside.filter((t) => dirs[t.id] === "right"),
+					beside.filter((t) => side[t.id] === "right"),
 					gapPx
 				)
 			]);
@@ -142,8 +192,15 @@ export function createLabelStacker(gapPx) {
 					for (const [id, off] of offsets) offsets.set(id, off - over);
 				}
 			}
-			for (const t of beside) t.labelOffset = offsets.get(t.id) ?? 0;
-			return { moved: beside, settled: left.settled() && right.settled() };
+			for (const t of beside) {
+				t.labelOffset = offsets.get(t.id) ?? 0;
+				lastShown.set(t.id, { dir: side[t.id], offset: t.labelOffset });
+			}
+			return {
+				moved: beside,
+				dirs: side,
+				settled: left.settled() && right.settled()
+			};
 		}
 	};
 }

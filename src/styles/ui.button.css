@@ -43,6 +43,14 @@
 }
 
 /* variant (default, outline, secondary, ghost, link, round) */
+/* Every :hover below is guarded against disabled, for the reason reset.css
+   gives at its own hover block: a disabled button takes no hover treatment.
+   These rules are specific enough to beat the reset outright, so without the
+   guard the story's StartButton — disabled the instant it is clicked, while the
+   run it started plays — sat under the resting pointer wearing the lit hover
+   fill of a button that was still live. `:where()` for the same reason as
+   there: it adds no specificity, so each rule keeps the weight it had and goes
+   on losing to whatever already overruled it. */
 .bits-button[data-button-root][data-variant="default"] {
 	--bg: var(--color-button-bg-primary);
 	--fg: var(--color-button-fg-primary);
@@ -50,7 +58,9 @@
 	color: var(--fg);
 }
 
-.bits-button[data-button-root][data-variant="default"]:hover {
+.bits-button[data-button-root][data-variant="default"]:where(
+		:not(:disabled)
+	):hover {
 	background: oklch(from var(--bg) calc(l + 0.2) c h);
 }
 
@@ -63,7 +73,9 @@
 	border: var(--border);
 }
 
-.bits-button[data-button-root][data-variant="outline"]:hover {
+.bits-button[data-button-root][data-variant="outline"]:where(
+		:not(:disabled)
+	):hover {
 	background: oklch(from var(--bg) calc(l - 0.2) c h);
 }
 
@@ -74,7 +86,9 @@
 	color: var(--fg);
 }
 
-.bits-button[data-button-root][data-variant="secondary"]:hover {
+.bits-button[data-button-root][data-variant="secondary"]:where(
+		:not(:disabled)
+	):hover {
 	background: oklch(from var(--bg) calc(l - 0.2) c h);
 }
 

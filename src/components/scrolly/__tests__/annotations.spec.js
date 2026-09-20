@@ -54,14 +54,14 @@ describe("trackLabels", () => {
 });
 
 describe("createLabelStacker", () => {
-	const label = (id, y) => ({
+	const label = (id, y, labelAlpha = 1) => ({
 		id,
 		name: "",
 		x: 0,
 		y,
 		r: 2,
 		alpha: 1,
-		labelAlpha: 1,
+		labelAlpha,
 		labelOffset: 0
 	});
 
@@ -98,7 +98,45 @@ describe("createLabelStacker", () => {
 		const stacker = createLabelStacker(16);
 		expect(stacker.stack([label(1, 0)], {}, null)).toEqual({
 			moved: [],
+			dirs: {},
 			settled: true
 		});
+	});
+
+	// the flip at 14 → 15 and 23 → 24: the arriving state drops the names the
+	// step before it was pointing at, and they are still on screen for the
+	// length of their fade-out
+	test("a name the arriving state stops labelling keeps its side and nudge", () => {
+		const stacker = createLabelStacker(16);
+		const rest = [label(1, 100), label(2, 104)];
+		const dirs = { 1: "right", 2: "right" };
+		let result = stacker.stack(rest, dirs, null);
+		for (let i = 0; i < 60 && !result.settled; i++) {
+			result = stacker.stack(rest, dirs, null);
+		}
+		const parted = rest[1].labelOffset - rest[0].labelOffset;
+		expect(parted).toBeCloseTo(12, 5);
+
+		// the press: the new state labels neither of them, so both go to
+		// labelAlpha 0 and its own (empty) dirs map arrives with it
+		const leaving = [label(1, 100, 0), label(2, 104, 0)];
+		const after = stacker.stack(leaving, {}, null);
+		expect(after.dirs).toEqual({ 1: "right", 2: "right" });
+		expect(leaving[1].labelOffset - leaving[0].labelOffset).toBeCloseTo(
+			parted,
+			5
+		);
+		expect(after.moved).toEqual([]);
+	});
+
+	test("a name the arriving state still labels takes the new side", () => {
+		const stacker = createLabelStacker(16);
+		const labels = [label(1, 100)];
+		stacker.stack(labels, { 1: "right" }, null);
+		expect(stacker.stack(labels, { 1: "left" }, null).dirs).toEqual({
+			1: "left"
+		});
+		// and a state that labels it with no override puts it back under its dot
+		expect(stacker.stack(labels, {}, null).dirs).toEqual({});
 	});
 });

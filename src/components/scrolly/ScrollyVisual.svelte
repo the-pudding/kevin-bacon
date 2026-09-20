@@ -72,6 +72,7 @@
 		TITLE_BAND,
 		plotBottom,
 		plotBottomFraction,
+		xLabelTop,
 		setPlotBottomFrac,
 		PLOT_BOTTOM_BESIDE,
 		PLOT_BOTTOM_STACKED,
@@ -448,7 +449,7 @@
 			decor: d,
 			title: STATE_TITLE[name],
 			overlay: OVERLAYS[name],
-			xTop: xLabelTop,
+			xTop,
 			yTop: yLabelTop,
 			hintTop: yHintTop,
 			hintBottom: yHintBottom,
@@ -468,16 +469,45 @@
 	 * A resize, a bare column move and reduced motion take neither beat: the
 	 * coordinates the old copy would fade at have already moved (rules 7, 12, 13).
 	 */
-	function swapFurniture(next, from, box) {
+	function swapFurniture(next, from, box, handedOver) {
+		// `handedOver`: the arriving state's frames draw their own chart furniture
+		// and own it from their first tick (applyFrame), so the three per-frame
+		// channels keep what is on screen instead of jumping to the arriving
+		// step's RESTING ones. A choreography's frame 0 is the frame the reader is
+		// leaving, and the first tick is an rAF away at best and a whole out beat
+		// away at worst — long enough that putting the destination's axes and
+		// future block up here painted the chart the step PANS TO in front of the
+		// one it pans FROM, and then took it away again (motion.md rules 2, 6, 7).
+		// Everything else in the set is the static layout's and swaps now, so a
+		// legend or a hit region the arriving chart does not draw still goes.
+		//
+		// Only WITHIN one scene, and only where the frame on screen is still
+		// valid. Across a scene change the arriving set is held below and the
+		// departing one is a frozen copy, so there is nothing on screen worth
+		// keeping — and a kept axis is worse than none: the hold lifts on the
+		// arrival's landing, one tick before the choreography's first frame, and
+		// the previous CHAPTER's axes got that tick to themselves. A resize, a
+		// bare column move and reduced motion have all moved the coordinates the
+		// kept frame was drawn at (rules 7, 12, 13).
+		const still = box.resized || box.moved || reducedMotion;
 		const sceneChange = sceneOf(stateName) !== sceneOf(from);
-		if (!sceneChange || box.resized || box.moved || reducedMotion) {
-			decor = next;
+		const set =
+			handedOver && !sceneChange && !still
+				? untrack(() => ({
+						...next,
+						axes: decor?.axes,
+						takeover: decor?.takeover,
+						band: decor?.band
+					}))
+				: next;
+		if (!sceneChange || still) {
+			decor = set;
 			if (sceneChange) furnitureHeld = true;
 			return;
 		}
 		if (leavingRaf) cancelAnimationFrame(leavingRaf);
 		leaving = untrack(() => furnitureSet(decor, from));
-		decor = next;
+		decor = set;
 		furnitureHeld = true;
 		// One frame is all Svelte needs to mount the copy; clearing it then is what
 		// plays its out-fade, because a block created and destroyed inside one
@@ -535,6 +565,11 @@
 	let prevW = 0;
 	let prevH = 0;
 	let prevCanvasW = 0;
+	// the plot's share of the column the live frame was authored against, kept
+	// beside the box for the reason isResize gives: it scales every y the layouts
+	// write just as the box's own height does. 0 is not a fraction any layout can
+	// be built at, so the first run always counts as a change.
+	let prevPlotFrac = 0;
 
 	/**
 	 * Re-measure the column's offset in the viewport.
@@ -578,6 +613,7 @@
 		prevW = width;
 		prevH = height;
 		prevCanvasW = canvasWidth;
+		prevPlotFrac = plotFrac;
 	}
 	/**
 	 * THE SWAP, and the whole reason it is invisible. The column has moved to the
@@ -761,22 +797,14 @@
 	// plot-area centre IS the axis centre
 	const yLabelTop = $derived(height ? (MARGIN + 8 + plotFloor) / 2 : 0);
 	// x-axis title sits just under the plot, but never behind the step card: on
-	// long-prose steps the card climbs into the plot, so clamp the title up to
-	// stay above it (text-shadow keeps it legible over any dots it then
-	// overlaps). The lift has its own floor at the tick row: lifted past that
-	// the title lands ON the years it is titling, which is what printed the
-	// career chart's "Care age year" through its own 10/20/30/40.
-	const X_LABEL_LINE_PX = 14;
-	const xLabelFloor = $derived(
-		decor?.axes?.xBase != null ? decor.axes.xBase - X_LABEL_LINE_PX : 0
-	);
-	const xLabelTop = $derived(
-		height
-			? Math.max(
-					xLabelFloor,
-					Math.min(plotFloor + 32, height - stepsHeight - 24)
-				)
-			: 0
+	// long-prose steps the card climbs into the plot and the title moves to the
+	// far side of the tick row instead, over the bottom of the plot (text-shadow
+	// keeps it legible over any dots it then overlaps). Which side it takes is
+	// the ONLY question — the two rows are a line apart, so there is no third
+	// place to put it and `plot.js` answers with one row or the other rather
+	// than a coordinate between them. See the note there for what a clamp did.
+	const xTop = $derived(
+		height ? xLabelTop(height, stepsHeight, decor?.axes?.xBase) : 0
 	);
 	// pinned homes for the "lower"/"higher" mini-labels — the same plot-rect
 	// top/bottom that yLabelTop above centres the axis title within
@@ -789,11 +817,41 @@
 		);
 	});
 	// per-node label placement overrides ("left"/"right" beside the dot instead
-	// of the default below-and-centred)
+	// of the default below-and-centred) for the state the reader is ARRIVING on
 	const labelDirs = $derived.by(() => {
 		const spec = STATE_LABEL_DIRS[stateName];
 		return (typeof spec === "function" ? spec(layoutParams) : spec) ?? {};
 	});
+	/**
+	 * ...and the side each name is actually DRAWN on this frame, which the
+	 * template and the leader lines read instead. The two differ for a name the
+	 * arriving state no longer labels: it is still on screen for the length of
+	 * its fade-out, and the stacker keeps it on the side it left from rather
+	 * than letting the new state drop it back under its dot (see frameSides in
+	 * annotations.js). Written by drawScene, once per drawn frame.
+	 * @type {Record<number, "left" | "right">}
+	 */
+	let frameDirs = $state({});
+	/**
+	 * ...and the bleed that frame was drawn against, which the label layer needs
+	 * for two things the reading column cannot give it: the box it clips to, and
+	 * the box a name's x is clamped into. Both are the CANVAS, not the column.
+	 *
+	 * The two boxes are the same until the column SWAPS sides (`reframe`), which
+	 * moves the column's zero without moving the picture: for the length of the
+	 * arrival every dot's x is restated against the new origin, and on desktop
+	 * that puts a name that was at x = 86 at x = -330. Clamped into the column it
+	 * lands on the column's left edge instead — which is the whole left-hand pile
+	 * of race names at 12 → 13. Clamped into the canvas it stays on the pixel it
+	 * was on, which is where a name that is leaving belongs (motion.md rule 2).
+	 *
+	 * Published here rather than read from `bleed` directly because `bleed` is
+	 * deliberately not $state: this is a copy of the value the last DRAWN frame
+	 * used, written by drawScene in the same flush reframe() repaints in, and
+	 * nothing the render effect reads.
+	 * @type {import("./plot.js").Bleed}
+	 */
+	let labelBleed = $state.raw(NO_BLEED);
 	// per-node label text overrides, so a name can carry the step's number
 	const labelTexts = $derived(
 		STATE_LABEL_TEXT[stateName]?.(nodes, layoutParams) ?? {}
@@ -811,8 +869,9 @@
 
 	// Pudding's scatter.locate(): the live on-canvas position of a tracked dot, in
 	// VIEWPORT coordinates (canvas-relative x/y + the container's bounding rect), so
-	// callers don't have to share the canvas's offset parent. Used by the pair-quiz
-	// panel to fly option cards onto their true dot positions. null until the id has
+	// callers don't have to share the canvas's offset parent. Used by the pair quiz,
+	// from the step card, to fly its option chips onto their true dot positions —
+	// which is why viewport coordinates and not canvas ones. null until the id has
 	// been tracked at least once. Quiz ids are always tracked (STATE_TRACKED) and
 	// never move on a pick, so this is a stable flight target.
 	export function locate(id) {
@@ -1445,15 +1504,17 @@
 			gate: entryLabels,
 			held: holding ? heldLabels : null
 		});
-		const { moved, settled } = stacker.stack(
+		const { moved, dirs, settled } = stacker.stack(
 			nextTracked,
 			labelDirs,
 			labelFloor()
 		);
 		if (moved.length > 0) {
 			relaxLabels(settled);
-			drawLabelLeaders(ctx, attrs, moved, labelDirs);
+			drawLabelLeaders(ctx, attrs, moved, dirs);
 		}
+		frameDirs = dirs;
+		labelBleed = bleed;
 		tracked = nextTracked;
 	}
 
@@ -1650,6 +1711,46 @@
 		!!(canvas && width && height && canvasWidth && stateName);
 
 	/**
+	 * Whether the backing store has to be re-fitted, which is also what makes the
+	 * arrival a snap. A change of the measured box is one — and so, for one case
+	 * only, is a bare move of the column (`dx`, see reframe).
+	 *
+	 * The plot's share of the column counts as well, box or no box: `plotBottom`
+	 * scales every y a layout writes, so the frame on screen is as wrong after a
+	 * bare flip of it as it is after the box changed height. That flip happens on
+	 * every cold load past the side-by-side breakpoint — `dimensions.width` is 0
+	 * until its effect runs, so the first layout is built stacked and `beside`
+	 * only turns true afterwards, with the measured box unmoved. Without this term
+	 * `unchanged` early-returned on that run and the chart kept the stacked plot's
+	 * height for the rest of the session, until some other change happened to
+	 * rebuild it — which is how answering the quiz's first pair came to jump the
+	 * scatter's y-axis half a chart down the screen.
+	 *
+	 * A choreography that OUTLIVES this run is the one thing a bare move cannot
+	 * survive: its frame writer closes over the box it was built for, so the next
+	 * tick would paint the old frame back over the reframed one. Nothing in the
+	 * story does that — every swap is a chapter card arriving or departing, and a
+	 * state change abandons the choreography — so rather than carry a rebuild
+	 * path that never runs, that case falls back to the snap.
+	 *
+	 * The state qualifier is what makes it that case and not a wider one. A card
+	 * drifts its own sky, so a choreography is running on BOTH sides of every
+	 * swap; reading `choreo.active` alone handed the snap to the very arrival the
+	 * reframe exists for, and the chart the reader stepped back to was simply
+	 * there, in its final positions, under a fading title (motion.md rules 1, 7).
+	 */
+	function isResize(dx) {
+		const choreoOutlives = choreo.active && stateName === prevState;
+		return (
+			width !== prevW ||
+			height !== prevH ||
+			canvasWidth !== prevCanvasW ||
+			plotFrac !== prevPlotFrac ||
+			(dx !== 0 && choreoOutlives)
+		);
+	}
+
+	/**
 	 * Fit the canvas to the box the story is showing. Returns what changed — a
 	 * resize (the backing store re-fitted) or a bare move of the column (the
 	 * frame reframed) — or null when a choreography owns the frame and nothing
@@ -1661,22 +1762,15 @@
 		// the plot's share of the column is a property of the PAGE's layout, not of
 		// any one state, so it is set here — once, before any layout is built —
 		// rather than threaded through ten layout modules. `beside` is a prop, so
-		// the effect already re-runs when the breakpoint flips.
+		// the effect already re-runs when the breakpoint flips, and `isResize`
+		// is what stops that re-run being discarded as a no-op.
 		setPlotBottomFrac(plotFrac);
 		// Where the column sits in the viewport, which a width change does not
 		// always imply: on the chapter-card swap it keeps its width and MOVES.
 		// `dx` is how far, and a move on its own is a change of coordinate frame
-		// rather than a resize — see reframe. A choreography is the one thing a
-		// bare move cannot survive (its writer closes over the old box), and
-		// nothing in the story does that — the swap lands on a card ARRIVAL, where
-		// the state change has already abandoned it — so rather than carry a
-		// rebuild path that never runs, that case falls back to the snap.
+		// rather than a resize — see reframe and isResize.
 		const dx = measureBleed();
-		const resized =
-			width !== prevW ||
-			height !== prevH ||
-			canvasWidth !== prevCanvasW ||
-			(dx !== 0 && choreo.active);
+		const resized = isResize(dx);
 		if (choreo.active) {
 			if (stateName === prevState && !resized) return null;
 			abandonChoreography();
@@ -1785,6 +1879,17 @@
 		},
 		state: (target, from) => {
 			const introduced = resetArrivalGates(from);
+			// Armed HERE and not only inside tweenToState, exactly as the entry
+			// arrival above does it: the out beat runs first, and a name this
+			// arrival introduces must not be on screen for it. Left until the beat
+			// had finished, such a name faded in over the chart being left, faded
+			// straight back out when the hold was finally armed, and faded in a
+			// third time when it lifted — three fades for one arrival (rules 2, 7).
+			// The deadline is restamped when the travel actually begins, so the
+			// hold still lifts three quarters of the way through the tween rather
+			// than three quarters of the way through the beat in front of it.
+			heldLabels = introduced.size ? introduced : null;
+			labelHoldUntil = performance.now() + DEPART_FADE_MS + LABEL_HOLD_MS;
 			const delays = arrivalDelays(from, target);
 			departFade(target, from, () => tweenToState(target, delays, introduced));
 		},
@@ -1834,7 +1939,12 @@
 		prevState = stateName;
 		prevParamsKey = paramsKey;
 		const layout = layoutFor(stateName, width, height, layoutParams, bleed);
-		swapFurniture(staticDecor(layout), from, box);
+		swapFurniture(
+			staticDecor(layout),
+			from,
+			box,
+			kind === "entry" && !!entryAnim.ownsFurniture
+		);
 		// a copy, because parkLeavers and landOnSky rewrite it and `layout.attrs`
 		// is cached
 		const attrs = layout.attrs.slice();
@@ -1866,8 +1976,18 @@
 	bind:clientHeight={height}
 >
 	<canvas bind:this={canvas} bind:clientWidth={canvasWidth}></canvas>
-	<div class="annotations">
-		<!-- The future block (PRD P-11-2). In the ANNOTATIONS layer, ahead of the
+	<!-- The clip spans the CANVAS (see labelBleed); the box inside it puts the
+	     origin every label transform is written against back on the COLUMN's top
+	     left corner, which is where the layouts author. -->
+	<div
+		class="annotations"
+		style="left: {-labelBleed.l}px; right: {-labelBleed.r}px"
+	>
+		<div
+			class="annotation-origin"
+			style="left: {labelBleed.l}px; width: {width}px"
+		>
+			<!-- The future block (PRD P-11-2). In the ANNOTATIONS layer, ahead of the
 		     node labels, which is what lets it carry a shaded fill: the names sit
 		     beside their dots to the right, so with the column pinned at the left they
 		     render INSIDE the block, and `.overlay` (where this first lived) paints
@@ -1891,38 +2011,38 @@
 		     the field is monochrome-plus-ink by design (see layouts/race.js) because
 		     no actor is identified BY a colour. This colours a REGION, not an actor,
 		     so that rule survives intact. -->
-		{#if decor?.band && !furnitureHeld}
-			{@const b = decor.band}
-			<div class="band fade-in">
-				<span
-					class="band-box"
-					aria-hidden="true"
-					style="left: {b.x}px; top: {b.y}px; width: {b.width}px; height: {b.height}px"
-				></span>
-				<p class="band-label" style="left: {b.label.x}px; top: {b.label.y}px">
-					the future
-				</p>
-			</div>
-		{/if}
-		{#if ring}
-			<div
-				class="pulse-wrap"
-				style="left: {ring.x}px; top: {ring.y}px; width: {ring.r *
-					2}px; height: {ring.r * 2}px; opacity: {pulseId != null
-					? ring.alpha
-					: 0}"
-			>
-				<div class="pulse-ring"></div>
-			</div>
-		{/if}
-		<!-- Keyed on the TEXT as well as the id, so a name whose string changes is
+			{#if decor?.band && !furnitureHeld}
+				{@const b = decor.band}
+				<div class="band fade-in">
+					<span
+						class="band-box"
+						aria-hidden="true"
+						style="left: {b.x}px; top: {b.y}px; width: {b.width}px; height: {b.height}px"
+					></span>
+					<p class="band-label" style="left: {b.label.x}px; top: {b.label.y}px">
+						the future
+					</p>
+				</div>
+			{/if}
+			{#if ring}
+				<div
+					class="pulse-wrap"
+					style="left: {ring.x}px; top: {ring.y}px; width: {ring.r *
+						2}px; height: {ring.r * 2}px; opacity: {pulseId != null
+						? ring.alpha
+						: 0}"
+				>
+					<div class="pulse-ring"></div>
+				</div>
+			{/if}
+			<!-- Keyed on the TEXT as well as the id, so a name whose string changes is
 		     two elements for the length of a crossfade rather than one text node
 		     mutated in place at full opacity. Both copies sit at the same
 		     transform, so they cross over where the name already is and nothing
 		     moves; on the scatter that swap is the whole beat, because the number
 		     in the name is what the sentence is about. -->
-		{#each tracked as t (`${t.id}:${t.name}`)}
-			<!-- a per-node override ("left"/"right") sits the label beside the dot,
+			{#each tracked as t (`${t.id}:${t.name}`)}
+				<!-- a per-node override ("left"/"right") sits the label beside the dot,
 			     vertically centred; otherwise it hangs below, centred on the dot. All
 			     three are clamped to the canvas: .annotations clips, so an unclamped
 			     name is simply cut, which is what took the last letters off the race
@@ -1932,24 +2052,25 @@
 			     actually has to. On a phone the graph sits within LABEL_EDGE_GAP_PX of
 			     both edges and most names still fit centred; nudging every one of them
 			     a fixed distance inward instead threw them across the constellation. -->
-			{@const dir = labelDirs[t.id]}
-			{@const gap = LABEL_EDGE_GAP_PX}
-			{@const edge = `calc(${width - LABEL_EDGE_GAP_PX}px - 100%)`}
-			{@const transform =
-				dir === "right"
-					? `translate(clamp(${gap}px, ${t.x + t.r + 4}px, ${edge}), calc(${t.y + t.labelOffset}px - 50%))`
-					: dir === "left"
-						? `translate(clamp(${gap}px, calc(${t.x - t.r - 4}px - 100%), ${edge}), calc(${t.y + t.labelOffset}px - 50%))`
-						: `translate(clamp(${gap}px, calc(${t.x}px - 50%), ${edge}), ${t.y + t.r + 4}px)`}
-			<p
-				class="node-label"
-				style="transform: {transform}; --dot-alpha: {t.labelAlpha}"
-				in:nameSwap
-				out:nameSwap
-			>
-				{t.name}
-			</p>
-		{/each}
+				{@const dir = frameDirs[t.id]}
+				{@const gap = LABEL_EDGE_GAP_PX - labelBleed.l}
+				{@const edge = `calc(${width + labelBleed.r - LABEL_EDGE_GAP_PX}px - 100%)`}
+				{@const transform =
+					dir === "right"
+						? `translate(clamp(${gap}px, ${t.x + t.r + 4}px, ${edge}), calc(${t.y + t.labelOffset}px - 50%))`
+						: dir === "left"
+							? `translate(clamp(${gap}px, calc(${t.x - t.r - 4}px - 100%), ${edge}), calc(${t.y + t.labelOffset}px - 50%))`
+							: `translate(clamp(${gap}px, calc(${t.x}px - 50%), ${edge}), ${t.y + t.r + 4}px)`}
+				<p
+					class="node-label"
+					style="transform: {transform}; --dot-alpha: {t.labelAlpha}"
+					in:nameSwap
+					out:nameSwap
+				>
+					{t.name}
+				</p>
+			{/each}
+		</div>
 	</div>
 	<!-- ONE set of chart furniture, rendered twice: the arriving state's, held
 	     until its beat lands, and the departing state's, frozen and fading out at
@@ -2214,13 +2335,25 @@
 		height: calc(100% + var(--title-band));
 	}
 
-	/* the labels stay inside the reading column: a name is set against the prose
-	   measure, not the sky behind it */
+	/* The names are clipped to the CANVAS, not to the reading column: they belong
+	   to the picture, and for the length of a column swap the picture reaches
+	   outside the column (see labelBleed, which writes the two horizontal insets).
+	   Vertically it is still the column's box, which is what keeps the race
+	   chart's off-plot names — y up to ~2700 — out of the page's scroll height. */
 	.annotations {
 		position: absolute;
 		inset: 0;
 		overflow: hidden;
 		pointer-events: none;
+	}
+
+	/* Exactly the box .annotations used to be — the reading column — so every
+	   inset and percentage inside it resolves as it always did. It exists only to
+	   hold that origin while the clip around it reaches out over the bleed. */
+	.annotation-origin {
+		position: absolute;
+		top: 0;
+		bottom: 0;
 	}
 
 	.node-label {

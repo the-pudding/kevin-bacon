@@ -134,6 +134,18 @@ export const FIELD_IDS = rawNodes.nodes.reduce(
 );
 
 /**
+ * Everyone who flies when the sky flies: the crowd plus the intro fifteen.
+ *
+ * The two states where the constellation has stopped being a diagram — the
+ * camera's landed pull-back (`hopSeed`) and the chapter card it hands to — draw
+ * the fifteen as sky and hand them to the same flight as everyone else, so the
+ * crowd the reader is looking at is one crowd. A separate export rather than a
+ * wider `FIELD_IDS`, because the states that still owe the fifteen their own
+ * treatment (`titleGalaxy`'s named anchor, `outro`'s cast) read that one.
+ */
+export const SKY_IDS = [...FIELD_IDS, ...INTRO_IDS];
+
+/**
  * Is this one of the intro fifteen — the exception `cardSpot` already makes, and
  * the one the contraction above has to make too? They stand at
  * `introPosition(PULLBACK_ZOOM)` in both boxes and are outside the flow

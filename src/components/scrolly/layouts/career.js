@@ -319,6 +319,15 @@ export const states = {
 	careerTrio: {
 		layout: careerLayout(false),
 		title: "Film count by career age",
+		// One scene with careerMany. Both draw the same chart and differ only in
+		// how many lines are on it: careerFrame's scales come from the background
+		// cloud and the named series, neither of which the cohort touches, so the
+		// title, the overlay's two axis labels and every tick are identical on
+		// both. Treated as separate scenes, the step change faded all of it out,
+		// held it out for the whole arrival, and faded the same words back in at
+		// the same coordinates — ~870ms in which the only motion on the chart was
+		// its own furniture leaving and coming back (motion.md rules 6, 7).
+		scene: "career",
 		labels: [SWEENEY, DENIRO, CHASE],
 		// the draw-on is authored for the forward arrival out of the Gen Z race;
 		// stepping back into it from careerMany gets a plain tween
@@ -336,6 +345,8 @@ export const states = {
 	careerMany: {
 		layout: careerLayout(true),
 		title: "Film count by career age",
+		// one scene with careerTrio — see the note on its entry above
+		scene: "career",
 		// the comparisons have demoted into the cohort — only the hero is named
 		labels: [SWEENEY],
 		// the fan is authored to branch off the endpoint careerTrio just drew,
