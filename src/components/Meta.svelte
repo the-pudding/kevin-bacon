@@ -1,7 +1,7 @@
 <script>
 	let {
-		title = "Title TK",
-		description = "Description TK",
+		title = "Gen Z's Kevin Bacon",
+		description = "A journey into the centers of Hollywood",
 		url = "https://pudding.cool",
 		keywords = "",
 		preloadFont = []
