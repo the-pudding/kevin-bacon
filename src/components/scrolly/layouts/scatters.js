@@ -351,8 +351,10 @@ export const states = {
 		// threw away WHICH option the reader had chosen, and that is exactly what
 		// the verdict colour is read off — so stepping back into the step used to
 		// erase the reader's own answers from the chart.
-		// no search control on this step — its card already carries the quiz — but
-		// a pick made on step 18 is sticky, so the mark rides through
+		// The search is here too, as the glyph at the title's right (step 20). It
+		// costs the card nothing — the quiz already owns that — because the
+		// control is over the canvas, and a pick made earlier is sticky, so the
+		// mark rides in already made whether or not the reader opens it.
 		params: withSearchParams((s) => ({
 			picks: { ...s.quiz.picks },
 			revealAll: s.quiz.revealed

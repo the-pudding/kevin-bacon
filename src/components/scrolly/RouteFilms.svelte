@@ -1,23 +1,27 @@
 <script>
 	// @ts-check
-	// The body of step 1's route panel: every shortest route the focused actor has
-	// to Bacon through the network on screen, and every corpus film behind each hop
-	// of it. The chart draws the routes and names no films; this is where they are
-	// named. A pure renderer — routeSummary resolves the ids to names.
-	import { routeSummary } from "./intro-routes.js";
+	// The body of a route panel: every shortest route an actor has to Bacon, and
+	// every film behind each hop of it. The chart draws the routes and names no
+	// films; this is where they are named.
+	//
+	// A pure renderer, and strictly one — it is handed resolved routes rather than
+	// an id because its two callers read different graphs. Step 1's tour walks the
+	// 18 curated intro edges (intro-routes.js `routeSummary`); the actor search
+	// walks the corpus path the build exports for its 1,449-actor pool (search.js
+	// `routeFilmsToBacon`). Neither graph can answer for the other's actors, so
+	// the shape is the only thing this can depend on.
 
-	/** @type {{ id: number }} */
-	let { id } = $props();
-
-	const summary = $derived(routeSummary(id));
+	/** @typedef {{ to: string, films: { title: string, year: number|null }[] }} Hop */
+	/** @type {{ routes: { hops: Hop[] }[] }} */
+	let { routes } = $props();
 </script>
 
-{#if summary}
+{#if routes.length}
 	<!-- no preamble: the heading names both ends and the term the reader opened
 	     already said how far apart they are. Alternative routes are just the next
 	     block down, divided by a rule. -->
 	<ol class="routes">
-		{#each summary.routes as route, i (i)}
+		{#each routes as route, i (i)}
 			<li>
 				<ol class="hops">
 					{#each route.hops as hop, h (h)}

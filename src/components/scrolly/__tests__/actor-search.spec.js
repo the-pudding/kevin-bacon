@@ -4,10 +4,10 @@
 // membership or a chain that stopped agreeing with its own hop count.
 import { describe, expect, test } from "vitest";
 import {
-	MAX_PATH_STEPS,
 	RANK_POOL,
 	SEARCH_POOL,
 	pathToBacon,
+	routeFilmsToBacon,
 	searchActors,
 	searchedId,
 	withSearchLabel
@@ -157,11 +157,45 @@ describe("pathToBacon", () => {
 		expect(pathToBacon(outside)).toBeNull();
 	});
 
-	test("MAX_PATH_STEPS is what the readout must reserve room for", () => {
-		const longest = Math.max(
-			...SEARCH_POOL.map((id) => pathToBacon(id).length)
-		);
-		expect(MAX_PATH_STEPS).toBe(longest);
+	// The caption's InfoTerm draws the chain with RouteFilms, which is also step
+	// 1's renderer and reads only `hop.to` and `hop.films`. These pin the shape
+	// that component depends on: svelte-check cannot see into a snippet, so a
+	// rename here would otherwise surface as an empty panel in the browser.
+	describe("the route in RouteFilms' shape", () => {
+		test("one route, one film per hop, in the order the path reads", () => {
+			const id = SEARCH_POOL.find((i) => pathToBacon(i).length === 2);
+			const path = pathToBacon(id);
+			expect(routeFilmsToBacon(id)).toEqual([
+				{
+					hops: path.map(([name, film, year]) => ({
+						to: name,
+						films: [{ title: film, year }]
+					}))
+				}
+			]);
+		});
+
+		test("every route in the pool ends at Bacon", () => {
+			for (const id of SEARCH_POOL) {
+				const [route] = routeFilmsToBacon(id);
+				if (!route) continue; // Bacon himself, asserted below
+				expect(route.hops.at(-1).to).toBe(nameOf(ANCHOR_ID));
+			}
+		});
+
+		test("nobody with a chain to draw is given an empty one", () => {
+			for (const id of SEARCH_POOL) {
+				expect(routeFilmsToBacon(id).length).toBe(
+					pathToBacon(id).length ? 1 : 0
+				);
+			}
+		});
+
+		test("Bacon and an actor outside the pool have nothing to draw", () => {
+			const outside = nodes.findIndex((n) => !SEARCH_POOL.includes(n.id));
+			expect(routeFilmsToBacon(ANCHOR_ID)).toEqual([]);
+			expect(routeFilmsToBacon(outside)).toEqual([]);
+		});
 	});
 });
 

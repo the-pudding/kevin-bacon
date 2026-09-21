@@ -45,6 +45,18 @@ while (queue.length) {
 const NAMES = data.nodes.map((n) => n[1]);
 const COUNT_WORDS = ["no", "one", "two", "three", "four", "five", "six"];
 
+/**
+ * How far apart two actors are, in words — the term the reader opens for the
+ * films behind it. Exported because the actor search captions its own pick the
+ * same way step 1 captions the tour's, and a reader who meets the sentence twice
+ * should meet it worded once. The word list covers every distance either graph
+ * produces: the intro network is six edges deep at most, and the deepest route
+ * in the search pool is three.
+ * @param {number} hops
+ */
+export const movieCount = (hops) =>
+	`${COUNT_WORDS[hops]} movie${hops === 1 ? "" : "s"}`;
+
 /** hops from the anchor along intro edges (0 for the anchor itself) */
 export const introDistance = (id) => DIST.get(id) ?? null;
 
@@ -105,7 +117,7 @@ export function routeSummary(id) {
 	return {
 		name: NAMES[id],
 		anchor: NAMES[ANCHOR_ID],
-		count: `${COUNT_WORDS[hops]} movie${hops === 1 ? "" : "s"}`,
+		count: movieCount(hops),
 		routes: routes.map((route) => ({
 			hops: route.map((seg) => ({
 				from: NAMES[seg.from],

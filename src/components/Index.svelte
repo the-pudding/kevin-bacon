@@ -31,6 +31,28 @@
 	// so the reader's Next has nothing to do but wait for them to press it.
 	const NEVER = () => false;
 
+	// Which chart the reader's searched actor is being placed on, for the search's
+	// analytics (`recordActorSearch`). Keyed by CHART rather than by state, which
+	// is why three states share "career" and two share "remoteness": the question
+	// the reader is answering is "where am I on this chart", and `careerTrio`,
+	// `careerBacon` and `careerMany` are one scene drawing one chart (see
+	// layouts/career.js), as are `scatterCenters` and `scatterQuiz` — both titled
+	// "Films vs. remoteness". Splitting them would make the numbers say the
+	// reader searched four different things when they searched one.
+	//
+	// Read off the active state rather than passed per mount, so every step can
+	// share ONE panel snippet — which is what keeps the control mounted across
+	// the runs of adjacent steps (14 → 18 is five of them).
+	const SEARCH_CHARTS = {
+		hopBands: "hops",
+		scatterCenters: "remoteness",
+		scatterQuiz: "remoteness",
+		degScatter: "costars",
+		careerTrio: "career",
+		careerBacon: "career",
+		careerMany: "career"
+	};
+
 	// The step registry (the wizard) and the arrival rules that prepare the
 	// story for each destination step. Created here so it is the one instance
 	// every <Step>, TapNav and StepProgress reads from the context.
@@ -134,6 +156,25 @@
 		     reports its camera as fixed, so this would render nothing there
 		     anyway). Renders nothing on a viewport wide enough to show the
 		     whole range. -->
+			<!-- The reader's own actor, on the four charts that can place one and on
+		     every step that draws them (5-6, 14-20, 24-26 — twelve in all, which
+		     is every step of the four charts bar none). Mounting it on the whole
+		     run rather than on one step each means a reader who notices the glyph
+		     late can still use it, and one who never does is never nagged. A panel
+		     rather than a card control, which is the one place rule 1b parts
+		     company with rule 1 — see ActorSearch.svelte for why being out of
+		     the card is the point rather than a cost. Not gated and never
+		     announced: the search is an easter egg, it holds nobody, and a
+		     reader who never presses the glyph has missed nothing. The pick is
+		     sticky, so the later charts find it already made (see
+		     story.svelte.js's `search`). -->
+			{#snippet searchPanel()}
+				<ActorSearch
+					visual={layout.visual}
+					chart={SEARCH_CHARTS[steps.state]}
+					showPath={steps.state === "hopBands"}
+				/>
+			{/snippet}
 			{#snippet racePanel()}
 				<div
 					class="race-scrubber-panel"
@@ -212,7 +253,7 @@
 							>
 								{introRoute.count}
 								{#snippet info()}
-									<RouteFilms id={story.intro.focus} />
+									<RouteFilms routes={introRoute.routes} />
 								{/snippet}
 							</InfoTerm>
 							away from {introRoute.anchor}.
@@ -254,7 +295,7 @@
 		     that finish before being told what it means. Both steps below rest in
 		     the one hopBands state (see layouts/hop-bands.js), so the gate holds
 		     for the whole pair, not just the first arrival. -->
-			<Step state="hopBands">
+			<Step state="hopBands" panel={searchPanel}>
 				<p>
 					No doubt, he's well connected. With
 					<InfoTerm>
@@ -286,7 +327,7 @@
 					no one can be reached by everyone within 3.
 				</p>
 			</Step>
-			<Step state="hopBands">
+			<Step state="hopBands" panel={searchPanel}>
 				<p>
 					We need a better way to measure the connectivity of actors in this
 					highly congested network. For this, we use how many movies on average
@@ -298,12 +339,6 @@
 					away on average. Smaller is better: the less remote you are, the more
 					likely you are to be the center of Hollywood.
 				</p>
-				<!-- The reader's own actor, on the four charts that can place one.
-				     A card control, not a panel, and not gated: the search is
-				     optional and must never hold anybody. The pick is sticky, so
-				     the next three charts find it already made (see
-				     ActorSearch.svelte and story.svelte.js's `search`). -->
-				<ActorSearch visual={layout.visual} chart="hops" showPath />
 			</Step>
 			<!-- guessing #1 or giving up is the only way on: GuessRank calls the
 		     registry's advance() itself, and stepping back off the reveal
@@ -375,14 +410,22 @@
 				state="chapterCenters"
 				title="The makings of a center of Hollywood"
 			/>
-			<Step state="scatterCenters" params={{ showFilms: true }}>
+			<Step
+				state="scatterCenters"
+				params={{ showFilms: true }}
+				panel={searchPanel}
+			>
 				<p>
 					The obvious one is film count. More films mean closer to the center.
 					Indeed, Samuel L. Jackson has been in far more films than anyone else,
 					20 more than Nicolas Cage, who's next closest.
 				</p>
 			</Step>
-			<Step state="scatterCenters" params={{ showPair: true }}>
+			<Step
+				state="scatterCenters"
+				params={{ showPair: true }}
+				panel={searchPanel}
+			>
 				<p>
 					The relationship between film count and remoteness is strong, but it
 					doesn't explain it fully. Two actors can have the same film counts but
@@ -390,7 +433,11 @@
 					Kendrick are shown here at the two extremes of the data.
 				</p>
 			</Step>
-			<Step state="scatterCenters" params={{ showPair: true }}>
+			<Step
+				state="scatterCenters"
+				params={{ showPair: true }}
+				panel={searchPanel}
+			>
 				<p>
 					So what's different about them? Put simply: better costars. Natalie
 					Portman stars with more "big dogs" than Anna Kendrick. They say in
@@ -401,6 +448,7 @@
 			<Step
 				state="scatterCenters"
 				params={{ showPair: true, showCostars: true }}
+				panel={searchPanel}
 			>
 				<p>
 					For example, of the 250 most-connected actors from earlier, Natalie
@@ -410,15 +458,15 @@
 			<Step
 				state="scatterCenters"
 				params={{ showPair: true, showCostars: true }}
+				panel={searchPanel}
 			>
 				<p>
 					It would be too circular to use costars with low remoteness as our
 					measure. That's like saying "We think the most expensive houses will
 					be the ones with the highest price".
 				</p>
-				<ActorSearch visual={layout.visual} chart="remoteness" />
 			</Step>
-			<Step state="degScatter">
+			<Step state="degScatter" panel={searchPanel}>
 				<p>
 					Instead we use the costar film count as a sort of proxy. Concretely,
 					this is an actor's 50 most prolific costars by number of films, taken
@@ -426,7 +474,6 @@
 					someone with the same film count, you'll almost certainly be closer to
 					the center of Hollywood than them.
 				</p>
-				<ActorSearch visual={layout.visual} chart="costars" />
 			</Step>
 			<!-- the one gate the reader's own Next walks through once it opens:
 		     the quiz has no single completing press, so finishing the last
@@ -435,7 +482,11 @@
 		     the gate can never hold the reader on a quiz with nothing left
 		     to ask. PairQuiz sits in the card, under the sentence putting the
 		     question — see its own file for why it stopped being a panel -->
-			<Step state="scatterQuiz" gate={() => quizDone(story)}>
+			<Step
+				state="scatterQuiz"
+				gate={() => quizDone(story)}
+				panel={searchPanel}
+			>
 				<p>
 					Let's test our knowledge with a few more examples. For these actors
 					with similar film counts, who do you think works with more "big dogs"
@@ -476,7 +527,7 @@
 					to actors with similar stats in the past.
 				</p>
 			</Step>
-			<Step state="careerTrio">
+			<Step state="careerTrio" panel={searchPanel}>
 				<p>
 					Films first. Take Sydney Sweeney: she's been in 16 films since her
 					debut 15 years ago. At the same point in their career, Robert De Niro
@@ -485,7 +536,7 @@
 					the same point, but only ever appeared in 27.
 				</p>
 			</Step>
-			<Step state="careerBacon">
+			<Step state="careerBacon" panel={searchPanel}>
 				<p>
 					Conversely, after 47 years making Hollywood films, he has a similar
 					output to Helen Mirren and Gene Hackman at this stage.
@@ -496,7 +547,7 @@
 					earlier.
 				</p>
 			</Step>
-			<Step state="careerMany">
+			<Step state="careerMany" panel={searchPanel}>
 				<p>
 					Back to Sydney Sweeney. We can now see that whatever actor we use to
 					model a Gen Z actor's film trajectory can massively impact the
@@ -507,7 +558,6 @@
 					By applying the same approach for costar film counts, we can start
 					predicting.
 				</p>
-				<ActorSearch visual={layout.visual} chart="career" />
 			</Step>
 			<!-- Start is the only way on, and the run itself carries the reader
 		     over once it lands: the 10,000 runs are the payoff and the next

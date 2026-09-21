@@ -8,7 +8,7 @@
 // highlight rule without wanting the registry.
 import rawNodes from "$data/scrolly-nodes.json";
 import { BY_RANK, RANK_TOP_N } from "./cast.js";
-import { PURPLE } from "./palette.js";
+import { INK } from "./palette.js";
 
 /** @typedef {[name: string, film: string, year: number | null]} PathStep */
 
@@ -87,19 +87,45 @@ export function pathToBacon(id) {
 	);
 }
 
-/** the deepest route the pool holds — what a card must reserve room for */
-export const MAX_PATH_STEPS = Math.max(
-	...SEARCH_POOL.map((id) => pathToBacon(id)?.length ?? 0)
-);
+/**
+ * The route home in the shape RouteFilms renders, so the searched actor's
+ * chain of films is drawn by the same component that draws step 1's.
+ *
+ * The two routes come from different graphs and cannot share a source: step 1
+ * walks the 18 curated intro edges (intro-routes.js), which reach fifteen
+ * actors, while this reads the corpus path the build exports for all 1,449. The
+ * SHAPE is what they share. A pool route is a single chain carrying one film per
+ * hop, so it is one route of one film each — RouteFilms's multi-route, multi-film
+ * markup covers that without knowing which caller it is drawing.
+ *
+ * @param {number} id
+ * @returns {{ hops: { to: string, films: { title: string, year: number|null }[] }[] }[]}
+ */
+export function routeFilmsToBacon(id) {
+	const path = pathToBacon(id);
+	// Bacon himself has an empty path and nobody outside the pool has one at
+	// all; neither has a chain to draw, and the caption says so in words instead
+	if (!path?.length) return [];
+	return [
+		{
+			hops: path.map(([name, film, year]) => ({
+				to: name,
+				films: [{ title: film, year }]
+			}))
+		}
+	];
+}
 
 /**
- * The reader's mark. Purple because it is the one category colour no chart
- * spends: the hop bands own red/blue/cyan/grey, the quiz owns green and red,
- * and ink is how the story marks its OWN subject — a searched actor drawn in
- * ink on the hop chart would be indistinguishable from Bacon, who is ink by
- * being hop 0.
+ * The reader's mark. Ink — the same black the story marks its own subjects in.
+ * It was purple for half a day, on the reasoning that purple is the one
+ * category colour no chart spends and that ink would read as Bacon's; in
+ * practice neither worried the eye. Nothing is ambiguous about it: a marked dot
+ * is the only ink in a band of red/blue/cyan/grey, it is nowhere near Bacon's
+ * dot at the top of the stack, and it is the only dot on any of the four charts
+ * carrying a name the reader chose.
  */
-export const SEARCH_RGB = PURPLE;
+export const SEARCH_RGB = INK;
 
 /** the radius a searched dot takes on the three films scatters — the same one
  * the quiz and the costar chart already give a singled-out dot, so the reader's

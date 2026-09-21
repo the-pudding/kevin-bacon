@@ -50,31 +50,102 @@ Three rules:
    step wrapper carries an `in:fly` transform for its first ~560ms, which makes
    it the containing block for any `fixed` descendant.
 
-1b. **A search is a control that does not gate** (2026-09-21). The actor search
-(`ActorSearch.svelte`) sits in the card on four steps — the hop bands (6),
-the remoteness scatter (18), the costar scatter (19) and the career chart
-(26) — under the sentence that offers it, by rule 1 above. It declares no
-`gate`, no `skipback` and no `advanceon`: it is the one interaction in the
+1b. **A search that nothing reads out is an easter egg, and belongs over the
+canvas** (2026-09-21, revised the same day). The actor search
+(`ActorSearch.svelte`) is on the four charts that can place an actor, and on
+every step that draws one of them: the hop bands (5-6), the remoteness scatter
+(14-18), the costar scatter (19), the pair quiz (20, the same scatter) and the
+career chart (24-26). Twelve steps, and deliberately the whole run of each
+chart rather than one step of it — the glyph is quiet enough that a reader may
+only notice it on the third scatter, and it would be a poor joke to have taken
+it away by then. All seven states already carried `withSearchParams` /
+`withSearchLabel`, so this is a mounting question and not a layout one. It
+declares no `gate`, no `skipback` and no `advanceon`: it is the one interaction in the
 story a reader can walk straight past, because nothing later reads out its
 answer. There is nothing to be carried to.
 
-Two things follow from that, and they are the opposite of every rule below.
-The pick is **sticky** — no `arrivals.js` entry clears it — because the
-reading is one actor carried through four different questions, and a reader
-who named somebody on the hop chart should find them again on the scatters
-rather than be re-asked three times. And the searched id is the only tracked
-label the framework cannot know at build time (~1,400 candidates, one at
-a time), which is why `ScrollyVisual`'s `TRACKED_IDS` is derived rather than
-a constant.
+That is also what makes it the one control rule 1 does not govern. It sat in
+the card for half a day, as a full-width combobox carrying the placeholder
+"Search for an actor…" with a persistent readout under it, and the objection
+was that it was
+"too in your face": every other control in the story is in the card because
+the prose has just ASKED the reader to press it, and this one has no such
+sentence to sit under. Rule 1 puts a control under the sentence that offers
+it; a control nothing offers has nowhere to be. So the way in is now a
+magnifying glass at the right of the chart's own title, opening a small box
+over the canvas — no input in the prose, no placeholder sentence, and **no
+call to action anywhere**. A reader who never presses it has missed nothing,
+which is the whole intent.
+
+Being out of the card is the point rather than a cost, and three things follow:
+
+- **Nothing over the canvas is measured.** The reserved-height apparatus the
+  card version needed (`MAX_PATH_STEPS` → a `min-height` in reserved lines,
+  with a second number below 375px) is deleted rather than re-derived. Measured
+  2026-09-21 at 320/375/390/430 through glyph-open, menu-open, flight and
+  settle: `.scrolly-visual` moves **0.0px**, and it is identical on step 6 and
+  on step 5, which has no search at all.
+- **It can be lifted over the tap gutters**, so it needs none of the
+  `padding-inline: var(--tap-gutter)` inset a card control needs. The lift goes
+  on the component's own root: `.panel-layer` carries a `z-index` but is
+  statically positioned, so that z-index is inert and every panel that must
+  beat the gutters lifts itself (RaceScrubber's `.control` spells this out).
+  Without it the gutter swallows every press on the glyph and the reader steps
+  forward instead — measured, not reasoned about.
+- **The flier is never portalled and never inside the step wrapper's
+  `in:fly`** — the two things `flyToDot` cannot survive. The chip is an
+  absolutely positioned element in the panel, which is neither.
+
+The pick is **sticky** — no `arrivals.js` entry clears it — because the reading
+is one actor carried through four different questions, and a reader who named
+somebody on the hop chart should find them again on the scatters rather than be
+re-asked three times. Opening the glyph once a pick exists offers `Clear`
+beside the input, which is the only way back to no actor at all. The searched
+id is also the only tracked label the framework cannot know at build time
+(~1,400 candidates, one at a time), which is why `ScrollyVisual`'s
+`TRACKED_IDS` is derived rather than a constant.
 
 It reaches the canvas exactly as `PairQuiz` does, and off the same code: the
-picked name marks as a chip in the card, flies onto the plot and lands as the
-dot (`fly-to-dot.js`, extracted from the quiz on the same day so the two
-cannot drift). What is left behind is the readout — the name, the degree, and
-on the hop chart the route back to Bacon. The reader's mark is purple, the
-one category colour no chart spends: ink is how the story marks its OWN
-subject, and an ink dot on the hop chart would be indistinguishable from
-Bacon, who is ink by being hop 0.
+picked name marks as a chip where the box was, flies onto the plot and lands as
+the dot (`fly-to-dot.js`, extracted from the quiz on the same day so the two
+cannot drift). **What is left behind is a canvas label** — the dot takes the
+actor's name the way every other named dot in the story does (`withSearchLabel`,
+de-collided by the same label stacker), and there is no readout block at all.
+The reader's mark is ink, the same black the story marks its own subjects in. It
+was purple for half a day, on the reasoning that purple is the one category
+colour no chart spends and that ink would read as Bacon's; neither worried the
+eye in practice, and the mark is unambiguous without it — a marked dot is the
+only ink in a band of red/blue/cyan/grey, it is nowhere near Bacon's dot at the
+top of the stack, and it is the only dot on any of the four charts carrying a
+name the reader chose.
+
+The hop chart alone adds a caption, because a distance in movies is what that
+chart is about and the scatters' axes are not. It hangs off the reader's dot,
+under the name the canvas already draws below it, so the three read as one
+stacked annotation:
+
+    ●  (purple)
+    Tom Hollander        ← the canvas label, as on any named dot
+    two movies away      ← the caption; "two movies" opens the films
+
+The count is an `InfoTerm` opening `RouteFilms`, so the chain of films is one
+press away instead of five lines of text over a 22,530-dot chart. The two
+captions cannot share a data source (step 1 walks the 18 curated intro edges;
+the search walks the corpus path exported for the 1,449-actor pool), so
+`RouteFilms` takes resolved `routes` and neither caller knows about the other's
+graph.
+
+Two things about it were measured rather than chosen. It **follows the dot**
+(positioned by transform off `locate()`, re-read on a pick, on the arrival
+settling and on a resize) because there is no strip to park it in: the hop
+stack's ink runs 64px→469px inside the canvas box at every width, the step card
+covers the last 34px of the chart at 320px and leaves 10.7px at 375px, and the
+gap above the stack is 26.4px — one line of this type and not two. And it
+**carries no name**, unlike step 1's, which names its actor because nothing else
+on screen does; here the label is directly above it and the name would land
+twice in two stacked lines. Its halo is heavier than `.node-label`'s five stops
+for the same reason its position is dynamic: a caption inside the crowd has dots
+behind every letter, where a name at the edge of a cloud mostly does not.
 
 2. **A gated question owns the way out of its step** (revised 2026-09-11;
    this replaces "every question is skippable / Next must always be
