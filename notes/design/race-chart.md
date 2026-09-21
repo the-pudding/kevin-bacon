@@ -602,7 +602,7 @@ feedback that the insight should not be behind a click; the popover and the
 spark are both gone, and the ring is now plain decoration with the note carrying
 the moment to AT.
 
-**The two moments.** The takeover is the chapter's, on every view of the chart.
+**The three moments.** The takeover is the chapter's, on every view of the chart.
 `raceFull` marks a second — **Susan Sarandon's peak, 2012**, the year she ranks
 9th, solved from the drawn curves by `solveRankPeak` and guarded by a throw so a
 rebuild that moves the year or the rank fails rather than shipping a note that no
@@ -620,6 +620,21 @@ total, never a per-year count — so nothing here can guard it. She is also in
 the step's `highlight`, which buys her name a place in the gutter: dots ride the
 playhead, not the ring's year, so a reader resting at 2017 with her ring still on
 the plot would otherwise lose her name to the ten-nearest cut at 17th.
+
+`raceFull` marks a third — **Willem Dafoe's step up, 2021**, the year he leaves
+the 8th place he has held since 2017 and takes 5th, on the way to 3rd in 2023 and
+2nd in 2025. Unlike the other two the YEAR is declared rather than solved: it is
+neither a crossing nor his own peak (that is 2024), but the one place on the
+recent half of the chart where a line visibly changes lane, and which year that
+is, is a choice about the story. What the data still decides is where the ring
+sits and what the note may claim — `rankAt` places it on the drawn curve and a
+throw holds the rank at #5, the same idiom as Sarandon's one step weaker. He
+needs no `highlight`: he is inside the ten nearest the centre at every year from
+2017 on, so `RACE_FULL_LABELS` already carries his name wherever his ring can be
+on the plot. Nine years separate his ring from hers, which is more than any plot
+holds — `callout.spec.js` asserts that over every box and every reachable
+playhead, so a moment added inside a plot's width of another fails there rather
+than flickering between the two on a drag.
 
 **A callout is found by panning, and that is accepted.** A ring sits at the plot's
 RIGHT edge when the playhead is on its own year, where `CALLOUT_FADE` ramps it to

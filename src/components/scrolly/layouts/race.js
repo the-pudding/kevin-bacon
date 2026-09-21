@@ -5,6 +5,7 @@ import {
 	SLJ,
 	HACKMAN,
 	SARANDON,
+	DAFOE,
 	RACE_IDS,
 	SIM_SERIES,
 	SIM_LABEL_IDS,
@@ -313,39 +314,48 @@ function solveTakeover() {
 // ---------------------------------------------------------------------------
 
 /**
+ * Where `id` stands at one year: their value on the curve, and how many of the
+ * drawn cast are nearer the centre.
+ *
+ * Read off the SAME curves the chart draws, for the reason solveTakeover reads
+ * them rather than story.eras: a note names a year and its ring sits on a line,
+ * so both have to come off that line or the marker is not on what it claims.
+ *
+ * Every actor — `id` included — is clamped into their own data range before
+ * being ranked, exactly as placeCast clamps a dot, so the field is the one the
+ * reader can see rather than only the careers running that year.
+ *
+ * @param {number} id
+ * @param {number} year
+ * @returns {{year: number, value: number, rank: number}}
+ */
+function rankAt(id, year) {
+	const [ds, de] = RACE_RANGE.get(id);
+	const value = curveYAt(RACE_SEGS.get(id), Math.min(Math.max(year, ds), de));
+	let rank = 1;
+	for (const other of RACE_IDS) {
+		if (other === id) continue;
+		const [os, oe] = RACE_RANGE.get(other);
+		const v = curveYAt(RACE_SEGS.get(other), Math.min(Math.max(year, os), oe));
+		if (v < value) rank++;
+	}
+	return { year, value, rank };
+}
+
+/**
  * The year `id` ranks highest among the drawn cast, their value there, and the
  * rank itself.
- *
- * Solved against the SAME curves the chart draws, for the reason solveTakeover
- * reads them rather than story.eras: the note names a year and the ring sits on
- * a line, so both have to come off that line or the marker is not on what it
- * claims.
  *
  * Whole years, because the series are sampled on them — a finer walk would only
  * interpolate ranks between two points that already exist, and land the ring on
  * a year the note cannot name.
- *
- * Every other actor is clamped into their own data range before being ranked,
- * exactly as placeCast clamps a dot, so the field `id` is ranked against is the
- * one the reader can see rather than only the careers running that year.
  */
 function solveRankPeak(id) {
-	const segs = RACE_SEGS.get(id);
 	const [ds, de] = RACE_RANGE.get(id);
 	let best = null;
 	for (let year = ds; year <= de; year++) {
-		const value = curveYAt(segs, year);
-		let rank = 1;
-		for (const other of RACE_IDS) {
-			if (other === id) continue;
-			const [os, oe] = RACE_RANGE.get(other);
-			const v = curveYAt(
-				RACE_SEGS.get(other),
-				Math.min(Math.max(year, os), oe)
-			);
-			if (v < value) rank++;
-		}
-		if (best === null || rank < best.rank) best = { year, value, rank };
+		const at = rankAt(id, year);
+		if (best === null || at.rank < best.rank) best = at;
 	}
 	return best;
 }
@@ -358,6 +368,27 @@ const RACE_WOMAN_PEAK = solveRankPeak(SARANDON);
 if (RACE_WOMAN_PEAK.year !== 2012 || RACE_WOMAN_PEAK.rank !== 9) {
 	throw new Error(
 		`scrolly race: Sarandon peaks at #${RACE_WOMAN_PEAK.rank} in ${RACE_WOMAN_PEAK.year}, not #9 in 2012`
+	);
+}
+
+// ---------------------------------------------------------------------------
+// Dafoe's step up, 2021: the one year on the recent half of the chart where a
+// line visibly changes lane. He holds 8th from 2017 to 2020 and takes 5th in
+// 2021, and carries on to 3rd by 2023 and 2nd by 2025 — so the ring is on the
+// year the climb starts, not on where it ends up.
+//
+// The year is DECLARED rather than solved, unlike the two moments above: it is
+// not his peak (that is 2024) and it is not a crossing. What the data decides is
+// where the ring sits and what the note may claim, which is what the throw below
+// holds. Same idiom, one step weaker: only the rank is derived, because only the
+// rank is a fact about the field rather than a choice about the story.
+// ---------------------------------------------------------------------------
+const RACE_DAFOE_YEAR = 2021;
+const RACE_DAFOE_STEP = rankAt(DAFOE, RACE_DAFOE_YEAR);
+
+if (RACE_DAFOE_STEP.rank !== 5) {
+	throw new Error(
+		`scrolly race: Dafoe is #${RACE_DAFOE_STEP.rank} in ${RACE_DAFOE_YEAR}, not #5`
 	);
 }
 
@@ -1121,6 +1152,20 @@ const RACE_WOMAN_NOTE =
 /** the nearest a woman has come to the centre on the years this step can reach */
 const RACE_WOMAN_CALLOUT = { ...RACE_WOMAN_PEAK, text: RACE_WOMAN_NOTE };
 
+// OWEN'S LINE TO WRITE. Every figure in it is derived and guarded — the rank by
+// the throw on RACE_DAFOE_STEP, the value by the ring it is drawn at — so a
+// rewrite is free to say more, and free to say it differently, as long as it
+// keeps naming the same three things the ring already shows: 2021, #5, 2.14.
+//
+// What it must NOT gain without a check of its own is a film count or a title:
+// this repo carries a career total per actor and never a per-year credit list,
+// which is exactly the caveat RACE_WOMAN_NOTE carries above.
+const RACE_DAFOE_NOTE =
+	"Since 2021, Willem Dafoe has been credited in 16 films including roles in both MCU and DC superhero genres, cementing him firmly in #2.";
+
+/** the recent chart's one change of lane, and where it leads */
+const RACE_DAFOE_CALLOUT = { ...RACE_DAFOE_STEP, text: RACE_DAFOE_NOTE };
+
 /**
  * What a step marks when it names nothing: the takeover alone. It is the
  * chapter's own claim and belongs to every view of the chart, which is what it
@@ -1129,11 +1174,12 @@ const RACE_WOMAN_CALLOUT = { ...RACE_WOMAN_PEAK, text: RACE_WOMAN_NOTE };
 const RACE_PAN_CALLOUTS = raceCalloutList(RACE_TAKEOVER_CALLOUT);
 
 /**
- * raceFull's two, present-first. It is the step the reader can pan, so it is the
- * only one that can reach either moment — and the one step whose prose is about
- * looking around rather than about a single year.
+ * raceFull's three, present-first. It is the step the reader can pan, so it is
+ * the only one that can reach any of these moments — and the one step whose
+ * prose is about looking around rather than about a single year.
  */
 const RACE_FULL_CALLOUTS = raceCalloutList(
+	RACE_DAFOE_CALLOUT,
 	RACE_WOMAN_CALLOUT,
 	RACE_TAKEOVER_CALLOUT
 );

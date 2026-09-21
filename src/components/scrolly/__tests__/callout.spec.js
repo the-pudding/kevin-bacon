@@ -61,6 +61,14 @@ describe("raceCallout", () => {
 		expect(callout.text).toMatch(/Sarandon/);
 	});
 
+	test("...and Dafoe's 2021 step up, nine years on from her ring", () => {
+		// the most present of the three, so it is the one a camera on 2021 draws
+		// even though the other two are declared after it
+		const { callout } = frameAt(PHONE, 2021);
+		expect(callout).not.toBeNull();
+		expect(callout.text).toMatch(/Dafoe/);
+	});
+
 	test("...and the takeover where THAT is", () => {
 		expect(frameAt(PHONE).callout.text).toMatch(/Jackson/);
 	});
