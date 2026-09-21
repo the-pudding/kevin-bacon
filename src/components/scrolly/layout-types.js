@@ -26,12 +26,20 @@
  *   shrink-to-fit within `containing block - left`, so a centred note at x = w/2
  *   would otherwise never wrap wider than half the canvas.
  *
- * @typedef {Object} TakeoverCallout
- * @property {{x: number, y: number}} ring px, centre of the ring on the crossing
+ * @typedef {Object} RaceCallout
+ * @property {{x: number, y: number}} ring px, centre of the ring on the moment
  * @property {{x: number, y: number, width: number}} note px, the note box's
- *   top-left and its line width. A real `width`, not a max — an absolutely
- *   positioned box is shrink-to-fit, so a max would let the rendered box run
- *   wider than the geometry that placed it (same trap as Note.wrapWidth)
+ *   left edge, the edge FACING the ring (its top when `above` is false, its
+ *   bottom when true) and its line width. A real `width`, not a max — an
+ *   absolutely positioned box is shrink-to-fit, so a max would let the rendered
+ *   box run wider than the geometry that placed it (same trap as Note.wrapWidth)
+ * @property {boolean} above the note hangs above its ring rather than below it,
+ *   anchored by its own bottom edge. The frame writer has no DOM and so no real
+ *   note height; anchoring the flipped case from the bottom is what keeps the
+ *   assumed height out of where the note lands (see raceCalloutGeometry)
+ * @property {string} text the note's prose. Rides the payload rather than
+ *   sitting in the component, because the chart has more than one of these and
+ *   only one of them is on screen at a time (see raceCallout)
  * @property {{ax: number, ay: number, bx: number, by: number, h1x: number,
  *   h1y: number, h2x: number, h2y: number}} arrow the leader — a straight
  *   segment: start, tip, and the head's two trailing corners. Numbers, not path
@@ -80,8 +88,8 @@
  * @property {Float64Array} [trailDelays] per-trail start delays in ms
  * @property {{ x?: Tick[], y?: Tick[], xBase?: number, yBase?: number }} [axes]
  * @property {Note[]} [notes]
- * @property {TakeoverCallout|null} [takeover] the race chart's takeover callout
- *   (the SLJ/Hackman crossing); null when it is off camera
+ * @property {RaceCallout|null} [callout] the race chart's one live callout — the
+ *   most present of the moments its step marks; null when none is on camera
  * @property {FutureBand|null} [band] the race chart's future block (raceFuture);
  *   null on every other step, and for the whole of that step's first leg
  * @property {LegendItem[]} [legend]

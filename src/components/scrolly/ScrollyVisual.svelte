@@ -3,7 +3,6 @@
 	import { untrack } from "svelte";
 	import { MediaQuery } from "svelte/reactivity";
 	import { fade } from "svelte/transition";
-	import InfoTerm from "$components/ui/InfoTerm.svelte";
 	import { makeNodes } from "./nodes.js";
 	import { createTweener } from "./tween.js";
 	import { createChoreographer } from "./choreographer.js";
@@ -91,9 +90,6 @@
 		coldStart = false,
 		beside = false
 	} = $props();
-
-	const TAKEOVER_NOTE =
-		"Freedomland (2006) - Samuel L. Jackson stars in this crime drama mystery with Julianne Moore. This gives him an average distance of 2.14, overtaking Gene Hackman who's last film was in 2004";
 
 	const TWEEN_MS = 700;
 	const ENTER_MS = 900;
@@ -456,7 +452,7 @@
 			// raceFuture as well as raceFull: its arrival pan starts from raceFull's
 			// camera, so 1980 can be on the plot for the leg's first frames
 			infoTick: name === RACE_FULL_STATE || name === RACE_FUTURE_STATE,
-			takeover: story.running !== "rewind"
+			callout: story.running !== "rewind"
 		};
 	}
 
@@ -496,7 +492,7 @@
 				? untrack(() => ({
 						...next,
 						axes: decor?.axes,
-						takeover: decor?.takeover,
+						callout: decor?.callout,
 						band: decor?.band
 					}))
 				: next;
@@ -521,7 +517,7 @@
 	const staticDecor = (layout) => ({
 		axes: layout.axes,
 		notes: layout.notes,
-		takeover: layout.takeover,
+		callout: layout.callout,
 		band: layout.band,
 		legend: layout.legend,
 		legendY: layout.legendY,
@@ -677,7 +673,7 @@
 	/** @type {import("./annotations.js").TrackedLabel[]} */
 	let tracked = $state([]);
 	// static per-state chart furniture (ticks/callouts/legend) from the layout result
-	/** @type {{ axes?: { x?: import("./layout-types.js").Tick[], y?: import("./layout-types.js").Tick[], xBase?: number, yBase?: number }, notes?: import("./states.js").Note[], takeover?: import("./layout-types.js").TakeoverCallout|null, band?: import("./layout-types.js").FutureBand|null, legend?: import("./layout-types.js").LegendItem[], legendY?: number, hits?: import("./layout-types.js").Hit[] } | null} */
+	/** @type {{ axes?: { x?: import("./layout-types.js").Tick[], y?: import("./layout-types.js").Tick[], xBase?: number, yBase?: number }, notes?: import("./states.js").Note[], callout?: import("./layout-types.js").RaceCallout|null, band?: import("./layout-types.js").FutureBand|null, legend?: import("./layout-types.js").LegendItem[], legendY?: number, hits?: import("./layout-types.js").Hit[] } | null} */
 	let decor = $state(null);
 	/**
 	 * The arriving chart's furniture waits for the beat. What is leaving fades
@@ -1358,7 +1354,7 @@
 			story.race.scrubYear,
 			reducedMotion ? 1 : SCRUB_EASE
 		);
-		const { axes, takeover, band, frontier } = writeRaceSweepFrame(
+		const { axes, callout, band, frontier } = writeRaceSweepFrame(
 			tweener.current,
 			trailTweener.current,
 			width,
@@ -1366,7 +1362,7 @@
 			racePanFrame(raceStep, camera.playhead),
 			STATE_YCAP[stateName]
 		);
-		applyFrame({ decor: { axes, takeover, band }, camera: { frontier } });
+		applyFrame({ decor: { axes, callout, band }, camera: { frontier } });
 		return story.race.scrubbing || !caughtUp;
 	}
 
@@ -1996,7 +1992,7 @@
 		     ink to the right of the present is nothing at all.
 
 		     It rides the frame writer's per-frame payload next to `axes` and
-		     `takeover` rather than the `notes` slot, per the rule on the overlay
+		     `callout` rather than the `notes` slot, per the rule on the overlay
 		     below — its own camera is parked whenever it exists, so it needs the
 		     per-frame channel less than the callout does, but the frontier that sizes
 		     it IS animated.
@@ -2107,87 +2103,64 @@
 				{set.overlay.yBottomLabel}
 			</p>
 		{/if}
-		<!-- axes and the takeover ring are recomputed every frame during the race
+		<!-- axes and the callout ring are recomputed every frame during the race
 		     sweep/scrub animations (see writeRaceSweepFrame), so they stay
 		     pixel-accurate throughout and don't need to hide. Anything that comes
 		     off the layout result instead — `notes` — has no per-frame equivalent,
 		     so its coordinates freeze for the length of a live scrub/pan and jump
-		     on release. Nothing emits notes, and the takeover callout below is why
-		     the slot is still empty: it is prose positioned on the plot, i.e.
-		     exactly what `notes` is for, but it rides `takeover` in the frame
-		     writer's payload instead so that it pans. Anything else on the race
-		     chart belongs there too. -->
+		     on release. Nothing emits notes, and the callout below is why the slot
+		     is still empty: it is prose positioned on the plot, i.e. exactly what
+		     `notes` is for, but it rides `callout` in the frame writer's payload
+		     instead so that it pans. Anything else on the race chart belongs there
+		     too. -->
 		{#each set.decor?.axes?.x ?? [] as tick}
-			<!-- raceFuture as well as raceFull: its arrival pan starts from
-			     raceFull's camera, so 1980 can be on the plot for the first
-			     frames of the leg, and gating this on raceFull alone would blink
-			     the term off the moment the reader pressed Next.
-
-			     Keyed off `tick.year`, not the label: every race year now renders
-			     in two digits (raceTickLabel), so the text is lossy. -->
-			{#if set.infoTick && tick.year === 1980}
-				<InfoTerm
-					class="tick tick-x tick-1980 fade-in"
-					style="left: {tick.pos}px; {set.decor.axes.xBase != null
-						? `top: ${set.decor.axes.xBase}px`
-						: ''}"
-					title="Why 1980?"
-				>
-					{tick.label}
-					{#snippet info()}
-						<!-- TODO(copy): explain why the chart is tracked back to
-						     1970 (the lines extend that far) but the interactive
-						     window only pans back to 1980. Owen to write final
-						     copy. -->
-						<p>PLACEHOLDER — copy pending.</p>
-					{/snippet}
-				</InfoTerm>
-			{:else}
-				<p
-					class="tick tick-x fade-in"
-					style="left: {tick.pos}px; {set.decor.axes.xBase != null
-						? `top: ${set.decor.axes.xBase}px`
-						: ''}"
-				>
-					<!-- the strip's years recede toward the horizon with the block above
+			<p
+				class="tick tick-x fade-in"
+				style="left: {tick.pos}px; {set.decor.axes.xBase != null
+					? `top: ${set.decor.axes.xBase}px`
+					: ''}"
+			>
+				<!-- the strip's years recede toward the horizon with the block above
 					     them (raceFutureTicks); historical years carry no alpha and render
 					     flat. On an inner span so it MULTIPLIES with .fade-in's mount
 					     animation rather than being outranked by it — that animation
 					     targets opacity on the <p> with fill-mode `both`. -->
-					<span style={tick.alpha != null ? `opacity: ${tick.alpha}` : null}
-						>{tick.label}</span
-					>
-				</p>
-			{/if}
+				<span style={tick.alpha != null ? `opacity: ${tick.alpha}` : null}
+					>{tick.label}</span
+				>
+			</p>
 		{/each}
 		{#each set.decor?.axes?.y ?? [] as tick}
 			<p class="tick tick-y fade-in" style="top: {tick.pos}px">
 				{tick.label}
 			</p>
 		{/each}
-		<!-- the takeover callout: the one moment the race chapter is about,
-		     stated on the crossing itself rather than behind a click. Only the
-		     race layout emits `takeover`, and the wholesale decor write above
-		     clears it on every other state, so this needs no state gate. Its
-		     geometry rides the per-frame payload next to `axes` (see
-		     applyFrame/scrubLoop), so the note stays glued to the crossing
-		     through a pan instead of freezing the way a `notes` entry would.
-		     The wrapper carries the mount fade and the payload's own `alpha`
-		     rides each child, because the two must MULTIPLY: an animation with
-		     fill-mode `both` outranks an inline opacity for good, so putting
+		<!-- the callout: the moment the step is about, stated on the plot itself
+		     rather than behind a click. ONE at a time, and the layout has already
+		     picked it (raceCallout, most present wins), so this renders whatever
+		     it was handed and never chooses. Only the race layout emits `callout`,
+		     and the wholesale decor write above clears it on every other state, so
+		     this needs no state gate. Its geometry rides the per-frame payload
+		     next to `axes` (see applyFrame/scrubLoop), so the note stays glued to
+		     its ring through a pan instead of freezing the way a `notes` entry
+		     would. The wrapper carries the mount fade and the payload's own
+		     `alpha` rides each child, because the two must MULTIPLY: an animation
+		     with fill-mode `both` outranks an inline opacity for good, so putting
 		     both on one element would leave the cull ramp with no effect.
 
-		     `set.takeover` is the rewind's ask (`story.running`), which holds the
+		     `set.callout` is the rewind's ask (`story.running`), which holds the
 		     note back until the Start rewind has landed. The pan brings the
 		     crossing on camera with about a third of its travel still to go, and
 		     without this the note mounted there and then rode ~270px across the
 		     plot to its resting spot: fine for an 11px ring, seasick for a block
 		     of prose. So it waits, and the wrapper's fade-in is then the only
 		     motion it makes. Not `camPanning`/`sweeping` either — a reader's
-		     scrub raises both, and the note should track the crossing through a
-		     drag, not blink on every grab. -->
-		{#if set.decor?.takeover && set.takeover}
-			{@const t = set.decor.takeover}
+		     scrub raises both, and the note should track its ring through a drag,
+		     not blink on every grab. The camera LEGS need no gate here: they pin
+		     the frame's own callout list back to the chapter's one (rewindFrame),
+		     so there is nothing for a pan to carry across the plot. -->
+		{#if set.decor?.callout && set.callout}
+			{@const t = set.decor.callout}
 			{@const arrowD = `M ${t.arrow.ax} ${t.arrow.ay} L ${t.arrow.bx} ${t.arrow.by}`}
 			<div class="callout fade-in">
 				<!-- decoration: the ring marks where, the note says what, and the
@@ -2209,16 +2182,21 @@
 					/>
 				</svg>
 				<span
-					class="takeover-mark"
+					class="callout-mark"
 					aria-hidden="true"
 					style="left: {t.ring.x}px; top: {t.ring.y}px; opacity: {t.alpha}"
 				></span>
+				<!-- `above` anchors the box by its own BOTTOM edge, which is what
+				     keeps the frame writer's assumed note height out of where a
+				     flipped note lands: translateY(-100%) is the rendered height,
+				     and the writer has no DOM to measure one with. -->
 				<p
-					class="takeover-note"
+					class="callout-note"
+					class:above={t.above}
 					style="left: {t.note.x}px; top: {t.note.y}px; width: {t.note
 						.width}px; opacity: {t.alpha}"
 				>
-					{TAKEOVER_NOTE}
+					{t.text}
 				</p>
 			</div>
 		{/if}
@@ -2568,7 +2546,7 @@
 		bottom: auto;
 	}
 
-	/* The takeover callout: ring, leader, note. Ordinary scoped selectors — the
+	/* The callout: ring, leader, note. Ordinary scoped selectors — the
 	   ring was an InfoTerm trigger until the callout replaced the popover, and a
 	   trigger's <button> is rendered inside InfoTerm's own template, so it carried
 	   none of this component's style hash and its rule had to be :global() with
@@ -2611,7 +2589,7 @@
 	}
 
 	/* Selected as `.overlay p` + a class for the specificity reason spelled out on
-	   .takeover-note: a lone class loses to `.overlay p`'s font stack.
+	   .callout-note: a lone class loses to `.overlay p`'s font stack.
 	   The text is NOT yellow — #ccbb44 on white is ~1.75:1, which fails at any
 	   size. A decorative border may be that low-contrast; a label may not. */
 	/* A plain class, not `.overlay p.band-label`: this lives in the ANNOTATIONS
@@ -2634,8 +2612,8 @@
 	}
 
 	/* the ring has no text: it IS the mark, and the note beside it is what carries
-	   the crossing to a screen reader */
-	.takeover-mark {
+	   the moment to a screen reader */
+	.callout-mark {
 		position: absolute;
 		width: 11px;
 		height: 11px;
@@ -2699,7 +2677,7 @@
 	   Selected as `.overlay p` + a class, not the class alone: `.overlay p` is a
 	   class plus a type, so it out-specifies a lone class and its --font-mono
 	   silently wins. */
-	.overlay p.takeover-note {
+	.overlay p.callout-note {
 		font-family: var(--font-form);
 		font-size: var(--12px, 12px);
 		line-height: 1.35;
@@ -2713,6 +2691,15 @@
 			0 0 8px var(--color-bg, #fff),
 			0 0 8px var(--color-bg, #fff),
 			0 0 12px var(--color-bg, #fff);
+	}
+
+	/* A note ABOVE its ring is positioned by its bottom edge: the payload's `top`
+	   is where that edge goes, and this lifts the box by its own rendered height.
+	   The frame writer has no DOM, so its note height is an assumption — doing the
+	   lift here is what keeps that assumption out of where the note lands, leaving
+	   it to decide only whether the note flips at all (raceCalloutGeometry). */
+	.overlay p.callout-note.above {
+		transform: translateY(-100%);
 	}
 
 	.tick-x[style*="top:"] {

@@ -50,7 +50,7 @@ and the measurements that were taken — lives in `notes/design/`.
 | `scrolly/nodes.js`                                                   | `makeNodes()` → `{ nodes, edges }` from `src/data/scrolly-nodes.json`; `ANCHOR_ID`, `INTRO_IDS`, `hash01(id, salt)` and `dotHash` — deterministic per-node randomness, never `Math.random`.                                                                            |
 | `scrolly/layouts/*.js`                                               | One module per chart: `intro`, `hop-bands`, `chapters`, `rank`, `race`, `scatters`, `prediction`, `career`, `sim-race`. Each exports a `states` object; everything about one state is in its entry.                                                                    |
 | `scrolly/states.js`                                                  | Merges every module's `states` into the registry and derives the per-state maps (`STATES`, `STATE_LABELS`, `STATE_PARAMS`, `STATE_ENTRIES`, `STATE_REQUESTS`, `STATE_AMBIENT`, `STATE_RACE`, …), `entryFor`, `isRankState`, `quizDone` and the typedefs below.         |
-| `scrolly/layout-types.js`                                            | JSDoc only: `LayoutFn`, `LayoutResult`, `Tick`, `Note`, `TakeoverCallout`, `FutureBand`, `LegendItem`, `Hit`.                                                                                                                                                          |
+| `scrolly/layout-types.js`                                            | JSDoc only: `LayoutFn`, `LayoutResult`, `Tick`, `Note`, `RaceCallout`, `FutureBand`, `LegendItem`, `Hit`.                                                                                                                                                              |
 | `scrolly/RankBars.svelte`, `RaceScrubber`, `RouteFilms`              | The over-canvas panels (see "Panels").                                                                                                                                                                                                                                 |
 | `scrolly/GuessRank.svelte`, `StartButton`, `PairQuiz`                | The step controls: they live in the step card, in the prose flow, under the sentence that asks for the press (see "Interactive steps"). `PairQuiz` also flies its chips out of the card onto the canvas, off `layout.visual`'s `locate()`.                             |
 | `scrolly/dev/`                                                       | DEV only, dynamically imported by `Stage`: the race tuners (`RaceYBandDev`, `RacePxPerYearDev`, `RaceSpeedDev`) behind `Tuners.svelte`, writing `raceTuning` in `layouts/race.js` and bumping `tuning.rev` (`tuning.svelte.js`) so the visual drops its layout cache.  |
@@ -111,7 +111,7 @@ Four ways a state's frame comes to be on screen, all landing on the same
   names and the prose to a leg; `hold` waits for a story flag before the legs
   start (the rank handoff); `seed` shapes what the first frame shows;
   `ownsArrival` takes the rAF from the press with no arrival tween in front;
-  `ownsFurniture` says the legs publish their own `axes`/`takeover`/`band`, so
+  `ownsFurniture` says the legs publish their own `axes`/`callout`/`band`, so
   within one scene those three keep what is on screen until the first leg tick
   rather than jumping to the arriving step's resting ones (`swapFurniture`).
 - **A request** (`RequestAnim`, `STATE_REQUESTS`). The same legs, started by the
@@ -191,8 +191,10 @@ string on `--name-alpha`, a channel multiplied into the element's opacity agains
 the dot's live alpha — never a transition on `opacity` itself, which would
 outrank the per-frame inline write for the length of the fade. A layout's
 `axes`, `notes`, `legend`, `band` and `hits` are rendered in the overlay; the race
-chart's per-frame furniture (the takeover callout, the future block) rides the
-frame writer's return so it stays glued through a pan.
+chart's per-frame furniture (the live callout, the future block) rides the frame
+writer's return so it stays glued through a pan. A race step may mark more than
+one moment, but only ever shows ONE callout at a time — the most present of those
+its camera has on plot (`raceCallout`, and `notes/design/race-chart.md`).
 
 ### The sky, in one paragraph
 

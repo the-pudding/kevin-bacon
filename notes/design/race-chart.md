@@ -98,8 +98,9 @@ the crown rides 57% of the way down with the field spread under it (21 lines on
 scale at 2006, 29 at 2025, all ten names on scale at every camera). That trade is
 the one dial — `RaceYBandDev`'s "min y" slider moves the top edge live through
 `raceTuning.yFixedMin` and touches nothing else. The takeover ring sinks to 60%
-down the plot with it, which is what pushes its note (always below the ring, see
-`raceTakeoverCallout`) onto the axis row on a landscape phone; accepted for now.
+down the plot with it, which used to push its note onto the axis row on a short
+canvas — no longer: the note flips above the ring where there is no room under it
+(`raceCalloutGeometry`, "The callouts" below).
 
 Below the window the fit takes back over, **ramped** over
 `RACE_Y_FIXED_FADE`–`RACE_Y_FIXED_FROM` (2000–2004) rather than switched, because
@@ -277,7 +278,7 @@ above them rather than staying crisp under a dissolving right edge. Ticks carry
 an optional `alpha` for it; the historical years set none and render flat. It is
 applied to an inner `<span>` so it multiplies with `.fade-in`'s mount animation
 instead of being outranked by it — that animation targets `opacity` on the `<p>`
-with `fill-mode: both`, the same trap the takeover callout documents.
+with `fill-mode: both`, the same trap the callout documents.
 
 **The tail is measured in PX, not years** (`RACE_FUTURE_TAIL_PX`), and it is
 short — 24px. A whole year of it (76px) left a visible gap between the plot's
@@ -313,7 +314,7 @@ there, and every step's content extent ends there.
 
 The block itself is `band` on the frame writer's payload, rendered as a DOM
 `<span>` with a dashed border rather than canvas or SVG — it is an axis-aligned
-rectangle, so it needs none of what put the takeover's leader in an `<svg>`. It
+rectangle, so it needs none of what put a callout's leader in an `<svg>`. It
 carries no `alpha`: unlike the callout it never travels and never culls, so it is
 simply absent instead, and its two opacity concerns are both CSS (the mount fade
 on the wrapper, the right-edge gradient masked onto the box, which deletes the
@@ -375,8 +376,8 @@ Everything the pan needs was already there. `curveEntry`/`curveExit` test
 `[vMin, vMax]` symmetrically, so lines leaving through the **top** end at the plot
 edge exactly as lines leaving through the bottom always have; an off-scale dot is
 hidden outright; `raceLeadBy` picks from the dots the frame is showing, so with no
-race dot on the plot nothing is inked from the race side; and the takeover callout
-culls itself off camera.
+race dot on the plot nothing is inked from the race side; and the callout culls
+itself off camera.
 
 **The race cast's departure is a STATIC fact, not something the animator
 remembers.** The step's yCap is `-Infinity`, so `raceStepVisible` is empty and its
@@ -591,14 +592,63 @@ rests with the field NOT on the chart, so the press is what puts it there, and a
 resize or a reduced-motion arrival lands on whichever of the two frames the flag
 says.
 
-**The takeover callout.** The chapter's whole claim happens at one intersection,
-so the claim is set on the plot: an 11px ring where SLJ's line crosses
-Hackman's, a sentence of prose, and a curved leader tying the two together
-(`raceTakeoverCallout`, `layouts/race.js`; `TakeoverCallout` in
-`layout-types.js`). It was a click-to-open `InfoTerm` — with a diverging bar
-spark inside it — until review feedback that the insight should not be behind a
-click; the popover and the spark are both gone, and the ring is now plain
-decoration with the note carrying the crossing to AT.
+**The callouts.** A claim the chapter wants made is set on the plot rather than
+behind a click: an 11px ring on the moment, a sentence of prose, and a leader
+tying the two together (`raceCalloutGeometry`, `layouts/race.js`; `RaceCallout`
+in `layout-types.js`). The takeover — where SLJ's line crosses Hackman's — is
+the chapter's own, and every view of the chart carries it. It was a
+click-to-open `InfoTerm`, with a diverging bar spark inside it, until review
+feedback that the insight should not be behind a click; the popover and the
+spark are both gone, and the ring is now plain decoration with the note carrying
+the moment to AT.
+
+**The two moments.** The takeover is the chapter's, on every view of the chart.
+`raceFull` marks a second — **Susan Sarandon's peak, 2012**, the year she ranks
+9th, solved from the drawn curves by `solveRankPeak` and guarded by a throw so a
+rebuild that moves the year or the rank fails rather than shipping a note that no
+longer describes its own ring. The note's **"since 1980" is load-bearing, not a hedge**:
+unqualified the claim is false, because Faye Dunaway reaches 3rd in 1976, six
+places better, in this same field. From 1980 — the first year the camera can rest
+on, and the year the step's own prose names — no woman ranks better, Dunaway's
+best over that window being 12th in 1981. `solveRankPeak`'s throw guards the year
+and the rank; the qualifier is what makes the sentence they carry true, so it
+cannot come off without the superlative coming off with it. 1976 is unreachable
+anyway: the pan floor is 1980 and a phone's plot holds 2.55 years, so that year
+needs ~540px of canvas before it is on screen at all. The note's film count is
+the one figure not derived from the committed data — this repo carries a career
+total, never a per-year count — so nothing here can guard it. She is also in
+the step's `highlight`, which buys her name a place in the gutter: dots ride the
+playhead, not the ring's year, so a reader resting at 2017 with her ring still on
+the plot would otherwise lose her name to the ten-nearest cut at 17th.
+
+**A callout is found by panning, and that is accepted.** A ring sits at the plot's
+RIGHT edge when the playhead is on its own year, where `CALLOUT_FADE` ramps it to
+alpha 0 — so selecting 2012 on the slider shows nothing, and 2013 shows the note
+at full strength. The takeover hides this by accident: its crossing is 2005.11,
+0.9 years before the year the camera rests on, so it is already 68px inside the
+edge. Deliberately not fixed by dropping the entry ramp: the step's copy is "use
+the slider or drag to take a look around", and a 220px block of prose arriving at
+full opacity is the pop the ramp exists to prevent (motion.md rule 7).
+
+**One at a time, and the most present wins.** A step declares the moments it
+marks as a present-first list (`raceCalloutList`), and `raceCallout` draws the
+first one the camera has on plot. Two blocks of prose on one plot compete for
+the eye and the loser is usually the one the step was about (motion.md rule 6);
+the later moment wins because the chart is read left to right as time, so it is
+the one the reader has just arrived at. At the shipped `pxPerYear` no two
+declared moments are near enough in years to share a plot, so the cull decides
+it in practice — the order is what guarantees it once the dev tuner widens the
+visible span. The note's prose rides the payload rather than sitting in
+`ScrollyVisual`, because the layout is what picks which moment is live.
+
+**A camera LEG carries the chapter's callout alone.** `rewindFrame` and
+`futurePanFrame` pin `callouts` back to the default even when they spread a step
+that names more. Those are the two leg frames whose playhead travels in x, and a
+moment marked somewhere inside the pan would ride the width of the plot on the
+way past — raceFull's retrace out of raceFuture crosses every year from 2025
+back to 2006. Same override, and the same reason, as `futurePanFrame`'s
+`frontier`. A reader's SCRUB is deliberately not pinned: a note should track its
+ring through a drag, not blink on every grab.
 
 The crossing is solved at module load by bisecting the two actors' curves
 against the same monotone segments the chart draws (`solveTakeover`) — **not**
@@ -609,18 +659,42 @@ return next to `axes` rather than the layout result, which is what keeps the
 note glued to the crossing through a scrub instead of freezing (see "Chart
 furniture" above), and it culls itself off-camera on the x ticks' own rule.
 
-The note sits BELOW the ring, never beside it, and that is a rule rather than a
-default. The ring is not parked — it enters at the plot's LEFT edge as the
-rewind pans back and slides right until it rests ~68px from the right edge, so a
-note held left of it is behind it for most of the pan and the leader points
-backwards. On a narrow canvas beside is unreachable at any playhead: the plot's
-left margin plus a legible box plus a leader's worth of gap already overshoots
-where the ring rests. Below is one rule at every width and every playhead, and
-it keeps the leader vertical-dominated, which is what stops it ever reading as
-reversed. Two clamps carry the variation instead: the box is held inside the
-plot (backing off the right edge by the dot column's radius, since every dot is
-pinned there at the playhead), and the drop shortens so the last line clears the
-x-axis row on a landscape phone. The payload also carries an `alpha`, ramped
+The note never sits BESIDE the ring, and that is a rule rather than a default.
+The ring is not parked — it enters at one plot edge as the camera pans and
+slides to the other, so a note held left of it is behind it for most of the pan
+and the leader points backwards. On a narrow canvas beside is unreachable at any
+playhead: the plot's left margin plus a legible box plus a leader's worth of gap
+already overshoots where a ring rests. Above/below is one rule at every width
+and every playhead, and it keeps the leader vertical-dominated, which is what
+stops it ever reading as reversed.
+
+Below is the preference and the drop shortens to keep the last line off the
+x-axis row, exactly as it always did. What is new is where it goes when
+shortening runs out: the note FLIPS above the ring rather than overrunning the
+axis. Which side is a property of the ROOM, not of the callout, so one moment
+takes different sides at different canvas heights — the alternative is one side
+chosen for the worst case and a tall canvas paying for a short one. A flipped
+note is anchored by its own BOTTOM edge (`RaceCallout.above`, lifted in CSS with
+`translateY(-100%)`), which is what keeps the estimated note height out of where
+the note lands: the box's real height does the lift, so the estimate decides only
+whether the note flips, never where it goes once it has.
+
+That height is **estimated from the note's own text and the width it was given**
+(`noteHeight`), not capped at a constant, and the difference is visible. The
+takeover's note wraps to seven lines on a 375px canvas against the five a flat
+80px assumed, so the old drop clamp thought it had room: the note rendered under
+the x-axis row and its last line — "film was in 2004" — was clipped off the
+plot. With the estimate it flips above instead and renders whole. Characters per
+line from the mean advance of the 12px form face, checked against the shipped
+note at the narrowest plot the chapter draws; ragged-right wrapping makes it a
+floor rather than an exact count, which is the safe direction — a note assumed
+taller than it is flips a little early, where one assumed shorter runs off the
+plot. When neither side fits
+— the landscape phone the drop clamp was written for, a ~170px plot against a
+five-line note — it keeps the shortest drop and the axis row takes the overlap,
+because flipping there would only move the problem. The box is held inside the
+plot throughout, backing off the right edge by the dot column's radius since
+every dot is pinned there at the playhead. The payload also carries an `alpha`, ramped
 over the last px of travel at each plot edge — a 220px block of prose blinking
 off at the cull reads as a bug where an 11px ring merely reads as culled, and
 `{#if}` gives no out-transition to lean on.

@@ -15,7 +15,7 @@
 	let {
 		children = undefined, // the underlined term, inline in the sentence.
 		// Optional, matching the `children?.()` below: a trigger can be a shape
-		// rather than a word (the race chart's takeover ring), in which case the
+		// rather than a word (the race chart's callout ring), in which case the
 		// accessible name comes from an aria-label on the trigger instead.
 		info, // snippet: the panel's body
 		title = undefined, // optional panel heading and accessible name. Omit it

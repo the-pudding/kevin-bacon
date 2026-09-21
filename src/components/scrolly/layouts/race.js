@@ -4,6 +4,7 @@ import {
 	ORDER_OF,
 	SLJ,
 	HACKMAN,
+	SARANDON,
 	RACE_IDS,
 	SIM_SERIES,
 	SIM_LABEL_IDS,
@@ -302,6 +303,62 @@ function solveTakeover() {
 	}
 	const year = (lo + hi) / 2;
 	return { year, value: curveYAt(a, year) };
+}
+
+// ---------------------------------------------------------------------------
+// The high-water mark: the year one actor ranks highest among the field this
+// chart draws. The chapter's build already asserts that no woman has ever held
+// the crown (tasks/build-scrolly-nodes.js); this is the second thing on the plot
+// worth pointing at, and it is what says how near one has come.
+// ---------------------------------------------------------------------------
+
+/**
+ * The year `id` ranks highest among the drawn cast, their value there, and the
+ * rank itself.
+ *
+ * Solved against the SAME curves the chart draws, for the reason solveTakeover
+ * reads them rather than story.eras: the note names a year and the ring sits on
+ * a line, so both have to come off that line or the marker is not on what it
+ * claims.
+ *
+ * Whole years, because the series are sampled on them — a finer walk would only
+ * interpolate ranks between two points that already exist, and land the ring on
+ * a year the note cannot name.
+ *
+ * Every other actor is clamped into their own data range before being ranked,
+ * exactly as placeCast clamps a dot, so the field `id` is ranked against is the
+ * one the reader can see rather than only the careers running that year.
+ */
+function solveRankPeak(id) {
+	const segs = RACE_SEGS.get(id);
+	const [ds, de] = RACE_RANGE.get(id);
+	let best = null;
+	for (let year = ds; year <= de; year++) {
+		const value = curveYAt(segs, year);
+		let rank = 1;
+		for (const other of RACE_IDS) {
+			if (other === id) continue;
+			const [os, oe] = RACE_RANGE.get(other);
+			const v = curveYAt(
+				RACE_SEGS.get(other),
+				Math.min(Math.max(year, os), oe)
+			);
+			if (v < value) rank++;
+		}
+		if (best === null || rank < best.rank) best = { year, value, rank };
+	}
+	return best;
+}
+
+const RACE_WOMAN_PEAK = solveRankPeak(SARANDON);
+
+// The note below states the year, the distance and the rank, so a rebuild that
+// moves any of them must fail here rather than ship a note that no longer
+// describes its own ring. Same idiom as solveTakeover's bracket throw.
+if (RACE_WOMAN_PEAK.year !== 2012 || RACE_WOMAN_PEAK.rank !== 9) {
+	throw new Error(
+		`scrolly race: Sarandon peaks at #${RACE_WOMAN_PEAK.rank} in ${RACE_WOMAN_PEAK.year}, not #9 in 2012`
+	);
 }
 
 // The record's own sub-year wobble, which the top of the plot has to absorb:
@@ -873,23 +930,25 @@ function raceFloorPlayhead(w, h, step) {
 }
 
 // ---------------------------------------------------------------------------
-// The takeover callout: the ring on the crossing, a note that says what
-// happened, and a leader tying the two together. The chapter's whole claim is
-// this one intersection, so the claim is set on the plot rather than behind a
-// click.
+// The callouts: a ring on a moment, a note saying what happened there, and a
+// leader tying the two together. The chapter's claims are set on the plot
+// rather than behind a click.
 //
-// The note sits BELOW the ring, never beside it, and that is the load-bearing
-// choice. Beside reads better on a wide canvas — but the ring is not parked, it
-// travels: it enters at the plot's LEFT edge as the rewind pans back and slides
-// right until it rests at ~68px from the right edge, so a note held left of it
-// is behind it for most of the pan and the leader points backwards. And on a
-// narrow canvas beside is unreachable at any playhead: plot.left + a legible
-// box + a leader's worth of gap already overshoots where the ring rests. Below
-// is one rule at every width and every playhead, and it keeps the leader
-// vertical-dominated, which is what stops it ever reading as reversed.
+// ONE of them is drawn at a time, and the most present wins — see raceCallout.
+//
+// The note sits below its ring where the plot has room for it and above it
+// where it does not, but NEVER beside, and that is the load-bearing choice.
+// Beside reads better on a wide canvas — but a ring is not parked, it travels:
+// it enters at one plot edge as the camera pans and slides to the other, so a
+// note held left of it is behind it for most of the pan and the leader points
+// backwards. And on a narrow canvas beside is unreachable at any playhead:
+// plot.left + a legible box + a leader's worth of gap already overshoots where
+// a ring rests. Above/below is one rule at every width and every playhead, and
+// it keeps the leader vertical-dominated, which is what stops it ever reading
+// as reversed.
 // ---------------------------------------------------------------------------
 
-const RING_R = 5.5; // half the ring's 11px box (see .takeover-mark)
+const RING_R = 5.5; // half the ring's 11px box (see .callout-mark)
 const NOTE_MAX_W = 220; // px, the widest the note box gets
 const NOTE_EDGE = 4; // clearance from the plot's left edge
 // clearance from the right edge. Wider than NOTE_EDGE on purpose, not for
@@ -899,13 +958,31 @@ const NOTE_EDGE = 4; // clearance from the plot's left edge
 const DOT_CLEAR = 10;
 const NOTE_DROP = 48; // ring centre -> note top, where there is room for it
 const NOTE_MIN_DROP = 24; // ...and the least it may shrink to
-// The tallest the note is assumed to render: five lines of its 16px line box.
-// An assumption rather than a measurement because this runs in the frame
-// writer, which has no DOM — it only has to be generous enough that the drop
-// clamp below keeps the last line off the x-axis row.
-const NOTE_MAX_H = 80;
+// ring centre -> note BOTTOM for a note placed above instead. Shorter than
+// NOTE_DROP because nothing sits between the two: below, the drop has to clear
+// the dot column's own labels on the way past.
+const NOTE_LIFT = 20;
+// clear air kept between the note's last line and the plot floor, below which
+// the x-axis row and (on raceFull) the scrubber's slider start
+const PLOT_FLOOR_GAP = 8;
+// How tall the note will render, estimated from its own text and the width it
+// was given. An estimate rather than a measurement because this runs in the
+// frame writer, which has no DOM — but a fixed cap is worse than an estimate
+// here, and was: the takeover's note wraps to SEVEN lines on a 375px canvas
+// against the five a flat 80px assumed, so the placement thought it had room and
+// the last line rendered under the x-axis row, clipped.
+//
+// Characters per line, from the mean advance of the 12px form face, checked
+// against the shipped note at the narrowest plot the chapter draws. Ragged-right
+// wrapping makes it a floor rather than an exact count, which is the safe
+// direction: a note assumed taller than it is goes above a little early, where
+// one assumed shorter runs off the plot.
+const NOTE_CHAR_PX = 6.6;
+const NOTE_LINE_H = 16;
+const noteHeight = (text, width) =>
+	Math.ceil((text.length * NOTE_CHAR_PX) / width) * NOTE_LINE_H;
 const ARROW_INSET = 12; // how far in from the note's corners the leader may start
-const ARROW_LIFT = 6; // gap between the note's top edge and the leader
+const ARROW_LIFT = 6; // gap between the note's nearest edge and the leader
 const ARROW_HEAD = 7; // head length, px
 const ARROW_HEAD_W = 3; // head half-width, px
 // The last px of travel at each plot edge, over which the callout fades. The
@@ -917,19 +994,24 @@ const CALLOUT_FADE = 24;
 const clamp = (v, lo, hi) => Math.min(Math.max(v, lo), hi);
 
 /**
- * The takeover callout's pixel geometry for one frame, or null when the crossing
- * is off camera (the reader has panned past it, or raceRecent is still resting
- * on 2025 before the Start rewind brings it in). Culled on the same rule as the
- * x ticks below, so it leaves the plot rather than sliding over the y axis.
+ * One callout's pixel geometry for one frame, or null when its moment is off
+ * camera (the reader has panned past it, or raceRecent is still resting on 2025
+ * before the Start rewind brings it in). Culled on the same rule as the x ticks
+ * below, so it leaves the plot rather than sliding over the y axis.
  *
  * Everything comes off `cam` (which carries the plot rect) and `yS`, so it
  * tracks both the camera and the per-camera y fit without being told about
  * either.
+ *
+ * @param {ReturnType<typeof raceCamera>} cam
+ * @param {(v: number) => number} yS
+ * @param {{year: number, value: number, text: string}} at the moment it marks
+ * @returns {import("../layout-types.js").RaceCallout|null}
  */
-function raceTakeoverCallout(cam, yS) {
-	const rx = cam.xS(RACE_TAKEOVER.year);
+function raceCalloutGeometry(cam, yS, at) {
+	const rx = cam.xS(at.year);
 	if (rx < cam.left - 0.5 || rx > cam.right + 0.5) return null;
-	const ry = yS(RACE_TAKEOVER.value);
+	const ry = yS(at.value);
 
 	const width = Math.min(
 		NOTE_MAX_W,
@@ -944,22 +1026,32 @@ function raceTakeoverCallout(cam, yS) {
 		cam.left + NOTE_EDGE,
 		cam.right - DOT_CLEAR - width
 	);
-	// The drop shortens rather than letting the note run onto the x-axis row —
-	// the one thing that bites on a landscape phone, where the plot is only ~170px
-	// tall and the scrubber's year slider sits just under it.
-	const drop = clamp(
-		cam.bottom - 8 - NOTE_MAX_H - ry,
-		NOTE_MIN_DROP,
-		NOTE_DROP
-	);
-	const ny = ry + drop;
+	// Below the ring by preference; the drop shortens rather than letting the note
+	// run onto the x-axis row. A ring low on the plot leaves no room to shorten
+	// into, and that is what the note goes ABOVE for. Which side is a property of
+	// the ROOM rather than of the callout, so one moment can take different sides
+	// at different widths: the alternative is one side chosen for the worst case
+	// and a wide canvas paying for a phone's plot.
+	const noteH = noteHeight(at.text, width);
+	const roomBelow = cam.bottom - PLOT_FLOOR_GAP - noteH - ry;
+	// ...unless there is no room either side, which is the landscape phone the
+	// drop clamp was written for: a ~170px plot fits a long note nowhere, so it
+	// keeps the shortest drop and the x-axis row takes the overlap.
+	const above =
+		roomBelow < NOTE_MIN_DROP && ry - NOTE_LIFT - noteH >= cam.top + NOTE_EDGE;
+	// ABOVE, this is the note's BOTTOM edge — the markup anchors it there by the
+	// box's REAL height, so the estimate above decides only whether the note goes
+	// above, never where it lands once it has.
+	const ny = above ? ry - NOTE_LIFT : ry + clamp(roomBelow, NOTE_MIN_DROP, NOTE_DROP); // prettier-ignore
 
-	// The leader leaves the note's top edge at the point nearest the ring, which
-	// is what lets one rule serve every case: the ring far to the right of the box
-	// (wide canvas, at rest), directly above it (narrow canvas), or a little to
-	// its left (a reader scrubbing raceFull toward the plot's left edge).
+	// The leader leaves the note's nearest edge at the point nearest the ring,
+	// which is what lets one rule serve every case: the ring far to the right of
+	// the box (wide canvas, at rest), directly above or below it (narrow canvas),
+	// or a little to its left (a reader scrubbing raceFull toward the plot's left
+	// edge). Both edges are `ny` — the note is anchored by whichever one faces the
+	// ring — so the lift only changes sign.
 	const ax = clamp(rx, nx + ARROW_INSET, nx + width - ARROW_INSET);
-	const ay = ny - ARROW_LIFT;
+	const ay = above ? ny + ARROW_LIFT : ny - ARROW_LIFT;
 	const dx = rx - ax;
 	const dy = ry - ay;
 	const len = Math.hypot(dx, dy) || 1;
@@ -973,6 +1065,8 @@ function raceTakeoverCallout(cam, yS) {
 	return {
 		ring: { x: rx, y: ry },
 		note: { x: nx, y: ny, width },
+		above,
+		text: at.text,
 		arrow: {
 			ax,
 			ay,
@@ -986,6 +1080,89 @@ function raceTakeoverCallout(cam, yS) {
 		},
 		alpha: clamp(Math.min(rx - cam.left, cam.right - rx) / CALLOUT_FADE, 0, 1)
 	};
+}
+
+/** the takeover: the moment the crown changed hands, and what happened there */
+const RACE_TAKEOVER_CALLOUT = {
+	...RACE_TAKEOVER,
+	text: "Freedomland (2006) - Samuel L. Jackson stars in this crime drama mystery with Julianne Moore. This gives him an average distance of 2.14, overtaking Gene Hackman who's last film was in 2004"
+};
+
+/**
+ * Declare a step's callouts, PRESENT-FIRST — the order raceCallout picks by, so
+ * a list written the other way round would silently hand the reader the wrong
+ * one. Checked here rather than sorted, because the order is a statement about
+ * what the step is for and a rebuild that breaks it should say so.
+ */
+function raceCalloutList(...list) {
+	for (let i = 1; i < list.length; i++) {
+		if (list[i].year >= list[i - 1].year) {
+			throw new Error("scrolly race: callouts must be declared present-first");
+		}
+	}
+	return list;
+}
+
+// **SINCE 1980** is load-bearing, not a hedge. Unqualified the claim is false:
+// Faye Dunaway reaches 3rd in 1976, six places better, in this same 224-actor
+// field. From 1980 on — the first year raceFull's camera can rest on, and the
+// year the step's own prose names — no woman ranks better than this, Dunaway's
+// best over that window being 12th in 1981. The year and the rank are guarded by
+// the throw on RACE_WOMAN_PEAK; the qualifier is what makes the sentence they
+// carry true, so it cannot come off without the superlative coming off with it.
+//
+// The film count is the one figure here NOT derived from the committed data —
+// this repo carries a career total per actor, never a per-year count — so
+// nothing can guard it and a rebuild cannot invalidate it either. Confirmed by
+// Owen against the analysis repo (2026-09-21).
+const RACE_WOMAN_NOTE =
+	"With 6 film credits in 2012, Susan Sarandon reaches #9; the highest position for any female actor since 1980.";
+
+/** the nearest a woman has come to the centre on the years this step can reach */
+const RACE_WOMAN_CALLOUT = { ...RACE_WOMAN_PEAK, text: RACE_WOMAN_NOTE };
+
+/**
+ * What a step marks when it names nothing: the takeover alone. It is the
+ * chapter's own claim and belongs to every view of the chart, which is what it
+ * has always had.
+ */
+const RACE_PAN_CALLOUTS = raceCalloutList(RACE_TAKEOVER_CALLOUT);
+
+/**
+ * raceFull's two, present-first. It is the step the reader can pan, so it is the
+ * only one that can reach either moment — and the one step whose prose is about
+ * looking around rather than about a single year.
+ */
+const RACE_FULL_CALLOUTS = raceCalloutList(
+	RACE_WOMAN_CALLOUT,
+	RACE_TAKEOVER_CALLOUT
+);
+
+/**
+ * The ONE callout this frame draws: the most present of the step's, of those the
+ * camera has on plot. Null when it has none of them.
+ *
+ * One at a time because two blocks of prose on one plot compete for the eye and
+ * the one that loses is usually the one the step was about (motion.md rule 6).
+ * Most present wins because the chart is read left to right as time, so the
+ * later moment is the one the reader has just arrived at.
+ *
+ * At the shipped `pxPerYear` no two declared moments are close enough in years
+ * to fit on one plot together, so the pick is decided by the cull and never by
+ * the order. It is still the order that guarantees it: the dev tuner can widen
+ * the visible span (raceTuning.pxPerYear) until two of them overlap.
+ *
+ * @param {ReturnType<typeof raceCamera>} cam
+ * @param {(v: number) => number} yS
+ * @param {{year: number, value: number, text: string}[]} list present-first
+ * @returns {import("../layout-types.js").RaceCallout|null}
+ */
+function raceCallout(cam, yS, list) {
+	for (const at of list) {
+		const c = raceCalloutGeometry(cam, yS, at);
+		if (c) return c;
+	}
+	return null;
 }
 
 // ---------------------------------------------------------------------------
@@ -1139,7 +1316,7 @@ const BAND_LABEL_LIFT = 16;
  * The future block's pixel geometry for one frame, or null when the strip is
  * shut (every step but raceFuture, and the whole of its first leg).
  *
- * No `alpha`, and that is the difference from raceTakeoverCallout: the callout
+ * No `alpha`, and that is the difference from raceCalloutGeometry: a callout
  * needs one because it TRAVELS and culls at each plot edge, where a block of
  * prose popping off reads as a bug. This exists only on a parked camera, so it
  * never travels and never culls — it is simply absent instead. Its two opacity
@@ -1268,7 +1445,7 @@ function raceAxes(
  * span (1 = fully drawn). Only the draw-on passes it.
  * @property {number} [frontier] the year the future strip has opened out to
  * (default RACE_DATA_END, i.e. shut). Read ONLY by the strip's ticks and its
- * block — no dot, trail, label, takeover callout or y fit sees it, which is what
+ * block — no dot, trail, label, callout or y fit sees it, which is what
  * lets the strip carry its own fitted x scale without a second scale leaking
  * into the chart. raceStepVisible, raceAnchorAt and raceBandAt all clamp at
  * RACE_DATA_END, so a frontier past it changes nothing they compute.
@@ -1295,6 +1472,17 @@ function raceAxes(
  * @property {boolean} [lead] ink the crown holder at this camera (default true).
  * false on a step whose camera has travelled off the race entirely. No progress value: the
  * camera decides whether it is seen (see writeBackdropLines).
+ * @property {{year: number, value: number, text: string}[]} [callouts] the
+ * moments this frame may mark, PRESENT-FIRST (see raceCalloutList); the camera
+ * picks the first it has on plot. Absent = RACE_PAN_CALLOUTS, the takeover
+ * alone, which is what every step and every leg had before there were two.
+ *
+ * A camera LEG pins it back to that default even when it spreads a step that
+ * names more (rewindFrame, futurePanFrame): a leg travels in x, so a note the
+ * step marks mid-pan would ride the whole plot on the way past, and prose in
+ * flight is the one thing the callout's placement was written to avoid. A
+ * reader's SCRUB is deliberately not pinned — a note should track through a
+ * drag, not blink on every grab.
  * @property {number[]} [highlight] the actors this step is *about*: they are
  * guaranteed a name label even if they aren't among the nearest-to-centre cut
  * (see ScrollyVisual's raceLabelCut). It buys a NAME and nothing else — the only
@@ -2067,7 +2255,7 @@ function writeFields(attrsBuf, trailBuf, frame, cam, yS, vMin, vMax) {
  * cast across a phase, so the final frame's visibility matches the static state
  * it settles onto instead of everyone popping at the settle. Omitted → the
  * frame's own visible set at full strength, everyone else hidden.
- * @returns {{axes: {x: import("../layout-types.js").Tick[], xBase:number, y: import("../layout-types.js").Tick[]}, takeover: import("../layout-types.js").TakeoverCallout|null, band: import("../layout-types.js").FutureBand|null, frontier: number, cam: ReturnType<typeof raceCamera>, yS: (v:number)=>number, visible: Set<number>, lead: number}}
+ * @returns {{axes: {x: import("../layout-types.js").Tick[], xBase:number, y: import("../layout-types.js").Tick[]}, callout: import("../layout-types.js").RaceCallout|null, band: import("../layout-types.js").FutureBand|null, frontier: number, cam: ReturnType<typeof raceCamera>, yS: (v:number)=>number, visible: Set<number>, lead: number}}
  */
 export function writeRaceSweepFrame(
 	attrsBuf,
@@ -2079,7 +2267,7 @@ export function writeRaceSweepFrame(
 	alphaOf = null
 ) {
 	// How far the future strip has opened. Read only by the strip's own ticks and
-	// its block — no dot, trail, label, takeover callout or y fit ever sees it,
+	// its block — no dot, trail, label, callout or y fit ever sees it,
 	// which is what lets the strip carry a second x scale with nothing leaking
 	// into the chart. Shut by default, so every other step and both static
 	// layouts get no strip without having to say so.
@@ -2131,7 +2319,7 @@ export function writeRaceSweepFrame(
 			frame.futureTicks !== false,
 			frame.xTicks !== false
 		),
-		takeover: raceTakeoverCallout(cam, yS),
+		callout: raceCallout(cam, yS, frame.callouts ?? RACE_PAN_CALLOUTS),
 		band: raceFutureBand(cam, frontier, frame.proj !== undefined),
 		// the RESOLVED frontier, so a caller snapshotting the live frame reads what
 		// was drawn rather than what was asked for
@@ -2210,7 +2398,7 @@ function raceLayout(step, yCap = Infinity) {
 			const [x, y] = scatterPosition(n, w, h);
 			set(attrs, n.id, x, y, 2, CROWD, 0);
 		}
-		const { axes, takeover, band, cam, visible } = writeRaceSweepFrame(
+		const { axes, callout, band, cam, visible } = writeRaceSweepFrame(
 			attrs,
 			trails,
 			w,
@@ -2227,7 +2415,7 @@ function raceLayout(step, yCap = Infinity) {
 		// so by the time the story leaves the chapter there is nobody hidden left
 		// to fly in from off the plot.
 		settleTrails(trails, trailDelays, step, visible, w, cam.bottom);
-		return { attrs, trails, trailDelays, axes, takeover, band };
+		return { attrs, trails, trailDelays, axes, callout, band };
 	};
 }
 
@@ -2344,8 +2532,17 @@ export const RACE_REWIND_WAYPOINT_YEAR = 2006;
 export const RACE_RECENT_STEP = { extent: RACE_RECENT_EXTENT, highlight: [SLJ, HACKMAN] }; // prettier-ignore
 // raceFull shows the whole cast, so it has to name its subject: without a
 // highlight, `subject` falls back to everything visible and every line on the
-// chart would claim the foreground at once. Hackman is the one it labels, so he
-// is the one it emphasises — keep this list and the state's `labels` in step.
+// chart would claim the foreground at once. Hackman and Sarandon are the two it
+// labels, so they are the two it emphasises — keep this list and the state's
+// `labels` in step.
+//
+// Sarandon is here for her CALLOUT rather than for the prose. Dots ride the
+// playhead, not the ring's year, so a reader who leaves her 2012 ring at the
+// plot's left edge is resting the camera on 2017, where she is 17th and the
+// plain ten-nearest cut would drop her name while her ring is still on screen.
+// A highlight is exempt from that cut, and buys a name and nothing else. She is
+// already in RACE_FULL_LABELS — she is top ten at the 2012 sample — so `labels`
+// is unchanged and raceFuture still declares the same names.
 export const RACE_FULL_STEP = {
 	extent: RACE_FULL_EXTENT,
 	minPlayhead: RACE_FULL_PAN_FLOOR,
@@ -2355,7 +2552,8 @@ export const RACE_FULL_STEP = {
 	// so the reader always has the slider immediately usable from the same year,
 	// and the crossing raceRecent's second step is about is still on the plot.
 	restPlayhead: RACE_REWIND_WAYPOINT_YEAR,
-	highlight: [HACKMAN]
+	callouts: RACE_FULL_CALLOUTS,
+	highlight: [HACKMAN, SARANDON]
 };
 // raceFuture: raceFull's chart with the camera run forward to the present, and a
 // fitted strip of future ground opened out to the right of it.
@@ -2943,10 +3141,16 @@ const entryFrame = (step) => (e) => ({
 // a camera pan from fromP to toP. At a fixed px-per-year this is a pure
 // translation by construction — dots stay pinned to the plot's right edge (see
 // writeRaceSweepFrame's dotYr) while the ticks and curves slide beneath them.
+// `callouts` is pinned back to the chapter's own, whatever the step spread in:
+// this leg TRAVELS in x, and a moment the step marks somewhere inside the pan
+// would ride the width of the plot on the way past (raceFull's retrace out of
+// raceFuture crosses every year between 2025 and 2006). Same shape of override,
+// and the same reason, as futurePanFrame's `frontier` below.
 const rewindFrame = (step, legExtent, fromP, toP) => (e) => ({
 	...step,
 	extent: legExtent,
-	playhead: fromP + (toP - fromP) * e
+	playhead: fromP + (toP - fromP) * e,
+	callouts: RACE_PAN_CALLOUTS
 });
 // The content extent a leg runs under: every year the camera will put on the
 // plot across the whole pan, whichever direction it travels. Held constant for
@@ -2965,7 +3169,10 @@ const futurePanFrame = (legExtent, fromP, toP) => (e) => ({
 	...RACE_FUTURE_STEP,
 	extent: legExtent,
 	playhead: fromP + (toP - fromP) * e,
-	frontier: RACE_DATA_END
+	frontier: RACE_DATA_END,
+	// travels in x, so it carries no marked moment across the plot — see
+	// rewindFrame
+	callouts: RACE_PAN_CALLOUTS
 });
 // raceFuture leg 1 — "the future opens". NOT a camera move: the camera is parked
 // and only the frontier advances. The extent stays the STEP's, because e = 1 has
@@ -3031,7 +3238,7 @@ const shownAlpha = (shown) => (e) => (id) =>
 
 /** one frame of a leg into the live buffers; what it returns is what ScrollyVisual publishes */
 function writeLeg(attrs, trails, w, h, leg, e) {
-	const { axes, takeover, band, frontier, cam } = writeRaceSweepFrame(
+	const { axes, callout, band, frontier, cam } = writeRaceSweepFrame(
 		attrs,
 		trails,
 		w,
@@ -3041,7 +3248,7 @@ function writeLeg(attrs, trails, w, h, leg, e) {
 		leg.alpha ? leg.alpha(e) : null
 	);
 	return {
-		decor: { axes, takeover, band },
+		decor: { axes, callout, band },
 		camera: { playhead: cam.playhead, frontier }
 	};
 }

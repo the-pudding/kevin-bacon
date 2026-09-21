@@ -339,8 +339,12 @@
 			<Step state="raceRecent">
 				<p>
 					Let's go back to where Samuel L. Jackson took the crown in 2006.
-					Interestingly, this was before any MCU movie took place, which only
-					made matters worse for his competitors.
+					Interestingly, this was before the MCU era kicked off, which only made
+					strengthened his position.
+				</p>
+				<p>
+					Conversely, Kevin Bacon's highest ever ranking was #108 in 1996 with
+					his role in Sleepers.
 				</p>
 			</Step>
 			<Step state="raceFull" panel={racePanel}>

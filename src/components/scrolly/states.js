@@ -154,7 +154,7 @@ export const STATE_REVEAL_FROM = pick("revealFrom");
 /**
  * What a choreography's frame writer may hand back, applied by ScrollyVisual on
  * every tick: `decor` is per-frame chart furniture merged over the static
- * layout's (a panning camera's axes, the takeover callout, the future block);
+ * layout's (a panning camera's axes, the live callout, the future block);
  * `camera` is the frame's camera, kept as the live camera the pan control and
  * the next leg read; `story` is fields to publish, written only when they
  * change (a write that changes nothing still retargets the tweener through the
