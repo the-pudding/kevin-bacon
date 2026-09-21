@@ -25,6 +25,8 @@ export const DENIRO = idOf(380);
 
 export const HACKMAN = idOf(193);
 
+export const MIRREN = idOf(15735);
+
 export const CAGE = idOf(2963);
 
 export const OLDMAN = idOf(64);

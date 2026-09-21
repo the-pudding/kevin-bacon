@@ -1,6 +1,7 @@
 import story from "$data/scrolly-story.json";
 import { ATTR_SIZE, set } from "../attr-buffer.js";
-import { SWEENEY, DENIRO, CHASE } from "../cast.js";
+import { SWEENEY, DENIRO, CHASE, HACKMAN, MIRREN } from "../cast.js";
+import { ANCHOR_ID } from "../nodes.js";
 import { CROWD, BLUE } from "../palette.js";
 import { MARGIN, plotBottom, lin } from "../plot.js";
 import { scatterPosition } from "../scatter-scales.js";
@@ -9,6 +10,9 @@ import {
 	SWEENEY_SLOT,
 	DENIRO_SLOT,
 	CHASE_SLOT,
+	BACON_SLOT,
+	HACKMAN_SLOT,
+	MIRREN_SLOT,
 	COHORT_SLOT,
 	TRAIL_META,
 	setTrail,
@@ -21,26 +25,63 @@ import {
 
 // ---------------------------------------------------------------------------
 // Career lines (Future chapter): cumulative films by career age. Colour roles
-// follow the prototype (career-age-scatter.js): Sweeney's trajectory is the
-// red hero line, the comparisons (De Niro/Chase) are grey lines clipped to
-// career-age ≥ hers — so every possible future diverges from her dot — and
-// all three actors sit as blue marks (comparisons dimmed). At "all futures"
-// the comparisons demote into the grey cohort and lose their labels.
+// follow the prototype (career-age-scatter.js): the hero's trajectory is the
+// red line, the comparisons are grey, and all three actors sit as blue marks
+// (comparisons dimmed). Two casts draw this chart, and both clip their
+// comparisons to the hero's endpoint so that every line on screen is a future
+// branching off the hero's dot rather than a whole career to be read alongside
+// it. Sweeney's cast asks how a Gen Z career might go; at "all futures" the
+// comparisons demote into the grey cohort and lose their labels. Bacon's asks
+// what is left of a career already run, which is the same question from the
+// other end: his bounds start where he stands now, so Hackman's line is the
+// flat stub of an actor who added nothing after this point and Mirren's is the
+// steepest climb anyone has managed from it.
 // ---------------------------------------------------------------------------
 
+const HERO_ALPHA = 0.9;
 const COMPARISON_ALPHA = 0.55;
 const COHORT_ALPHA = 0.35;
 
-const NAMED = [
-	["sweeney", SWEENEY, SWEENEY_SLOT],
-	["deniro", DENIRO, DENIRO_SLOT],
-	["chase", CHASE, CHASE_SLOT]
-];
-// where Sweeney's story stops — comparison/cohort lines start here
-const PRIMARY_AGE = story.careers.sweeney.at(-1)[0];
-/** a comparison's series from Sweeney's endpoint on, or null if it never gets there */
-const comparisonSeries = (key) =>
-	clipSeries(story.careers[key], PRIMARY_AGE, Infinity);
+/**
+ * A cast is the hero first, then its comparisons, each
+ * `[series key, node id, trail slot]`. `clip` cuts the comparisons back to the
+ * hero's last film.
+ * @typedef {{ named: [string, number, number][], clip: boolean }} CareerCast
+ */
+
+/** @type {CareerCast} */
+const TRIO = {
+	named: [
+		["sweeney", SWEENEY, SWEENEY_SLOT],
+		["deniro", DENIRO, DENIRO_SLOT],
+		["chase", CHASE, CHASE_SLOT]
+	],
+	clip: true
+};
+
+/** @type {CareerCast} */
+const BOUNDS = {
+	named: [
+		["bacon", ANCHOR_ID, BACON_SLOT],
+		["hackman", HACKMAN, HACKMAN_SLOT],
+		["mirren", MIRREN, MIRREN_SLOT]
+	],
+	clip: true
+};
+
+const CASTS = [TRIO, BOUNDS];
+
+/** the hero's last (career age, films) — where a clipped cast's futures fork */
+const heroEnd = (cast) => story.careers[cast.named[0][0]].at(-1);
+
+/** a cast member's series as this cast draws it; null if a clip leaves nothing */
+const castSeries = (cast, key) =>
+	key === cast.named[0][0] || !cast.clip
+		? story.careers[key]
+		: clipSeries(story.careers[key], heroEnd(cast)[0], Infinity);
+
+// where the trio's story stops — the cohort fan starts here too
+const PRIMARY_AGE = heroEnd(TRIO)[0];
 
 /**
  * Every cohort line, clipped to career-age ≥ Sweeney's endpoint and segmented
@@ -63,12 +104,13 @@ const COHORT = story.careers.cohort.map((series, i) => {
 const COHORT_BY_SLOT = new Map(COHORT.map((c) => [c.slot, c]));
 
 /**
- * The scales both career states and the careerTrio entry choreography share, so
- * an animated frame lands exactly on the static layout. Domain comes from the
- * background cloud (every actor with a known career age) so both states share
- * one stable axis and the trajectory lines sit in the space the cloud fills —
- * matching the prototype's full-cloud scaling. The lines never exceed the
- * cloud, but Math.max guards it anyway.
+ * The scales every career state and entry choreography shares, so an animated
+ * frame lands exactly on the static layout. Domain comes from the background
+ * cloud (every actor with a known career age) so the states share one stable
+ * axis and the trajectory lines sit in the space the cloud fills — matching the
+ * prototype's full-cloud scaling. Both casts are folded in, so the two steps
+ * are provably on the same axis rather than coincidentally so; the lines never
+ * exceed the cloud, but Math.max guards it anyway.
  */
 function careerFrame(nodes, w, h) {
 	let ageMax = 0;
@@ -78,9 +120,12 @@ function careerFrame(nodes, w, h) {
 		ageMax = Math.max(ageMax, n.careerAge);
 		filmsMax = Math.max(filmsMax, n.films);
 	}
-	for (const series of NAMED.map(([k]) => story.careers[k])) {
-		ageMax = Math.max(ageMax, series.at(-1)[0]);
-		filmsMax = Math.max(filmsMax, ...series.map((p) => p[1]));
+	for (const cast of CASTS) {
+		for (const [key] of cast.named) {
+			const series = story.careers[key];
+			ageMax = Math.max(ageMax, series.at(-1)[0]);
+			filmsMax = Math.max(filmsMax, ...series.map((p) => p[1]));
+		}
 	}
 	const top = MARGIN + 8;
 	const bottom = plotBottom(h);
@@ -93,27 +138,29 @@ function careerFrame(nodes, w, h) {
 	};
 }
 
-function careerLayout(showCohort) {
+function careerLayout(cast, showCohort) {
+	const heroKey = cast.named[0][0];
 	/** @type {import("../layout-types.js").LayoutFn} */
 	return function layoutCareer(nodes, w, h) {
 		const attrs = new Float64Array(ATTR_SIZE);
 		const trails = new Float64Array(TRAIL_SIZE);
 		const trailDelays = new Float64Array(TRAIL_META.length);
 		const { filmsMax, ageMax, bottom, xS, yS } = careerFrame(nodes, w, h);
-		// every career trail parks on the end of Sweeney's line, so a line the
-		// state doesn't draw is a collapsed point sitting on her dot: lines grow
-		// out of her and retract back into her, in both directions and whether or
+		// every career trail parks on the end of the hero's line, so a line the
+		// state doesn't draw is a collapsed point sitting on their dot: lines grow
+		// out of them and retract back into them, in both directions and whether or
 		// not the draw-on choreography plays. Parking them anywhere else (the plot
 		// origin, y=0) makes the tween a translation across the chart instead.
-		const forkX = xS(PRIMARY_AGE);
-		const forkY = yS(story.careers.sweeney.at(-1)[1]);
-		const namedIds = new Set(NAMED.map(([, id]) => id));
+		const [heroAge, heroFilms] = heroEnd(cast);
+		const forkX = xS(heroAge);
+		const forkY = yS(heroFilms);
+		const namedIds = new Set(cast.named.map(([, id]) => id));
 		for (const n of nodes) {
 			if (namedIds.has(n.id)) {
-				const key = NAMED.find(([, id]) => id === n.id)[0];
+				const key = cast.named.find(([, id]) => id === n.id)[0];
 				const [age, films] = story.careers[key].at(-1);
 				// blue marks all round; the comparisons read dimmed
-				const alpha = key === "sweeney" ? 1 : COMPARISON_ALPHA;
+				const alpha = key === heroKey ? 1 : COMPARISON_ALPHA;
 				set(attrs, n.id, xS(age), yS(films), 5.5, BLUE, alpha);
 			} else if (n.careerAge != null) {
 				// background cloud: this actor's (career age, films) position
@@ -125,16 +172,15 @@ function careerLayout(showCohort) {
 			}
 		}
 		TRAIL_META.forEach((_meta, t) => {
-			const namedEntry = NAMED.find(([, , slot]) => slot === t);
+			const namedEntry = cast.named.find(([, , slot]) => slot === t);
 			if (namedEntry) {
 				const key = namedEntry[0];
-				// comparisons diverge from Sweeney's endpoint; in the cohort state
-				// they demote to cohort strength
-				const series =
-					key === "sweeney" ? story.careers[key] : comparisonSeries(key);
+				// clipped comparisons diverge from the hero's endpoint; in the cohort
+				// state they demote to cohort strength
+				const series = castSeries(cast, key);
 				const alpha =
-					key === "sweeney"
-						? 0.9
+					key === heroKey
+						? HERO_ALPHA
 						: showCohort
 							? COHORT_ALPHA
 							: COMPARISON_ALPHA;
@@ -211,59 +257,67 @@ function lineDrawer(nodes, w, h) {
 			dotAlpha
 		);
 	};
-	// where a future branches off her story: the end of Sweeney's own line
-	const forkX = xS(PRIMARY_AGE);
-	const forkY = yS(story.careers.sweeney.at(-1)[1]);
-	return { growLine, rideTip, forkX, forkY };
+	return { growLine, rideTip, xS, yS };
 }
 
-// two beats: her story so far, then the futures branching off its end
+// two beats: the hero's story so far, then the careers set against it
 const CAREER_ENTRY_MS = [1200, 1100];
 
 /**
- * careerTrio entry choreography: Sweeney's red trajectory draws on from the
- * start of her career with her dot riding the tip, then the two comparison
- * lines unspool out of the point she lands on — so "here's her career so far"
- * and "here's where it could go from there" read as two beats instead of one
- * static chart. The final leg at e=1 reproduces the static layout call for call
- * (same monotone segments, same sample window, same alphas), so the settle has
+ * A career step's entry choreography: the hero's red trajectory draws on from
+ * the start of their career with their dot riding the tip, then the comparison
+ * lines grow in — so "here's the career" and "here's what to measure it
+ * against" read as two beats instead of one static chart. Both casts clip, so
+ * the second beat unspools out of the point the hero lands on.
+ *
+ * A comparison waits collapsed and invisible at the first point of its own
+ * clipped series — the hero's career age, at that comparison's own film count.
+ * For the trio that is the hero's dot exactly (the build asserts all three are
+ * at 16 films by career age 15); for the bounds it is within a film of it, so
+ * nothing perceptibly moves when the second leg takes over.
+ *
+ * The final leg at e=1 reproduces the static layout call for call (same
+ * monotone segments, same sample window, same alphas), so the settle has
  * nothing left to move. See EntryAnim in states.js.
  */
-function careerEntryFrames(nodes, w, h) {
-	const { rideTip, forkX, forkY } = lineDrawer(nodes, w, h);
-	// per named actor: the curve the line samples off, and the career-age span
-	// the draw-on grows across
-	const lines = NAMED.map(([key, id, slot]) => {
-		const series =
-			key === "sweeney" ? story.careers[key] : comparisonSeries(key);
-		return {
-			id,
-			slot,
-			segs: series ? monotoneSegments(series) : [],
-			a0: series && series[0][0],
-			a1: series && series.at(-1)[0],
-			trailAlpha: key === "sweeney" ? 0.9 : COMPARISON_ALPHA
-		};
-	});
-	const hero = lines[0];
-	// a comparison whose series never reaches Sweeney's endpoint — or reaches it
-	// only at its very last point — has no line to draw; it keeps the static
-	// frame the seed already put it in
-	const comparisons = lines.slice(1).filter((line) => line.segs.length);
-	return (attrs, trails, phase, e) => {
-		if (phase === 0) {
-			rideTip(attrs, trails, hero, e, 1);
-			// comparisons wait, invisible, at the point they'll branch from
-			for (const line of comparisons) {
-				collapseTrail(trails, line.slot, forkX, forkY, 0);
-				set(attrs, line.id, forkX, forkY, 5.5, BLUE, 0);
+function careerEntry(cast) {
+	const heroKey = cast.named[0][0];
+	return function careerEntryFrames(nodes, w, h) {
+		const { rideTip, xS, yS } = lineDrawer(nodes, w, h);
+		// per named actor: the curve the line samples off, and the career-age span
+		// the draw-on grows across
+		const lines = cast.named.map(([key, id, slot]) => {
+			const series = castSeries(cast, key);
+			return {
+				id,
+				slot,
+				segs: series ? monotoneSegments(series) : [],
+				a0: series && series[0][0],
+				a1: series && series.at(-1)[0],
+				start: series && [xS(series[0][0]), yS(series[0][1])],
+				trailAlpha: key === heroKey ? HERO_ALPHA : COMPARISON_ALPHA
+			};
+		});
+		const hero = lines[0];
+		// a comparison whose series never reaches the hero's endpoint — or reaches
+		// it only at its very last point — has no line to draw; it keeps the static
+		// frame the seed already put it in
+		const comparisons = lines.slice(1).filter((line) => line.segs.length);
+		return (attrs, trails, phase, e) => {
+			if (phase === 0) {
+				rideTip(attrs, trails, hero, e, 1);
+				// comparisons wait, invisible, where their own line begins
+				for (const line of comparisons) {
+					collapseTrail(trails, line.slot, line.start[0], line.start[1], 0);
+					set(attrs, line.id, line.start[0], line.start[1], 5.5, BLUE, 0);
+				}
+				return;
 			}
-			return;
-		}
-		rideTip(attrs, trails, hero, 1, 1);
-		for (const line of comparisons) {
-			rideTip(attrs, trails, line, e, COMPARISON_ALPHA * e);
-		}
+			rideTip(attrs, trails, hero, 1, 1);
+			for (const line of comparisons) {
+				rideTip(attrs, trails, line, e, COMPARISON_ALPHA * e);
+			}
+		};
 	};
 }
 
@@ -289,7 +343,10 @@ const COHORT_STAGGER = 0.5;
  * nothing left to move. See EntryAnim in states.js.
  */
 function cohortEntryFrames(nodes, w, h) {
-	const { growLine, forkX, forkY } = lineDrawer(nodes, w, h);
+	const { growLine, xS, yS } = lineDrawer(nodes, w, h);
+	const [heroAge, heroFilms] = heroEnd(TRIO);
+	const forkX = xS(heroAge);
+	const forkY = yS(heroFilms);
 	const lines = COHORT.filter((c) => c.segs.length).map((c) => ({
 		...c,
 		a0: c.series[0][0],
@@ -315,26 +372,28 @@ const CAREER_OVERLAY = {
 	yLabel: "Film count"
 };
 
+const CAREER_TITLE = "Film count by career age";
+
 export const states = {
 	careerTrio: {
-		layout: careerLayout(false),
-		title: "Film count by career age",
-		// One scene with careerMany. Both draw the same chart and differ only in
-		// how many lines are on it: careerFrame's scales come from the background
-		// cloud and the named series, neither of which the cohort touches, so the
-		// title, the overlay's two axis labels and every tick are identical on
-		// both. Treated as separate scenes, the step change faded all of it out,
-		// held it out for the whole arrival, and faded the same words back in at
-		// the same coordinates — ~870ms in which the only motion on the chart was
-		// its own furniture leaving and coming back (motion.md rules 6, 7).
+		layout: careerLayout(TRIO, false),
+		title: CAREER_TITLE,
+		// One scene with careerBacon and careerMany. All three draw the same chart
+		// and differ only in which lines are on it: careerFrame's scales come from
+		// the background cloud and every cast's named series, so the title, the
+		// overlay's two axis labels and every tick are identical on all three.
+		// Treated as separate scenes, the step change faded all of it out, held it
+		// out for the whole arrival, and faded the same words back in at the same
+		// coordinates — ~870ms in which the only motion on the chart was its own
+		// furniture leaving and coming back (motion.md rules 6, 7).
 		scene: "career",
 		labels: [SWEENEY, DENIRO, CHASE],
 		// the draw-on is authored for the forward arrival out of the Gen Z race;
-		// stepping back into it from careerMany gets a plain tween
+		// stepping back into it from careerBacon gets a plain tween
 		revealFrom: ["raceGenz"],
 		entry: {
 			phases: CAREER_ENTRY_MS,
-			frames: careerEntryFrames,
+			frames: careerEntry(TRIO),
 			// each name lands with the line that earns it, rather than labelling a
 			// dot the reader hasn't been told anything about yet: nobody on the
 			// arrival, the hero with leg 0, the comparisons with leg 1
@@ -342,18 +401,50 @@ export const states = {
 		},
 		overlay: CAREER_OVERLAY
 	},
+	careerBacon: {
+		layout: careerLayout(BOUNDS, false),
+		title: CAREER_TITLE,
+		// one scene with the other two — see the note on careerTrio above
+		scene: "career",
+		labels: [ANCHOR_ID, HACKMAN, MIRREN],
+		// All three dots sit at the right-hand end of the axis (Bacon at career
+		// age 47, Hackman 54, Mirren 52), so the names go to their LEFT, into the
+		// plot. They have to be beside-dot names rather than the trio's below-dot
+		// ones: Bacon and Hackman both rest at 47 films, so centred under their
+		// dots the two names landed on the same baseline and overprinted. Only
+		// beside-dot names are de-collided (see createLabelStacker).
+		labelDirs: {
+			[ANCHOR_ID]: "left",
+			[HACKMAN]: "left",
+			[MIRREN]: "left"
+		},
+		// authored for the forward arrival off the trio; stepping back in from
+		// careerMany gets a plain tween. The trio's lines are on their own slots
+		// and are not in this state's TRAIL_CONSTANCY group, so they fade out
+		// where they lie before the crowd moves and this chart is drawn onto an
+		// empty plot (see trails.js).
+		revealFrom: ["careerTrio"],
+		entry: {
+			phases: CAREER_ENTRY_MS,
+			frames: careerEntry(BOUNDS),
+			labelsAfter: [[], [ANCHOR_ID], [HACKMAN, MIRREN]]
+		},
+		overlay: CAREER_OVERLAY
+	},
 	careerMany: {
-		layout: careerLayout(true),
-		title: "Film count by career age",
-		// one scene with careerTrio — see the note on its entry above
+		layout: careerLayout(TRIO, true),
+		title: CAREER_TITLE,
+		// one scene with the other two — see the note on careerTrio above
 		scene: "career",
 		// the comparisons have demoted into the cohort — only the hero is named
 		labels: [SWEENEY],
-		// the fan is authored to branch off the endpoint careerTrio just drew,
-		// which holds arriving backward from simRace too: the trio's hero and
-		// comparison lines are already drawn on that chart, so the branch point
-		// is the same endpoint either direction
-		revealFrom: ["careerTrio", "simRace"],
+		// the fan is authored to branch off the endpoint of Sweeney's line, which
+		// holds arriving backward from simRace too: her line and the comparisons
+		// are already drawn on that chart, so the branch point is the same
+		// endpoint either direction. Arriving forward from careerBacon they are at
+		// alpha 0 — they faded out where they lay on the way in — so they fade
+		// back on without travelling, and the fan branches off the same point.
+		revealFrom: ["careerBacon", "simRace"],
 		entry: { phases: COHORT_ENTRY_MS, frames: cohortEntryFrames },
 		overlay: CAREER_OVERLAY
 	}

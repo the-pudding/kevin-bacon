@@ -223,6 +223,7 @@ assert(
 const RACE_CAST_SIZE = 224;
 const timeMachine = raw("time-machine.json");
 const trajectories = design("actor-trajectories.json");
+const boundsSrc = design("bacon-bounds-trajectories.json");
 const distanceFilms = design("distance-films-scatter.json").points;
 // career-age cloud: every corpus actor's (career age, film count) — the
 // background the Future chapter's career lines are drawn over. career_age =
@@ -300,6 +301,16 @@ assert(
 		nameByPid.get(TRIO_PIDS.deniro) === "Robert De Niro" &&
 		nameByPid.get(TRIO_PIDS.chase) === "Chevy Chase",
 	"career-line trio pids drifted"
+);
+// the Bacon step's cast: the subject and the two actors who bound what his
+// remaining career can look like (Mirren added the most anyone has from his
+// milestone, Hackman — an exact twin at 47 films at career age 47 — added none)
+const BOUNDS_PIDS = { bacon: 4724, hackman: 193, mirren: 15735 };
+assert(
+	nameByPid.get(BOUNDS_PIDS.bacon) === "Kevin Bacon" &&
+		nameByPid.get(BOUNDS_PIDS.hackman) === "Gene Hackman" &&
+		nameByPid.get(BOUNDS_PIDS.mirren) === "Helen Mirren",
+	"career-bounds pids drifted"
 );
 
 const wantedPids = new Set([
@@ -584,6 +595,24 @@ for (const k of Object.keys(TRIO_PIDS)) {
 	const at15 = trajectories[k].find((r) => r.career_age === 15);
 	assert(at15?.num_films === 16, `${k} is not at 16 films by career age 15`);
 }
+// the Bacon step's three lines. Each runs to the corpus edge rather than to the
+// actor's last film, so a line ENDS on the same point the background cloud puts
+// that actor's dot — the assertion below is what keeps the two in step, and
+// what catches a re-export that stopped padding the flat tail.
+const boundsAges = Object.fromEntries(
+	Object.entries(boundsSrc.actors).map(([k, a]) => [
+		k,
+		a.trajectory.map((r) => [r.career_age, r.num_films])
+	])
+);
+for (const [k, pid] of Object.entries(BOUNDS_PIDS)) {
+	const [age, films] = boundsAges[k].at(-1);
+	const node = nodes[idOf(pid)];
+	assert(
+		age === node[12] && films === node[3],
+		`${k}'s line ends (${age}, ${films}), but the cloud has them at (${node[12]}, ${node[3]})`
+	);
+}
 // cohort: the actual set of actors who — like the trio — reached 16 films by
 // career age 15, each as a (career age, film count) trajectory. This is the
 // prototype's own "add more lines" fan (cohort-16-at-15-trajectories.json),
@@ -864,7 +893,7 @@ const storyOut = {
 	raceSeries,
 	genzSeries,
 	backdropSeries,
-	careers: { ...trioAges, cohort },
+	careers: { ...trioAges, ...boundsAges, cohort },
 	genz: {
 		nSims: genzSrc.n_sims,
 		avgWinningMad,

@@ -476,12 +476,23 @@
 					the same point — but only ever appeared in 27.
 				</p>
 			</Step>
+			<Step state="careerBacon">
+				<p>
+					Conversely, after 47 years making Hollywood films, he has a similar
+					output to Helen Mirren and Gene Hackman at this stage.
+				</p>
+				<p>
+					You'll remember Gene Hackman from the time machine; turns out Kevin
+					Bacon could have been the center of Hollywood if he were born 20 years
+					earlier.
+				</p>
+			</Step>
 			<Step state="careerMany">
 				<p>
-					This means that whatever actor we use to model a Gen Z actor's film
-					trajectory can massively impact the results. For each actor, we
-					consider similar actors based on proximity to them, and randomly
-					select one weighted by how close they are.
+					Back to Sydney Sweeney. We can now see that whatever actor we use to
+					model a Gen Z actor's film trajectory can massively impact the
+					results. For each actor, we consider similar actors based on proximity
+					to them, and randomly select one weighted by how close they are.
 				</p>
 				<p>
 					By applying the same approach for costar film counts, we can start
@@ -525,19 +536,20 @@
 		     nobody else. See RACE_CLOSE_SLJ_END in layouts/race.js. -->
 			<Step state="raceClose">
 				<p>
-					From our historical analysis, you'll recall lines dropping off as
-					actors stop appearing in so many films. We're counting on this
-					happening to Samuel L. Jackson, or a Marvel-sized cinematic universe
-					being spawned again.
+					From our time machine you'll recall lines dropping off as actors stop
+					appearing in so many films. From a purely biological standpoint, we
+					know this will eventually happen to Samuel L. Jackson, it's just a
+					matter of how long that takes for someone else to take the crown.
 				</p>
 			</Step>
-			<!-- closes on an empty canvas: the chart dissolves where it stands
-			     and the last words are left on their own. -->
 			<Step state="outro" hideBar>
 				<p>
 					What is far more certain is that the first female center of Hollywood
-					is on the horizon, with 65% of the wins going to women — though
-					perhaps not for a few years yet.
+					is on the horizon, with 65% of the wins going to women.
+				</p>
+				<p>
+					We can also be pretty sure of the fact that it's not going to be Kevin
+					Bacon.
 				</p>
 			</Step>
 		{/snippet}

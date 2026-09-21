@@ -7,10 +7,13 @@ import {
 	BACKDROP_IDS,
 	CHASE,
 	DENIRO,
+	HACKMAN,
+	MIRREN,
 	RACE_IDS,
 	SIM_SERIES,
 	SWEENEY
 } from "./cast.js";
+import { ANCHOR_ID } from "./nodes.js";
 import { CROWD, RED } from "./palette.js";
 
 export const TRAIL_POINTS = 48;
@@ -37,6 +40,14 @@ export const TRAIL_META = [
 	{ id: SWEENEY, rgb: RED, width: 1.5 },
 	{ id: DENIRO, rgb: CROWD, width: 1.5 },
 	{ id: CHASE, rgb: CROWD, width: 1.5 },
+	// the same chart asked about Bacon himself: his own red trajectory, and the
+	// two careers that bound what is left of it. A second block rather than a
+	// re-use of the three above, because a slot's stroke colour is fixed here —
+	// Bacon needs the red De Niro's slot does not have — and because the two
+	// steps are two different charts: see the TRAIL_CONSTANCY note below.
+	{ id: ANCHOR_ID, rgb: RED, width: 1.5 },
+	{ id: HACKMAN, rgb: CROWD, width: 1.5 },
+	{ id: MIRREN, rgb: CROWD, width: 1.5 },
 	...story.careers.cohort.map(() => ({ id: null, rgb: CROWD, width: 1 })),
 	// simulation race: one line per contender. Grey like the race chart and for
 	// the same reason — emphasis is which lines the step labels, not a palette of
@@ -59,7 +70,13 @@ export const DENIRO_SLOT = RACE_IDS.length + 1;
 
 export const CHASE_SLOT = RACE_IDS.length + 2;
 
-export const COHORT_SLOT = RACE_IDS.length + 3;
+export const BACON_SLOT = RACE_IDS.length + 3;
+
+export const HACKMAN_SLOT = RACE_IDS.length + 4;
+
+export const MIRREN_SLOT = RACE_IDS.length + 5;
+
+export const COHORT_SLOT = RACE_IDS.length + 6;
 
 export const SIM_SLOT_BASE = COHORT_SLOT + story.careers.cohort.length;
 
@@ -104,6 +121,13 @@ export const CAREER_TRAIL_SLOTS = new Set([
 	...story.careers.cohort.map((_c, i) => COHORT_SLOT + i)
 ]);
 
+/** the Bacon step's three lines */
+export const BACON_TRAIL_SLOTS = new Set([
+	BACON_SLOT,
+	HACKMAN_SLOT,
+	MIRREN_SLOT
+]);
+
 /**
  * Which states agree that a shared slot is ONE LINE — the object constancy a
  * block was allocated for, declared rather than inferred.
@@ -114,6 +138,11 @@ export const CAREER_TRAIL_SLOTS = new Set([
  * shape that exists in neither chart: it fades out where it lies and re-enters
  * instead of morphing (see ScrollyVisual's departTrails). RULE_SLOT and the
  * simulation block are deliberately absent for exactly that reason.
+ *
+ * BACON_TRAIL_SLOTS are deliberately absent for the same reason, and it is the
+ * whole of how that step arrives: Sweeney's trio is not the same thing as
+ * Bacon's, so the trio fades out where it lies before the crowd moves and
+ * Bacon's line is drawn onto an empty chart after it has landed.
  *
  * Inferring this from the geometry is not an option: the live frame is Float32
  * and a target is Float64, so identical lines differ by rounding — and the race
