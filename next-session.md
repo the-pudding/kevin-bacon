@@ -1,94 +1,110 @@
-# Handoff: the galaxy is a flowing 3D field — awaiting visual sign-off
+# Handoff: make the actor search a subtle easter egg
 
-## Where this stands
+## Starting Prompt
 
-The galaxy views (`hopSeed` at `?step=2`, the three `chapterCenters` cards at
-3/12/20, and `outro` at `?step=28`) are no longer a flat 2D field of drifting
-dots. They are a volume the camera flies forward through: a dot enters at the far
-plane, streams outward from the vanishing point as it comes toward the reader,
-growing and darkening, passes the camera and enters again somewhere new.
+The actor search is built, measured and committed. Everything below the surface
+is good and stays: the data pipeline, the canvas highlight on four charts, the
+flight animation, the search index and the Supabase recording. **Only the way
+the reader reaches it is wrong.**
 
-**Built, green on `npm run build` and `npm run lint`, and measured. Not visually
-signed off** — every row of `notes/tween-checklist.md` is `[!]`, and only Owen
-marks a row `[x]`.
+Today it is a full-width combobox with the placeholder "Search for an actor…"
+sitting in the prose flow on steps 6, 18, 19 and 26, plus a persistent readout
+carrying a coloured dot, the name, the degree, a "Clear" button and (on step 6)
+the route back to Bacon. Owen's words: it is "too in your face". He wants **a
+subtle easter egg rather than part of the text, not a CTA anywhere, just
+something that would delight a reader on the way past.**
 
-There is no outstanding design question. If the next session is picking this up,
-it is to look at it in a browser and tune, not to decide anything.
+Four decisions are already made (Owen, this session):
 
-## Read first
+1. **Keep the search; hide the way in.** The lookup survives intact — a reader
+   must still be able to go looking for Tom Holland. What goes is the affordance:
+   no input in the prose, no placeholder sentence. A small glyph is the entry
+   point, because a keyboard shortcut alone is dead on mobile and the checklist
+   tests 320 and 375px. Put the keyboard path in as well if it is free, but it
+   cannot be the only way in.
+2. **The answer is a canvas label.** The dot takes its name exactly as every
+   other named dot in the story does — `withSearchLabel` already does this and
+   `createLabelStacker` already de-collides it. The readout block in the card
+   goes away entirely.
+3. **The same four steps.** 6 (`hopBands`), 18 (`scatterCenters`),
+   19 (`degScatter`), 26 (`careerMany`). No new steps, no renumbering.
+4. **The route to Bacon stays, on the hop chart only.**
 
-- `notes/scrolly-framework.md` — the contracts. `STATE_AMBIENT` (~:152) for the
-  flight, "Chapter cards" (~:1045) for the sky's depth and the handoff into
-  `hopBands`, and "Checking a layout or a writer numerically" at the end for how
-  to measure any of it without a test runner.
-- The "Tween sign-off" section of `CLAUDE.md`.
+One call left to me rather than asked, flagged here so it can be overturned:
+decisions 2 and 4 together leave the route homeless — it is not prose, and it
+is too much text to sit on a 22,530-dot chart as a `notes` entry. **Assume it
+lives in the same popover the glyph opens**, shown after a pick, so the reader
+sees "…was in Avengers: Infinity War (2018) with Benedict Cumberbatch, who was
+in Black Mass (2015) with Kevin Bacon", the popover closes, and what is left on
+screen is a named purple dot. If Owen wants it elsewhere, that is the thing to
+re-ask.
 
-## What it is made of
+Do first: read `notes/design/interactions.md` rule 1b (this control's own
+rules — it will need rewriting), then the "Interactive steps" and "Panels"
+sections of `notes/scrolly-framework.md`.
 
-| File                                                            | What lives there                                                                                                                                                                                                  |
-| --------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `src/components/scrolly/layout-shared.js`                       | All of it: `skyFrac`/`entrySpot`/`flowSpot` (the flow, pure in `(id, t)`), `fieldSpot` (the flow at t = 0), `fieldDepth`/`depthSize`/`depthFade`, `flightWindow`, `skyFlight` (the published clock), `makeFlight` |
-| `src/components/scrolly/layouts/hop-bands.js`                   | `departureColumn` — the column a dot leaves a chapter card in                                                                                                                                                     |
-| `src/components/scrolly/layouts/chapters.js`, `layouts/race.js` | the fifteen and the outro cast taking the crowd's depth and window                                                                                                                                                |
-| `src/components/scrolly/ScrollyVisual.svelte`                   | `stopSweep` drops the layout cache when a flight stops (see below)                                                                                                                                                |
+## Relevant Files
 
-## The two things that are not obvious
+| File                                          | Why                                                                                                                                         |
+| --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/components/scrolly/ActorSearch.svelte`   | The whole of the change. The combobox, the readout, the Clear button, the route list, the reserved-height box and the flight all live here. |
+| `src/components/Index.svelte`                 | The four mount points (~:306, 419, 429, 510) and the comment block above the first. The prose above each stays Owen's.                      |
+| `src/components/ui/Combobox.svelte`           | Already portalled, which is most of the way to a popover. Keep.                                                                             |
+| `src/components/scrolly/fly-to-dot.js`        | The shared flight. See the warning below — its source element is the problem.                                                               |
+| `src/components/scrolly/search.js`            | The index. **Unchanged by this work.**                                                                                                      |
+| `src/components/scrolly/ScrollyVisual.svelte` | `locate()` (the flight target), the derived `TRACKED_IDS`, and `.hits` at `--z-tap-above` if a canvas affordance is ever wanted.            |
+| `src/components/scrolly/Stage.svelte`         | Where chart furniture and the title sit, if the glyph goes beside the title.                                                                |
+| `notes/design/interactions.md`                | Rule 1b is written for a card control and will be wrong.                                                                                    |
+| `notes/tween-checklist.md`                    | Rows 6/18/19/26 carry search notes that will need rewording.                                                                                |
 
-**The flow is a pure function of `(id, t)`, and it has to be.** Two very
-different things read it: the per-frame writer, and the layouts — which are the
-flow at t = 0, and, for `hopBands`, the flow at whatever moment the reader
-stepped off the card. One definition, two readers.
+## Key Context
 
-**One published number, and one impurity.** `skyFlight.t` is the flow's clock.
-`hopBands` reads it, which makes that layout the only thing in the story that is
-not a pure function of `(state, w, h, bleed, params)` — so `stopSweep` drops the
-whole layout cache whenever a flight stops. It runs before any layout is built on
-a state change, which is what makes the frame the bands are struck against the
-frame the sky was showing when the reader tapped.
+**Committed and green.** `kevin-bacon`: `22e3f82` (golden fix), `09e94bb` (the
+feature), `642ca49` (the fame-based pool). `pudding-post`: `ce71258` (the route
+export). `npm run gates` passes, 382 tests.
 
-## Tuning knobs, in the order worth reaching for
+**The flight's source element is the one real trap.** `flyToDot` needs a DOM
+element with a box to animate from, and it was deliberately put in the step
+card because a portalled element unmounts when its popover closes — mid-flight,
+if the popover closes on pick. Solve it explicitly: either hold the popover open
+until the flight lands, or fly a transient clone appended to `body`. Do not
+discover this by watching a chip vanish.
 
-- `FLIGHT_CYCLE_MS` (26s) — one dot's trip across the whole volume. **The feel
-  knob.** Shorter streams faster.
-- `SKY_FAR` (4, against `SKY_NEAR` 1) — how far a dot is carried across the frame
-  per trip. Bigger is more dramatic, and pushes more of the crowd past the plot,
-  which `departureColumn`'s off-canvas rule absorbs.
-- `FLIGHT_FADE` (0.12) — how long a dot takes to fade in and out at the ends of
-  its trip; 3.1s at the current cycle. Raise it if the wraps read as shimmer.
-- `GALAXY_SPREAD` (1.46) — the ENTRY box, not the sky's extent. Retune it against
-  the on-canvas count, never by eye on one frame.
-- `SKY_DEPTH_GAMMA` (0.5) — how hard depth pushes size and alpha apart. The ink
-  normaliser is derived, so changing this cannot leave a stale number behind.
+**Deleting the card block deletes its machinery.** `reserveLines`,
+`--reserve-wrap`, the `MAX_PATH_STEPS`-driven `min-height` and the
+`.actor-search__out` / `__found` / `__chip` / `__clear` / `__path` markup all
+exist only to stop the card changing height. If the control leaves the card,
+remove them rather than leaving them behind — and re-measure, because
+`overlayHeight` is what half the canvas's bottom clearances come off. The
+current build measures **0.0px delta** at 320/375/390/430 through menu-open,
+flight and settle; whatever replaces it should be measured the same way with
+Playwright, not reasoned about.
 
-## What was measured, so a regression is recognisable
+**Do not let the glyph become a CTA by accident.** The brief is "no call to
+action anywhere". A glyph with a label beside it, or one that pulses, is the
+thing Owen has just rejected in another form.
 
-- t = 0 contract: 2.4e-4 (one Float32 ULP) for all three galaxy states.
-- Stationary over 10 minutes: 12,097 dots written every frame, ~2,400–2,580 on
-  canvas, centre-to-edge density 0.24–0.27, ~30 of 12,097 fully faded at any
-  instant. Every actor passes through the visible frame at least once.
-- `hopBands`: 0 columns outside the plot, band density uniform to ±5%.
-- Writer cost: 0.039ms/frame for 12,097 dots.
+**The pool** is `Recognizability > 7` from the sdokb Supabase project, unioned
+with everyone the story names or draws, intersected with the actors all four
+charts can place: 1,449 people. Regenerate the fame input with
+`SDOKB_URL=… SDOKB_KEY=… npm run fetch-recognizable` (both are
+`PUBLIC_SUPABASE_URL` / `PUBLIC_SUPABASE_ANON_KEY` in the `sdokb` checkout's
+`.env`; there is no Supabase MCP connector in these sessions). Known gaps: Paul
+Mescal is out, and 21 recognisable people are absent from the corpus entirely
+(Ariana Grande, Harry Styles — musicians with too few films).
 
-A naive recycle — wrapping a dot's depth without re-drawing its entry spot — is
-NOT stationary and doubles the on-canvas count mid-cycle. It looks fine in a
-still. Measure after touching any of this.
+**Analytics is live.** Owen has run `supabase/schema.sql`, so `actor_searches`
+exists. `recordActorSearch({ actorId, chart })` sends `chart` as one of
+`hops` / `remoteness` / `costars` / `career`; keep that meaningful.
 
-## What to look at, and the one honest caveat
+**Sign-off is outstanding.** No contact sheets have ever been run for these four
+transitions (`npm run sheet -- <from> <to>`, the `tween-sheet` skill, read
+against `notes/design/motion.md`). Rows 6/18/19/26 are `[!]` and only Owen marks
+a row `[x]`. Run `npm run stale` from the staged diff after any change.
 
-Watch a full 26s cycle on a card for a wrap that reads as a pop rather than a
-fade; births happen on canvas at roughly 220/s, but each is a 3.1s ramp, so the
-failure mode is a general shimmer in the field's brightness, not individual dots
-appearing.
+**Concurrency.** Owen edits this repo in parallel — three times this session his
+work appeared mid-task (the em-dash copy pass, then the race callouts, landed as
+`f61e574`). Check `git status` before staging and commit only your own files.
 
-**The caveat Owen has already been given:** on a light background, faint grey
-dots streaming outward may read closer to drifting motes than to stars. That is a
-look to accept or reject, not a bug — and the background staying light is a fixed
-decision.
-
-## Left undone
-
-- Phone perf at 375px is unmeasured in a real browser. The writer is cheap; the
-  `Path2D` + `arc()` per dot that `drawScene` already pays is what to watch.
-- Every checklist row is stale, including the cross-cutting passes. Two new rows
-  were added there for the flow (sit on a card for two cycles; reduced-motion and
-  cold `?step=4`).
+**This file** is tracked in git, not ignored; it previously held a stale handoff
+from the galaxy work and was overwritten.
