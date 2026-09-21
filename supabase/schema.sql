@@ -1,8 +1,9 @@
 -- Run once in the Supabase SQL editor (or `supabase db push`) for the
 -- project backing PUBLIC_SUPABASE_URL / PUBLIC_SUPABASE_PUBLISHABLE_KEY.
 --
--- Records the two reader quiz interactions (src/components/scrolly/
--- GuessRank.svelte and PairQuiz.svelte). Write-only from the client: no
+-- Records the three reader interactions (src/components/scrolly/
+-- GuessRank.svelte, PairQuiz.svelte and ActorSearch.svelte). Write-only from
+-- the client: no
 -- select/update/delete policy is granted to `anon`, so the publishable key
 -- can only append rows.
 --
@@ -29,10 +30,25 @@ create table pair_quiz_picks (
 	created_at timestamptz not null default now()
 );
 
+-- The reader's own actor, searched on the hop chart or one of the three
+-- scatters. One row per pick rather than one per reader: the same actor named
+-- again on a later chart is a second row, because `chart` is half of what this
+-- is measuring.
+create table actor_searches (
+	id uuid primary key default gen_random_uuid(),
+	session_id uuid not null,
+	actor_id integer not null,
+	chart text not null, -- hops | remoteness | costars | career
+	created_at timestamptz not null default now()
+);
+
 alter table rank_guesses enable row level security;
 alter table pair_quiz_picks enable row level security;
+alter table actor_searches enable row level security;
 
 create policy "anon insert only" on rank_guesses
 	for insert to anon with check (true);
 create policy "anon insert only" on pair_quiz_picks
+	for insert to anon with check (true);
+create policy "anon insert only" on actor_searches
 	for insert to anon with check (true);

@@ -98,6 +98,14 @@ export function recordPairPick({ pairIndex, pickedId, otherId, correct }) {
 	});
 }
 
+/** Record one actor search (src/components/scrolly/ActorSearch.svelte).
+ * `chart` names which of the four searchable charts the reader was on, so the
+ * same actor picked twice on two charts is two rows: what is being measured is
+ * where the reader reached for the control, not just who they looked up. */
+export function recordActorSearch({ actorId, chart }) {
+	insert("actor_searches", { actor_id: actorId, chart });
+}
+
 /** Read both crowd histograms, both taker counts and — keyed by this browser's
  * session id — the reader's own two numbers (see supabase/quiz_results.sql for
  * the shape and for how each number is counted).

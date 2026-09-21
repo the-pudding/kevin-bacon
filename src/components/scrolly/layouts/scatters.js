@@ -9,6 +9,13 @@ import {
 	deLogFilms,
 	FILM_MIN_SHOWN
 } from "../scatter-scales.js";
+import {
+	SEARCH_DOT_R,
+	SEARCH_RGB,
+	searchedId,
+	withSearchLabel,
+	withSearchParams
+} from "../search.js";
 
 // ---------------------------------------------------------------------------
 // Films scatters: shared log-films x-axis, swappable y metric. Non-participants
@@ -109,18 +116,31 @@ function scatterTicks(vMin, vMax, cfg, yS) {
 	return y;
 }
 
-const avgScatter = (nodes, w, h, highlights) =>
+/**
+ * The reader's own actor, folded into whatever the step was already marking.
+ * Added LAST so it wins a collision: if they searched for a dot the step
+ * already singles out, the mark that answers their own question is the one that
+ * should be on it. Copies rather than mutates — two of the three callers pass a
+ * module-level map.
+ */
+const withSearch = (highlights, params) => {
+	const id = searchedId(params);
+	if (id == null) return highlights;
+	return new Map(highlights).set(id, { rgb: SEARCH_RGB, r: SEARCH_DOT_R });
+};
+
+const avgScatter = (nodes, w, h, highlights, params) =>
 	filmsScatter(nodes, w, h, {
 		yOf: (n) => n.avgDistance,
 		invert: true, // lower average distance = better connected = up
-		highlights
+		highlights: withSearch(highlights, params)
 	});
 
 // by tmdb id, not QUIZ_IDS position: Portman/Kendrick are the worked example
 // for scatterCenters/degScatter regardless of whether
 // they're one of the quiz pairs, and this stays correct across data rebuilds
-const PORTMAN = idOf(524);
-const KENDRICK = idOf(84223);
+export const PORTMAN = idOf(524);
+export const KENDRICK = idOf(84223);
 
 // quiz pairs exclude Portman/Kendrick — they're the dedicated worked example,
 // not a quiz question
@@ -164,14 +184,15 @@ const layoutScatterCenters = (nodes, w, h, _edges, params) => {
 			new Map([
 				[PORTMAN, { rgb: CROWD, r: 5.5 }],
 				[KENDRICK, { rgb: CROWD, r: 5.5 }]
-			])
+			]),
+			params
 		);
 	}
 	const highlights = new Map([[SLJ, { rgb: CROWD, r: 6 }]]);
 	// the film-count step names the runner-up as well, so he gets a mark of his
 	// own — subordinate to the subject, and only on that step
 	if (params?.showFilms) highlights.set(CAGE, { rgb: CROWD, r: 5 });
-	return avgScatter(nodes, w, h, highlights);
+	return avgScatter(nodes, w, h, highlights, params);
 };
 
 // Is this pair on the chart? Either the reader has settled it, or they have
@@ -215,7 +236,7 @@ function layoutScatterQuiz(nodes, w, h, _edges, params) {
 		highlights.set(pair.a, { rgb: verdictRgb(pair, pair.a, picked), r: 5.5 });
 		highlights.set(pair.b, { rgb: verdictRgb(pair, pair.b, picked), r: 5.5 });
 	});
-	return avgScatter(nodes, w, h, highlights);
+	return avgScatter(nodes, w, h, highlights, params);
 }
 
 // this step narrows the highlight to just the Portman/Kendrick pair from the
@@ -235,14 +256,14 @@ const DEG_SCATTER_FLOOR = Math.log(20);
 const DEG_SCATTER_CEIL = Math.log(68);
 
 /** @type {import("../layout-types.js").LayoutFn} */
-const layoutDegScatter = (nodes, w, h) =>
+const layoutDegScatter = (nodes, w, h, _edges, params) =>
 	filmsScatter(nodes, w, h, {
 		yOf: (n) => n.top50,
 		// top50 is mean log(films + 1) of the 50 most prolific costars, so the
 		// plotted range is ~2-5. The 0.5 default was tuned for the retired
 		// log-degree metric's ~7-8 band and leaves too few ticks here.
 		tickStep: 0.25,
-		highlights: DEG_SCATTER_HIGHLIGHTS,
+		highlights: withSearch(DEG_SCATTER_HIGHLIGHTS, params),
 		floor: DEG_SCATTER_FLOOR,
 		ceil: DEG_SCATTER_CEIL,
 		// ticks stay evenly spaced in log space (that's the plotted scale), but
@@ -266,7 +287,14 @@ export const states = {
 	scatterCenters: {
 		layout: layoutScatterCenters,
 		title: "Films vs. remoteness",
-		labels: (params) => (params?.showPair ? [PORTMAN, KENDRICK] : [SLJ, CAGE]),
+		labels: (params) =>
+			withSearchLabel(
+				params?.showPair ? [PORTMAN, KENDRICK] : [SLJ, CAGE],
+				params
+			),
+		// the step's own params, plus the reader's actor — this state hosts the
+		// remoteness search (step 18)
+		params: withSearchParams(),
 		// the pair labels carry their metric, so they're too wide to sit beside
 		// their dots at the right edge of the cloud — they hang below (clamped)
 		// on the pair step. On the film-count step, SLJ and Cage's dots sit close
@@ -309,8 +337,11 @@ export const states = {
 		layout: layoutScatterQuiz,
 		title: "Films vs. remoteness",
 		labels: (params) =>
-			QUIZ_PAIRS.flatMap((pair, i) =>
-				pairShown(params, i) ? [pair.a, pair.b] : []
+			withSearchLabel(
+				QUIZ_PAIRS.flatMap((pair, i) =>
+					pairShown(params, i) ? [pair.a, pair.b] : []
+				),
+				params
 			),
 		// Once the reader has been past this step every pair is SHOWN, answered or
 		// not: the reveal is unconditional, so a skipped quiz is revealed too
@@ -320,17 +351,21 @@ export const states = {
 		// threw away WHICH option the reader had chosen, and that is exactly what
 		// the verdict colour is read off — so stepping back into the step used to
 		// erase the reader's own answers from the chart.
-		params: (s) => ({
+		// no search control on this step — its card already carries the quiz — but
+		// a pick made on step 18 is sticky, so the mark rides through
+		params: withSearchParams((s) => ({
 			picks: { ...s.quiz.picks },
 			revealAll: s.quiz.revealed
-		}),
+		})),
 		labelDirs: QUIZ_LABEL_DIRS,
 		overlay: AVG_OVERLAY
 	},
 	degScatter: {
 		layout: layoutDegScatter,
 		title: "Films vs. costar film count",
-		labels: [PORTMAN, KENDRICK],
+		labels: (params) => withSearchLabel([PORTMAN, KENDRICK], params),
+		// this state hosts the costar-count search (step 19)
+		params: withSearchParams(),
 		// no labelDirs entry for either id: they fall back to hanging below the
 		// dot, which is what "only these two" calls for once the crowd is gone
 		labelDirs: {},

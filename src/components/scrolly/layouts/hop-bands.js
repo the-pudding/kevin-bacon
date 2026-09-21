@@ -11,6 +11,12 @@ import { CROWD, HOP_RGB, HOP_DOT_ALPHA } from "../palette.js";
 import { MARGIN, plotBottom, NO_BLEED } from "../plot.js";
 import { hopFractions, hopShareLabels } from "../rank-geometry.js";
 import {
+	SEARCH_RGB,
+	searchedId,
+	withSearchLabel,
+	withSearchParams
+} from "../search.js";
+import {
 	writeFieldCrowd,
 	makeFlight,
 	onSkyClock,
@@ -124,8 +130,15 @@ function bandGeometry(counts, h) {
 /**
  * One actor's dot in its hop band: the anchor big and centred in the header
  * row, everyone else jittered within their hop's band.
+ * The searched actor keeps their band row and their column — the two things the
+ * chart is saying about them — and changes only colour and size, so the reader
+ * watches their dot arrive in a band rather than somewhere new. A bigger radius
+ * than the band's 3 because the crowd here is 22,500 dots deep and a recoloured
+ * 3px dot in that is not findable; it stays under the anchor's 10.
+ *
  * @param {{ w: number, h: number, skyBox: number[], contraction: number,
- *   bandTop: number[], bandH: number[], seed: boolean }} f the frame
+ *   bandTop: number[], bandH: number[], seed: boolean,
+ *   search: number | null }} f the frame
  */
 function placeInBand(attrs, n, f) {
 	if (n.hop === 0) {
@@ -133,18 +146,21 @@ function placeInBand(attrs, n, f) {
 		set(attrs, n.id, f.w / 2, y, 10, HOP_RGB[0], f.seed ? 0 : 1);
 		return;
 	}
+	const marked = n.id === f.search;
 	set(
 		attrs,
 		n.id,
 		// the column the dot leaves the chapter card in, parallax and all
 		departureColumn(n.id, f.w, f.h, f.skyBox, f.contraction),
 		f.bandTop[n.hop] + hash01(n.id, 4) * f.bandH[n.hop],
-		3,
-		HOP_RGB[n.hop],
+		marked ? 7 : 3,
+		marked ? SEARCH_RGB : HOP_RGB[n.hop],
 		// `seed` parks every node at its band position but invisible — what
 		// sits behind hopSeed's zoomed-out network, so the fifteen the network
 		// draws are the only actors with any distance left to travel there.
-		f.seed ? 0 : HOP_DOT_ALPHA
+		// The reader's own dot is opaque: HOP_DOT_ALPHA exists so a packed band
+		// shows its density, and the one dot they asked for is not crowd.
+		f.seed ? 0 : marked ? 1 : HOP_DOT_ALPHA
 	);
 }
 
@@ -163,6 +179,7 @@ function layoutHopBands(nodes, w, h, _edges, params, bleed = NO_BLEED) {
 		skyBox: galaxyBox(w, h, bleed),
 		contraction: skyToColumn(w, h, bleed),
 		seed,
+		search: searchedId(params),
 		...bandGeometry(counts, h)
 	};
 	for (const n of nodes) {
@@ -328,9 +345,15 @@ export const states = {
 		}
 	},
 	hopBands: {
-		layout: (n, w, h, e, _p, bleed) => layoutHopBands(n, w, h, e, {}, bleed),
+		// `seed` is hopSeed's alone — this state passes the reader's own params
+		// through but never that flag, which is what the empty object used to be
+		// guarding against when it discarded them wholesale
+		layout: (n, w, h, e, p, bleed) =>
+			layoutHopBands(n, w, h, e, { ...p, seed: false }, bleed),
 		title: "The four degrees of Kevin Bacon",
-		labels: [ANCHOR_ID],
+		labels: (params) => withSearchLabel([ANCHOR_ID], params),
+		// this state hosts the hop search, and the route home it prints (step 6)
+		params: withSearchParams(),
 		// The cascade is authored for the forward arrival off the chapter card,
 		// where the crowd is spread across the plot and sorts itself into rows;
 		// any other direction (a step back from rankFocus) is one plain tween.

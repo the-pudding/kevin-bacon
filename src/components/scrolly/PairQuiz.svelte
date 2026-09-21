@@ -32,24 +32,21 @@
 	import { INTERACTIVE_IDS, nodeName, quizDone } from "./states.js";
 	import { quizWinner } from "./layouts/scatters.js";
 	import { CROWD, GREEN, RED } from "./palette.js";
+	import {
+		HOLD_MS,
+		MARK_MS,
+		flyToDot,
+		prefersReducedMotion,
+		rgb
+	} from "./fly-to-dot.js";
 	import { recordPairPick } from "$utils/analytics.js";
 
 	/** @type {{ visual: any }} */
 	let { visual } = $props();
 
-	// The ✓/✗ held still before the chips leave. One beat, not a duration of its
-	// own: motion.md rule 10 keeps durations in the framework's hands, and 450ms
-	// is the one it already spends on an in-state change. The mark stays legible
-	// well past it either way — it rides the chip through the first third of the
-	// flight, before the squish takes the glyph with it.
-	const MARK_MS = 450;
-	const FLIGHT_MS = 900;
-	const EASE = "cubic-bezier(0.65, 0, 0.35, 1)";
-	const DOT_DIAMETER = 11; // landing dot is r 5.5; the chip squishes to this
-	const HOLD_MS = 450; // matches ScrollyVisual's PARAM_TWEEN_MS (dot fade-in)
-
-	const rgb = (c) => `rgb(${c.join(", ")})`;
-
+	// MARK_MS is the beat the ✓/✗ is held before the chips leave. The mark stays
+	// legible well past it either way — it rides the chip through the first third
+	// of the flight, before the squish takes the glyph with it.
 	const pairs = INTERACTIVE_IDS.quiz;
 
 	// Where this mount picks up. Past the end (nothing left to ask) when the
@@ -75,15 +72,6 @@
 	/** @type {ReturnType<typeof setTimeout> | null} */
 	let holdTimer = null;
 	let destroyed = false;
-
-	let reducedMotion = $state(false);
-	$effect(() => {
-		const query = window.matchMedia("(prefers-reduced-motion: reduce)");
-		const update = () => (reducedMotion = query.matches);
-		update();
-		query.addEventListener("change", update);
-		return () => query.removeEventListener("change", update);
-	});
 
 	$effect(() => () => {
 		destroyed = true;
@@ -174,7 +162,7 @@
 		const { a, b } = pair;
 
 		// no flight under reduced motion, or before the canvas has tracked the dots
-		if (reducedMotion || !visual?.locate) {
+		if (prefersReducedMotion() || !visual?.locate) {
 			phase = "resolving";
 			settle(choice, advance);
 			return;
@@ -188,7 +176,7 @@
 			const target = visual.locate(id);
 			if (!card || !target) return null;
 			return {
-				card,
+				el: card,
 				rect: card.getBoundingClientRect(),
 				target,
 				fill: rgb(colourOf(c, id))
@@ -203,37 +191,10 @@
 
 		phase = "resolving";
 
-		// One animation per chip: the move and the chip→dot morph (text fading
-		// out, non-uniform squish to a round DOT_DIAMETER footprint) on one clock.
-		// A transform off the chip's own resting box, so nothing has to leave flow
-		// and the card's measured height never moves (see the header note).
-		await Promise.all(
-			plans.map(({ card, rect, target, fill }) => {
-				const dx = target.x - (rect.left + rect.width / 2);
-				const dy = target.y - (rect.top + rect.height / 2);
-				const sx = DOT_DIAMETER / rect.width;
-				const sy = DOT_DIAMETER / rect.height;
-				return card.animate(
-					[
-						{
-							transform: "translate(0, 0) scale(1, 1)",
-							backgroundColor: "var(--color-bg, #fff)",
-							borderColor: fill,
-							color: "var(--color-fg, #282828)",
-							borderRadius: "2rem"
-						},
-						{
-							transform: `translate(${dx}px, ${dy}px) scale(${sx}, ${sy})`,
-							backgroundColor: fill,
-							borderColor: fill,
-							color: "transparent",
-							borderRadius: "50%"
-						}
-					],
-					{ duration: FLIGHT_MS, easing: EASE, fill: "forwards" }
-				).finished;
-			})
-		);
+		// Both chips on one clock (see fly-to-dot.js). Every box and target above
+		// was captured before the first animation started, which is that
+		// function's stated contract for flying more than one element.
+		await Promise.all(plans.map((plan) => flyToDot(plan)));
 		if (destroyed) return;
 
 		// Reveal the real canvas dots (the param re-run fades them in), and hold

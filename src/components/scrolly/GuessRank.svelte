@@ -1,9 +1,11 @@
 <script>
 	// @ts-check
 	import { getContext } from "svelte";
+	import Combobox from "$components/ui/Combobox.svelte";
 	import { story } from "./story.svelte.js";
-	import { nodeName, nodeRank, searchRankOptions } from "./states.js";
-	import { SLJ } from "./cast.js";
+	import { nodeName, nodeRank } from "./states.js";
+	import { RANK_POOL, searchActors } from "./search.js";
+	import { RANK_TOP_N, SLJ } from "./cast.js";
 	import { recordRankGuess } from "$utils/analytics.js";
 
 	const steps = getContext("scrolly-steps");
@@ -15,8 +17,13 @@
 	// Search is scoped to the same top-N actors RankBars renders, so every
 	// result here has a visible row to scroll to and highlight.
 	let query = $state("");
+	/** bits-ui carries a string value; the pool is node ids */
+	let value = $state("");
 	let editing = $state(false);
-	const matches = $derived(searchRankOptions(query));
+	const matches = $derived(searchActors(query, { pool: RANK_POOL }));
+	const items = $derived(
+		matches.map(({ id, name }) => ({ value: String(id), label: name }))
+	);
 	// the reader's current guess: the most recent pick (see story.svelte.js)
 	const guess = $derived(story.rank.guesses.at(-1) ?? null);
 	// "Guess again" only reopens search — it doesn't drop the prior guess,
@@ -30,7 +37,9 @@
 	// see $utils/analytics.js) would otherwise land between naming #1 and the
 	// advance it earns, leaving the reader on a step whose gate only their own
 	// correct guess opens.
-	function pick(id) {
+	function pick(next) {
+		const id = Number(next);
+		if (!Number.isInteger(id)) return;
 		// re-picking an earlier guess moves it back to the end, so the last entry
 		// is always the one the list focuses on
 		const seen = story.rank.guesses.indexOf(id);
@@ -38,6 +47,7 @@
 		story.rank.guesses.push(id);
 		editing = false;
 		query = "";
+		value = "";
 		const correct = nodeRank(id) === 1;
 		if (correct) steps.advance();
 		recordRankGuess({ actorId: id, correct });
@@ -47,6 +57,7 @@
 		story.rank.gaveUp = true;
 		editing = false;
 		query = "";
+		value = "";
 		steps.advance();
 		recordRankGuess({ gaveUp: true, correct: false });
 	}
@@ -68,18 +79,22 @@
 		</p>
 	{/if}
 	{#if showSearch}
-		<input type="text" placeholder="Search for an actor…" bind:value={query} />
-		{#if query.trim().length >= 2}
-			{#if matches.length > 0}
-				<div class="matches">
-					{#each matches as { id, name } (id)}
-						<button onclick={() => pick(id)}>{name}</button>
-					{/each}
-				</div>
-			{:else}
-				<p class="hint">No matches in the top 250.</p>
-			{/if}
-		{/if}
+		<!-- The list is portalled out of the card (see ui/Combobox.svelte), which
+		     is why there is no reserved box around it here: it opens over the
+		     prose rather than pushing it, so the card's measured height — what
+		     half the canvas's bottom clearances come off — never moves as the
+		     reader types. The hand-rolled input this replaced grew the card on
+		     every keystroke. -->
+		<Combobox
+			bind:value
+			{items}
+			placeholder="Search for an actor…"
+			emptyText={query.trim().length < 2
+				? "Keep typing…"
+				: `No matches in the top ${RANK_TOP_N}`}
+			onsearch={(text) => (query = text)}
+			onValueChange={pick}
+		/>
 		{#if guess == null}
 			<button class="give-up" onclick={giveUp}>Give up</button>
 		{/if}
@@ -103,24 +118,6 @@
 		padding-inline: var(--tap-gutter);
 	}
 
-	input {
-		font-family: var(--font-mono);
-		font-size: 0.8rem;
-		padding: 0.4rem 0.7rem;
-		border: 1px solid var(--color-gray-400);
-		border-radius: 2rem;
-		background: var(--color-bg);
-		color: var(--color-fg, #282828);
-	}
-
-	.matches {
-		display: flex;
-		flex-wrap: wrap;
-		gap: 0.5rem;
-		max-height: 8rem;
-		overflow-y: auto;
-	}
-
 	button {
 		font-family: var(--font-mono);
 		font-size: 0.8rem;
@@ -138,13 +135,6 @@
 		color: var(--color-gray-500, #888);
 		background: none;
 		border-color: var(--color-gray-300, #ccc);
-	}
-
-	.hint {
-		margin: 0;
-		font-size: 0.8rem;
-		font-style: italic;
-		color: var(--color-gray-500, #888);
 	}
 
 	.verdict {

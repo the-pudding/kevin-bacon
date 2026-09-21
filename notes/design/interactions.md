@@ -50,6 +50,32 @@ Three rules:
    step wrapper carries an `in:fly` transform for its first ~560ms, which makes
    it the containing block for any `fixed` descendant.
 
+1b. **A search is a control that does not gate** (2026-09-21). The actor search
+(`ActorSearch.svelte`) sits in the card on four steps — the hop bands (6),
+the remoteness scatter (18), the costar scatter (19) and the career chart
+(26) — under the sentence that offers it, by rule 1 above. It declares no
+`gate`, no `skipback` and no `advanceon`: it is the one interaction in the
+story a reader can walk straight past, because nothing later reads out its
+answer. There is nothing to be carried to.
+
+Two things follow from that, and they are the opposite of every rule below.
+The pick is **sticky** — no `arrivals.js` entry clears it — because the
+reading is one actor carried through four different questions, and a reader
+who named somebody on the hop chart should find them again on the scatters
+rather than be re-asked three times. And the searched id is the only tracked
+label the framework cannot know at build time (a thousand candidates, one at
+a time), which is why `ScrollyVisual`'s `TRACKED_IDS` is derived rather than
+a constant.
+
+It reaches the canvas exactly as `PairQuiz` does, and off the same code: the
+picked name marks as a chip in the card, flies onto the plot and lands as the
+dot (`fly-to-dot.js`, extracted from the quiz on the same day so the two
+cannot drift). What is left behind is the readout — the name, the degree, and
+on the hop chart the route back to Bacon. The reader's mark is purple, the
+one category colour no chart spends: ink is how the story marks its OWN
+subject, and an ink dot on the hop chart would be indistinguishable from
+Bacon, who is ink by being hop 0.
+
 2. **A gated question owns the way out of its step** (revised 2026-09-11;
    this replaces "every question is skippable / Next must always be
    clickable"). Five steps ask the reader to do something and are followed by a

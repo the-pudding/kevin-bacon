@@ -158,13 +158,34 @@
 	// frame so the HTML annotations stay glued to their dots mid-tween.
 	// Dynamic label and pulse states (function values) declare their possible
 	// ids in STATE_TRACKED instead.
-	const TRACKED_IDS = [
+	const STATIC_TRACKED = [
 		...new Set([
 			...Object.values(STATE_LABELS).filter(Array.isArray).flat(),
 			...Object.values(STATE_PULSE).filter((p) => typeof p === "number"),
 			...STATE_TRACKED
 		])
 	];
+	// …plus the one id the reader has searched for, which is the single tracked id
+	// that cannot be known at build time. It is derived rather than declared
+	// because the search pool is a thousand actors (search.js) and every tracked
+	// id costs a label element walked by trackLabels on every frame — a thousand
+	// of them to show one name. Read by drawScene, which is not a reactive
+	// context, so it simply sees the current value on the next frame.
+	//
+	// The `includes` is load-bearing, not tidiness: the pool holds plenty of
+	// actors the story names itself (SLJ, the intro fifteen, the Gen Z cast), and
+	// appending one of those unconditionally puts the id in this list twice. The
+	// label elements are keyed on `id:name`, so a duplicate is a duplicate key,
+	// which throws and takes the whole step card — search control included — down
+	// with it. Measured on 2026-09-21: searching Samuel L. Jackson unmounted the
+	// control; searching Rachel Weisz, who is in the pool but not in the cast,
+	// did not.
+	const TRACKED_IDS = $derived(
+		story.search.actorId == null ||
+			STATIC_TRACKED.includes(story.search.actorId)
+			? STATIC_TRACKED
+			: [...STATIC_TRACKED, story.search.actorId]
+	);
 
 	// -- The writers ------------------------------------------------------------
 	// Two tweeners (dots and edges in one Float32 frame, trails in another) and
@@ -880,18 +901,31 @@
 	});
 	const ring = $derived(tracked.find((t) => t.id === lastPulseId));
 
-	// Pudding's scatter.locate(): the live on-canvas position of a tracked dot, in
+	// Pudding's scatter.locate(): the live on-canvas position of one dot, in
 	// VIEWPORT coordinates (canvas-relative x/y + the container's bounding rect), so
-	// callers don't have to share the canvas's offset parent. Used by the pair quiz,
-	// from the step card, to fly its option chips onto their true dot positions —
-	// which is why viewport coordinates and not canvas ones. null until the id has
-	// been tracked at least once. Quiz ids are always tracked (STATE_TRACKED) and
-	// never move on a pick, so this is a stable flight target.
+	// callers don't have to share the canvas's offset parent. Used by the step
+	// card's controls — the pair quiz's chips, the actor search's result row — to
+	// fly onto their true dot positions, which is why viewport coordinates and not
+	// canvas ones.
+	//
+	// Read straight out of the live buffer rather than out of `tracked`. Those are
+	// the same two numbers for a tracked id (trackLabels sets x/y from exactly
+	// these slots), but the buffer answers for EVERY node, and the searched actor
+	// is tracked only from the tick after the reader names them — the flight
+	// target has to exist at the moment of the press. Alpha is not consulted: a
+	// hidden dot still has a position (that is the framework's own rule, so a
+	// later fade-in never teleports), and flying onto a dot that is about to fade
+	// in is exactly what both callers do.
 	export function locate(id) {
-		const t = tracked.find((entry) => entry.id === id);
-		if (!t || !container) return null;
+		if (!container || !Number.isInteger(id) || id < 0 || id >= nodes.length) {
+			return null;
+		}
+		const attrs = tweener.current;
 		const rect = container.getBoundingClientRect();
-		return { x: rect.left + t.x, y: rect.top + t.y };
+		return {
+			x: rect.left + attrs[id * STRIDE],
+			y: rect.top + attrs[id * STRIDE + 1]
+		};
 	}
 
 	// -- Arrival state ----------------------------------------------------------

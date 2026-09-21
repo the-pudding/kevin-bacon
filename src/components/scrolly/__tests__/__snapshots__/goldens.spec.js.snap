@@ -1,6 +1,36 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`layout goldens > careerBacon null @beside 1`] = `
+exports[`layout goldens > careerBacon {"searchId":105} @beside 1`] = `
+{
+  "attrs": "a2c90af5172259a2",
+  "decor": "7b99d7164640466b",
+  "delays": null,
+  "trailDelays": "7a078e112ae41257",
+  "trails": "aa8017537a943a4b",
+}
+`;
+
+exports[`layout goldens > careerBacon {"searchId":105} @phone 1`] = `
+{
+  "attrs": "6b3688dc27bacba9",
+  "decor": "3d88ed0a8bc041bd",
+  "delays": null,
+  "trailDelays": "7a078e112ae41257",
+  "trails": "9a5be40dbbb065e2",
+}
+`;
+
+exports[`layout goldens > careerBacon {"searchId":105} @stacked 1`] = `
+{
+  "attrs": "c6d23860f8b4478c",
+  "decor": "64fd7b24808b70fc",
+  "delays": null,
+  "trailDelays": "7a078e112ae41257",
+  "trails": "15027ba948420857",
+}
+`;
+
+exports[`layout goldens > careerBacon {"searchId":null} @beside 1`] = `
 {
   "attrs": "67cc2aa417810612",
   "decor": "7b99d7164640466b",
@@ -10,7 +40,7 @@ exports[`layout goldens > careerBacon null @beside 1`] = `
 }
 `;
 
-exports[`layout goldens > careerBacon null @phone 1`] = `
+exports[`layout goldens > careerBacon {"searchId":null} @phone 1`] = `
 {
   "attrs": "8e79273b1cfea043",
   "decor": "3d88ed0a8bc041bd",
@@ -20,7 +50,7 @@ exports[`layout goldens > careerBacon null @phone 1`] = `
 }
 `;
 
-exports[`layout goldens > careerBacon null @stacked 1`] = `
+exports[`layout goldens > careerBacon {"searchId":null} @stacked 1`] = `
 {
   "attrs": "3e54184c4657c6dc",
   "decor": "64fd7b24808b70fc",
@@ -30,7 +60,37 @@ exports[`layout goldens > careerBacon null @stacked 1`] = `
 }
 `;
 
-exports[`layout goldens > careerMany null @beside 1`] = `
+exports[`layout goldens > careerMany {"searchId":105} @beside 1`] = `
+{
+  "attrs": "cb6632b386b48093",
+  "decor": "7b99d7164640466b",
+  "delays": null,
+  "trailDelays": "e8e459a5709789ac",
+  "trails": "f94e8f0aa1d273e4",
+}
+`;
+
+exports[`layout goldens > careerMany {"searchId":105} @phone 1`] = `
+{
+  "attrs": "0a928f4613b5ec04",
+  "decor": "3d88ed0a8bc041bd",
+  "delays": null,
+  "trailDelays": "e8e459a5709789ac",
+  "trails": "4d3bed385ff4e20e",
+}
+`;
+
+exports[`layout goldens > careerMany {"searchId":105} @stacked 1`] = `
+{
+  "attrs": "770fb6d9e72038c6",
+  "decor": "64fd7b24808b70fc",
+  "delays": null,
+  "trailDelays": "e8e459a5709789ac",
+  "trails": "648bf4fbe439bc1f",
+}
+`;
+
+exports[`layout goldens > careerMany {"searchId":null} @beside 1`] = `
 {
   "attrs": "e19142dce06b19c4",
   "decor": "7b99d7164640466b",
@@ -40,7 +100,7 @@ exports[`layout goldens > careerMany null @beside 1`] = `
 }
 `;
 
-exports[`layout goldens > careerMany null @phone 1`] = `
+exports[`layout goldens > careerMany {"searchId":null} @phone 1`] = `
 {
   "attrs": "a8570de7fa655103",
   "decor": "3d88ed0a8bc041bd",
@@ -50,7 +110,7 @@ exports[`layout goldens > careerMany null @phone 1`] = `
 }
 `;
 
-exports[`layout goldens > careerMany null @stacked 1`] = `
+exports[`layout goldens > careerMany {"searchId":null} @stacked 1`] = `
 {
   "attrs": "ede9ea6929704f5b",
   "decor": "64fd7b24808b70fc",
@@ -60,7 +120,37 @@ exports[`layout goldens > careerMany null @stacked 1`] = `
 }
 `;
 
-exports[`layout goldens > careerTrio null @beside 1`] = `
+exports[`layout goldens > careerTrio {"searchId":105} @beside 1`] = `
+{
+  "attrs": "cb6632b386b48093",
+  "decor": "7b99d7164640466b",
+  "delays": null,
+  "trailDelays": "6e76de75dd4a66ba",
+  "trails": "e1e954483b0e3bc1",
+}
+`;
+
+exports[`layout goldens > careerTrio {"searchId":105} @phone 1`] = `
+{
+  "attrs": "0a928f4613b5ec04",
+  "decor": "3d88ed0a8bc041bd",
+  "delays": null,
+  "trailDelays": "6e76de75dd4a66ba",
+  "trails": "9680babf7a8f1938",
+}
+`;
+
+exports[`layout goldens > careerTrio {"searchId":105} @stacked 1`] = `
+{
+  "attrs": "770fb6d9e72038c6",
+  "decor": "64fd7b24808b70fc",
+  "delays": null,
+  "trailDelays": "6e76de75dd4a66ba",
+  "trails": "90bd0c6493ca51c1",
+}
+`;
+
+exports[`layout goldens > careerTrio {"searchId":null} @beside 1`] = `
 {
   "attrs": "e19142dce06b19c4",
   "decor": "7b99d7164640466b",
@@ -70,7 +160,7 @@ exports[`layout goldens > careerTrio null @beside 1`] = `
 }
 `;
 
-exports[`layout goldens > careerTrio null @phone 1`] = `
+exports[`layout goldens > careerTrio {"searchId":null} @phone 1`] = `
 {
   "attrs": "a8570de7fa655103",
   "decor": "3d88ed0a8bc041bd",
@@ -80,7 +170,7 @@ exports[`layout goldens > careerTrio null @phone 1`] = `
 }
 `;
 
-exports[`layout goldens > careerTrio null @stacked 1`] = `
+exports[`layout goldens > careerTrio {"searchId":null} @stacked 1`] = `
 {
   "attrs": "ede9ea6929704f5b",
   "decor": "64fd7b24808b70fc",
@@ -120,7 +210,37 @@ exports[`layout goldens > chapterCenters null @stacked 1`] = `
 }
 `;
 
-exports[`layout goldens > degScatter null @beside 1`] = `
+exports[`layout goldens > degScatter {"searchId":105} @beside 1`] = `
+{
+  "attrs": "f023f8881ba232c5",
+  "decor": "3cd4cf2f19de1c77",
+  "delays": null,
+  "trailDelays": null,
+  "trails": null,
+}
+`;
+
+exports[`layout goldens > degScatter {"searchId":105} @phone 1`] = `
+{
+  "attrs": "8ee18989a0978258",
+  "decor": "01726c8a027a3041",
+  "delays": null,
+  "trailDelays": null,
+  "trails": null,
+}
+`;
+
+exports[`layout goldens > degScatter {"searchId":105} @stacked 1`] = `
+{
+  "attrs": "ef93f549a6945c37",
+  "decor": "12ec67038d8be0f4",
+  "delays": null,
+  "trailDelays": null,
+  "trails": null,
+}
+`;
+
+exports[`layout goldens > degScatter {"searchId":null} @beside 1`] = `
 {
   "attrs": "59898d349eeea30b",
   "decor": "3cd4cf2f19de1c77",
@@ -130,7 +250,7 @@ exports[`layout goldens > degScatter null @beside 1`] = `
 }
 `;
 
-exports[`layout goldens > degScatter null @phone 1`] = `
+exports[`layout goldens > degScatter {"searchId":null} @phone 1`] = `
 {
   "attrs": "81867654d8c39c4c",
   "decor": "01726c8a027a3041",
@@ -140,7 +260,7 @@ exports[`layout goldens > degScatter null @phone 1`] = `
 }
 `;
 
-exports[`layout goldens > degScatter null @stacked 1`] = `
+exports[`layout goldens > degScatter {"searchId":null} @stacked 1`] = `
 {
   "attrs": "f6d5f505e06209fa",
   "decor": "12ec67038d8be0f4",
@@ -150,7 +270,37 @@ exports[`layout goldens > degScatter null @stacked 1`] = `
 }
 `;
 
-exports[`layout goldens > hopBands null @beside 1`] = `
+exports[`layout goldens > hopBands {"searchId":105} @beside 1`] = `
+{
+  "attrs": "fa41a77110cc539b",
+  "decor": "444144cfce5205c4",
+  "delays": "81adf7d1bf8819f7",
+  "trailDelays": null,
+  "trails": null,
+}
+`;
+
+exports[`layout goldens > hopBands {"searchId":105} @phone 1`] = `
+{
+  "attrs": "bc16bebefed6efdc",
+  "decor": "ce6a6c42ee933f80",
+  "delays": "81adf7d1bf8819f7",
+  "trailDelays": null,
+  "trails": null,
+}
+`;
+
+exports[`layout goldens > hopBands {"searchId":105} @stacked 1`] = `
+{
+  "attrs": "16a57963d5b73489",
+  "decor": "52bd339a49a26d6a",
+  "delays": "81adf7d1bf8819f7",
+  "trailDelays": null,
+  "trails": null,
+}
+`;
+
+exports[`layout goldens > hopBands {"searchId":null} @beside 1`] = `
 {
   "attrs": "9a96837384c72ac9",
   "decor": "444144cfce5205c4",
@@ -160,7 +310,7 @@ exports[`layout goldens > hopBands null @beside 1`] = `
 }
 `;
 
-exports[`layout goldens > hopBands null @phone 1`] = `
+exports[`layout goldens > hopBands {"searchId":null} @phone 1`] = `
 {
   "attrs": "2f7d2cffec85a741",
   "decor": "ce6a6c42ee933f80",
@@ -170,7 +320,7 @@ exports[`layout goldens > hopBands null @phone 1`] = `
 }
 `;
 
-exports[`layout goldens > hopBands null @stacked 1`] = `
+exports[`layout goldens > hopBands {"searchId":null} @stacked 1`] = `
 {
   "attrs": "4591aad09fe7b853",
   "decor": "52bd339a49a26d6a",
@@ -810,7 +960,37 @@ exports[`layout goldens > rankReveal {"bar":null} @stacked 1`] = `
 }
 `;
 
-exports[`layout goldens > scatterCenters {"showFilms":true} @beside 1`] = `
+exports[`layout goldens > scatterCenters {"showFilms":true,"searchId":105} @beside 1`] = `
+{
+  "attrs": "05b86947ee71f65f",
+  "decor": "8f4ddee0611f9e16",
+  "delays": null,
+  "trailDelays": null,
+  "trails": null,
+}
+`;
+
+exports[`layout goldens > scatterCenters {"showFilms":true,"searchId":105} @phone 1`] = `
+{
+  "attrs": "61ec80be5bb46532",
+  "decor": "3b6dd0eef9339c12",
+  "delays": null,
+  "trailDelays": null,
+  "trails": null,
+}
+`;
+
+exports[`layout goldens > scatterCenters {"showFilms":true,"searchId":105} @stacked 1`] = `
+{
+  "attrs": "0df322a1bd55b72f",
+  "decor": "bbc0c7b6c446d5de",
+  "delays": null,
+  "trailDelays": null,
+  "trails": null,
+}
+`;
+
+exports[`layout goldens > scatterCenters {"showFilms":true,"searchId":null} @beside 1`] = `
 {
   "attrs": "d4d89be7dda8103d",
   "decor": "8f4ddee0611f9e16",
@@ -820,7 +1000,7 @@ exports[`layout goldens > scatterCenters {"showFilms":true} @beside 1`] = `
 }
 `;
 
-exports[`layout goldens > scatterCenters {"showFilms":true} @phone 1`] = `
+exports[`layout goldens > scatterCenters {"showFilms":true,"searchId":null} @phone 1`] = `
 {
   "attrs": "0b30e3e7410f040a",
   "decor": "3b6dd0eef9339c12",
@@ -830,7 +1010,7 @@ exports[`layout goldens > scatterCenters {"showFilms":true} @phone 1`] = `
 }
 `;
 
-exports[`layout goldens > scatterCenters {"showFilms":true} @stacked 1`] = `
+exports[`layout goldens > scatterCenters {"showFilms":true,"searchId":null} @stacked 1`] = `
 {
   "attrs": "6da41b475f2d5d82",
   "decor": "bbc0c7b6c446d5de",
@@ -840,7 +1020,37 @@ exports[`layout goldens > scatterCenters {"showFilms":true} @stacked 1`] = `
 }
 `;
 
-exports[`layout goldens > scatterCenters {"showPair":true,"showCostars":true} @beside 1`] = `
+exports[`layout goldens > scatterCenters {"showPair":true,"searchId":105} @beside 1`] = `
+{
+  "attrs": "f2ab8e56c1365e8c",
+  "decor": "8f4ddee0611f9e16",
+  "delays": null,
+  "trailDelays": null,
+  "trails": null,
+}
+`;
+
+exports[`layout goldens > scatterCenters {"showPair":true,"searchId":105} @phone 1`] = `
+{
+  "attrs": "9dae2dfef2e6c496",
+  "decor": "3b6dd0eef9339c12",
+  "delays": null,
+  "trailDelays": null,
+  "trails": null,
+}
+`;
+
+exports[`layout goldens > scatterCenters {"showPair":true,"searchId":105} @stacked 1`] = `
+{
+  "attrs": "52a582f904af32de",
+  "decor": "bbc0c7b6c446d5de",
+  "delays": null,
+  "trailDelays": null,
+  "trails": null,
+}
+`;
+
+exports[`layout goldens > scatterCenters {"showPair":true,"searchId":null} @beside 1`] = `
 {
   "attrs": "cb81ea1b3e4d567b",
   "decor": "8f4ddee0611f9e16",
@@ -850,7 +1060,7 @@ exports[`layout goldens > scatterCenters {"showPair":true,"showCostars":true} @b
 }
 `;
 
-exports[`layout goldens > scatterCenters {"showPair":true,"showCostars":true} @phone 1`] = `
+exports[`layout goldens > scatterCenters {"showPair":true,"searchId":null} @phone 1`] = `
 {
   "attrs": "5747288aa1b5a238",
   "decor": "3b6dd0eef9339c12",
@@ -860,7 +1070,7 @@ exports[`layout goldens > scatterCenters {"showPair":true,"showCostars":true} @p
 }
 `;
 
-exports[`layout goldens > scatterCenters {"showPair":true,"showCostars":true} @stacked 1`] = `
+exports[`layout goldens > scatterCenters {"showPair":true,"searchId":null} @stacked 1`] = `
 {
   "attrs": "25103531f8241408",
   "decor": "bbc0c7b6c446d5de",
@@ -870,7 +1080,37 @@ exports[`layout goldens > scatterCenters {"showPair":true,"showCostars":true} @s
 }
 `;
 
-exports[`layout goldens > scatterCenters {"showPair":true} @beside 1`] = `
+exports[`layout goldens > scatterCenters {"showPair":true,"showCostars":true,"searchId":105} @beside 1`] = `
+{
+  "attrs": "f2ab8e56c1365e8c",
+  "decor": "8f4ddee0611f9e16",
+  "delays": null,
+  "trailDelays": null,
+  "trails": null,
+}
+`;
+
+exports[`layout goldens > scatterCenters {"showPair":true,"showCostars":true,"searchId":105} @phone 1`] = `
+{
+  "attrs": "9dae2dfef2e6c496",
+  "decor": "3b6dd0eef9339c12",
+  "delays": null,
+  "trailDelays": null,
+  "trails": null,
+}
+`;
+
+exports[`layout goldens > scatterCenters {"showPair":true,"showCostars":true,"searchId":105} @stacked 1`] = `
+{
+  "attrs": "52a582f904af32de",
+  "decor": "bbc0c7b6c446d5de",
+  "delays": null,
+  "trailDelays": null,
+  "trails": null,
+}
+`;
+
+exports[`layout goldens > scatterCenters {"showPair":true,"showCostars":true,"searchId":null} @beside 1`] = `
 {
   "attrs": "cb81ea1b3e4d567b",
   "decor": "8f4ddee0611f9e16",
@@ -880,7 +1120,7 @@ exports[`layout goldens > scatterCenters {"showPair":true} @beside 1`] = `
 }
 `;
 
-exports[`layout goldens > scatterCenters {"showPair":true} @phone 1`] = `
+exports[`layout goldens > scatterCenters {"showPair":true,"showCostars":true,"searchId":null} @phone 1`] = `
 {
   "attrs": "5747288aa1b5a238",
   "decor": "3b6dd0eef9339c12",
@@ -890,7 +1130,7 @@ exports[`layout goldens > scatterCenters {"showPair":true} @phone 1`] = `
 }
 `;
 
-exports[`layout goldens > scatterCenters {"showPair":true} @stacked 1`] = `
+exports[`layout goldens > scatterCenters {"showPair":true,"showCostars":true,"searchId":null} @stacked 1`] = `
 {
   "attrs": "25103531f8241408",
   "decor": "bbc0c7b6c446d5de",
@@ -900,7 +1140,7 @@ exports[`layout goldens > scatterCenters {"showPair":true} @stacked 1`] = `
 }
 `;
 
-exports[`layout goldens > scatterQuiz {"picks":{"0":1},"revealAll":true} @beside 1`] = `
+exports[`layout goldens > scatterQuiz {"picks":{"0":1},"revealAll":true,"searchId":null} @beside 1`] = `
 {
   "attrs": "2dd5cb02adfce873",
   "decor": "8f4ddee0611f9e16",
@@ -910,7 +1150,7 @@ exports[`layout goldens > scatterQuiz {"picks":{"0":1},"revealAll":true} @beside
 }
 `;
 
-exports[`layout goldens > scatterQuiz {"picks":{"0":1},"revealAll":true} @phone 1`] = `
+exports[`layout goldens > scatterQuiz {"picks":{"0":1},"revealAll":true,"searchId":null} @phone 1`] = `
 {
   "attrs": "0ea8cd99e702471f",
   "decor": "3b6dd0eef9339c12",
@@ -920,7 +1160,7 @@ exports[`layout goldens > scatterQuiz {"picks":{"0":1},"revealAll":true} @phone 
 }
 `;
 
-exports[`layout goldens > scatterQuiz {"picks":{"0":1},"revealAll":true} @stacked 1`] = `
+exports[`layout goldens > scatterQuiz {"picks":{"0":1},"revealAll":true,"searchId":null} @stacked 1`] = `
 {
   "attrs": "5ece39f5dbc10041",
   "decor": "bbc0c7b6c446d5de",
@@ -930,7 +1170,37 @@ exports[`layout goldens > scatterQuiz {"picks":{"0":1},"revealAll":true} @stacke
 }
 `;
 
-exports[`layout goldens > scatterQuiz {"picks":{},"revealAll":false} @beside 1`] = `
+exports[`layout goldens > scatterQuiz {"picks":{},"revealAll":false,"searchId":105} @beside 1`] = `
+{
+  "attrs": "593f9bed9fadd60b",
+  "decor": "8f4ddee0611f9e16",
+  "delays": null,
+  "trailDelays": null,
+  "trails": null,
+}
+`;
+
+exports[`layout goldens > scatterQuiz {"picks":{},"revealAll":false,"searchId":105} @phone 1`] = `
+{
+  "attrs": "1e7c2aff17a6cc2c",
+  "decor": "3b6dd0eef9339c12",
+  "delays": null,
+  "trailDelays": null,
+  "trails": null,
+}
+`;
+
+exports[`layout goldens > scatterQuiz {"picks":{},"revealAll":false,"searchId":105} @stacked 1`] = `
+{
+  "attrs": "55e88df0461a65ca",
+  "decor": "bbc0c7b6c446d5de",
+  "delays": null,
+  "trailDelays": null,
+  "trails": null,
+}
+`;
+
+exports[`layout goldens > scatterQuiz {"picks":{},"revealAll":false,"searchId":null} @beside 1`] = `
 {
   "attrs": "55d6100215b40c10",
   "decor": "8f4ddee0611f9e16",
@@ -940,7 +1210,7 @@ exports[`layout goldens > scatterQuiz {"picks":{},"revealAll":false} @beside 1`]
 }
 `;
 
-exports[`layout goldens > scatterQuiz {"picks":{},"revealAll":false} @phone 1`] = `
+exports[`layout goldens > scatterQuiz {"picks":{},"revealAll":false,"searchId":null} @phone 1`] = `
 {
   "attrs": "9984c41becad4180",
   "decor": "3b6dd0eef9339c12",
@@ -950,7 +1220,7 @@ exports[`layout goldens > scatterQuiz {"picks":{},"revealAll":false} @phone 1`] 
 }
 `;
 
-exports[`layout goldens > scatterQuiz {"picks":{},"revealAll":false} @stacked 1`] = `
+exports[`layout goldens > scatterQuiz {"picks":{},"revealAll":false,"searchId":null} @stacked 1`] = `
 {
   "attrs": "15546f55b3769f67",
   "decor": "bbc0c7b6c446d5de",

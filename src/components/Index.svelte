@@ -9,6 +9,7 @@
 	import RaceScrubber from "$components/scrolly/RaceScrubber.svelte";
 	import StartButton from "$components/scrolly/StartButton.svelte";
 	import PairQuiz from "$components/scrolly/PairQuiz.svelte";
+	import ActorSearch from "$components/scrolly/ActorSearch.svelte";
 	import QuizResults from "$components/results/QuizResults.svelte";
 	import useWindowDimensions from "$runes/useWindowDimensions.svelte.js";
 	import { story } from "$components/scrolly/story.svelte.js";
@@ -297,6 +298,12 @@
 					away on average. Smaller is better: the less remote you are, the more
 					likely you are to be the center of Hollywood.
 				</p>
+				<!-- The reader's own actor, on the four charts that can place one.
+				     A card control, not a panel, and not gated: the search is
+				     optional and must never hold anybody. The pick is sticky, so
+				     the next three charts find it already made (see
+				     ActorSearch.svelte and story.svelte.js's `search`). -->
+				<ActorSearch visual={layout.visual} chart="hops" showPath />
 			</Step>
 			<!-- guessing #1 or giving up is the only way on: GuessRank calls the
 		     registry's advance() itself, and stepping back off the reveal
@@ -409,6 +416,7 @@
 					measure. That's like saying "We think the most expensive houses will
 					be the ones with the highest price".
 				</p>
+				<ActorSearch visual={layout.visual} chart="remoteness" />
 			</Step>
 			<Step state="degScatter">
 				<p>
@@ -418,6 +426,7 @@
 					someone with the same film count, you'll almost certainly be closer to
 					the center of Hollywood than them.
 				</p>
+				<ActorSearch visual={layout.visual} chart="costars" />
 			</Step>
 			<!-- the one gate the reader's own Next walks through once it opens:
 		     the quiz has no single completing press, so finishing the last
@@ -498,6 +507,7 @@
 					By applying the same approach for costar film counts, we can start
 					predicting.
 				</p>
+				<ActorSearch visual={layout.visual} chart="career" />
 			</Step>
 			<!-- Start is the only way on, and the run itself carries the reader
 		     over once it lands: the 10,000 runs are the payoff and the next

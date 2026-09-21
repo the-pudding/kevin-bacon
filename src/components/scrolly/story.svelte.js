@@ -6,8 +6,8 @@
 //
 // Grouped by the interaction that owns the fields: `intro` (step 1's tour and
 // taps), `rank` (the guess-the-rank ladder), `race` (the race chart's camera
-// and its Gen Z draw-on), `quiz` (the pair quiz) and `sim` (the simulation
-// replay). The four top-level
+// and its Gen Z draw-on), `quiz` (the pair quiz), `search` (the reader's own
+// actor, on four charts) and `sim` (the simulation replay). The four top-level
 // fields are the framework's own: what the reader has asked for, what is
 // playing, what has landed, and whether a step's prose is still held back.
 //
@@ -179,6 +179,22 @@ export const story = $state({
 		 * states.js's `quizDone` is the one predicate both the gate and the panel
 		 * read, so they cannot disagree */
 		revealed: false
+	},
+
+	/** the reader's own actor (ActorSearch, search.js). Unlike every other group
+	 * here this one is NOT re-armed on arrival: the pick is deliberately sticky,
+	 * so a reader who names an actor on the hop chart keeps finding them on the
+	 * three scatters that follow. That is the whole reading — one person carried
+	 * through four different questions — and an arrival rule that cleared it
+	 * would make the search four unrelated lookups instead. */
+	search: {
+		/** node id of the searched actor, or null before the reader has named
+		 * one. Read by the `params` selector of all four searchable states, so a
+		 * write re-runs the current layout with a PARAM_TWEEN_MS tween and lights
+		 * the dot. Written once per pick, by ActorSearch, after its flight has
+		 * landed — writing it before would fade the dot in under a chip that is
+		 * still travelling toward it */
+		actorId: null
 	},
 
 	/** the simulation replay (layouts/sim-race.js) */

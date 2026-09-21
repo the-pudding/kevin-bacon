@@ -7,6 +7,7 @@ import { STATES } from "../states.js";
 import { SIM_N_SIMS } from "../layouts/sim-race.js";
 import { INTRO_IDS } from "../nodes.js";
 import { SLJ } from "../cast.js";
+import { SEARCH_POOL } from "../search.js";
 import {
 	BOXES,
 	buildLayout,
@@ -33,7 +34,12 @@ const INTERACTIONS = [
 	{ sim: { runs: SIM_N_SIMS, names: 5 } },
 	{ race: { genzLinesShown: true } },
 	{ intro: { focus: INTRO_IDS[3] } },
-	{ race: { view: { playhead: 2006 } } }
+	{ race: { view: { playhead: 2006 } } },
+	// the reader's own actor. One id is enough to pin every searchable state's
+	// highlight: the mark is struck from one rule (search.js), so a second id
+	// would hash a different dot in the same code path. Taken off the pool by
+	// position rather than named, so it survives a data rebuild that reorders it.
+	{ search: { actorId: SEARCH_POOL[0] } }
 ];
 
 const keyOf = (params) => JSON.stringify(params) ?? "null";

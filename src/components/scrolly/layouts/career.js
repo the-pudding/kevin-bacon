@@ -6,6 +6,13 @@ import { CROWD, BLUE } from "../palette.js";
 import { MARGIN, plotBottom, lin } from "../plot.js";
 import { scatterPosition } from "../scatter-scales.js";
 import {
+	SEARCH_DOT_R,
+	SEARCH_RGB,
+	searchedId,
+	withSearchLabel,
+	withSearchParams
+} from "../search.js";
+import {
 	TRAIL_SIZE,
 	SWEENEY_SLOT,
 	DENIRO_SLOT,
@@ -138,10 +145,20 @@ function careerFrame(nodes, w, h) {
 	};
 }
 
+/**
+ * `set`'s radius/colour/alpha triple for one dot, with the reader's own mark
+ * taking precedence over whatever the chart was drawing it as. A helper rather
+ * than three ternaries at each call site: the position is NOT overridden, so a
+ * searched actor who is also one of the named leads keeps the endpoint of their
+ * own line and simply changes colour on it.
+ */
+const careerDot = (marked, r, rgb, alpha) =>
+	marked ? [SEARCH_DOT_R, SEARCH_RGB, 1] : [r, rgb, alpha];
+
 function careerLayout(cast, showCohort) {
 	const heroKey = cast.named[0][0];
 	/** @type {import("../layout-types.js").LayoutFn} */
-	return function layoutCareer(nodes, w, h) {
+	return function layoutCareer(nodes, w, h, _edges, params) {
 		const attrs = new Float64Array(ATTR_SIZE);
 		const trails = new Float64Array(TRAIL_SIZE);
 		const trailDelays = new Float64Array(TRAIL_META.length);
@@ -155,16 +172,30 @@ function careerLayout(cast, showCohort) {
 		const forkX = xS(heroAge);
 		const forkY = yS(heroFilms);
 		const namedIds = new Set(cast.named.map(([, id]) => id));
+		const search = searchedId(params);
 		for (const n of nodes) {
+			const marked = n.id === search;
 			if (namedIds.has(n.id)) {
 				const key = cast.named.find(([, id]) => id === n.id)[0];
 				const [age, films] = story.careers[key].at(-1);
 				// blue marks all round; the comparisons read dimmed
 				const alpha = key === heroKey ? 1 : COMPARISON_ALPHA;
-				set(attrs, n.id, xS(age), yS(films), 5.5, BLUE, alpha);
+				set(
+					attrs,
+					n.id,
+					xS(age),
+					yS(films),
+					...careerDot(marked, 5.5, BLUE, alpha)
+				);
 			} else if (n.careerAge != null) {
 				// background cloud: this actor's (career age, films) position
-				set(attrs, n.id, xS(n.careerAge), yS(n.films), 2, CROWD, 0.22);
+				set(
+					attrs,
+					n.id,
+					xS(n.careerAge),
+					yS(n.films),
+					...careerDot(marked, 2, CROWD, 0.22)
+				);
 			} else {
 				// no career age known — park hidden at the distance-scatter spot
 				const [x, y] = scatterPosition(n, w, h);
@@ -387,7 +418,8 @@ export const states = {
 		// coordinates — ~870ms in which the only motion on the chart was its own
 		// furniture leaving and coming back (motion.md rules 6, 7).
 		scene: "career",
-		labels: [SWEENEY, DENIRO, CHASE],
+		labels: (params) => withSearchLabel([SWEENEY, DENIRO, CHASE], params),
+		params: withSearchParams(),
 		// the draw-on is authored for the forward arrival out of the Gen Z race;
 		// stepping back into it from careerBacon gets a plain tween
 		revealFrom: ["raceGenz"],
@@ -406,7 +438,10 @@ export const states = {
 		title: CAREER_TITLE,
 		// one scene with the other two — see the note on careerTrio above
 		scene: "career",
-		labels: [ANCHOR_ID, HACKMAN, MIRREN],
+		labels: (params) => withSearchLabel([ANCHOR_ID, HACKMAN, MIRREN], params),
+		// no control on this step, but the three career states share a scene and
+		// a sticky pick must not blink off on the middle one
+		params: withSearchParams(),
 		// All three dots sit at the right-hand end of the axis (Bacon at career
 		// age 47, Hackman 54, Mirren 52), so the names go to their LEFT, into the
 		// plot. They have to be beside-dot names rather than the trio's below-dot
@@ -437,7 +472,9 @@ export const states = {
 		// one scene with the other two — see the note on careerTrio above
 		scene: "career",
 		// the comparisons have demoted into the cohort — only the hero is named
-		labels: [SWEENEY],
+		labels: (params) => withSearchLabel([SWEENEY], params),
+		// this state hosts the career-age search (step 25)
+		params: withSearchParams(),
 		// the fan is authored to branch off the endpoint of Sweeney's line, which
 		// holds arriving backward from simRace too: her line and the comparisons
 		// are already drawn on that chart, so the branch point is the same

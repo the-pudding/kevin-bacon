@@ -1,5 +1,6 @@
 // Builds the scrolly framework's committed data (see notes/scrolly-framework.md):
-//   src/data/scrolly-nodes.json — every actor dot the canvas ever renders
+//   src/data/scrolly-nodes.json — every actor dot the canvas ever renders, plus
+//     the search pool and its routes back to Bacon
 //   src/data/scrolly-story.json — non-dot story data (hop bands, race chart,
 //     career lines, quiz pairs, Gen-Z simulation results)
 // Deterministic — no RNG; byte-identical re-runs.
@@ -468,6 +469,90 @@ for (const rank of [2, 3]) {
 	);
 }
 
+// ---------------------------------------------------------------------------
+// The reader's search pool, and each of its members' route back to Bacon.
+// ---------------------------------------------------------------------------
+
+// How many actors the story's search control offers (ActorSearch.svelte). The
+// top of the closeness ranking rather than the top of the film count: it is the
+// ordering the story has already taught the reader by the time they reach a
+// search box, and it keeps every result recognisable. 1000 rather than the rank
+// ladder's 250 because a search has no visible list to scroll to — the 250 is
+// scoped to what RankBars renders, and nothing here is.
+const SEARCH_POOL_N = 1000;
+const searchPool = nodes
+	.map((row, id) => ({ id, rank: row[5] }))
+	.sort((a, b) => a.rank - b.rank)
+	.slice(0, SEARCH_POOL_N)
+	.map((entry) => entry.id);
+assert(
+	searchPool.length === SEARCH_POOL_N,
+	`search pool is ${searchPool.length}, not ${SEARCH_POOL_N}`
+);
+
+// The full-corpus BFS tree with its edges named (analysis/bacon-path-tree.py).
+// The unsampled twin of hop-tree-shared.json, in the same relationship
+// hop-by-person-kevin-bacon.json has to the drawing samples: a path is wanted
+// for an actor the tree happens to contain, not for one a sample drew.
+const pathTree = raw("bacon-path-tree.json");
+assert(
+	pathTree.source.person_id === KEVIN_BACON,
+	"bacon-path-tree.json is not rooted at Kevin Bacon"
+);
+
+/**
+ * One actor's shortest route home, as `[costar, film, year]` per hop, walking
+ * toward Bacon and ending on him.
+ *
+ * Names rather than sample ids on purpose: most of the actors a chain passes
+ * through are outside this sample entirely (the tree spans 162k, the sample
+ * 22.5k), and the chain is a sentence the step card prints, not a set of dots
+ * the canvas draws. Resolving it to ids would mean either growing the sample to
+ * cover every intermediate or dropping the chains that don't fit — and the
+ * second silently shortens a path the hop band says is four long.
+ */
+function chainToBacon(pid) {
+	const out = [];
+	let cur = pid;
+	while (cur !== KEVIN_BACON) {
+		const row = pathTree.parents[String(cur)];
+		if (!row) return null;
+		const [parentPid, parentName, title, year] = row;
+		out.push([parentName, title, year]);
+		cur = parentPid;
+	}
+	return out;
+}
+
+const searchPaths = {};
+for (const id of searchPool) {
+	const [pid, name, hop] = nodes[id];
+	const chain = chainToBacon(pid);
+	assert(chain, `no route to Bacon for ${name} (${pid})`);
+	// The one guard that matters: the band a dot sits in is `hop`, and the
+	// sentence printed beside it counts its own steps. If the two ever disagree
+	// the chart contradicts its own caption, and nothing on screen would say so.
+	assert(
+		chain.length === hop,
+		`${name}: route is ${chain.length} long but hop is ${hop}`
+	);
+	assert(
+		hop === 0 || chain[chain.length - 1][0] === "Kevin Bacon",
+		`${name}: route does not end on Kevin Bacon`
+	);
+	searchPaths[id] = chain;
+}
+// Every result must plot on all four searchable charts, or the control would
+// need a "not shown here" state per chart. films clears the scatters' floor,
+// top50 is the costar chart's y and careerAge the career chart's x.
+for (const id of searchPool) {
+	const [, name, , films, , , , top50, , , , , careerAge] = nodes[id];
+	assert(
+		films >= FILM_MIN && top50 != null && careerAge != null,
+		`${name} is in the search pool but does not plot on every chart`
+	);
+}
+
 // [sampleId, sampleId, [[title, year], …]] — every corpus film linking the pair,
 // newest first, so step 1 can name a whole route to Bacon (and the films behind
 // each hop of it) without the analysis graph DB
@@ -878,7 +963,9 @@ const nodesOut = {
 		xy: introXY
 	},
 	nodes,
-	edges
+	edges,
+	searchPool,
+	searchPaths
 };
 const storyOut = {
 	bacon: {

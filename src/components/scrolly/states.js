@@ -6,9 +6,12 @@ import {
 	STREEP,
 	DENIRO,
 	CAGE,
-	BY_RANK,
-	RANK_TOP_N
+	SWEENEY,
+	CHASE,
+	HACKMAN,
+	MIRREN
 } from "./cast.js";
+import { ANCHOR_ID } from "./nodes.js";
 import { states as introStates } from "./layouts/intro.js";
 import { states as hopBandsStates } from "./layouts/hop-bands.js";
 import { states as rankStates } from "./layouts/rank.js";
@@ -16,7 +19,9 @@ import { states as raceStates } from "./layouts/race.js";
 import {
 	states as scattersStates,
 	QUIZ_IDS,
-	QUIZ_PAIRS
+	QUIZ_PAIRS,
+	PORTMAN,
+	KENDRICK
 } from "./layouts/scatters.js";
 import { states as careerStates } from "./layouts/career.js";
 import { states as simRaceStates } from "./layouts/sim-race.js";
@@ -421,6 +426,13 @@ export const STATE_LABEL_TEXT = pick("labelText");
  * The galaxy cast is here rather than in `chapterCenters`'s own `labels`, which
  * returns nothing: the beat's name is chosen per FRAME, inside drawScene, and an
  * id with no tracked entry has no label element to show.
+ *
+ * The second group is the cost of the actor search: the four searchable states
+ * label the reader's own actor, so their `labels` had to become functions, and a
+ * function's ids are not discoverable the way a declared array's are. These are
+ * the names those states show at REST — the searched id itself is tracked
+ * separately and reactively, because it is the one tracked id no build-time list
+ * could hold (see ScrollyVisual's TRACKED_IDS).
  */
 export const STATE_TRACKED = [
 	SLJ,
@@ -430,7 +442,14 @@ export const STATE_TRACKED = [
 	CAGE,
 	...QUIZ_IDS,
 	...story.genz.candidates.map((c) => c.id),
-	...GALAXY_CAST
+	...GALAXY_CAST,
+	ANCHOR_ID, // hopBands, careerBacon
+	PORTMAN, // scatterCenters, degScatter
+	KENDRICK,
+	SWEENEY, // careerTrio, careerMany
+	CHASE,
+	HACKMAN, // careerBacon
+	MIRREN
 ];
 
 /** the rank chapter's two states: the ladder panel the race arrival collapses */
@@ -454,20 +473,3 @@ export const quizDone = (s) =>
 /** name/rank lookups for the interactive step-card components */
 export const nodeName = (id) => rawNodes.nodes[id][1];
 export const nodeRank = (id) => rawNodes.nodes[id][5];
-
-// same top-N slice RankBars renders, so every search result a reader can
-// pick is guaranteed a visible row to scroll to and highlight
-const RANK_OPTIONS = BY_RANK.slice(0, RANK_TOP_N);
-
-/** case-insensitive substring search over the top-ranked actors RankBars renders */
-export function searchRankOptions(query, limit = 8) {
-	const q = query.trim().toLowerCase();
-	if (q.length < 2) return [];
-	const results = [];
-	for (const { id, rank } of RANK_OPTIONS) {
-		if (!nodeName(id).toLowerCase().includes(q)) continue;
-		results.push({ id, rank, name: nodeName(id) });
-		if (results.length >= limit) break;
-	}
-	return results;
-}

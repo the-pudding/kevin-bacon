@@ -1,0 +1,65 @@
+/* COMBOBOX
+   Combobox.Content/Item/Viewport are re-exports of Select's components, but NOT
+   of its styling: bits prefixes every part attribute with the ROOT's variant
+   (BitsAttrs, `isCombobox` in select.svelte.js), so the same markup emits
+   data-combobox-content / -item / -viewport rather than the data-select-* ones
+   ui.select.css matches. Hence the popup rules below. They are deliberately the
+   same rules — a combobox menu that looked unlike a select menu would be two
+   design languages for one gesture. */
+[data-combobox-input] {
+	width: 100%;
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-md);
+	padding: 0.5rem;
+	background: var(--color-bg);
+	color: var(--color-fg);
+	font-family: var(--font-form);
+	font-size: inherit;
+}
+
+[data-combobox-input]:disabled {
+	opacity: 0.5;
+	cursor: not-allowed;
+}
+
+/* The popup is tethered to the INPUT, so it takes the input's own width rather
+   than the fixed 12rem a trigger-anchored select menu gets — bits publishes the
+   anchor's measured width on the floating layer for exactly this. Floored, so a
+   narrow column still gets a readable menu. */
+[data-combobox-content] {
+	z-index: var(--z-overlay);
+	width: max(12rem, var(--bits-floating-anchor-width, 12rem));
+	max-height: 14rem;
+	overflow: hidden;
+	padding: 0.5rem;
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-md);
+	background: var(--color-bg);
+	font-family: var(--font-form);
+}
+
+[data-combobox-viewport] {
+	max-height: 13rem;
+	overflow-y: auto;
+}
+
+[data-combobox-item] {
+	position: relative;
+	display: flex;
+	align-items: center;
+	padding: 0.5rem;
+	cursor: pointer;
+	user-select: none;
+	outline: none;
+}
+
+[data-combobox-item][data-highlighted] {
+	background: var(--color-selection);
+}
+
+[data-combobox-empty] {
+	display: block;
+	padding: 0.5rem;
+	font-style: italic;
+	color: var(--color-fg-light);
+}
