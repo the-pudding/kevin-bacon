@@ -167,10 +167,10 @@
 	];
 	// …plus the one id the reader has searched for, which is the single tracked id
 	// that cannot be known at build time. It is derived rather than declared
-	// because the search pool is a thousand actors (search.js) and every tracked
-	// id costs a label element walked by trackLabels on every frame — a thousand
-	// of them to show one name. Read by drawScene, which is not a reactive
-	// context, so it simply sees the current value on the next frame.
+	// because the search pool is ~1,400 actors (search.js) and every tracked id
+	// costs a label element walked by trackLabels on every frame — all of them, to
+	// show one name. Read by drawScene, which is not a reactive context, so it
+	// simply sees the current value on the next frame.
 	//
 	// The `includes` is load-bearing, not tidiness: the pool holds plenty of
 	// actors the story names itself (SLJ, the intro fifteen, the Gen Z cast), and

@@ -5,6 +5,7 @@
 		"gdoc": "node tasks/fetch-google.js",
 		"style": "node tasks/style-dictionary.js",
 		"scrolly-data": "node tasks/build-scrolly-nodes.js",
+		"fetch-recognizable": "node tasks/fetch-recognizable.js",
 		"seed-analytics": "node tasks/seed-quiz-analytics.js",
 		"dev": "vite dev",
 		"build": "vite build",

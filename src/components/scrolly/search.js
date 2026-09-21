@@ -17,11 +17,23 @@ import { PURPLE } from "./palette.js";
 const nameOf = (id) => /** @type {string} */ (rawNodes.nodes[id][1]);
 
 /**
- * The thousand actors the search offers, in closeness-rank order
- * (tasks/build-scrolly-nodes.js). Built there rather than sliced from BY_RANK
- * here so that the pool, the routes home and the guards that every member plots
- * on all four charts are one decision made in one place — a pool that drifted
- * from `searchPaths` would be a search result with no route to print.
+ * The actors the search offers, in closeness-rank order
+ * (tasks/build-scrolly-nodes.js): everyone sdokb scores as recognisable, plus
+ * everyone this story names or draws, minus anyone the four charts cannot place.
+ *
+ * Fame has to come from outside the corpus. Closeness rank, film count and
+ * costar degree all measure how much an actor has WORKED, and this story is
+ * largely about young actors who have not worked much — the first cut of this
+ * pool was the top thousand by rank, and it had Tom Hollander at 835 but not Tom
+ * Holland at 1255, nor Zendaya at 3911, nor Sydney Sweeney at 4875, who is the
+ * career chart's own hero line. The story's cast is unioned in rather than
+ * filtered by fame for the mirror reason: Recognizability is PRESENT fame, and
+ * Gene Hackman scores 2.
+ *
+ * Built by the task rather than sliced here so the pool, the routes home and the
+ * guard that every member plots on all four charts are one decision in one
+ * place — a pool that drifted from `searchPaths` would be a result with no route
+ * to print.
  * @type {number[]}
  */
 export const SEARCH_POOL = /** @type {number[]} */ (rawNodes.searchPool);
@@ -37,10 +49,10 @@ export const RANK_POOL = BY_RANK.slice(0, RANK_TOP_N).map((n) => n.id);
 /**
  * Case-insensitive substring search over one pool, in the pool's own order.
  *
- * Substring rather than fuzzy on purpose: the pool is a thousand names the
- * reader arrives with in mind, so they type the one they want, and a fuzzy rank
- * would put a near-miss above an exact prefix. Two characters is the floor
- * because one matches hundreds.
+ * Substring rather than fuzzy on purpose: the pool is names the reader arrives
+ * with in mind, so they type the one they want, and a fuzzy rank would put a
+ * near-miss above an exact prefix. Two characters is the floor because one
+ * matches hundreds.
  *
  * @param {string} query
  * @param {{ pool: number[], limit?: number }} options

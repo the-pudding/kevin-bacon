@@ -19,10 +19,40 @@ const { nodes } = makeNodes();
 const nameOf = (id) => nodes[id].name;
 
 describe("the search pool", () => {
-	test("is the thousand the build script published, in rank order", () => {
-		expect(SEARCH_POOL).toHaveLength(1000);
+	test("is what the build script published, in rank order", () => {
+		expect(SEARCH_POOL.length).toBeGreaterThan(1000);
 		const ranks = SEARCH_POOL.map((id) => nodes[id].rank);
 		expect(ranks).toEqual([...ranks].sort((a, b) => a - b));
+	});
+
+	// The reason the pool is not just the top N by closeness: every measure this
+	// corpus has is a measure of how much an actor has WORKED, and the story is
+	// largely about actors who have not worked much yet. These are the names that
+	// were missing when it was, and the ones a reader is likeliest to try.
+	test("holds the young actors the story is about", () => {
+		const named = new Set(SEARCH_POOL.map((id) => nodes[id].name));
+		for (const name of [
+			"Tom Holland",
+			"Zendaya",
+			"Sydney Sweeney",
+			"Timothée Chalamet",
+			"Florence Pugh",
+			"Anya Taylor-Joy",
+			"Austin Butler",
+			"Millie Bobby Brown",
+			"Jacob Elordi"
+		]) {
+			expect(named, name).toContain(name);
+		}
+	});
+
+	// …and the mirror: Recognizability is PRESENT fame, so the story's own cast
+	// is unioned in rather than filtered by it.
+	test("holds the story's own cast however famous they are now", () => {
+		const named = new Set(SEARCH_POOL.map((id) => nodes[id].name));
+		for (const name of ["Gene Hackman", "Jack Nicholson", "Kevin Bacon"]) {
+			expect(named, name).toContain(name);
+		}
 	});
 
 	test("holds Bacon himself", () => {
@@ -81,7 +111,7 @@ describe("searchActors", () => {
 	});
 
 	test("is scoped to the pool it is given", () => {
-		// an actor in the thousand but outside the top 250 must not be offered as
+		// an actor in the search pool but outside the top 250 must not be offered as
 		// a rank guess, or the ladder has no row to scroll to
 		const outside = SEARCH_POOL.find((id) => !RANK_POOL.includes(id));
 		const q = nameOf(outside);

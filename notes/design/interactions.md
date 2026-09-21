@@ -63,7 +63,7 @@ The pick is **sticky** — no `arrivals.js` entry clears it — because the
 reading is one actor carried through four different questions, and a reader
 who named somebody on the hop chart should find them again on the scatters
 rather than be re-asked three times. And the searched id is the only tracked
-label the framework cannot know at build time (a thousand candidates, one at
+label the framework cannot know at build time (~1,400 candidates, one at
 a time), which is why `ScrollyVisual`'s `TRACKED_IDS` is derived rather than
 a constant.
 

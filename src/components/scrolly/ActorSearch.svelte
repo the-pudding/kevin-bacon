@@ -142,9 +142,7 @@
 		bind:value
 		{items}
 		placeholder="Search for an actor…"
-		emptyText={query.trim().length < 2
-			? "Keep typing…"
-			: "No matches in the top 1000"}
+		emptyText={query.trim().length < 2 ? "Keep typing…" : "No matches"}
 		onsearch={(text) => (query = text)}
 		onValueChange={pick}
 	/>
