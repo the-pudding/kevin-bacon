@@ -457,6 +457,20 @@
 	}
 
 	/**
+	 * A scene change whose x-label text happens to be unchanged (e.g. two
+	 * scatter states sharing "Film count (log scale)" with a different
+	 * y-metric) would otherwise fade that identical text out with the rest
+	 * of the departing furniture, then fade the same text back in with the
+	 * arriving set — two animations of a label that never actually
+	 * changed. Dropping it from the frozen copy skips the out-fade, so it
+	 * plays only the arriving fade-in once the beat lands.
+	 */
+	function dropUnchangedXLabel(set, arrivingState) {
+		if (set.overlay?.xLabel !== OVERLAYS[arrivingState]?.xLabel) return set;
+		return { ...set, overlay: { ...set.overlay, xLabel: undefined } };
+	}
+
+	/**
 	 * The out beat's HTML half. Within one scene the furniture is the same
 	 * furniture and simply keeps rendering. Across a scene change the departing
 	 * set is frozen and held for one out-fade while the arriving set waits for
@@ -502,7 +516,10 @@
 			return;
 		}
 		if (leavingRaf) cancelAnimationFrame(leavingRaf);
-		leaving = untrack(() => furnitureSet(decor, from));
+		leaving = dropUnchangedXLabel(
+			untrack(() => furnitureSet(decor, from)),
+			stateName
+		);
 		decor = set;
 		furnitureHeld = true;
 		// One frame is all Svelte needs to mount the copy; clearing it then is what
