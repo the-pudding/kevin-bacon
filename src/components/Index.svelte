@@ -471,9 +471,9 @@
 				<p>
 					Films first. Take Sydney Sweeney: she's been in 16 films since her
 					debut 15 years ago. At the same point in their career, Robert De Niro
-					had also racked up 16 films — and went on to have a brilliant career
+					had also racked up 16 films, and went on to have a brilliant career
 					totalling 87. By contrast, Chevy Chase reached the same milestone at
-					the same point — but only ever appeared in 27.
+					the same point, but only ever appeared in 27.
 				</p>
 			</Step>
 			<Step state="careerBacon">

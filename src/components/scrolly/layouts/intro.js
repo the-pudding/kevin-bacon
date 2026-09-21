@@ -256,7 +256,7 @@ function buildHits(nodes, pos, focus) {
 			h: side,
 			label:
 				id === ANCHOR_ID
-					? "Kevin Bacon, the center — resumes the tour of routes"
+					? "Kevin Bacon, the center, resumes the tour of routes"
 					: `${nodes[id].name}, trace their route to Kevin Bacon`,
 			value: id,
 			selected: id === focus,
