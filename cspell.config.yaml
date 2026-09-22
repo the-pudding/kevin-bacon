@@ -40,6 +40,7 @@ words:
   - toggleable
   - crossfaded
   - crossfades
+  - crossfading
   - tweening
   - genz
   - awkwafina
@@ -70,6 +71,7 @@ words:
   - faye
   - dunaway
   - keitel
+  - elordi
   - pred
   - tmdb
   - imdb
@@ -77,6 +79,9 @@ words:
   - reframing
   - igraph
   - onnavigate
+  - onpick
+  - onclear
+  - onland
   - skipback
   - advanceon
   - handoff

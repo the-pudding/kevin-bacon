@@ -473,7 +473,7 @@ export const states = {
 		scene: "career",
 		// the comparisons have demoted into the cohort — only the hero is named
 		labels: (params) => withSearchLabel([SWEENEY], params),
-		// this state hosts the career-age search (step 25)
+		// this state hosts the career-age search (step 27)
 		params: withSearchParams(),
 		// the fan is authored to branch off the endpoint of Sweeney's line, which
 		// holds arriving backward from simRace too: her line and the comparisons

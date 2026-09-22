@@ -4,7 +4,7 @@
 	import { MediaQuery } from "svelte/reactivity";
 	import { fade } from "svelte/transition";
 	import { makeNodes } from "./nodes.js";
-	import { createTweener } from "./tween.js";
+	import { createTweener, easeCubicInOut } from "./tween.js";
 	import { createChoreographer } from "./choreographer.js";
 	import { createRaceCamera } from "./race-camera.js";
 	import { skyFlight } from "./sky.js";
@@ -165,26 +165,26 @@
 			...STATE_TRACKED
 		])
 	];
-	// …plus the one id the reader has searched for, which is the single tracked id
-	// that cannot be known at build time. It is derived rather than declared
-	// because the search pool is ~1,400 actors (search.js) and every tracked id
-	// costs a label element walked by trackLabels on every frame — all of them, to
-	// show one name. Read by drawScene, which is not a reactive context, so it
-	// simply sees the current value on the next frame.
+	// …plus the two ids nothing can know at build time: the actor the reader has
+	// searched for, and the one step 6's hop chart is currently anchored on.
+	// Derived rather than declared because between them the pools are ~1,400
+	// actors (search.js) and every tracked id costs a label element walked by
+	// trackLabels on every frame — all of them, to show one name. Read by
+	// drawScene, which is not a reactive context, so it simply sees the current
+	// value on the next frame.
 	//
-	// The `includes` is load-bearing, not tidiness: the pool holds plenty of
-	// actors the story names itself (SLJ, the intro fifteen, the Gen Z cast), and
-	// appending one of those unconditionally puts the id in this list twice. The
-	// label elements are keyed on `id:name`, so a duplicate is a duplicate key,
-	// which throws and takes the whole step card — search control included — down
-	// with it. Measured on 2026-09-21: searching Samuel L. Jackson unmounted the
-	// control; searching Rachel Weisz, who is in the pool but not in the cast,
-	// did not.
+	// The de-duplication is load-bearing, not tidiness: the pools hold plenty of
+	// actors the story names itself (SLJ, the intro fifteen, the Gen Z cast), the
+	// hop chart's anchor is Bacon for most of its life and he is tracked outright,
+	// and the two are free to land on the same person. The label elements are
+	// keyed on `id:name`, so a duplicate is a duplicate key, which throws and
+	// takes the whole step card — search control included — down with it. Measured
+	// on 2026-09-21: searching Samuel L. Jackson unmounted the control; searching
+	// Rachel Weisz, who is in the pool but not in the cast, did not.
 	const TRACKED_IDS = $derived(
-		story.search.actorId == null ||
-			STATIC_TRACKED.includes(story.search.actorId)
-			? STATIC_TRACKED
-			: [...STATIC_TRACKED, story.search.actorId]
+		[
+			...new Set([...STATIC_TRACKED, story.search.actorId, story.hops.anchorId])
+		].filter((id) => id != null)
 	);
 
 	// -- The writers ------------------------------------------------------------
@@ -500,7 +500,7 @@
 	 * A resize, a bare column move and reduced motion take neither beat: the
 	 * coordinates the old copy would fade at have already moved (rules 7, 12, 13).
 	 */
-	function swapFurniture(next, from, box, handedOver) {
+	function swapFurniture(next, from, box, handedOver, ms) {
 		// `handedOver`: the arriving state's frames draw their own chart furniture
 		// and own it from their first tick (applyFrame), so the three per-frame
 		// channels keep what is on screen instead of jumping to the arriving
@@ -531,6 +531,7 @@
 						band: decor?.band
 					}))
 				: next;
+		beginLegendGlide(set, sceneChange, still, ms);
 		if (!sceneChange || still) {
 			decor = set;
 			if (sceneChange) furnitureHeld = true;
@@ -550,6 +551,73 @@
 			leavingRaf = 0;
 			leaving = null;
 		});
+	}
+
+	/**
+	 * The pinned legend riding its own rows.
+	 *
+	 * A legend item is parked at the middle of the band it names, and a band's
+	 * height is what a change of anchor moves (layouts/hop-bands.js). Decor swaps
+	 * in one go, so without this the label jumps to its new row's middle while the
+	 * row itself is still 450ms from being there — measured 2026-09-22 on a cycle
+	 * turn, the hop-3 label 24px clear of its own band for the whole tween.
+	 *
+	 * Interpolated rather than transitioned in CSS because it has to stay in
+	 * REGISTER with the dots, not merely move at the same time: a dot's y is
+	 * affine in the band's top and height, so lerping the label's y on the
+	 * tweener's own easing over the tweener's own duration puts it at the exact
+	 * middle of the band on every frame. A CSS curve of its own would drift from
+	 * the crowd and land back on it, which is worse than not moving.
+	 *
+	 * Only within a scene, and only for a real tween: across a scene change the
+	 * arriving legend is held and then fades in (`furnitureHeld`), so it has
+	 * nowhere to glide from, and a resize is a snap.
+	 * @type {{ from: number[], to: number[], at: number, ms: number } | null}
+	 */
+	let legendGlide = null;
+	/** this frame's y per pinned legend item, or null when nothing is gliding */
+	let legendY = $state(/** @type {number[] | null} */ (null));
+
+	const pinnedYs = (legend) =>
+		(legend ?? []).filter((item) => item.x != null).map((item) => item.y);
+
+	/**
+	 * Arm the glide for one arrival, or clear it.
+	 *
+	 * It glides only where the legend is already on screen and something is
+	 * actually travelling: across a scene change the arriving legend is held and
+	 * then fades in, so it has nowhere to glide from, and a resize or a
+	 * reduced-motion read snaps the dots, so it must snap too. Same for a chart
+	 * whose legend is a different shape from the one leaving, and for a legend
+	 * that pins nothing.
+	 * @param {{ legend?: import("./layout-types.js").LegendItem[] }} next the
+	 *   arriving furniture @param {boolean} sceneChange @param {boolean} still
+	 *   @param {number} ms this arrival's duration
+	 */
+	function beginLegendGlide(next, sceneChange, still, ms) {
+		const from = pinnedYs(decor?.legend);
+		const to = pinnedYs(next.legend);
+		const glides =
+			ms > 0 && !sceneChange && !still && from.length === to.length;
+		legendGlide = glides && from.length > 0 ? makeGlide(from, to, ms) : null;
+		legendY = legendGlide && from;
+	}
+
+	const makeGlide = (from, to, ms) => ({
+		from,
+		to,
+		at: performance.now(),
+		ms
+	});
+
+	/** one frame of that glide, off the same clock and easing the dots use */
+	function stepLegendGlide() {
+		if (!legendGlide) return;
+		const { from, to, at, ms } = legendGlide;
+		const t = Math.min(1, Math.max(0, (performance.now() - at) / ms));
+		const eased = easeCubicInOut(t);
+		legendY = from.map((y, i) => y + (to[i] - y) * eased);
+		if (t >= 1) legendGlide = null;
 	}
 
 	const staticDecor = (layout) => ({
@@ -917,14 +985,57 @@
 	// later fade-in never teleports), and flying onto a dot that is about to fade
 	// in is exactly what both callers do.
 	export function locate(id) {
+		return spotIn(tweener.current, id);
+	}
+
+	// ...and where that dot is GOING: the same two numbers read out of the frame
+	// the tweener is heading for rather than the one it is drawing. For a control
+	// whose own pick MOVES the dot it names — the hop chart's anchor search, where
+	// the named actor climbs out of the crowd into the header row — the live
+	// position is the row the actor is LEAVING, and a chip flown there lands in the
+	// crowd and then has its dot climb out from under it.
+	//
+	// Only meaningful once the pick has been committed and the retarget it causes
+	// has flushed; before the first `to()` there is no target at all, and the
+	// caller gets null.
+	export function locateTarget(id) {
+		return tweener.target ? spotIn(tweener.target, id) : null;
+	}
+
+	/**
+	 * Take one mark out of the live frame — alpha 0, where it stands — with
+	 * nothing drawn appearing to move and no tween to wait for.
+	 *
+	 * The one caller is the hop chart's anchor search, and this is what that
+	 * gesture is built on: the actor the reader names has to cross the canvas to
+	 * the top of the stack UNSEEN, because what arrives up there is the chip, not
+	 * a dot climbing out of the crowd to meet its own name. A layout can park a
+	 * mark invisible where it wants it, but `parkLeavers` overrides that park for
+	 * any dot the reader can currently SEE — deliberately, so a departing crowd
+	 * fades where it stands instead of being lerped across the chart. Dropping
+	 * this one dot out of the live frame first is what makes it a dot the reader
+	 * cannot see, so the layout's park stands and the travel happens at alpha 0.
+	 *
+	 * Through `reframe` rather than a bare write to `current`, so the frame an
+	 * in-flight tween is easing FROM agrees and the next tick does not ease it
+	 * straight back in (see tween.js).
+	 */
+	export function conceal(id) {
+		if (!Number.isInteger(id) || id < 0 || id >= nodes.length) return;
+		tweener.reframe((buf) => {
+			buf[id * STRIDE + ALPHA_OFFSET] = 0;
+		});
+	}
+
+	/** one node's position out of `buf`, in viewport coordinates */
+	function spotIn(buf, id) {
 		if (!container || !Number.isInteger(id) || id < 0 || id >= nodes.length) {
 			return null;
 		}
-		const attrs = tweener.current;
 		const rect = container.getBoundingClientRect();
 		return {
-			x: rect.left + attrs[id * STRIDE],
-			y: rect.top + attrs[id * STRIDE + 1]
+			x: rect.left + buf[id * STRIDE],
+			y: rect.top + buf[id * STRIDE + 1]
 		};
 	}
 
@@ -1538,6 +1649,7 @@
 		// runs every frame of the arrival tween, which always outlasts the hold, so
 		// this flips over mid-tween with no timer of its own
 		const holding = heldLabels && performance.now() < labelHoldUntil;
+		stepLegendGlide();
 		const nextTracked = trackLabels(attrs, TRACKED_IDS, {
 			names: (id) => labelTexts[id] ?? nodes[id].name,
 			// A name is overlay furniture like any other, so it waits for the beat.
@@ -1990,7 +2102,8 @@
 			staticDecor(layout),
 			from,
 			box,
-			kind === "entry" && !!entryAnim.ownsFurniture
+			kind === "entry" && !!entryAnim.ownsFurniture,
+			ARRIVAL_MS[kind]
 		);
 		// a copy, because parkLeavers and landOnSky rewrite it and `layout.attrs`
 		// is cached
@@ -2129,7 +2242,7 @@
 	     frame; the gate below now unmounts and remounts the whole set on a scene
 	     change, which IS the crossfade they were approximating, and within a
 	     scene the strings do not change (registry.spec.js checks that). -->
-	{#snippet chartFurniture(set)}
+	{#snippet chartFurniture(set, live = false)}
 		{#if set.title}
 			<p class="chart-title fade-in">{set.title}</p>
 		{/if}
@@ -2263,12 +2376,23 @@
 				{note.text}
 			</p>
 		{/each}
-		{#each set.decor?.legend?.filter((item) => item.x != null) ?? [] as item}
+		{#each set.decor?.legend?.filter((item) => item.x != null) ?? [] as item, i}
 			<p
 				class="legend-item pinned fade-in"
-				style="left: {item.x}px; top: {item.y}px"
+				style="left: {item.x}px; top: {(live ? legendY?.[i] : null) ??
+					item.y}px"
 			>
-				{item.label}
+				<!-- The row's share changes with the anchor (step 6 cycles through
+				     actors), so the text crossfades with its own new string rather
+				     than cutting — the same swap a node label carrying a number
+				     makes, off the same transition. On an inner span for the reason
+				     the x tick's alpha is: `.fade-in` animates opacity on the <p>
+				     with fill-mode `both` and would outrank anything written there.
+				     The two copies overlay because .pinned is a single-cell grid,
+				     the idiom .scrolly-steps uses for the prose swap. -->
+				{#key item.label}
+					<span in:nameSwap out:nameSwap>{item.label}</span>
+				{/key}
 			</p>
 		{/each}
 		{#if set.decor?.legend?.some((item) => item.x == null)}
@@ -2296,7 +2420,7 @@
 		     wrapper would form a stacking context that the 1980 tick's own z-lift
 		     could not escape at any value. -->
 		{#if !furnitureHeld}
-			<div class="layer">{@render chartFurniture(arriving)}</div>
+			<div class="layer">{@render chartFurniture(arriving, true)}</div>
 		{/if}
 		{#if leaving}
 			<div class="layer gone" aria-hidden="true" out:fade={furnitureOut}>
@@ -2847,6 +2971,13 @@
 		white-space: nowrap;
 	}
 
+	/* the crossfading copy: --name-alpha is nameSwap's channel, multiplied here
+	   rather than written as a fade on opacity, which .fade-in would outrank */
+	.legend-item.pinned > span {
+		grid-area: 1 / 1;
+		opacity: var(--name-alpha, 1);
+	}
+
 	.legend-swatch {
 		width: 0.6rem;
 		height: 0.6rem;
@@ -2857,6 +2988,9 @@
 	.legend-item.pinned {
 		position: absolute;
 		margin: 0;
+		/* one cell, so a text swap's two copies sit on top of each other instead
+		   of side by side (see the {#key} above) */
+		display: grid;
 		transform: translateY(-50%);
 		white-space: nowrap;
 		text-shadow:

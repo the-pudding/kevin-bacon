@@ -1,3 +1,5 @@
+import rawNodes from "$data/scrolly-nodes.json";
+import story from "$data/scrolly-story.json";
 import { ANCHOR_ID, INTRO_IDS, hash01 } from "../nodes.js";
 import { ATTR_SIZE, DELAY_SIZE, set } from "../attr-buffer.js";
 import { SKY_IDS, isIntroActor } from "../cast.js";
@@ -10,12 +12,6 @@ import {
 import { CROWD, HOP_RGB, HOP_DOT_ALPHA } from "../palette.js";
 import { MARGIN, plotBottom, NO_BLEED } from "../plot.js";
 import { hopFractions, hopShareLabels } from "../rank-geometry.js";
-import {
-	SEARCH_RGB,
-	searchedId,
-	withSearchLabel,
-	withSearchParams
-} from "../search.js";
 import {
 	writeFieldCrowd,
 	makeFlight,
@@ -41,11 +37,56 @@ const BAND_GAP = 12;
 // hop 4 is a handful of pixels at every viewport; this is what keeps it drawn
 const MIN_BAND_H = 4;
 
-// Each degree's share of the corpus, for the band labels. Deliberately NOT the
-// on-screen `counts` the bands are sized by: those oversample hop 1 and hop 4
-// so the sparse rows stay legible. So thickness follows the sample while the
-// number cites the corpus — the same split the right-edge notes used to make.
-const HOP_SHARE = hopShareLabels(hopFractions(ANCHOR_ID));
+// How thick a row is, for whichever actor the stack is anchored on.
+//
+// Bacon's rows are the on-screen SAMPLE's shares, which is what they have always
+// been: the sample oversamples hop 1 and hop 4 — 3.4% and 0.6% of it against
+// 1.0% and 0.08% of the corpus — so those two rows stay legible instead of
+// collapsing onto MIN_BAND_H, while the number printed beside each row cites the
+// corpus. That split is deliberate and this chart is built on it.
+//
+// Another actor's rows are Bacon's, scaled by how their corpus split differs
+// from his, then renormalised. So the oversampling carries over to every actor
+// rather than being a favour done to Bacon alone, and what the reader watches
+// across a turn is the DIFFERENCE between two actors, drawn at a scale where
+// there is something to see. Jackson's hop 3 is 11.1% of the corpus against
+// Bacon's 29.0%; on screen his row is a bit over a third of the height Bacon's
+// is, which is that ratio and not a flattened version of it.
+//
+// The identity that matters: for Bacon the ratio is 1, so this is exactly the
+// sample and his frame is the frame `hopBands` has always drawn. That is what
+// makes stepping from step 5 onto the cycling chart move nothing at all —
+// asserted by the goldens, which give `hopBands` and `hopAnchor {anchorId: 0}`
+// the same three hashes.
+const BACON_HOP_COUNTS = story.rankHopBands[ANCHOR_ID];
+
+/**
+ * The four row weights for one anchor, as shares summing to 1.
+ *
+ * Struck from the sample's raw COUNTS rather than its shares so the arithmetic
+ * is exact where it has to be: at `anchorId === ANCHOR_ID` every ratio is
+ * literally 1 and the result is `counts[hop] / total`, bit for bit what this
+ * chart computed before it could be anchored on anybody else.
+ * @param {number[]} counts the on-screen crowd per hop, index = hop
+ * @param {number} anchorId
+ * @returns {number[]} four shares, index 0 = hop 1
+ */
+function anchorShares(counts, anchorId) {
+	const split = story.rankHopBands[anchorId];
+	const weights = [1, 2, 3, 4].map(
+		(hop) => counts[hop] * (split[hop - 1] / BACON_HOP_COUNTS[hop - 1])
+	);
+	const total = weights.reduce((sum, weight) => sum + weight, 0);
+	return weights.map((weight) => weight / total);
+}
+
+/** the on-screen crowd per hop, index = hop — the sample the rows are scaled
+ * from, and the quota that deals dots into them */
+function sampleCounts(nodes) {
+	const counts = [0, 0, 0, 0, 0];
+	for (const n of nodes) counts[n.hop]++;
+	return counts;
+}
 
 /**
  * The column one dot sets off from when it leaves the chapter card.
@@ -102,24 +143,25 @@ function departureColumn(id, w, h, skyBox, contraction) {
 const HEADER_H = 60;
 
 /**
- * The rows: the header band for Bacon, then hops 1–4 sized purely by their
- * sample share so dot density matches across bands, out of whatever the three
- * gaps between them leave behind. The gap is reserved BEFORE the shares are
- * struck rather than taken back out of each band, so it is real whitespace and
- * every band still gets its honest share of what's left.
- * @param {number[]} counts actors per hop, index = hop
+ * The rows: the header band for the anchor, then hops 1–4 sized by the shares
+ * they are handed, out of whatever the three gaps between them leave behind.
+ * The gap is reserved BEFORE the shares are struck rather than taken back out of
+ * each band, so it is real whitespace and every band still gets its honest share
+ * of what's left.
+ *
+ * @param {number[]} shares the anchor's four row weights (see anchorShares)
+ * @param {number} h the canvas height
  * @returns {{ bandTop: number[], bandH: number[] }} per hop, index = hop
  */
-function bandGeometry(counts, h) {
+function bandGeometry(shares, h) {
 	const top = MARGIN + 12;
 	const bandsTop = top + HEADER_H;
-	const dataTotal = counts[1] + counts[2] + counts[3] + counts[4];
 	const bandsH = plotBottom(h) - bandsTop - BAND_GAP * 3;
 	const bandTop = [top];
 	const bandH = [HEADER_H];
 	let y = bandsTop;
 	for (let hop = 1; hop <= 4; hop++) {
-		const share = (counts[hop] / dataTotal) * bandsH;
+		const share = shares[hop - 1] * bandsH;
 		bandTop[hop] = y;
 		bandH[hop] = Math.max(share, MIN_BAND_H);
 		y += share + BAND_GAP;
@@ -128,78 +170,171 @@ function bandGeometry(counts, h) {
 }
 
 /**
- * One actor's dot in its hop band: the anchor big and centred in the header
- * row, everyone else jittered within their hop's band.
- * The searched actor keeps their band row and their column — the two things the
- * chart is saying about them — and changes only colour and size, so the reader
- * watches their dot arrive in a band rather than somewhere new. A bigger radius
- * than the band's 3 because the crowd here is 22,500 dots deep and a recoloured
- * 3px dot in that is not findable; it stays under the anchor's 10.
+ * The row the anchor stands in: big, centred, and the only red dot.
  *
- * @param {{ w: number, h: number, skyBox: number[], contraction: number,
- *   bandTop: number[], bandH: number[], seed: boolean,
- *   search: number | null }} f the frame
+ * Invisible while the search's chip is still carrying this anchor to it
+ * (`arriving`). The dot is written at the slot all the same — a hidden mark
+ * still has a position, which is what the chip aims at (`locateTarget`) and
+ * what stops it climbing out of the crowd to meet its own name. What the reader
+ * watches instead is the seat being vacated: the anchor who was here leaves for
+ * a band, and the new one is delivered by the chip rather than travelling.
  */
-function placeInBand(attrs, n, f) {
-	if (n.hop === 0) {
-		const y = f.bandTop[0] + f.bandH[0] / 2;
-		set(attrs, n.id, f.w / 2, y, 10, HOP_RGB[0], f.seed ? 0 : 1);
-		return;
-	}
-	const marked = n.id === f.search;
+function placeAnchor(attrs, id, f, arriving) {
+	const y = f.bandTop[0] + f.bandH[0] / 2;
+	set(attrs, id, f.w / 2, y, 10, HOP_RGB[0], f.seed || arriving ? 0 : 1);
+}
+
+/**
+ * One actor's dot in a band, jittered within it.
+ *
+ * The band is passed rather than read off the node, because it is only the
+ * node's own degree while Bacon is anchoring: for anyone else the rows are a
+ * corpus split this sample cannot answer per dot, so bands are handed out by
+ * quota instead (see BAND_ORDER).
+ *
+ * @param {number} band which hop row, 1–4
+ * @param {{ w: number, h: number, skyBox: number[], contraction: number,
+ *   bandTop: number[], bandH: number[], seed: boolean }} f the frame
+ */
+function placeInBand(attrs, id, band, f) {
 	set(
 		attrs,
-		n.id,
+		id,
 		// the column the dot leaves the chapter card in, parallax and all
-		departureColumn(n.id, f.w, f.h, f.skyBox, f.contraction),
-		f.bandTop[n.hop] + hash01(n.id, 4) * f.bandH[n.hop],
-		marked ? 7 : 3,
-		marked ? SEARCH_RGB : HOP_RGB[n.hop],
+		departureColumn(id, f.w, f.h, f.skyBox, f.contraction),
+		f.bandTop[band] + hash01(id, 4) * f.bandH[band],
+		3,
+		HOP_RGB[band],
 		// `seed` parks every node at its band position but invisible — what
 		// sits behind hopSeed's zoomed-out network, so the fifteen the network
-		// draws are the only actors with any distance left to travel there.
-		// The reader's own dot is opaque: HOP_DOT_ALPHA exists so a packed band
-		// shows its density, and the one dot they asked for is not crowd.
-		f.seed ? 0 : marked ? 1 : HOP_DOT_ALPHA
+		// draws are the only actors with any distance left to travel there
+		f.seed ? 0 : HOP_DOT_ALPHA
 	);
 }
 
-/** @type {import("../layout-types.js").LayoutFn} */
-function layoutHopBands(nodes, w, h, _edges, params, bleed = NO_BLEED) {
-	const seed = Boolean(params?.seed);
-	const attrs = new Float64Array(ATTR_SIZE);
-	const delays = new Float64Array(DELAY_SIZE);
-	const counts = [0, 0, 0, 0, 0];
-	for (const n of nodes) counts[n.hop]++;
-	// the sky the crowd arrives from, and how far one of its pixels travels as it
-	// funnels back into the reading column. Struck once, outside the loop
-	const frame = {
+/** the four rows' labels, pinned to the middle of the band each one names */
+function hopLegend(labels, f) {
+	return [1, 2, 3, 4].map((hop) => ({
+		color: HOP_RGB[hop],
+		label: `${hop} movie${hop > 1 ? "s" : ""} away — ${labels[hop - 1]} of actors`,
+		x: MARGIN,
+		y: f.bandTop[hop] + f.bandH[hop] / 2
+	}));
+}
+
+/** the sky the crowd arrives from, and how far one of its pixels travels as it
+ * funnels back into the reading column. Struck once, outside the dot loop */
+function bandFrame(w, h, bleed, shares, seed = false) {
+	return {
 		w,
 		h,
 		skyBox: galaxyBox(w, h, bleed),
 		contraction: skyToColumn(w, h, bleed),
 		seed,
-		search: searchedId(params),
-		...bandGeometry(counts, h)
+		...bandGeometry(shares, h)
 	};
-	for (const n of nodes) {
-		placeInBand(attrs, n, frame);
-		// bands cascade 1→4, and each node jitters within its hop so the row fills
-		// in rather than snapping on all at once. Arriving from the chapter card
-		// this clock staggers TRAVEL, not a fade: the crowd is already on screen,
-		// spread across the plot, and falls into its rows a degree at a time.
-		delays[n.id] = n.hop * NETWORK_HOP_DELAY_MS + hash01(n.id, 5) * 400;
+}
+
+// ---------------------------------------------------------------------------
+// Who stands in which row.
+//
+// The corpus knows every actor's distance from BACON and nothing else: the only
+// per-actor breakdown exported is `story.rankHopBands`, four totals apiece for
+// the ranked top 250 (tasks/build-scrolly-nodes.js). There is no per-dot answer
+// for "how far is this actor from Morgan Freeman", and there never will be from
+// this data.
+//
+// So the rows are filled by quota: each takes the number of dots its own weight
+// asks for, cut out of one fixed order. Anchored on Bacon the quota lands
+// exactly on the hop boundaries and every dot is in its own degree, which is the
+// chart step 5 has always drawn — the goldens hold `hopBands` and `hopAnchor
+// {anchorId: 0}` to the same three hashes, so stepping between them moves
+// nothing. Anchored on anyone else a crowd dot's row is a proportion rather than
+// its own distance. Nothing labels a crowd dot — the only name here is the
+// anchor's — so it is not a claim the chart makes to anybody; it is written down
+// because it is the one thing the chart says less than it looks like it does.
+// ---------------------------------------------------------------------------
+
+/**
+ * Every dot the bands hold, in one fixed order: by its own distance from Bacon,
+ * then by id.
+ *
+ * A band is a CUT through this list (see bandCuts), so changing the anchor
+ * slides three boundaries rather than re-dealing the field — a dot changes rows
+ * only if a boundary passed it, and the cycle reads as the breakdown moving
+ * instead of as a reshuffle. Ordering by hop is what makes that true: a hash
+ * order would scatter the same number of changes evenly across the crowd, and
+ * every turn would look like static.
+ *
+ * Struck once, at module scope: 22,500 entries that depend on neither the box
+ * nor the anchor.
+ */
+const BAND_ORDER = rawNodes.nodes
+	.map((_, id) => id)
+	.sort((a, b) => rawNodes.nodes[a][2] - rawNodes.nodes[b][2] || a - b);
+
+/**
+ * Where the three boundaries fall, as counts of dots spent by the end of each
+ * band. The last band takes the remainder rather than its own rounded share, so
+ * the cuts always spend exactly the crowd there is — four independent roundings
+ * would leave a handful of dots with no row, or ask for more dots than exist.
+ * @param {number[]} shares four hop shares summing to 1
+ * @param {number} n how many dots there are to deal
+ * @returns {number[]} four cut counts, the last of them `n`
+ */
+function bandCuts(shares, n) {
+	const cuts = [];
+	let spent = 0;
+	for (let band = 0; band < 3; band++) {
+		spent += Math.round(shares[band] * n);
+		cuts.push(Math.min(spent, n));
 	}
+	cuts.push(n);
+	return cuts;
+}
+
+/** bands cascade 1→4, and each dot jitters within its own so the row fills in
+ * rather than snapping on all at once. Arriving from the chapter card this clock
+ * staggers TRAVEL, not a fade: the crowd is already on screen, spread across the
+ * plot, and falls into its rows a degree at a time. Keyed on the band the dot is
+ * falling INTO — which for Bacon is its own hop, and for anyone else is the row
+ * the quota put it in. */
+const bandDelay = (id, band) =>
+	band * NETWORK_HOP_DELAY_MS + hash01(id, 5) * 400;
+
+/**
+ * Everyone but the anchor, who is standing in the header row: one pass down
+ * BAND_ORDER, moving to the next row as each cut is spent.
+ * @param {number[]} cuts dots spent by the end of each band (see bandCuts)
+ */
+function dealBands(attrs, delays, cuts, anchorId, frame) {
+	let dealt = 0;
+	let band = 1;
+	for (const id of BAND_ORDER) {
+		if (id === anchorId) continue;
+		while (band < 4 && dealt >= cuts[band - 1]) band++;
+		placeInBand(attrs, id, band, frame);
+		delays[id] = bandDelay(id, band);
+		dealt++;
+	}
+}
+
+/** @type {import("../layout-types.js").LayoutFn} */
+function layoutHopBands(nodes, w, h, _edges, params, bleed = NO_BLEED) {
+	const { seed = false, anchorId = ANCHOR_ID, arriving = false } = params ?? {};
+	const counts = sampleCounts(nodes);
+	const shares = anchorShares(counts, anchorId);
+	const attrs = new Float64Array(ATTR_SIZE);
+	const delays = new Float64Array(DELAY_SIZE);
+	const frame = bandFrame(w, h, bleed, shares, seed);
+	placeAnchor(attrs, anchorId, frame, arriving);
+	delays[anchorId] = bandDelay(anchorId, 0);
+	dealBands(attrs, delays, bandCuts(shares, nodes.length - 1), anchorId, frame);
 	// the seed frame carries no reveal choreography or legend — it only
 	// pre-positions the crowd behind hopSeed's network
 	if (seed) return { attrs };
-	const legend = [1, 2, 3, 4].map((hop) => ({
-		color: HOP_RGB[hop],
-		label: `${hop} movie${hop > 1 ? "s" : ""} away — ${HOP_SHARE[hop - 1]} of actors`,
-		x: MARGIN,
-		y: frame.bandTop[hop] + frame.bandH[hop] / 2
-	}));
-	return { attrs, delays, legend };
+	const labels = hopShareLabels(hopFractions(anchorId));
+	return { attrs, delays, legend: hopLegend(labels, frame) };
 }
 
 // ---------------------------------------------------------------------------
@@ -345,20 +480,45 @@ export const states = {
 		}
 	},
 	hopBands: {
-		// `seed` is hopSeed's alone — this state passes the reader's own params
-		// through but never that flag, which is what the empty object used to be
-		// guarding against when it discarded them wholesale
-		layout: (n, w, h, e, p, bleed) =>
-			layoutHopBands(n, w, h, e, { ...p, seed: false }, bleed),
+		// Straight through, with no params of its own, so the layout falls back to
+		// Bacon as the anchor — which is the same call `hopAnchor` makes on its own
+		// first frame, and why stepping between the two moves no dot at all.
+		// `seed` is hopSeed's alone, and that state calls the layout directly
+		// rather than coming past this entry.
+		layout: layoutHopBands,
 		title: "The four degrees of Kevin Bacon",
-		labels: (params) => withSearchLabel([ANCHOR_ID], params),
-		// this state hosts the hop search, and the route home it prints (step 6)
-		params: withSearchParams(),
+		labels: [ANCHOR_ID],
 		// The cascade is authored for the forward arrival off the chapter card,
 		// where the crowd is spread across the plot and sorts itself into rows;
 		// any other direction (a step back from rankFocus) is one plain tween.
 		// It used to reveal from hopSeed's invisible seed park, before the card
 		// was inserted between them — see layouts/chapters.js.
 		revealFrom: ["chapterCenters"]
+	},
+	hopAnchor: {
+		// The same layout `hopBands` draws, handed an anchor.
+		layout: layoutHopBands,
+		// No state plays this layout's cascade on the way in. The cascade is the
+		// chapter card's sort — a degree at a time, out of a crowd spread across
+		// the plot — and every arrival HERE comes off a step already resting on
+		// Bacon, so not a dot moves. Left to default the delays would still be
+		// spent: measured 2026-09-22, 1.8s of blank chart between the departing
+		// furniture fading out and the arriving furniture fading in, with nothing
+		// travelling for any of it. An empty list is the field's own way of saying
+		// the reveal is authored for nobody (see arrivalDelays).
+		revealFrom: [],
+		// Static, because `furnitureSet` freezes a title per state change so a
+		// departing copy keeps its own text while it fades (ScrollyVisual). It does
+		// not need to carry the anchor's name in any case: the anchor's dot is the
+		// only labelled thing on the chart, and it is 60px above this line.
+		title: "Actors with 4 degrees of separation",
+		// Nobody at all while the chip is carrying the anchor here: the name is
+		// still legible on the chip itself, and printing it under the empty seat
+		// as well would announce the arrival twice and beat the thing announcing
+		// it. It appears with the dot, on the beat the chip is dropped — the same
+		// exchange the scatters make (see ActorSearch's `moves`).
+		labels: (params) =>
+			params?.arriving ? [] : [params?.anchorId ?? ANCHOR_ID],
+		params: (s) => ({ anchorId: s.hops.anchorId, arriving: s.hops.arriving })
 	}
 };

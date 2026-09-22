@@ -461,7 +461,7 @@ export const INTERACTIVE_IDS = {
 };
 
 /**
- * Is there anything left for the pair quiz to ask? Both step 19's forward gate
+ * Is there anything left for the pair quiz to ask? Both step 21's forward gate
  * (Index.svelte) and PairQuiz's own starting cursor read this, so the gate can
  * never hold the reader on a panel that has nothing left to answer — which is
  * what a reload straight past the quiz produces: `quizRevealed` with no picks.

@@ -8,6 +8,7 @@
 import { entryFor, isRankState } from "./states.js";
 import {
 	resetGenzLines,
+	resetHopAnchor,
 	resetSimRace,
 	settleGenzLines,
 	settleSimRace,
@@ -22,6 +23,14 @@ import {
  * @type {Record<string, (move: Move) => void>}
  */
 const ARRIVALS = {
+	// the cycling hop chart always opens on Bacon — the anchor the step before it
+	// rests on — so the arrival moves the rows and nothing else, and the cycle is
+	// something the reader watches start. Both directions: the step after it is
+	// still about Bacon's own number, so stepping back in has the same job.
+	// Unpinning with it is the point of doing this at all — a reader who named
+	// somebody, walked on and came back would otherwise find the chart frozen on
+	// a pick they made minutes ago with no cycle to explain it.
+	hopAnchor: () => resetHopAnchor(),
 	// arriving at the quiz backwards means the reader has already been through
 	// it, so reveal every pair instead of re-asking (see story.svelte.js).
 	// Arriving forwards re-arms the question — and with it the step's gate.
@@ -36,7 +45,7 @@ const ARRIVALS = {
 	// A BACKWARD arrival is the other half of the same rule, and it was missing:
 	// the reader is coming from the steps that read the result out, so the chart
 	// they are stepping back onto has to be the finished one those steps
-	// describe. Without it a cold `?step=28` and then Previous landed on an
+	// describe. Without it a cold `?step=29` and then Previous landed on an
 	// empty simulation under prose naming the winner.
 	simRace: ({ forward, from }) => {
 		if (forward && from !== "simRace") resetSimRace();

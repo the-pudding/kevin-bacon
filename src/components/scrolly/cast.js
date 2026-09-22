@@ -43,6 +43,29 @@ export const SWEENEY = idOf(115440);
 
 export const CHASE = idOf(54812);
 
+export const FREEMAN = idOf(192);
+
+export const JOHANSSON = idOf(1245);
+
+/**
+ * The actors step 6's hop chart anchors on, in the order it cycles them.
+ *
+ * Bacon is deliberately NOT among them. The step arrives resting on him — the
+ * anchor its neighbours use, so the arrival moves the rows and nothing else
+ * (`resetHopAnchor`) — and the first turn has to be a change, or the chart would
+ * sit on its own resting frame for a beat past the one the reader already read.
+ * That also makes the loop say what the step says: once it has left Bacon it
+ * never goes back to him.
+ *
+ * Every member must have a `story.rankHopBands` row — true of everyone in
+ * `search.js`'s `SEARCH_POOL` by construction (see
+ * tasks/build-scrolly-nodes.js); `registry.spec.js` asserts that and the
+ * absence of Bacon, because an actor without a row has no breakdown to draw
+ * and the layout would divide by nothing — several seconds after any press,
+ * on a timer.
+ */
+export const HOP_CYCLE_IDS = [FREEMAN, STREEP, JOHANSSON];
+
 // ranked order over the sample (ranks are corpus-global and sparse — plot by
 // sampled order, never raw rank; see notes/scrolly-framework.md)
 export const BY_RANK = rawNodes.nodes

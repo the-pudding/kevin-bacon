@@ -16,7 +16,10 @@
 	import { quizDone } from "$components/scrolly/states.js";
 	import { createStepRegistry } from "$components/scrolly/step-registry.svelte.js";
 	import { prepareArrival } from "$components/scrolly/arrivals.js";
+	import { resetHopAnchor } from "$components/scrolly/story.svelte.js";
 	import { routeSummary } from "$components/scrolly/intro-routes.js";
+	import { SEARCH_POOL } from "$components/scrolly/search.js";
+	import { HOP_CYCLE_IDS } from "$components/scrolly/cast.js";
 	import {
 		CYCLE_ORDER,
 		introBottom
@@ -31,7 +34,7 @@
 	// so the reader's Next has nothing to do but wait for them to press it.
 	const NEVER = () => false;
 
-	// Which chart the reader's searched actor is being placed on, for the search's
+	// Which chart the reader's named actor is being asked about, for the search's
 	// analytics (`recordActorSearch`). Keyed by CHART rather than by state, which
 	// is why three states share "career" and two share "remoteness": the question
 	// the reader is answering is "where am I on this chart", and `careerTrio`,
@@ -42,9 +45,9 @@
 	//
 	// Read off the active state rather than passed per mount, so every step can
 	// share ONE panel snippet — which is what keeps the control mounted across
-	// the runs of adjacent steps (14 → 18 is five of them).
+	// the runs of adjacent steps (15 → 19 is five of them).
 	const SEARCH_CHARTS = {
-		hopBands: "hops",
+		hopAnchor: "hops",
 		scatterCenters: "remoteness",
 		scatterQuiz: "remoteness",
 		degScatter: "costars",
@@ -52,6 +55,22 @@
 		careerBacon: "career",
 		careerMany: "career"
 	};
+
+	/**
+	 * A pick on the hop chart: the named actor takes the top of the stack, and
+	 * the chip the control is flying is what ARRIVES there — so the dot leaves
+	 * the crowd unseen (`conceal`) and holds the seat invisible until the chip
+	 * lands on it. Skipped when the reader names the actor already standing at
+	 * the top: that dot is already in the seat, so there is nothing to cross the
+	 * canvas and concealing it would be a big black dot popping out of a chart
+	 * that is otherwise not changing.
+	 */
+	function anchorPick(visual, id) {
+		if (id !== story.hops.anchorId) visual?.conceal?.(id);
+		story.hops.anchorId = id;
+		story.hops.pinned = true;
+		story.hops.arriving = true;
+	}
 
 	// The step registry (the wizard) and the arrival rules that prepare the
 	// story for each destination step. Created here so it is the one instance
@@ -65,6 +84,10 @@
 	// actor out in turn and the card reads their distance to Bacon, so a reader who
 	// never taps still sees what "two movies away" means. A tap takes it over
 	// (story.intro.pinned, set by the state's `pick` — see layouts/intro.js).
+	//
+	// TOUR_MS is step 6's beat as well: both are one line of chart to read, and
+	// both sit on top of the same 450ms param tween the canvas answers a store
+	// write with (PARAM_TWEEN_MS in ScrollyVisual).
 	const TOUR_MS = 3400; // ~3s to read, on top of the 450ms highlight tween
 	const reducedMotion = new MediaQuery(
 		"(prefers-reduced-motion: reduce)",
@@ -137,6 +160,53 @@
 		const timer = setInterval(showNext, TOUR_MS);
 		return () => clearInterval(timer);
 	});
+
+	// --- step 6's cycle of anchors ---
+	// The same idea one chapter on, and deliberately the same shape: the step says
+	// Kevin Bacon is not special in this respect, so the chart stops being about
+	// him — the dot at the top and the rows under it are redrawn for one actor
+	// after another, and "not special" is something the reader watches instead of
+	// something they are told. The search takes it over (story.hops.pinned).
+	//
+	// Simpler than the tour in the two places the tour is complicated: there is no
+	// tap surface on this chart, so nothing can release a pick out from under the
+	// clock, and the arrival rule puts the cycle back to the top of the list every
+	// time the reader walks in (resetHopAnchor), so it has no position to resume
+	// from. What it keeps is the trap the tour documents at length: this effect
+	// must never read the field showNextAnchor writes, or the write would
+	// invalidate the effect, re-run it and skip an actor on every turn.
+	// `steps.held` rather than `story.settled`: the rows sorting themselves into
+	// the arriving actor's proportions is the thing the step is about, and the
+	// cycle must not start over the top of that arrival.
+	const cycling = $derived(
+		steps.state === "hopAnchor" && !steps.held && !story.hops.pinned
+	);
+	// Written then advanced, the way the tour's showNext is: the step rests on
+	// Bacon, who is not in the list, so the FIRST turn has to show the list's
+	// first actor rather than its second.
+	let anchorNext = 0;
+	const showNextAnchor = () => {
+		story.hops.anchorId = HOP_CYCLE_IDS[anchorNext];
+		anchorNext = (anchorNext + 1) % HOP_CYCLE_IDS.length;
+	};
+	$effect(() => {
+		if (!cycling) {
+			anchorNext = 0;
+			return;
+		}
+		// text and rows that change on their own are motion the reader didn't ask
+		// for: under reduced motion the chart rests on Bacon and waits to be asked
+		if (reducedMotion.current) return;
+		// The first turn is not held for a beat. The step arrives on the chart the
+		// step before it rests on — identical to the byte — so a held first turn is
+		// three seconds of a picture the reader has just finished reading, and the
+		// thing the step is actually for does not start until then. The tour holds
+		// its own first turn for the opposite reason: its step arrives on something
+		// the reader has not seen.
+		showNextAnchor();
+		const timer = setInterval(showNextAnchor, TOUR_MS);
+		return () => clearInterval(timer);
+	});
 </script>
 
 <svelte:boundary onerror={(e) => console.error(e)}>
@@ -156,10 +226,10 @@
 		     reports its camera as fixed, so this would render nothing there
 		     anyway). Renders nothing on a viewport wide enough to show the
 		     whole range. -->
-			<!-- The reader's own actor, on the four charts that can place one and on
-		     every step that draws them (5-6, 14-20, 24-26 — twelve in all, which
-		     is every step of the four charts bar none). Mounting it on the whole
-		     run rather than on one step each means a reader who notices the glyph
+			<!-- The reader's own actor, on the three charts that can place one and on
+		     every step that draws them (15-21, 25-27 — ten in all, which is every
+		     step of the three charts bar none). Mounting it on the whole run
+		     rather than on one step each means a reader who notices the glyph
 		     late can still use it, and one who never does is never nagged. A panel
 		     rather than a card control, which is the one place rule 1b parts
 		     company with rule 1 — see ActorSearch.svelte for why being out of
@@ -172,7 +242,42 @@
 				<ActorSearch
 					visual={layout.visual}
 					chart={SEARCH_CHARTS[steps.state]}
-					showPath={steps.state === "hopBands"}
+					pool={SEARCH_POOL}
+					picked={story.search.actorId}
+					onpick={(id) => (story.search.actorId = id)}
+					onclear={() => (story.search.actorId = null)}
+				/>
+			{/snippet}
+			<!-- The same control on step 6, asking a different question: who the hop
+		     chart is drawn FOR. So the pool is the same SEARCH_POOL the other three
+		     searches use — narrowed at build time to actors with an exported hop
+		     breakdown (see search.js) — and a pick pins the cycle rather than
+		     marking a dot in a crowd.
+		     `picked` is null until they pin, so the Clear row appears only once
+		     there is a decision of theirs to undo; while the cycle is running the
+		     name under the reader's nose is the one on the canvas, and offering
+		     to clear it would be offering to clear the step. Clearing puts the
+		     chart back on Bacon with the cycle live, which is where the arrival
+		     leaves it (resetHopAnchor). Deliberately NOT the sticky pick: this is
+		     a different pool answering a different question, and a name chosen
+		     here has nothing to say on the scatters.
+
+		     `moves`, because a pick here MOVES the dot it names instead of
+		     marking it where it stands. The pick lands as the chip leaves: the
+		     actor at the top of the stack tweens down into a band and the rows
+		     re-proportion, while the seat itself is held empty (`arriving`) for
+		     the chip to arrive in. `onland` gives it up when the chip touches
+		     down, and the new anchor's dot and name fade in under it. -->
+			{#snippet anchorPanel()}
+				<ActorSearch
+					visual={layout.visual}
+					chart={SEARCH_CHARTS[steps.state]}
+					pool={SEARCH_POOL}
+					picked={story.hops.pinned ? story.hops.anchorId : null}
+					moves
+					onpick={(id) => anchorPick(layout.visual, id)}
+					onland={() => (story.hops.arriving = false)}
+					onclear={resetHopAnchor}
 				/>
 			{/snippet}
 			{#snippet racePanel()}
@@ -289,17 +394,19 @@
 			     on, and the field then sorts itself into the hop bands. -->
 			<Chapter state="chapterCenters" title="The centers of Hollywood" />
 
-			<!-- hopBands' prose waits for the bands to actually land (story.settled)
-		     rather than mounting the moment the step becomes active — the crowd
-		     sorting into rows is the point of the step, and the reader should see
-		     that finish before being told what it means. Both steps below rest in
-		     the one hopBands state (see layouts/hop-bands.js), so the gate holds
-		     for the whole pair, not just the first arrival. -->
-			<Step state="hopBands" panel={searchPanel}>
+			<!-- The prose waits for the bands to actually land rather than mounting
+		     the moment the step becomes active — the crowd sorting into rows is
+		     the point of the step, and the reader should see that finish before
+		     being told what it means. Held per STEP, so it holds again on each of
+		     the three below rather than only on the first arrival at the chart.
+		     The middle one is the cycling chart (`hopAnchor`); the two either
+		     side of it are about Bacon's own number and rest on him
+		     (`hopBands`) — see layouts/hop-bands.js. -->
+			<Step state="hopBands">
 				<p>
 					No doubt, he's well connected. With
 					<InfoTerm>
-						our dataset
+						our dataset of 169,000 actors
 						{#snippet info()}
 							<p>
 								The corpus is the IMDb top 10,000 English-language feature films
@@ -319,25 +426,21 @@
 							</p>
 						{/snippet}
 					</InfoTerm>, you can get from any Hollywood actor to Kevin Bacon in
-					four movies or fewer, a.k.a. the <i>four</i> degrees of Kevin Bacon.
-				</p>
-				<p>
-					The reality is that Kevin Bacon isn't special in this respect; there
-					are 16,429 actors who can be reached by everyone within 4 movies, and
-					no one can be reached by everyone within 3.
+					four movies or fewer, a.k.a. the <b>four</b> degrees of Kevin Bacon.
 				</p>
 			</Step>
-			<Step state="hopBands" panel={searchPanel}>
+			<Step state="hopAnchor" panel={anchorPanel}>
 				<p>
-					We need a better way to measure the connectivity of actors in this
-					highly congested network. For this, we use how many movies on average
-					it takes to get to them from all other actors. In graph theory, this
-					is often referred to as <i>remoteness</i>.
+					Morgan Freeman, Meryl Streep and Scarlett Johansson are also four
+					degrees from every actor in Hollywood. In fact, 10% of actors in the
+					dataset are four degrees away from everyone else. <b
+						>No one can reach everyone within 3.</b
+					>
 				</p>
 				<p>
-					For example, Kevin Bacon's remoteness is 2.28: an actor is 2.28 movies
-					away on average. Smaller is better: the less remote you are, the more
-					likely you are to be the center of Hollywood.
+					We need a more granular way to measure the connectivity of actors: the
+					average number of movies it takes to get to every actor in Hollywood.
+					In mathematics, this is referred to as <b>remoteness</b>.
 				</p>
 			</Step>
 			<!-- guessing #1 or giving up is the only way on: GuessRank calls the
@@ -347,16 +450,17 @@
 			<Step state="rankFocus" gate={NEVER} skipback>
 				<div class="rank-focus-text">
 					<p>
-						As mentioned earlier, Kevin Bacon is not the center of Hollywood.
-						His remoteness of 2.28 puts him at #175 of all Hollywood actors. Can
-						you guess who #1 is?
+						For example, Kevin Bacon's remoteness is 2.28: so an actor is, on
+						average, 2.28 degrees from Kevin Bacon. But 2.28 degrees is not the
+						best remoteness score: Kevin Bacon ranks 175th place of all
+						Hollywood actors. Can you guess who #1 is?
 					</p>
 					<GuessRank />
 				</div>
 			</Step>
 			<Step state="rankReveal">
 				<p>
-					Samuel L. Jackson is the <i>center of Hollywood</i>, with a remoteness
+					Samuel L. Jackson is the <b>center of Hollywood</b>, with a remoteness
 					of just 2.09. Willem Dafoe is second with 2.13, Robert De Niro third
 					with 2.14.
 				</p>
@@ -477,7 +581,7 @@
 			</Step>
 			<!-- the one gate the reader's own Next walks through once it opens:
 		     the quiz has no single completing press, so finishing the last
-		     pair is what unblocks it. Stepping back to 19 stays open, and
+		     pair is what unblocks it. Stepping back to 20 stays open, and
 		     `quizDone` is the same predicate PairQuiz seeds itself from, so
 		     the gate can never hold the reader on a quiz with nothing left
 		     to ask. PairQuiz sits in the card, under the sentence putting the

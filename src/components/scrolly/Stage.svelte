@@ -150,7 +150,7 @@
 	// of that card covers the canvas is a live question — `beside` answers it,
 	// and the answer flips during the first frames of every cold load, before the
 	// viewport has been measured. Holding the gated value froze the wrong side of
-	// that flip: a page opened straight onto a rank step (?step=7, ?step=8) seeded
+	// that flip: a page opened straight onto a rank step (?step=8, ?step=9) seeded
 	// this from the stacked layout's ~800px, `overlayHeight` then went to 0 for
 	// good on a desktop viewport, the `!overlayHeight` guard that used to stand
 	// here early-returned on every run after, and the ladder was left with
@@ -172,7 +172,7 @@
 	// That wait is owed to one arrival only, though: the collapse the panel would
 	// otherwise cover before the reader has seen it land. A panel that comes up on
 	// rankReveal instead has no collapse underneath to wait for — it is either a
-	// reload already past the guess (?step=7) or the reader stepping back into the
+	// reload already past the guess (?step=8) or the reader stepping back into the
 	// chapter out of the race, which takes the overlay down on arrival
 	// (story.rank.collapsed) and so has to rebuild it. Neither will ever see
 	// `story.settled` read "rankFocus" again, so the hold was permanent: the

@@ -1,19 +1,18 @@
-// The actor search's index and the route home it prints. Named assertions
+// The actor search's two pools and the match behind them. Named assertions
 // rather than hashes, for the reason scatter-quiz.spec.js gives: a golden is
 // keyed on the params JSON, so it cannot catch a pool that silently changed
-// membership or a chain that stopped agreeing with its own hop count.
+// membership.
 import { describe, expect, test } from "vitest";
 import {
 	RANK_POOL,
 	SEARCH_POOL,
-	pathToBacon,
-	routeFilmsToBacon,
 	searchActors,
 	searchedId,
 	withSearchLabel
 } from "../search.js";
 import { ANCHOR_ID, makeNodes } from "../nodes.js";
-import { RANK_TOP_N } from "../cast.js";
+import { HOP_CYCLE_IDS, RANK_TOP_N } from "../cast.js";
+import story from "$data/scrolly-story.json";
 
 const { nodes } = makeNodes();
 const nameOf = (id) => nodes[id].name;
@@ -39,10 +38,21 @@ describe("the search pool", () => {
 			"Florence Pugh",
 			"Anya Taylor-Joy",
 			"Austin Butler",
-			"Millie Bobby Brown",
-			"Jacob Elordi"
+			"Millie Bobby Brown"
 		]) {
 			expect(named, name).toContain(name);
+		}
+	});
+
+	// Owen's call: an actor whose corpus reach only settles at hop 5+ has no
+	// honest hop 1-4 breakdown, so they are dropped from every search rather
+	// than being searchable everywhere except the hop chart. This costs two
+	// names the story itself labels on other charts (career, Gen-Z race) their
+	// search entry — a deliberate, known gap, not a bug.
+	test("drops actors with no honest hop 1-4 breakdown, even ones the story labels", () => {
+		const named = new Set(SEARCH_POOL.map((id) => nodes[id].name));
+		for (const name of ["Chevy Chase", "Jacob Elordi"]) {
+			expect(named, name).not.toContain(name);
 		}
 	});
 
@@ -61,9 +71,9 @@ describe("the search pool", () => {
 		expect(SEARCH_POOL).toContain(ANCHOR_ID);
 	});
 
-	// what makes "every result plots on all four charts" true, and so what lets
+	// what makes "every result plots on all three charts" true, and so what lets
 	// the control have no per-chart "not shown here" state
-	test("every member plots on all four charts", () => {
+	test("every member plots on all three charts", () => {
 		for (const id of SEARCH_POOL) {
 			const n = nodes[id];
 			expect(n.films, n.name).toBeGreaterThanOrEqual(5);
@@ -72,9 +82,40 @@ describe("the search pool", () => {
 		}
 	});
 
-	test("the rank ladder keeps its own, narrower pool", () => {
+	test("the ranked 250 are their own, narrower pool", () => {
 		// scoped to what RankBars renders, so every result there has a visible row
 		expect(RANK_POOL).toHaveLength(RANK_TOP_N);
+	});
+});
+
+// The two ways step 6's hop chart picks up an anchor: its own cycle, and
+// SEARCH_POOL, the one pool every searchable step now offers. Both are
+// bounded by the same thing — an anchor needs a `story.rankHopBands` row
+// (from data/top-250-hop-bands-with-hop-counts.csv) or it has no rows to
+// draw. `hopFractions` would reduce over `undefined` and the chart would come
+// apart on a timer, several seconds after anything a test could point at. The
+// build script's own search-pool filter is what makes the first test here
+// tautological rather than incidental — see tasks/build-scrolly-nodes.js.
+describe("the hop chart's anchors", () => {
+	const hasBreakdown = (id) => Array.isArray(story.rankHopBands[id]);
+
+	test("every actor the search can anchor on has a breakdown", () => {
+		for (const id of SEARCH_POOL)
+			expect(hasBreakdown(id), nameOf(id)).toBe(true);
+	});
+
+	test("every actor the cycle visits has one too", () => {
+		expect(HOP_CYCLE_IDS.length).toBeGreaterThan(1);
+		for (const id of HOP_CYCLE_IDS)
+			expect(hasBreakdown(id), nameOf(id)).toBe(true);
+	});
+
+	// The step rests on Bacon, so the cycle must not open on him: its first turn
+	// would move nothing and the chart would look frozen for a beat. Nor may it
+	// name anyone twice, for the same reason one turn on.
+	test("the cycle leaves Bacon behind and names nobody twice", () => {
+		expect(HOP_CYCLE_IDS).not.toContain(ANCHOR_ID);
+		expect(new Set(HOP_CYCLE_IDS).size).toBe(HOP_CYCLE_IDS.length);
 	});
 });
 
@@ -121,81 +162,6 @@ describe("searchActors", () => {
 		expect(
 			searchActors(q, { pool: RANK_POOL, limit: 50 }).map((r) => r.id)
 		).not.toContain(outside);
-	});
-});
-
-describe("pathToBacon", () => {
-	test("is as long as the actor's hop, and ends on Bacon", () => {
-		for (const id of SEARCH_POOL) {
-			const chain = pathToBacon(id);
-			expect(chain, nameOf(id)).not.toBeNull();
-			// the guard the whole export exists for: the band a dot sits in and the
-			// sentence printed beside it must count the same number of steps
-			expect(chain.length, nameOf(id)).toBe(nodes[id].hop);
-			if (chain.length === 0) continue;
-			expect(chain.at(-1)[0], nameOf(id)).toBe("Kevin Bacon");
-		}
-	});
-
-	test("every step names a co-star and a film", () => {
-		for (const id of SEARCH_POOL) {
-			for (const [name, film] of pathToBacon(id)) {
-				expect(typeof name, nameOf(id)).toBe("string");
-				expect(name.length, nameOf(id)).toBeGreaterThan(0);
-				expect(typeof film, nameOf(id)).toBe("string");
-				expect(film.length, nameOf(id)).toBeGreaterThan(0);
-			}
-		}
-	});
-
-	test("Bacon's own route is empty", () => {
-		expect(pathToBacon(ANCHOR_ID)).toEqual([]);
-	});
-
-	test("an actor outside the pool has none", () => {
-		const outside = nodes.findIndex((n) => !SEARCH_POOL.includes(n.id));
-		expect(pathToBacon(outside)).toBeNull();
-	});
-
-	// The caption's InfoTerm draws the chain with RouteFilms, which is also step
-	// 1's renderer and reads only `hop.to` and `hop.films`. These pin the shape
-	// that component depends on: svelte-check cannot see into a snippet, so a
-	// rename here would otherwise surface as an empty panel in the browser.
-	describe("the route in RouteFilms' shape", () => {
-		test("one route, one film per hop, in the order the path reads", () => {
-			const id = SEARCH_POOL.find((i) => pathToBacon(i).length === 2);
-			const path = pathToBacon(id);
-			expect(routeFilmsToBacon(id)).toEqual([
-				{
-					hops: path.map(([name, film, year]) => ({
-						to: name,
-						films: [{ title: film, year }]
-					}))
-				}
-			]);
-		});
-
-		test("every route in the pool ends at Bacon", () => {
-			for (const id of SEARCH_POOL) {
-				const [route] = routeFilmsToBacon(id);
-				if (!route) continue; // Bacon himself, asserted below
-				expect(route.hops.at(-1).to).toBe(nameOf(ANCHOR_ID));
-			}
-		});
-
-		test("nobody with a chain to draw is given an empty one", () => {
-			for (const id of SEARCH_POOL) {
-				expect(routeFilmsToBacon(id).length).toBe(
-					pathToBacon(id).length ? 1 : 0
-				);
-			}
-		});
-
-		test("Bacon and an actor outside the pool have nothing to draw", () => {
-			const outside = nodes.findIndex((n) => !SEARCH_POOL.includes(n.id));
-			expect(routeFilmsToBacon(ANCHOR_ID)).toEqual([]);
-			expect(routeFilmsToBacon(outside)).toEqual([]);
-		});
 	});
 });
 

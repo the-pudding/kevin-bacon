@@ -920,18 +920,19 @@ for (const [pid] of recognizable.actors) {
 	// Harry Styles) simply isn't in this corpus to search for
 	if (id !== undefined) wanted.add(id);
 }
+// Narrowed to whoever has an honest hop 1-4 breakdown (`rankHopBands`): an
+// actor the corpus only fully connects within 5+ films has no answer this
+// schema can express, so — Owen's call — they are dropped from every search
+// rather than being searchable on three charts and silently returning nothing
+// on the fourth (`hopAnchor`). This costs a couple of story-labelled dots
+// their search entry (Chevy Chase, Jacob Elordi among them); the chart still
+// draws and labels them, they just can't be found by typing their name.
 const searchPool = [...wanted]
 	.filter(plots)
+	.filter((id) => rankHopBands[id] != null)
 	.sort((a, b) => nodes[a][5] - nodes[b][5]);
 assert(searchPool.length > 1000, `search pool is only ${searchPool.length}`);
-// the story's own cast is the half that is not negotiable
-const castMissing = [...storyCast].filter(
-	(id) => plots(id) && !searchPool.includes(id)
-);
-assert(
-	castMissing.length === 0,
-	`${castMissing.length} plottable story actors are not searchable`
-);
+assert(searchPool.includes(0), "Bacon (id 0) is not in the search pool");
 
 // The full-corpus BFS tree with its edges named (analysis/bacon-path-tree.py).
 // The unsampled twin of hop-tree-shared.json, in the same relationship

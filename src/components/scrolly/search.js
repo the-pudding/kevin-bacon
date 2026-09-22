@@ -1,25 +1,30 @@
 // @ts-check
-// The reader's own actor: the pool the search control offers, the substring
-// match behind it, and the route home it prints.
+// The reader's own actor: the pools the search control offers and the substring
+// match behind them.
 //
 // Split out of states.js on 2026-09-21, when the rank guess stopped being the
 // only place in the story that asks the reader to name somebody. states.js is
-// the STATE registry; this is a data index, and four layouts now want the
+// the STATE registry; this is a data index, and three layouts now want the
 // highlight rule without wanting the registry.
 import rawNodes from "$data/scrolly-nodes.json";
 import { BY_RANK, RANK_TOP_N } from "./cast.js";
 import { INK } from "./palette.js";
-
-/** @typedef {[name: string, film: string, year: number | null]} PathStep */
 
 /** name lookup over the node tuples — the same column states.js reads. The
  * tuples type as a union of their columns, so the cast is what says which. */
 const nameOf = (id) => /** @type {string} */ (rawNodes.nodes[id][1]);
 
 /**
- * The actors the search offers, in closeness-rank order
+ * The one pool all four searchable steps offer, in closeness-rank order
  * (tasks/build-scrolly-nodes.js): everyone sdokb scores as recognisable, plus
- * everyone this story names or draws, minus anyone the four charts cannot place.
+ * everyone this story names or draws, minus anyone the charts cannot place —
+ * narrowed to whoever also has an honest hop 1-4 breakdown
+ * (`story.rankHopBands`), since the hop chart's anchor search draws from this
+ * same pool and an anchor with no row has no breakdown to draw. That costs a
+ * couple of story-labelled dots their search entry (Chevy Chase, Jacob
+ * Elordi) — Owen's call, made once the alternative (searchable everywhere but
+ * step 6) turned out to be the same silent "nothing found" failure this pool
+ * exists to avoid.
  *
  * Fame has to come from outside the corpus. Closeness rank, film count and
  * costar degree all measure how much an actor has WORKED, and this story is
@@ -30,18 +35,15 @@ const nameOf = (id) => /** @type {string} */ (rawNodes.nodes[id][1]);
  * filtered by fame for the mirror reason: Recognizability is PRESENT fame, and
  * Gene Hackman scores 2.
  *
- * Built by the task rather than sliced here so the pool, the routes home and the
- * guard that every member plots on all four charts are one decision in one
- * place — a pool that drifted from `searchPaths` would be a result with no route
- * to print.
+ * Built by the task rather than sliced here so the pool and the guard that every
+ * member plots on the charts that offer it are one decision in one place.
  * @type {number[]}
  */
 export const SEARCH_POOL = /** @type {number[]} */ (rawNodes.searchPool);
 
 /**
- * The rank ladder's own, narrower pool. Scoped to the top-N RankBars actually
- * renders, so every result there has a visible row to scroll to and highlight —
- * a constraint the four-chart search does not have and must not inherit.
+ * The ranked top 250. The rank guess's own, narrower pool: every result needs
+ * a visible RankBars row to scroll to, and RankBars only renders this many.
  * @type {number[]}
  */
 export const RANK_POOL = BY_RANK.slice(0, RANK_TOP_N).map((n) => n.id);
@@ -71,59 +73,12 @@ export function searchActors(query, { pool, limit = 8 }) {
 }
 
 /**
- * One actor's shortest route back to Bacon: `[costar, film, year]` per hop,
- * walking toward him and ending on him. Empty for Bacon himself.
- *
- * Its length is the actor's `hop` — asserted at build time, because the band a
- * dot sits in and the sentence printed beside it would otherwise be free to
- * disagree with nothing on screen to say so.
- *
- * @param {number} id
- * @returns {PathStep[] | null} null for an actor outside the pool
- */
-export function pathToBacon(id) {
-	return (
-		/** @type {PathStep[] | undefined} */ (rawNodes.searchPaths[id]) ?? null
-	);
-}
-
-/**
- * The route home in the shape RouteFilms renders, so the searched actor's
- * chain of films is drawn by the same component that draws step 1's.
- *
- * The two routes come from different graphs and cannot share a source: step 1
- * walks the 18 curated intro edges (intro-routes.js), which reach fifteen
- * actors, while this reads the corpus path the build exports for all 1,449. The
- * SHAPE is what they share. A pool route is a single chain carrying one film per
- * hop, so it is one route of one film each — RouteFilms's multi-route, multi-film
- * markup covers that without knowing which caller it is drawing.
- *
- * @param {number} id
- * @returns {{ hops: { to: string, films: { title: string, year: number|null }[] }[] }[]}
- */
-export function routeFilmsToBacon(id) {
-	const path = pathToBacon(id);
-	// Bacon himself has an empty path and nobody outside the pool has one at
-	// all; neither has a chain to draw, and the caption says so in words instead
-	if (!path?.length) return [];
-	return [
-		{
-			hops: path.map(([name, film, year]) => ({
-				to: name,
-				films: [{ title: film, year }]
-			}))
-		}
-	];
-}
-
-/**
  * The reader's mark. Ink — the same black the story marks its own subjects in.
  * It was purple for half a day, on the reasoning that purple is the one
  * category colour no chart spends and that ink would read as Bacon's; in
  * practice neither worried the eye. Nothing is ambiguous about it: a marked dot
- * is the only ink in a band of red/blue/cyan/grey, it is nowhere near Bacon's
- * dot at the top of the stack, and it is the only dot on any of the four charts
- * carrying a name the reader chose.
+ * is the only ink in a cloud of category colour, and it is the only dot on any
+ * of the three charts carrying a name the reader chose.
  */
 export const SEARCH_RGB = INK;
 

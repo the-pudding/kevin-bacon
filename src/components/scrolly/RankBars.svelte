@@ -143,7 +143,7 @@
 	// mounts back on rankFocus, with `reveal` still false and the answer still
 	// hidden, so the two cases separate cleanly on where `reveal` stood at the
 	// first render: true here means the panel was built straight onto the answer
-	// — a reload past the guess (?step=7), or stepping back into the chapter out
+	// — a reload past the guess (?step=8), or stepping back into the chapter out
 	// of the race, which takes the overlay down on arrival (story.rank.collapsed)
 	// and so leaves nothing to step back into but a fresh one.
 	//

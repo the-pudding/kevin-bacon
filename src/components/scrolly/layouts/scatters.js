@@ -293,7 +293,7 @@ export const states = {
 				params
 			),
 		// the step's own params, plus the reader's actor — this state hosts the
-		// remoteness search (step 18)
+		// remoteness search (steps 15-19)
 		params: withSearchParams(),
 		// the pair labels carry their metric, so they're too wide to sit beside
 		// their dots at the right edge of the cloud — they hang below (clamped)
@@ -351,7 +351,7 @@ export const states = {
 		// threw away WHICH option the reader had chosen, and that is exactly what
 		// the verdict colour is read off — so stepping back into the step used to
 		// erase the reader's own answers from the chart.
-		// The search is here too, as the glyph at the title's right (step 20). It
+		// The search is here too, as the glyph at the title's right (step 21). It
 		// costs the card nothing — the quiz already owns that — because the
 		// control is over the canvas, and a pick made earlier is sticky, so the
 		// mark rides in already made whether or not the reader opens it.
@@ -366,7 +366,7 @@ export const states = {
 		layout: layoutDegScatter,
 		title: "Films vs. costar film count",
 		labels: (params) => withSearchLabel([PORTMAN, KENDRICK], params),
-		// this state hosts the costar-count search (step 19)
+		// this state hosts the costar-count search (step 20)
 		params: withSearchParams(),
 		// no labelDirs entry for either id: they fall back to hanging below the
 		// dot, which is what "only these two" calls for once the crowd is gone

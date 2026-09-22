@@ -1,12 +1,20 @@
 <script>
 	// @ts-check
-	// The reader's own actor, on four charts and the twelve steps that draw them:
-	// the hop bands, the two films scatters and the career chart. An EASTER EGG,
-	// not an invitation — a
-	// magnifying glass at the right of the chart's own title, and nothing else
-	// until the reader presses it. There is no sentence offering the search and
-	// no call to action anywhere, because nothing later in the story reads the
-	// answer out: a reader who never notices this has missed nothing.
+	// Naming an actor, on the charts that can do something with one: the two films
+	// scatters and the career chart mark the reader's own dot, and the cycling hop
+	// chart takes the name as the actor its rows are drawn for. An EASTER EGG, not
+	// an invitation — a magnifying glass at the right of the chart's own title,
+	// and nothing else until the reader presses it. There is no sentence offering
+	// the search and no call to action anywhere, because nothing later in the
+	// story reads the answer out: a reader who never notices this has missed
+	// nothing.
+	//
+	// It owns none of what a pick MEANS. The pool it offers, the id it shows as
+	// picked and what a pick or a Clear writes are all the caller's (see the two
+	// panel snippets in Index.svelte), because the two readings are genuinely
+	// different: the scatters' pick is sticky across four steps and the hop
+	// chart's is a cycle standing down. What is shared is the control — the glyph,
+	// the box, the chip and its flight — and that is all this file is.
 	//
 	// It is an over-canvas panel rather than a step-card control, which is the
 	// one place notes/design/interactions.md rule 1b now parts company with rule
@@ -29,33 +37,20 @@
 	// functions (fly-to-dot.js): the picked name MARKS as a chip where the search
 	// box was, then FLIES onto the plot, morphing into a dot and landing exactly
 	// where that actor stands; the canvas's own mark fades in underneath it
-	// before the chip goes. What is left on screen is a named purple dot — the
-	// answer is a canvas label, drawn by withSearchLabel exactly as every other
-	// named dot in the story is, and de-collided by the same label stacker.
+	// before the chip goes. What is left on screen is a named dot — the answer is
+	// a canvas label, drawn exactly as every other named dot in the story is, and
+	// de-collided by the same label stacker.
 	//
-	// On the hop chart alone the distance is worth a sentence, so `showPath` adds
-	// the caption step 1 uses for the same job: "<name>: two movies away from
-	// Kevin Bacon", with the count an InfoTerm opening the films behind it.
-	//
-	// Unlike the quiz the pick is STICKY: `story.search.actorId` is never reset by
-	// an arrival rule, so a reader who names somebody here finds them again on
-	// the next three charts. That is the whole reading the control exists for —
-	// one person carried through four different questions — which is also why
-	// this component holds no picked state of its own and reads the store.
+	// `moves` is for the one caller whose pick does not just mark a dot but MOVES
+	// it: the hop chart re-anchors on the name, so whoever was standing at the top
+	// of the stack leaves for a band. That pick is committed at the top of the
+	// flight instead of at the end of it, and the chip aims at the seat being
+	// vacated — which the new anchor holds invisibly until `onland` says the chip
+	// has arrived with it. See `fly`.
 	import { tick } from "svelte";
 	import Search from "@lucide/svelte/icons/search";
 	import Combobox from "$components/ui/Combobox.svelte";
-	import InfoTerm from "$components/ui/InfoTerm.svelte";
-	import RouteFilms from "./RouteFilms.svelte";
-	import { story } from "./story.svelte.js";
-	import {
-		SEARCH_POOL,
-		SEARCH_RGB,
-		pathToBacon,
-		routeFilmsToBacon,
-		searchActors
-	} from "./search.js";
-	import { movieCount } from "./intro-routes.js";
+	import { SEARCH_RGB, searchActors } from "./search.js";
 	import { MARGIN } from "./plot.js";
 	import { nodeName } from "./states.js";
 	import {
@@ -67,8 +62,19 @@
 	} from "./fly-to-dot.js";
 	import { recordActorSearch } from "$utils/analytics.js";
 
-	/** @type {{ visual: any, chart: string, showPath?: boolean }} */
-	let { visual, chart, showPath = false } = $props();
+	/** @type {{ visual: any, chart: string, pool: number[], picked: number | null,
+	 *   moves?: boolean, onpick: (id: number) => void, onland?: (id: number) => void,
+	 *   onclear: () => void }} */
+	let {
+		visual,
+		chart,
+		pool,
+		picked,
+		moves = false,
+		onpick,
+		onland,
+		onclear
+	} = $props();
 
 	let query = $state("");
 	/** bits-ui carries a string value; the pool is node ids */
@@ -91,25 +97,17 @@
 		if (holdTimer) clearTimeout(holdTimer);
 	});
 
-	const matches = $derived(searchActors(query, { pool: SEARCH_POOL }));
+	const matches = $derived(searchActors(query, { pool }));
 	const items = $derived(
 		matches.map(({ id, name }) => ({ value: String(id), label: name }))
 	);
 
-	// The sticky pick. Reading the store rather than a local copy is what makes
-	// the caption and the Clear row show the actor a reader named on an EARLIER
-	// chart the moment this panel mounts.
-	const picked = $derived(story.search.actorId);
-	const hops = $derived(
-		picked == null ? 0 : (pathToBacon(picked)?.length ?? 0)
-	);
-
-	function land(id) {
+	function commit(id) {
 		// The canvas mark first, the analytics write last: this is background
 		// instrumentation reached from a click handler, and touching localStorage
 		// throws outright where site data is blocked (see $utils/analytics.js), so
 		// the other order would take the reader's pick down with it.
-		story.search.actorId = id;
+		onpick(id);
 		recordActorSearch({ actorId: id, chart });
 	}
 
@@ -119,27 +117,65 @@
 		flying = null;
 	}
 
-	async function fly(id) {
-		if (destroyed) return;
-		const target = visual?.locate?.(id);
-		// no flight under reduced motion, or before the canvas can place the dot
-		if (prefersReducedMotion() || !target || !chipEl) {
-			land(id);
-			flying = null;
-			return;
-		}
+	/**
+	 * The dot the chip is aimed at, in viewport coordinates.
+	 *
+	 * A pick that MOVES its dot aims at where that dot is GOING rather than where
+	 * it stands, because the pick has already been made and the dot has already
+	 * left: on the hop chart it is holding the header row, invisible, waiting to
+	 * be delivered. Its LIVE position is the row in the crowd it used to stand
+	 * in, and a chip flown there would land in the middle of the bands.
+	 */
+	function flightTarget(id) {
+		if (moves) return visual?.locateTarget?.(id);
+		return visual?.locate?.(id);
+	}
+
+	/**
+	 * The chip's travel, or nothing: there is no flight under reduced motion, or
+	 * before the canvas can place the dot.
+	 * @returns {Promise<boolean>} whether it flew
+	 */
+	async function flight(target) {
+		if (prefersReducedMotion() || !target || !chipEl) return false;
 		await flyToDot({
 			el: chipEl,
 			rect: chipEl.getBoundingClientRect(),
 			target,
 			fill: rgb(SEARCH_RGB)
 		});
+		return true;
+	}
+
+	async function fly(id) {
+		if (destroyed) return;
+		// A pick that MOVES its dot is committed BEFORE the flight rather than on
+		// landing, so the seat is vacated under the chip: the actor at the top of
+		// the hop chart leaves for a band, the rows re-proportion around the new
+		// anchor, and the anchor itself holds its place up there invisible and
+		// unnamed (`story.hops.arriving`) rather than climbing out of the crowd to
+		// meet a name that is already on its way down the screen. What arrives at
+		// the top is the chip. `onland` is the other half of that bargain — it
+		// drops the flag, and the dot fades in underneath.
+		//
+		// `tick`, because the retarget the pick causes is applied in an effect: the
+		// frame the canvas is heading for — which is what the chip aims at — does
+		// not name the anchor slot until that has flushed.
+		if (moves) {
+			commit(id);
+			await tick();
+			if (destroyed) return;
+		}
+		const flown = await flight(flightTarget(id));
 		if (destroyed) return;
 		// Reveal the canvas mark (the param re-run fades it in) and hold the flown
 		// chip over that fade, so the dot's own label replaces it rather than the
-		// chip popping out over a bare dot.
-		land(id);
-		holdTimer = setTimeout(finish, HOLD_MS);
+		// chip popping out over a bare dot. Both callers land a mark here; they
+		// differ only in whether the pick itself has already been made.
+		if (moves) onland?.(id);
+		else commit(id);
+		if (flown) holdTimer = setTimeout(finish, HOLD_MS);
+		else flying = null;
 	}
 
 	async function pick(next) {
@@ -165,84 +201,27 @@
 	}
 
 	function clear() {
-		story.search.actorId = null;
+		onclear();
 		open = false;
 	}
-
-	/** @type {HTMLElement | undefined} */
-	let rootEl = $state();
-	/** the caption's own width, so it can be centred on the dot and then clamped */
-	let captionWidth = $state(0);
-	/** the canvas box, watched because a resize re-lays the crowd out under us */
-	let boxWidth = $state(0);
-	/** where the reader's dot is, in this panel's coordinates — null until placed */
-	let dotAt = $state(/** @type {{ x: number, y: number } | null} */ (null));
-
-	/** how far under the dot's centre the caption sits: past the dot itself and
-	 * past the name the canvas already hangs below it (a below-dot label is
-	 * placed at y + r + 4 and is one 11px/1.2 line tall — see ScrollyVisual's
-	 * .node-label transform), so the two read as one stacked annotation */
-	const CAPTION_DY = 26;
-
-	$effect(() => {
-		if (!rootEl) return;
-		const ro = new ResizeObserver(([entry]) => {
-			boxWidth = entry.contentRect.width;
-		});
-		ro.observe(rootEl);
-		return () => ro.disconnect();
-	});
-
-	// The caption follows the dot rather than sitting in a fixed strip, so it
-	// reads as that dot's own annotation. Re-read on the three things that move
-	// it: a new pick, the arrival settling (the crowd is laid out then, and
-	// `locate` before it answers for the previous frame's positions) and a
-	// resize. Nothing else moves a dot on these charts once the step has landed.
-	$effect(() => {
-		const id = picked;
-		story.settled;
-		boxWidth;
-		if (!showPath || id == null || !rootEl) {
-			dotAt = null;
-			return;
-		}
-		const target = visual?.locate?.(id);
-		if (!target) {
-			dotAt = null;
-			return;
-		}
-		const box = rootEl.getBoundingClientRect();
-		dotAt = { x: target.x - box.left, y: target.y - box.top };
-	});
-
-	/** centred on the dot, then held clear of both edges — the same clamp the
-	 * canvas's own below-dot names take */
-	const captionX = $derived(
-		dotAt == null
-			? 0
-			: Math.min(
-					Math.max(4, dotAt.x - captionWidth / 2),
-					Math.max(4, boxWidth - captionWidth - 4)
-				)
-	);
 </script>
 
-<!-- The panel fills the canvas box and catches nothing: the glyph, the box, the
-     chip and the caption each opt back into pointer events, so the tap gutters
-     keep every pixel none of them is standing on. Same idiom as .hits and
-     .route. -->
+<!-- The panel fills the canvas box and catches nothing: the glyph, the box and
+     the chip each opt back into pointer events, so the tap gutters keep every
+     pixel none of them is standing on. Same idiom as .hits and .route. -->
 <svelte:window
 	onkeydown={(e) => {
 		if (e.key === "Escape" && open) open = false;
 	}}
 />
 
-<div class="search" bind:this={rootEl} style="--plot-margin: {MARGIN}px">
+<div class="search" style="--plot-margin: {MARGIN}px">
 	<!-- The way in. A bare glyph with an accessible name and nothing beside it —
 	     a label, a tooltip that behaves like one or a pulse would each make it
 	     the call to action this control is deliberately not. It sits at the right
-	     of the title band, which is empty on all four charts (the titles are
-	     centred) and is the one strip of the box no layout plots into. -->
+	     of the title band, which is empty on every chart that offers this (the
+	     titles are centred) and is the one strip of the box no layout plots
+	     into. -->
 	<button
 		class="search__glyph"
 		class:search__glyph--open={open}
@@ -280,33 +259,6 @@
 		<!-- The flier, in the box's place. Thrown away on landing: it leaves as a
 		     dot, and what the reader is left looking at is the dot's own label. -->
 		<span class="search__chip" bind:this={chipEl}>{nodeName(flying)}</span>
-	{/if}
-
-	{#if showPath && picked != null && flying == null && dotAt}
-		<!-- The hop chart's caption, off step 1's component: the distance in words,
-		     opening onto the films behind it. It carries no name, because it hangs
-		     directly under the one the canvas already draws below the dot — step
-		     1's caption names its actor because nothing else on screen does, and
-		     here the name would land twice in two stacked lines. The other three
-		     charts get no caption at all: their axes are remoteness and costar
-		     counts, and a distance in movies is not what they ask about. -->
-		<p
-			class="search__caption"
-			bind:clientWidth={captionWidth}
-			style="transform: translate({captionX}px, {dotAt.y + CAPTION_DY}px)"
-		>
-			{#if hops === 0}
-				the man himself
-			{:else}
-				<InfoTerm title="{nodeName(picked)} → Kevin Bacon">
-					{movieCount(hops)}
-					{#snippet info()}
-						<RouteFilms routes={routeFilmsToBacon(picked)} />
-					{/snippet}
-				</InfoTerm>
-				away
-			{/if}
-		</p>
 	{/if}
 </div>
 
@@ -456,53 +408,5 @@
 		font-size: 0.8rem;
 		/* the WAAPI flight drives transform/colour; keep it compositor-friendly */
 		will-change: transform;
-	}
-
-	/* The reader's dot's own annotation, hung under the name the canvas already
-	   draws below it, so the two stack as one block: the dot, who it is, and how
-	   far away they are. Positioned by transform off the dot's live position
-	   (`locate`) rather than parked in a fixed strip — the hop stack is 405px of
-	   solid crowd at every width and there is no strip to park in: measured
-	   2026-09-21 on step 6, the step card covers the last 34px of the chart at
-	   320px and leaves 10.7px at 375px.
-
-	   Typed like the names on the chart because it IS one of them, with the same
-	   halo and then some: a caption sitting INSIDE the crowd has dots behind
-	   every letter, where a name at the edge of a cloud mostly does not. Only the
-	   term inside it is meant to catch a click. */
-	.search__caption {
-		position: absolute;
-		top: 0;
-		left: 0;
-		width: max-content;
-		max-width: 100%;
-		margin: 0;
-		text-align: center;
-		color: var(--color-gray-900, #222);
-		font-family: var(--font-mono);
-		/* matches .node-label in ScrollyVisual */
-		font-size: 11px;
-		line-height: 1.2;
-		/* heavier than .node-label's five stops: this one lands mid-crowd */
-		text-shadow:
-			0 0 3px var(--color-bg, #fff),
-			0 0 3px var(--color-bg, #fff),
-			0 0 6px var(--color-bg, #fff),
-			0 0 6px var(--color-bg, #fff),
-			0 0 10px var(--color-bg, #fff),
-			0 0 10px var(--color-bg, #fff),
-			0 0 14px var(--color-bg, #fff),
-			0 0 18px var(--color-bg, #fff);
-	}
-
-	/* The term inherits nothing useful: ui.infoterm.css restates `font` and
-	   `color` on the trigger to strip reset.css's filled-button styling, and a
-	   <button> does not carry the paragraph's halo through that. So the caption's
-	   text-shadow is restated here, or the one part of the sentence sitting on a
-	   dotted underline is also the one part with no halo under it — and the
-	   underline is what most needs separating from the dots behind it. */
-	.search__caption :global(.bits-infoterm) {
-		pointer-events: auto;
-		text-shadow: inherit;
 	}
 </style>
