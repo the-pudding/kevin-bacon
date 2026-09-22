@@ -1,25 +1,33 @@
 <script>
 	// @ts-check
 	/**
-	 * The story's navigation: two narrow full-height tap gutters at the far left
-	 * and right of the layout, plus ArrowLeft/ArrowRight. Both go through the
+	 * The story's navigation: the screen split down the middle into two
+	 * full-height tap halves, plus ArrowLeft/ArrowRight. Both go through the
 	 * registry's `go()`, so a tap gets exactly what a key does: the gated steps'
 	 * refusal, the backward skip past them, and everything the arrival rules
 	 * (arrivals.js) prepare (see notes/scrolly-framework.md).
 	 *
-	 * The next gutter goes disabled while the active step's gate is shut, so a
+	 * The next half goes disabled while the active step's gate is shut, so a
 	 * step that is holding the reader reads as held rather than as a dead tap —
-	 * the gutters carry no marking of their own, so the missing press tint is
+	 * the halves carry no marking of their own, so the missing press tint is
 	 * the only signal available. At the very last step it stays live instead:
 	 * a forward press there exits the wizard for the credits, one-way (see
-	 * `exit` on the registry) — the back gutter disappears along with the rest
+	 * `exit` on the registry) — the back half disappears along with the rest
 	 * of the step chrome once that happens, so there is no route back in.
 	 *
-	 * Gutters, not a full-bleed left/right split: the middle of the canvas is
-	 * where the story's own interactions live (the race scrubber's drag, the
-	 * quiz cards, step 1's actor targets). Anything that must
-	 * stay tappable *through* a gutter is lifted to --z-tap-above instead — see
-	 * the z ladder in Stage.svelte.
+	 * A full left/right split, edge to edge: the halves reach out past the
+	 * reading column's own padding (--column-gutter) so the outermost pixels of
+	 * a phone screen — exactly where a thumb lands — are live rather than dead.
+	 * There is no third region: everything the reader has to hit lies OVER a
+	 * half rather than beside it, lifted to --z-tap-above (the actor targets,
+	 * the search, the year slider, the InfoTerm triggers) or hosted in the step
+	 * card, which is pointer-transparent at --z-card and opts its own controls
+	 * back in. See the z ladder in Stage.svelte.
+	 *
+	 * The one thing the split took: the race chart used to be pannable by
+	 * dragging its middle (RaceScrubber's .drag-surface, which loses to the
+	 * halves by design). There is no middle now, so the year slider is the way
+	 * to scrub.
 	 */
 	import { getContext } from "svelte";
 
@@ -28,8 +36,8 @@
 	const atStart = $derived(steps.current <= 0);
 	const atEnd = $derived(steps.current >= steps.count - 1);
 	// $derived, not read inline: the gate closures read `story`, and those reads
-	// have to land in a tracked scope for the gutter to re-enable the moment the
-	// reader answers. atEnd no longer holds the gutter shut — it opens the
+	// have to land in a tracked scope for the half to re-enable the moment the
+	// reader answers. atEnd no longer holds the half shut — it opens the
 	// credits instead (see onTap) — so only the active step's own gate can
 	// still hold it.
 	const held = $derived(steps.nextBlocked);
@@ -52,11 +60,10 @@
 		}
 	}
 
-	// A gutter lies over a scrollable list (the rank ladder). A touch-drag that
-	// starts on the gutter is the reader trying to
-	// scroll the list under it, but the browser still fires `click` on release —
-	// which would step the story out from under them. Measure the travel and
-	// swallow those.
+	// A half lies over a scrollable list (the rank ladder). A touch-drag that
+	// starts on the half is the reader trying to scroll the list under it, but
+	// the browser still fires `click` on release — which would step the story
+	// out from under them. Measure the travel and swallow those.
 	const SLOP = 10;
 	/** @type {{ x: number, y: number } | null} */
 	let downAt = null;
@@ -85,7 +92,7 @@
 
 <button
 	type="button"
-	class="tap-gutter prev"
+	class="tap-half prev"
 	aria-label="Previous step"
 	disabled={atStart}
 	onpointerdown={onPointerDown}
@@ -94,7 +101,7 @@
 
 <button
 	type="button"
-	class="tap-gutter next"
+	class="tap-half next"
 	aria-label="Next step"
 	disabled={held}
 	onpointerdown={onPointerDown}
@@ -103,18 +110,23 @@
 
 <style>
 	/* Full height of the layout, top to bottom — the reader's thumb rests at the
-	   foot of the screen, so a gutter that stopped at the step card would put
-	   the target where the hand isn't. What the card holds that must still be
-	   reachable is lifted to --z-tap-above instead (GuessRank's controls, the
-	   inline InfoTerm triggers); the dot bar is already up there and takes no
-	   pointer events, so a tap over it steps the story like any other.
+	   foot of the screen, so a half that stopped at the step card would put the
+	   target where the hand isn't. What the card holds that must still be
+	   reachable opts back into pointer events up at --z-card (GuessRank's
+	   controls, the pair quiz, the Start buttons, the inline InfoTerm
+	   triggers); the dot bar is higher still and takes no pointer events, so a
+	   tap over it steps the story like any other.
 
-	   --tap-gutter comes from .scrolly-layout — see the comment there. */
-	.tap-gutter {
+	   Half the SCREEN, not half the layout: #scrolly pads the column by
+	   --column-gutter, and a half that stopped at the column's edge would leave
+	   that padding dead on a phone — the strip the thumb reaches first. Each
+	   half reaches back out over it, so the two meet in the middle and together
+	   cover the whole box. */
+	.tap-half {
 		position: absolute;
 		top: 0;
 		bottom: 0;
-		width: var(--tap-gutter);
+		width: calc(50% + var(--column-gutter));
 		z-index: var(--z-tap);
 		/* reset.css styles every bare button as filled-primary; a tap region is
 		   the opposite of that. Restated on :hover below for the same reason
@@ -128,31 +140,31 @@
 		touch-action: manipulation;
 	}
 
-	.tap-gutter:hover {
+	.tap-half:hover {
 		background: none;
 	}
 
 	.prev {
-		left: 0;
+		left: calc(-1 * var(--column-gutter));
 	}
 
 	.next {
-		right: 0;
+		right: calc(-1 * var(--column-gutter));
 	}
 
-	/* The gutters carry no mark of their own, so the press tint is the only
+	/* The halves carry no mark of their own, so the press tint is the only
 	   feedback a tap gets — keep it. */
-	.tap-gutter:active {
+	.tap-half:active {
 		background: color-mix(in oklch, var(--color-fg) 6%, transparent);
 	}
 
-	.tap-gutter:disabled {
+	.tap-half:disabled {
 		cursor: default;
 	}
 
 	/* reset.css's outline-offset: 2px would draw a full-height rectangle bleeding
 	   outside the layout box; keep the ring inside the strip it belongs to */
-	.tap-gutter:focus-visible {
+	.tap-half:focus-visible {
 		outline-offset: -4px;
 	}
 </style>

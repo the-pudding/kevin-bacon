@@ -22,12 +22,14 @@ beside the story's other prose. The CTA carries both sentences and hides one by
 width (`.on-narrow` / `.on-wide`, `display: none` rather than opacity, so the
 reader is told one thing once): a thumb at the edge of a phone, an arrow key at a
 desk. Both controls are always live — only the wording changes. The card also
-MARKS the target: `.splash-cue` is an arrow filling the right-hand tap gutter,
-sized off the same `--tap-gutter` `TapNav` sizes its button from, and it is the
-only marking either gutter ever carries anywhere in the story. It is why the card
-is the one thing measured off the gutters rather than the reading column
-(`padding: 0 var(--tap-gutter)`) — a title running under that arrow would have
-the reader reading the instruction through the word it points at.
+MARKS the target: `.splash-cue` is an arrow in the outermost strip of the
+right-hand tap half (`--control-inset` wide — the whole half answers, so the
+arrow does not have to fill it, and the strip is where the thumb the sentence is
+talking about actually is). It is the only marking either half ever carries
+anywhere in the story. It is why the card is the one thing measured off that cue
+rather than off the reading column (`padding: 0 var(--control-inset)`) — a title
+running under the arrow would have the reader reading the instruction through the
+word it points at.
 
 **`titleGalaxy` is the sky with the story's opening beat withheld.** It is the
 crowd every other galaxy state draws — `writeFieldCrowd` at the landed camera,

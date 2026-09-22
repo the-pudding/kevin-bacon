@@ -32,12 +32,13 @@ Three rules:
    done. `PairQuiz` followed them on 2026-09-20 — it was the last control still
    over the canvas, and it carried a blurred wash over the scatter as well, so
    the reader could not see the chart they were being asked about. The cost is
-   the one every card-hosted control pays: the tap gutters
-   run the full height of the layout and lie over the card's left and right
-   edges, so the control insets itself past them
-   (`padding-inline: var(--tap-gutter)`) rather than lifting — see
-   `GuessRank.svelte`'s note on why a `z-index` lift cannot escape a step
-   wrapper that forms a stacking context.
+   the one every card-hosted control pays: the tap halves cover the card's full
+   width, so the control has to take its presses back with `pointer-events:
+auto` under the card's own `--z-card` lift — see `GuessRank.svelte`'s note on
+   why a `z-index` lift on the control itself cannot escape a step wrapper that
+   forms a stacking context. It also keeps `margin-inline: var(--control-inset)`,
+   which is no longer a layering measure: it is the strip a thumb reaching for
+   the next step lands in.
 
    A card-hosted control that ANIMATES takes one more rule with it: it must not
    change the card's height while it runs. The card is measured (`stepsHeight` →
@@ -85,12 +86,12 @@ Being out of the card is the point rather than a cost, and three things follow:
   2026-09-21 at 320/375/390/430 through glyph-open, menu-open, flight and
   settle: `.scrolly-visual` moves **0.0px**, and it is identical on step 6 and
   on step 5, which has no search at all.
-- **It can be lifted over the tap gutters**, so it needs none of the
-  `padding-inline: var(--tap-gutter)` inset a card control needs. The lift goes
-  on the component's own root: `.panel-layer` carries a `z-index` but is
-  statically positioned, so that z-index is inert and every panel that must
-  beat the gutters lifts itself (RaceScrubber's `.control` spells this out).
-  Without it the gutter swallows every press on the glyph and the reader steps
+- **It can be lifted over the tap halves**, so it needs neither the
+  `--control-inset` a card control keeps nor the card's own `--z-card` lift. The
+  lift goes on the component's own root: `.panel-layer` carries a `z-index` but
+  is statically positioned, so that z-index is inert and every panel that must
+  beat the halves lifts itself (RaceScrubber's `.control` spells this out).
+  Without it the half swallows every press on the glyph and the reader steps
   forward instead — measured, not reasoned about.
 - **The flier is never portalled and never inside the step wrapper's
   `in:fly`** — the two things `flyToDot` cannot survive. The chip is an
@@ -153,7 +154,7 @@ behind every letter, where a name at the edge of a cloud mostly does not.
    step that reads out the answer. Carrying the reader across that boundary
    untouched leaves them reading an answer to a question they never saw put —
    and with the control behind them, no way back to it but Prev. So the
-   boundary is closed: on those five steps the reader's Next (tap gutter or
+   boundary is closed: on those five steps the reader's Next (tap half or
    ArrowRight) is **refused**, and the right-hand gutter goes disabled so the
    step reads as held rather than as a dead tap.
 

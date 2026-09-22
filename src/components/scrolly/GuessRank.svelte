@@ -102,20 +102,29 @@
 </div>
 
 <style>
-	/* Inset clear of the tap gutters, which run the full height of the layout
-	   and would otherwise cover the search box's left third, the wrapped match
-	   buttons and the Give-up button (align-self: flex-start puts it flush in
-	   the left gutter). Padding rather than a z-index lift: the step card sits
-	   below the gutters and a step wrapper with a filling opacity animation
-	   (.rank-focus-text) forms a stacking context, so a lift on this element
-	   cannot escape it at any value. The prose above stays full width — a tap
-	   on its outer edge is meant to be a step. */
+	/* The tap halves cover this block's full width (TapNav), so it takes its
+	   presses back — the step card above it is pointer-transparent at --z-card
+	   precisely so a control can. Not a z-index lift: a step wrapper with a
+	   filling opacity animation (.rank-focus-text) forms a stacking context, so
+	   a lift on this element cannot escape it at any value; the lift lives up on
+	   .scrolly-steps instead (Stage.svelte).
+
+	   Still inset by --control-inset, which is now about the thumb rather than
+	   about the layers: the search box's left third, the wrapped match buttons
+	   and the Give-up button (align-self: flex-start puts it flush left) all sat
+	   exactly where a reader reaching for the next step presses. The prose above
+	   stays full width and keeps giving its outer edge up — a tap there is meant
+	   to be a step. */
 	.guess {
 		display: flex;
 		flex-direction: column;
 		gap: 0.5rem;
 		margin-top: 0.75rem;
-		padding-inline: var(--tap-gutter);
+		/* Margin, not padding: this block takes pointer events back (below), and
+		   padding is inside the element's own hit box — the inset would swallow
+		   the very presses it exists to keep clear. */
+		margin-inline: var(--control-inset);
+		pointer-events: auto;
 	}
 
 	button {

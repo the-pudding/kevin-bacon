@@ -47,18 +47,27 @@
 </div>
 
 <style>
-	/* Inset clear of the tap gutters, which run the full height of the layout
-	   and would otherwise swallow the button's edges. Padding rather than a
-	   z-index lift, for the reason GuessRank records in its own file: a step
-	   wrapper with a filling opacity animation forms a stacking context that a
-	   lift cannot escape at any value. The padding is symmetric, so the button
-	   stays centred in what is left. The prose above stays full width — a tap
-	   on its outer edge is meant to be a step. */
+	/* The tap halves cover this row's full width (TapNav), so it takes its
+	   presses back — the step card above it is pointer-transparent at --z-card
+	   precisely so a control can. Not a z-index lift, for the reason GuessRank
+	   records in its own file: a step wrapper with a filling opacity animation
+	   forms a stacking context that a lift cannot escape at any value; the lift
+	   lives up on .scrolly-steps instead (Stage.svelte).
+
+	   Still inset by --control-inset, which is now about the thumb rather than
+	   about the layers: the button's edges sat exactly where a reader reaching
+	   for the next step presses. The inset is symmetric, so the button stays
+	   centred in what is left. The prose above stays full width and keeps giving
+	   its outer edge up — a tap there is meant to be a step. */
 	.start-button {
 		display: flex;
 		justify-content: center;
 		margin-top: 0.75rem;
-		padding-inline: var(--tap-gutter);
+		/* Margin, not padding: this row takes pointer events back (below), and
+		   padding is inside the element's own hit box — the inset would swallow
+		   the very presses it exists to keep clear. */
+		margin-inline: var(--control-inset);
+		pointer-events: auto;
 		/* .scrolly-steps hangs a white halo on its text to hold the prose off
 		   the sky behind it; it is inherited, and on a filled button it is a
 		   white glow around white glyphs on a dark plate. A button carries its

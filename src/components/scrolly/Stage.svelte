@@ -379,7 +379,7 @@
 				<!-- the title card. Same stable-{#if} arrangement as the chapter
 			     card above and for the same reason (see Splash.svelte); the
 			     arrow cue is a sibling rather than part of the card because it
-			     belongs to the right-hand tap gutter, not to the centred column
+			     belongs to the right-hand tap half, not to the centred column
 			     the title and its line sit in. -->
 				{#if activeSplash}
 					<div
@@ -448,30 +448,37 @@
 		padding: 0 var(--column-gutter);
 	}
 
-	/* --tap-gutter: how wide the two tap regions at the far edges are. A
-	   percentage, not vw: #scrolly is max-width 700px, so above that the layout
-	   stops growing while vw does not. Every consumer's containing block is
-	   this same box (.scrolly-visual and the panels are all inset:0
+	/* --control-inset: how far a card-hosted control is held off the layout's
+	   two edges. Not a tap measurement any more — the tap halves cover the whole
+	   box (TapNav) — but the edges are still where a thumb reaching for the next
+	   step lands, so a chip or a button sitting in them would be pressed by
+	   accident. A percentage, not vw: #scrolly is max-width 700px, so above that
+	   the layout stops growing while vw does not. Every consumer's containing
+	   block is this same box (.scrolly-visual and the panels are all inset:0
 	   descendants), so the percentage resolves identically wherever it is used
 	   — that is the fragile part worth knowing. Resolves to 56px below a 467px
 	   viewport and 80px at 700px+.
 
 	   --progress-band: the strip the dot bar occupies. The bar takes no pointer
-	   events and the gutters run the full height beneath it, so a tap over a
+	   events and the tap halves run the full height beneath it, so a tap over a
 	   dot steps the story like any other — the dots report position, they are
 	   never a jump target.
 
 	   The z ladder over this box, lowest first:
-	     auto  canvas, rank/scrubber panels, chapter card, step card
+	     auto  canvas, rank/scrubber panels, chapter card
 	     5     the dev-only race tuners
-	     20    --z-tap: the two tap gutters
-	     21    --z-tap-above: what must stay reachable through them — .hits,
-	           .quiz, .route, the scrubber's .control, .tick-1980, the dot bar
+	     20    --z-tap: the two tap halves
+	     21    --z-card: the step card, which lies over them for its whole width.
+	           Pointer-transparent, so prose still gives its edges up to a tap;
+	           the controls it hosts (.guess, .quiz, .start-button, the inline
+	           InfoTerm triggers) opt back in.
+	     22    --z-tap-above: what must beat BOTH — .hits, .route, the search,
+	           the scrubber's .control, .tick-1980, the dot bar
 	     100+  InfoTerm's scrim and panel, untouched */
 	.scrolly-layout {
 		position: relative;
 		height: var(--viewport-height);
-		--tap-gutter: clamp(56px, 12%, 88px);
+		--control-inset: clamp(56px, 12%, 88px);
 		--progress-band: 30px;
 		/* --visual-l / --visual-r: how far the canvas box is inset from the
 		   column's two edges. Zero here — the canvas has the whole column and
@@ -569,7 +576,7 @@
 	   The z-lift is HERE rather than on the panels' own roots: an opacity
 	   out-transition forms a stacking context that a child's lift cannot escape
 	   at any value, and the quiz's cards and the year slider have to beat the tap
-	   gutters for the whole of the fade. Same idiom as .quiz and .route. */
+	   halves for the whole of the fade. Same idiom as .quiz and .route. */
 	.panel-layer {
 		pointer-events: none;
 		z-index: var(--z-tap-above);
@@ -667,7 +674,7 @@
 
 	/* The title card, in the same centred box as a chapter's — see .chapter-card
 	   for why the layer takes no pointer events: the canvas underneath is the
-	   tap gutters' ground, and the card's whole instruction is to use them. */
+	   tap halves' ground, and the card's whole instruction is to use them. */
 	.splash-card {
 		position: absolute;
 		top: 0;
@@ -678,12 +685,12 @@
 		align-items: center;
 		justify-content: center;
 		gap: 1.75rem;
-		/* The one card measured off the tap gutters rather than the reading
-		   column: it is the only screen that MARKS them (.splash-cue), and a
-		   title running under that mark would have the reader reading the
+		/* The one card measured off the tap cue rather than the reading column:
+		   this is the only screen that MARKS where a tap goes (.splash-cue), and
+		   a title running under that mark would have the reader reading the
 		   instruction through the word it is pointing at. The type wraps earlier
 		   for it, which on a phone is what turns the name into a poster. */
-		padding: 0 var(--tap-gutter);
+		padding: 0 var(--control-inset);
 		pointer-events: none;
 	}
 
@@ -735,16 +742,16 @@
 	}
 
 	/* Where the tap goes. The sentence says "the right of the screen"; this is
-	   that place, marked — the cue fills the right-hand gutter exactly (the same
-	   --tap-gutter TapNav sizes its button from), so the reader is pointed at the
-	   strip that actually answers. It is the only marking either gutter ever
-	   carries, and it leaves with the card. */
+	   that place, marked. The whole right half answers (TapNav), so the arrow
+	   does not have to fill it — it sits in the outermost strip, where the thumb
+	   the sentence is talking about actually is. It is the only marking either
+	   half ever carries, and it leaves with the card. */
 	.splash-cue {
 		position: absolute;
 		top: 0;
 		right: 0;
 		bottom: 0;
-		width: var(--tap-gutter);
+		width: var(--control-inset);
 		display: flex;
 		align-items: center;
 		justify-content: center;
@@ -752,7 +759,7 @@
 		font-size: var(--24px, 1.5rem);
 		color: var(--color-fg);
 		opacity: 0.5;
-		/* over the gutter it points at, but never catching the press it is asking
+		/* over the half it points at, but never catching the press it is asking
 		   for — the button underneath has to get it */
 		pointer-events: none;
 		z-index: var(--z-tap-above);
@@ -802,6 +809,16 @@
 		   two. That is what `cardHeight` in the script holds against. */
 		display: grid;
 		align-items: end;
+		/* OVER the tap halves, and transparent to them. The halves cover this
+		   card's full width, and a control inside it cannot lift itself clear:
+		   a step wrapper's in:fly (and .rank-focus-text's opacity animation)
+		   forms a stacking context its children cannot escape at any z-index.
+		   So the lift happens HERE, above the wrapper, and the card hands the
+		   presses straight back — which is what the prose wanted anyway, a tap
+		   on a word being a step. The controls opt back in one by one, in their
+		   own files: .guess, .quiz, .start-button, .bits-infoterm below. */
+		z-index: var(--z-card);
+		pointer-events: none;
 		/* halo, not a plate — the same reason .chapter-card h2 carries one. A
 		   full-bleed state (hopSeed, the chapter cards) puts the crowd behind the
 		   copy all the way to the bottom edge, and a background would be a
@@ -817,15 +834,12 @@
 			0 0 12px var(--color-bg, #fff);
 	}
 
-	/* The tap gutters run the full height of the layout, so they lie over the
-	   left and right edges of the step card too. Prose gives those edges up
-	   (a tap there is a step, which is the point), but a control the reader has
-	   to hit does not: an InfoTerm trigger sits inline and lands wherever the
-	   line wraps puts it, including hard against an edge. GuessRank lifts its
-	   own controls the same way, in its own file. */
+	/* An InfoTerm trigger sits inline and lands wherever the line wraps puts it,
+	   so it cannot be kept clear of anything by geometry — it opts back into the
+	   presses the card gives away above. The other card controls do the same in
+	   their own files (.guess, .quiz, .start-button). */
 	.scrolly-steps :global(.bits-infoterm) {
-		position: relative;
-		z-index: var(--z-tap-above);
+		pointer-events: auto;
 	}
 
 	/* BESIDE, RATHER THAN OVER (>= BESIDE_MIN_W — kept in step with the constant

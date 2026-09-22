@@ -1,6 +1,6 @@
 // The step registry: the story's wizard. Every <Step>, <Chapter> and <Splash>
 // registers itself here in document order as it mounts, and the reader's
-// navigation — the tap gutters and the arrow keys (TapNav), a step's own
+// navigation — the tap halves and the arrow keys (TapNav), a step's own
 // control (StartButton, GuessRank) and a gated step carrying the reader on
 // itself (`advanceon`, watched by Index) — all move `current` through it. The
 // active step is kept in the URL (?step=N) so each tab keeps its own place
@@ -196,7 +196,7 @@ export function createStepRegistry({ navigate }) {
 			if (value < configs.length - 1) value += 1;
 		},
 		/**
-		 * The reader's own navigation — the tap gutters and the arrow keys both
+		 * The reader's own navigation — the tap halves and the arrow keys both
 		 * land here, so the gate and everything `navigate` prepares happen for a
 		 * tap exactly as they do for a key.
 		 *

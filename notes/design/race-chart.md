@@ -636,14 +636,14 @@ holds — `callout.spec.js` asserts that over every box and every reachable
 playhead, so a moment added inside a plot's width of another fails there rather
 than flickering between the two on a drag.
 
-**A callout is found by panning, and that is accepted.** A ring sits at the plot's
-RIGHT edge when the playhead is on its own year, where `CALLOUT_FADE` ramps it to
-alpha 0 — so selecting 2012 on the slider shows nothing, and 2013 shows the note
-at full strength. The takeover hides this by accident: its crossing is 2005.11,
-0.9 years before the year the camera rests on, so it is already 68px inside the
-edge. Deliberately not fixed by dropping the entry ramp: the step's copy is "use
-the slider or drag to take a look around", and a 220px block of prose arriving at
-full opacity is the pop the ramp exists to prevent (motion.md rule 7).
+**A callout is found by scrubbing, and that is accepted.** A ring sits at the
+plot's RIGHT edge when the playhead is on its own year, where `CALLOUT_FADE` ramps
+it to alpha 0 — so selecting 2012 on the slider shows nothing, and 2013 shows the
+note at full strength. The takeover hides this by accident: its crossing is
+2005.11, 0.9 years before the year the camera rests on, so it is already 68px
+inside the edge. Deliberately not fixed by dropping the entry ramp: the step's
+copy is "use the slider to take a look around", and a 220px block of prose
+arriving at full opacity is the pop the ramp exists to prevent (motion.md rule 7).
 
 **One at a time, and the most present wins.** A step declares the moments it
 marks as a present-first list (`raceCalloutList`), and `raceCallout` draws the

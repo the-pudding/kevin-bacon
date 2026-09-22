@@ -496,7 +496,7 @@
 			<Step state="raceFull" panel={racePanel}>
 				<p>
 					We can then view all centers of Hollywood since 1980. Use the slider
-					or drag to take a look around, or go next.
+					to take a look around, or go next.
 				</p>
 			</Step>
 
@@ -825,11 +825,11 @@
 		/* matches .node-label in ScrollyVisual */
 		font-size: 11px;
 		line-height: 1.2;
-		/* the caption lies over the layout's tap regions; only the term inside it
+		/* the caption lies over the layout's tap halves; only the term inside it
 		   is meant to catch a click */
 		pointer-events: none;
 		/* a pointer-events:none overlay whose children opt in can be lifted over
-		   the tap gutters for free — same idiom as .hits and .quiz */
+		   the tap halves for free — same idiom as .hits and .quiz */
 		z-index: var(--z-tap-above);
 		animation: panel-in 0.4s ease both;
 	}

@@ -22,7 +22,7 @@
 	 * single beat: the reader cannot be carried to the payoff without doing the
 	 * thing, and cannot land back on the controls once they have.
 	 *
-	 * `gate` is asked before the reader's own Next (tap gutter or ArrowRight)
+	 * `gate` is asked before the reader's own Next (tap half or ArrowRight)
 	 * leaves this step; while it returns false the move is refused outright and
 	 * the right-hand gutter goes disabled. A step whose only way forward is its
 	 * own control passes a gate that never opens.

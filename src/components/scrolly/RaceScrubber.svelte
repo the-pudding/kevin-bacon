@@ -107,25 +107,27 @@
 		display: flex;
 		flex-direction: column;
 	}
-	/* covers the plot so the reader can pan the timeline from anywhere; pan-y
-	   lets a vertical swipe still scroll the page.
+	/* pan-y lets a vertical swipe still scroll the page.
 
 	   Opts back in: the panel layer this renders into is pointer-events:none
 	   (Stage.svelte), so without this the whole scrubber is inert and the
 	   canvas takes every press. Unpositioned, so it stays in the z-auto paint
-	   layer and the tap gutters (--z-tap) still cover it where they overlap —
-	   which is the asymmetry the .control note below describes. */
+	   layer and the tap halves (--z-tap) cover it — which since the halves went
+	   edge to edge (TapNav) means they cover ALL of it: dragging the plot no
+	   longer pans, and the year slider below is the way to scrub. Kept, rather
+	   than lifted, because lifting it would hand the whole plot to the scrubber
+	   and leave the race steps with nowhere left to tap on. */
 	.drag-surface {
 		flex: 1 1 auto;
 		pointer-events: auto;
 		touch-action: pan-y;
 		cursor: ew-resize;
 	}
-	/* The one part of the scrubber that beats the tap gutters. .drag-surface
-	   above deliberately loses to them — panning is a centre-of-the-chart
-	   gesture — but the slider track runs the full width, and a tap on its far
-	   end is how the reader jumps to the earliest or latest year. Needs
-	   position for the z-index to apply. */
+	/* The one part of the scrubber that beats the tap halves, and so the only
+	   way to move the timeline: .drag-surface above loses to them everywhere.
+	   The slider track runs the full width, and a tap on its far end is how the
+	   reader jumps to the earliest or latest year. Needs position for the
+	   z-index to apply. */
 	.control {
 		display: flex;
 		align-items: center;
@@ -136,7 +138,7 @@
 	}
 	/* The track is the only operable thing in the row, so it is the only part
 	   that takes pointer events — the row itself stays transparent to them, so
-	   a press on the year readout or the row's padding still reaches the gutter
+	   a press on the year readout or the row's padding still reaches the half
 	   underneath. Same idiom as Index's .route and ScrollyVisual's .hits: a
 	   pointer-events:none container, lifted, whose one child opts in. */
 	.control :global(.bits-slider) {

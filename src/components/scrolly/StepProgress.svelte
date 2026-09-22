@@ -12,7 +12,7 @@
 	 * counts steps by hand.
 	 *
 	 * Indicator only — the dots take no pointer events, so a tap over the bar
-	 * falls through to the tap gutter beneath it and steps the story by one
+	 * falls through to the tap half beneath it and steps the story by one
 	 * like anywhere else. Never a jump target: that would land a reader past the
 	 * gated steps, which the story deliberately makes unskippable — see
 	 * notes/scrolly-framework.md.

@@ -8,7 +8,7 @@ not fade out and in wholesale), plus a second tweener doing the same for
 and where each contract is tested. The reasoning behind individual charts —
 and the measurements that were taken — lives in `notes/design/`.
 
-> "Scrolly" is historical. The reader advances by tap gutters and arrow keys
+> "Scrolly" is historical. The reader advances by tap halves and arrow keys
 > (`TapNav.svelte`), never by scroll; only the mechanism setting the active step
 > has ever changed, and the framework below is driven purely by that index.
 
@@ -35,7 +35,7 @@ and the measurements that were taken — lives in `notes/design/`.
 | `scrolly/arrivals.js`                                                | `prepareArrival(move)`: what a move does to the story before the destination renders — the entry hold, the rank panel's handoff, the reset on leaving the rank chapter backwards, and per-state arrival rules (quiz, simulation, Gen Z draw-on).                                                                                                                                                                                                                                                                             |
 | `scrolly/story.svelte.js`                                            | The shared interaction state, grouped by interaction (`intro`, `hops`, `rank`, `race`, `quiz`, `search`, `sim`) under four framework fields (`settled`, `entryHeld`, `request`, `running`); `request(kind)`, `resetSimRace()`, `resetGenzLines()`, `resetHopAnchor()`.                                                                                                                                                                                                                                                       |
 | `scrolly/Step.svelte`, `Chapter.svelte`, `Splash.svelte`             | Register one step each with the `"scrolly-steps"` context in document order. `Step` renders its prose while active; `Chapter` and `Splash` render nothing — `Stage` draws their cards from the registry so they can transition out.                                                                                                                                                                                                                                                                                          |
-| `scrolly/TapNav.svelte`, `StepProgress.svelte`                       | The step driver (tap gutters + arrow keys, through `go()`) and the chapter-segmented dot bar (indicator only).                                                                                                                                                                                                                                                                                                                                                                                                               |
+| `scrolly/TapNav.svelte`, `StepProgress.svelte`                       | The step driver (tap halves + arrow keys, through `go()`) and the chapter-segmented dot bar (indicator only).                                                                                                                                                                                                                                                                                                                                                                                                                |
 | `scrolly/ScrollyVisual.svelte`                                       | The canvas host: the two tweeners, the render effect (below), dpr scaling, resize and bleed, reduced motion, the HTML overlay and annotation layer, the scrub loop and the request player.                                                                                                                                                                                                                                                                                                                                   |
 | `scrolly/render.js`                                                  | One frame of the buffers onto a 2D context: `clearCanvas`, `drawTrails`, `drawEdges`, `drawDots`, `drawLabelLeaders`. Pure over (ctx, buffers).                                                                                                                                                                                                                                                                                                                                                                              |
 | `scrolly/annotations.js`                                             | The annotation layer's per-frame decisions: `raceLabelCut`, `trackLabels`, `createLabelStacker`.                                                                                                                                                                                                                                                                                                                                                                                                                             |
@@ -266,11 +266,15 @@ into one dot. The arrival rules re-arm each of them on the way back in
 (`arrivals.js`). The full agreement, with its history: `notes/design/interactions.md`.
 
 Every one of those controls lives **in the step card**, in the prose flow under
-the sentence that asks for the press — not over the canvas. So each insets
-itself past the tap gutters with `padding-inline: var(--tap-gutter)`
-(`GuessRank`, `StartButton`), which the gutters would otherwise cover; a
-`z-index` lift is the other way out (`.bits-infoterm` in `Stage.svelte`) but
-cannot escape a step wrapper that forms a stacking context. A control in the
+the sentence that asks for the press — not over the canvas. The tap halves cover
+the card's full width, so the card itself is lifted to `--z-card` and made
+`pointer-events: none` (`.scrolly-steps` in `Stage.svelte`): the prose goes on
+giving its presses to the halves, and each control opts back in with
+`pointer-events: auto` (`GuessRank`, `PairQuiz`, `StartButton`,
+`.bits-infoterm`). The lift has to live there rather than on the control,
+because a step wrapper forms a stacking context its children cannot escape. Each
+control also keeps `margin-inline: var(--control-inset)` — not a layering
+measure any more, just the strip a thumb reaching for the next step lands in. A control in the
 card also makes the card taller, and `overlayHeight` is the card's measured
 height, so the panels that ride its top edge sit that much higher on those
 steps.
@@ -370,10 +374,11 @@ rank order, never by raw rank against `nodes.length`.
 ## Known gaps
 
 - Step prose overlays the bottom of the canvas below 1200px (`.scrolly-steps` in
-  `Stage.svelte`); layouts keep essential marks out of it. The tap gutters run the
-  full height, so any control in a step card must clear them: lift it to
-  `--z-tap-above` (the inline InfoTerm triggers) or inset it by `--tap-gutter`
-  (GuessRank's controls). A step card that grows can cover a layout's `hits`.
+  `Stage.svelte`); layouts keep essential marks out of it. The tap halves cover
+  the whole layout, so any control in a step card must take its presses back with
+  `pointer-events: auto` under the card's `--z-card` lift, and anything over the
+  canvas must beat both at `--z-tap-above`. A step card that grows can cover a
+  layout's `hits`.
 - A step's prose swaps sequentially rather than as a crossfade: 200ms out, a
   beat, 300ms in, both ends drifting 8px upward (`Step.svelte`). The two copies
   overlap in the DOM for that window, so

@@ -262,12 +262,17 @@
 </div>
 
 <style>
-	/* Inset clear of the tap gutters, which run the full height of the layout and
-	   would otherwise cover both ends of every chip. Padding rather than a
-	   z-index lift, for the reason GuessRank's own file gives: the step card sits
-	   below the gutters and the step wrapper's fly transition forms a stacking
-	   context, so a lift on this element cannot escape it at any value. The prose
-	   above stays full width — a tap on its outer edge is meant to be a step.
+	/* The tap halves cover this block's full width (TapNav), so it takes its
+	   presses back — the step card above it is pointer-transparent at --z-card
+	   precisely so a control can. Not a z-index lift, for the reason GuessRank's
+	   own file gives: the step wrapper's fly transition forms a stacking context
+	   that a lift on this element cannot escape at any value; the lift lives up
+	   on .scrolly-steps instead (Stage.svelte).
+
+	   Still inset by --control-inset, which is now about the thumb rather than
+	   about the layers: both ends of every chip sat exactly where a reader
+	   reaching for the next step presses. The prose above stays full width and
+	   keeps giving its outer edge up — a tap there is meant to be a step.
 
 	   --chip-h / --chip-gap are here rather than in the two rules that use them
 	   so the reserved height below cannot drift from the chips it is reserving
@@ -288,7 +293,11 @@
 		   rather than padding, so it stays outside the height this block reserves
 		   below. */
 		margin-bottom: 1rem;
-		padding-inline: var(--tap-gutter);
+		/* Margin, not padding: this block takes pointer events back (below), and
+		   padding is inside the element's own hit box — the inset would swallow
+		   the very presses it exists to keep clear. */
+		margin-inline: var(--control-inset);
+		pointer-events: auto;
 		/* the prose column carries a halo for the full-bleed states (see
 		   .scrolly-steps); a control is a solid object and does not want one */
 		text-shadow: none;

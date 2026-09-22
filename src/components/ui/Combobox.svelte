@@ -13,7 +13,7 @@
 	// flow would walk the prose and the x-axis title up the screen (see
 	// notes/design/interactions.md rule 1). Out of the card, it also escapes the
 	// step wrapper's stacking context, which is what stops a z-index lift from
-	// clearing the tap gutters anywhere else in the story.
+	// clearing the tap halves anywhere else in the story.
 	//
 	// Combobox.Content/Item/Viewport are re-exports of Select's, so ui.select.css
 	// already styles the popup; ui.combobox.css only adds the input.

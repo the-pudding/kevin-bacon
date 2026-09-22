@@ -26,10 +26,11 @@
 	//     so a card-hosted control that grows on a pick walks the prose and the
 	//     x-axis title up the screen. This one cannot: it reserves no box, and
 	//     opening the search or landing a pick moves nothing.
-	//   - It can be LIFTED over the tap gutters, so it needs none of the
-	//     `padding-inline: var(--tap-gutter)` inset a card control needs to stay
-	//     tappable. A card cannot be lifted at all: the step wrapper's in:fly
-	//     forms a stacking context its children cannot escape at any z-index.
+	//   - It can be LIFTED over the tap halves, so it needs none of the
+	//     `--control-inset` a card control keeps to stay clear of the thumb, and
+	//     none of the step card's own lift. A card cannot be lifted at all: the
+	//     step wrapper's in:fly forms a stacking context its children cannot
+	//     escape at any z-index, which is why the lift lives on .scrolly-steps.
 	//   - The flier lives here too, so it is never portalled and never inside the
 	//     step wrapper's in:fly transform — the two things flyToDot cannot survive.
 	//
@@ -207,7 +208,7 @@
 </script>
 
 <!-- The panel fills the canvas box and catches nothing: the glyph, the box and
-     the chip each opt back into pointer events, so the tap gutters keep every
+     the chip each opt back into pointer events, so the tap halves keep every
      pixel none of them is standing on. Same idiom as .hits and .route. -->
 <svelte:window
 	onkeydown={(e) => {
@@ -268,13 +269,13 @@
 
 	   The lift is HERE and not inherited from .panel-layer, which carries a
 	   z-index of its own: that element is statically positioned, so its z-index
-	   is inert and every panel that has to beat the tap gutters lifts itself —
+	   is inert and every panel that has to beat the tap halves lifts itself —
 	   the same correction RaceScrubber's .control spells out ("needs position
-	   for the z-index to apply"). Measured 2026-09-21: without this the gutter
+	   for the z-index to apply"). Measured 2026-09-21: without this the half
 	   swallows every press on the glyph and the reader steps forward instead.
 
 	   Lifting a pointer-events:none box is free, because only the children that
-	   opt back in take anything from the gutters — same idiom as .hits and
+	   opt back in take anything from the halves — same idiom as .hits and
 	   .route. */
 	.search {
 		position: absolute;
