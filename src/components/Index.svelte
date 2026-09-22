@@ -321,7 +321,7 @@
 		     speaks straight away. -->
 			<Step state="lone">
 				<p>
-					The "Six Degrees of Kevin Bacon" is a game where players try to
+					The “Six Degrees of Kevin Bacon” is a game where players try to
 					connect an actor to Kevin Bacon via movies they've starred in with
 					other Hollywood actors, aiming to reach him in six movies or fewer.
 				</p>
@@ -367,8 +367,8 @@
 				{/snippet}
 				<p>
 					The intuition is that Kevin Bacon is so prolific and well-known that
-					the game is a lot easier than if it were called the "Six Degrees of
-					John Doe", implying he's some sort of all-encompassing center of
+					the game is a lot easier than if it were called the “Six Degrees of
+					John Doe”, implying he's some sort of all-encompassing center of
 					Hollywood.
 				</p>
 			</Step>
@@ -544,8 +544,8 @@
 			>
 				<p>
 					So what's different about them? Put simply: better costars. Natalie
-					Portman stars with more "big dogs" than Anna Kendrick. They say in
-					Hollywood "It's not what you know, it's who you know", and it seems
+					Portman stars with more “big dogs” than Anna Kendrick. They say in
+					Hollywood “It's not what you know, it's who you know”, and it seems
 					this is also true when explaining an actor's remoteness.
 				</p>
 			</Step>
@@ -566,15 +566,15 @@
 			>
 				<p>
 					It would be too circular to use costars with low remoteness as our
-					measure. That's like saying "We think the most expensive houses will
-					be the ones with the highest price".
+					measure. That's like saying “We think the most expensive houses will
+					be the ones with the highest price”.
 				</p>
 			</Step>
 			<Step state="degScatter" panel={searchPanel}>
 				<p>
 					Instead we use the costar film count as a sort of proxy. Concretely,
 					this is an actor's 50 most prolific costars by number of films, taken
-					as an average. If you work with more "big dog" actors compared to
+					as an average. If you work with more “big dog” actors compared to
 					someone with the same film count, you'll almost certainly be closer to
 					the center of Hollywood than them.
 				</p>
@@ -593,7 +593,7 @@
 			>
 				<p>
 					Let's test our knowledge with a few more examples. For these actors
-					with similar film counts, who do you think works with more "big dogs"
+					with similar film counts, who do you think works with more “big dogs”
 					and is therefore closer to the center?
 				</p>
 				<PairQuiz visual={layout.visual} />
