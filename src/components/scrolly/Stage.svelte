@@ -872,10 +872,22 @@
 
 		.scrolly-layout {
 			--prose-w: 25rem;
+			/* --prose-gutter: clear space BETWEEN the two columns, taken off the
+			   charts rather than out of the measure. Without it the two boxes
+			   shared an edge and the only clearance was whatever a line's wrap
+			   happened to leave: at 1440 the prose ran within 8px of the
+			   "Remoteness" axis title (step 15) and flush against the rank
+			   ladder's rows (steps 7-8), whose own scrollbar lands on that edge
+			   on a platform with classic bars.
+			   --prose-col: the whole of what the canvas gives up. Named because
+			   the full-bleed cards have to reach back across exactly this much
+			   to sit on the screen's middle (below). */
+			--prose-gutter: 1.5rem;
+			--prose-col: calc(var(--prose-w) + var(--prose-gutter));
 			/* the prose takes a column of its own off the canvas's left edge —
 			   stated as the inset rather than as `left` so the credits backdrop
 			   can rebuild the same box (see .scrolly-visual.exited) */
-			--visual-l: var(--prose-w);
+			--visual-l: var(--prose-col);
 		}
 
 		/* no longer over the canvas, so it is centred in a column of its own
@@ -906,7 +918,7 @@
 		   pointer-events: none, so reaching back across the prose costs nothing. */
 		.chapter-card,
 		.splash-card {
-			left: calc(-1 * var(--prose-w));
+			left: calc(-1 * var(--prose-col));
 		}
 
 		/* THE SWAP. Every chapter puts the prose on the other side, so the reader
@@ -918,7 +930,7 @@
 		   in, and the crowd does not move to meet them. */
 		.scrolly-layout.flipped {
 			--visual-l: 0px;
-			--visual-r: var(--prose-w);
+			--visual-r: var(--prose-col);
 		}
 
 		.scrolly-layout.flipped .scrolly-steps {
@@ -929,7 +941,7 @@
 		.scrolly-layout.flipped .chapter-card,
 		.scrolly-layout.flipped .splash-card {
 			left: 0;
-			right: calc(-1 * var(--prose-w));
+			right: calc(-1 * var(--prose-col));
 		}
 	}
 </style>
