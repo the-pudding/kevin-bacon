@@ -30,6 +30,7 @@
 	import ChevronLeft from "@lucide/svelte/icons/chevron-left";
 	import ChevronRight from "@lucide/svelte/icons/chevron-right";
 	import PointerIcon from "./PointerIcon.svelte";
+	import PuddingLogo from "./PuddingLogo.svelte";
 	import { story } from "./story.svelte.js";
 	import { isRankState } from "./states.js";
 	import { TITLE_BAND } from "./plot.js";
@@ -381,9 +382,15 @@
 				{/if}
 				<!-- the title card. Same stable-{#if} arrangement as the chapter
 			     card above and for the same reason (see Splash.svelte); the
-			     cue is a sibling rather than part of the card because it is
-			     pinned to the corner, not centred with the title. -->
+			     cue and the logo are siblings rather than part of the card
+			     because they are pinned (to the corner, and to the top of the
+			     screen) rather than centred with the title — the logo also
+			     stays clear of the sky's busiest patch, where the opening
+			     flight converges behind the centred card. -->
 				{#if activeSplash}
+					<div class="splash-logo" in:fade={chapterIn} out:fade={chapterOut}>
+						<PuddingLogo />
+					</div>
 					<div
 						class="splash-card"
 						style="height: {chapterHeight}px"
@@ -391,6 +398,9 @@
 						out:fade={chapterOut}
 					>
 						<h1>{@render activeSplash.title()}</h1>
+						{#if activeSplash.byline}
+							<p class="splash-byline">{@render activeSplash.byline()}</p>
+						{/if}
 					</div>
 					<div
 						class="splash-cue"
@@ -739,6 +749,61 @@
 			0 0 36px var(--color-bg, #fff);
 	}
 
+	/* The Pudding's wordmark, pinned to the top of the screen rather than
+	   stacked into the centred card — same "pinned corner, not centred with
+	   the title" reasoning as .splash-cue (see the comment above it), and it
+	   keeps the mark clear of the sky's busiest patch, where the opening
+	   flight converges behind the card. Wide (600x247) rather than the
+	   compact mark, so it is sized by width with a cap for wide viewports
+	   rather than a fixed height. pointer-events: none for the same reason
+	   .splash-card is — it is decorative, not a control. */
+	.splash-logo {
+		position: absolute;
+		top: max(1.5rem, 6%);
+		left: 0;
+		right: 0;
+		display: flex;
+		justify-content: center;
+		pointer-events: none;
+		/* two layers, same as .splash-cue's halo — not the h1's six: that halo
+		   is tuned for a solid serif block letter, and stacked that far on this
+		   wordmark's thin, close-set script strokes just merges into a visible
+		   white blob instead of a halo. */
+		filter: drop-shadow(0 0 6px var(--color-bg, #fff))
+			drop-shadow(0 0 6px var(--color-bg, #fff));
+	}
+
+	.splash-logo :global(svg) {
+		width: 40vw;
+		max-width: 11rem;
+		height: auto;
+	}
+
+	/* "By Owen Lacey", under the title — sans, small and let breathe from the
+	   display serif above it, same halo idiom as the h1 and the cue so it
+	   stays legible over the moving sky. The link is the one live control this
+	   otherwise inert card carries, so it alone gets pointer-events back — and,
+	   like .splash-cue, --z-tap-above to actually beat the tap halves it sits
+	   over rather than just being painted under them. */
+	.splash-byline {
+		margin: 0.5rem 0 0;
+		font-family: var(--font-sans);
+		font-size: var(--16px, 1rem);
+		letter-spacing: 0.02em;
+		color: var(--color-fg);
+		text-shadow:
+			0 0 6px var(--color-bg, #fff),
+			0 0 6px var(--color-bg, #fff),
+			0 0 12px var(--color-bg, #fff),
+			0 0 12px var(--color-bg, #fff);
+		z-index: var(--z-tap-above);
+	}
+
+	.splash-byline :global(a) {
+		color: inherit;
+		pointer-events: auto;
+	}
+
 	/* Where the tap goes — pinned to the corner rather than centred over the
 	   half, so it never runs into the title above it, however many lines that
 	   wraps to. A hand-cursor icon, "click"/"tap to continue" (ported
@@ -982,9 +1047,12 @@
 		   half of it: the sky behind these two runs edge to edge, so a title
 		   centred in the visual column would sit off to one side of the very
 		   picture it is meant to be in the middle of. Both layers are
-		   pointer-events: none, so reaching back across the prose costs nothing. */
+		   pointer-events: none, so reaching back across the prose costs nothing.
+		   .splash-logo joins them for the same reason — it is centred on the
+		   screen the sky fills, not on the visual column alone. */
 		.chapter-card,
-		.splash-card {
+		.splash-card,
+		.splash-logo {
 			left: calc(-1 * var(--prose-col));
 		}
 
@@ -1006,7 +1074,8 @@
 		}
 
 		.scrolly-layout.flipped .chapter-card,
-		.scrolly-layout.flipped .splash-card {
+		.scrolly-layout.flipped .splash-card,
+		.scrolly-layout.flipped .splash-logo {
 			left: 0;
 			right: calc(-1 * var(--prose-col));
 		}

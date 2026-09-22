@@ -299,6 +299,11 @@
 				{#snippet title()}
 					Gen Z's Kevin Bacon
 				{/snippet}
+				{#snippet byline()}
+					By <a href="https://pudding.cool/author/owen-lacey/" target="_blank"
+						>Owen Lacey</a
+					>
+				{/snippet}
 			</Splash>
 
 			<!-- PRESENT -->

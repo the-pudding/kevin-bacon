@@ -26,7 +26,7 @@ const STEP_PARAM = "step";
  * the reader on itself) — `hideBar` (drops the progress bar for this step
  * alone), `chapter` for a chapter card's title, or `splash` for the title
  * card's own name-and-how-to-move pair.
- * @typedef {{ state: import("./states.js").VisualState, params?: Object, panel?: import("svelte").Snippet, gate?: () => boolean, skipback?: boolean, advanceon?: () => boolean, hideBar?: boolean, chapter?: { title: string }, splash?: { title: import("svelte").Snippet, cta: import("svelte").Snippet } }} StepConfig
+ * @typedef {{ state: import("./states.js").VisualState, params?: Object, panel?: import("svelte").Snippet, gate?: () => boolean, skipback?: boolean, advanceon?: () => boolean, hideBar?: boolean, chapter?: { title: string }, splash?: { title: import("svelte").Snippet, cta: import("svelte").Snippet, byline?: import("svelte").Snippet } }} StepConfig
  */
 
 /**

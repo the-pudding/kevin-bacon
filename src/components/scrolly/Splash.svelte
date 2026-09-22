@@ -15,8 +15,8 @@
 	 * Stage.svelte renders it from the registry's active config, inside a stable
 	 * {#if} block Svelte can transition both ways.
 	 *
-	 * The title comes in as a snippet rather than a string so it lives in
-	 * Index.svelte beside the story's other prose.
+	 * The title and byline come in as snippets rather than strings so the words
+	 * live in Index.svelte beside the story's other prose.
 	 *
 	 * `hideBar` is declared here rather than passed: a title card is not a step
 	 * the reader has reached, so there is no position for the dot bar to report.
@@ -30,15 +30,15 @@
 	 *
 	 * @see notes/scrolly-framework.md
 	 * @type {{ state: import("./states.js").VisualState, params?: Object,
-	 *   title: import("svelte").Snippet }}
+	 *   title: import("svelte").Snippet, byline?: import("svelte").Snippet }}
 	 */
-	let { state: layoutState, params, title } = $props();
+	let { state: layoutState, params, title, byline } = $props();
 
 	const steps = getContext("scrolly-steps");
 	steps.register({
 		state: layoutState,
 		params,
 		hideBar: true,
-		splash: { title }
+		splash: { title, byline }
 	});
 </script>
