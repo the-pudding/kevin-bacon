@@ -95,7 +95,7 @@
 			onsearch={(text) => (query = text)}
 			onValueChange={pick}
 		/>
-		{#if guess == null}
+		{#if guess == null || editing}
 			<button class="give-up" onclick={giveUp}>Give up</button>
 		{/if}
 	{/if}
