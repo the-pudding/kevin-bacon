@@ -272,7 +272,7 @@ exports[`layout goldens > degScatter {"searchId":null} @stacked 1`] = `
 
 exports[`layout goldens > hopAnchor {"anchorId":0,"arriving":false} @beside 1`] = `
 {
-  "attrs": "9a96837384c72ac9",
+  "attrs": "0a76edc52000eb39",
   "decor": "444144cfce5205c4",
   "delays": "81adf7d1bf8819f7",
   "trailDelays": null,
@@ -282,7 +282,7 @@ exports[`layout goldens > hopAnchor {"anchorId":0,"arriving":false} @beside 1`] 
 
 exports[`layout goldens > hopAnchor {"anchorId":0,"arriving":false} @phone 1`] = `
 {
-  "attrs": "2f7d2cffec85a741",
+  "attrs": "c75a0257187a015f",
   "decor": "ce6a6c42ee933f80",
   "delays": "81adf7d1bf8819f7",
   "trailDelays": null,
@@ -292,7 +292,7 @@ exports[`layout goldens > hopAnchor {"anchorId":0,"arriving":false} @phone 1`] =
 
 exports[`layout goldens > hopAnchor {"anchorId":0,"arriving":false} @stacked 1`] = `
 {
-  "attrs": "4591aad09fe7b853",
+  "attrs": "2ffee992ce1b26c0",
   "decor": "52bd339a49a26d6a",
   "delays": "81adf7d1bf8819f7",
   "trailDelays": null,
@@ -302,7 +302,7 @@ exports[`layout goldens > hopAnchor {"anchorId":0,"arriving":false} @stacked 1`]
 
 exports[`layout goldens > hopAnchor {"anchorId":105,"arriving":false} @beside 1`] = `
 {
-  "attrs": "d66c1178bfddb343",
+  "attrs": "8ad7edb61cf86556",
   "decor": "12c40a70f3ef1054",
   "delays": "65af6610eb1c3687",
   "trailDelays": null,
@@ -312,7 +312,7 @@ exports[`layout goldens > hopAnchor {"anchorId":105,"arriving":false} @beside 1`
 
 exports[`layout goldens > hopAnchor {"anchorId":105,"arriving":false} @phone 1`] = `
 {
-  "attrs": "54d7c62c63ec93c7",
+  "attrs": "c3b1ac00f602359c",
   "decor": "61c73a6fb18660a7",
   "delays": "65af6610eb1c3687",
   "trailDelays": null,
@@ -322,7 +322,7 @@ exports[`layout goldens > hopAnchor {"anchorId":105,"arriving":false} @phone 1`]
 
 exports[`layout goldens > hopAnchor {"anchorId":105,"arriving":false} @stacked 1`] = `
 {
-  "attrs": "7a673021016ff830",
+  "attrs": "dcd833e63e818723",
   "decor": "7800ba228e1ef31f",
   "delays": "65af6610eb1c3687",
   "trailDelays": null,
@@ -332,7 +332,7 @@ exports[`layout goldens > hopAnchor {"anchorId":105,"arriving":false} @stacked 1
 
 exports[`layout goldens > hopAnchor {"anchorId":105,"arriving":true} @beside 1`] = `
 {
-  "attrs": "1f147c7fe6e26b0a",
+  "attrs": "dbf641a40a7b44cf",
   "decor": "12c40a70f3ef1054",
   "delays": "65af6610eb1c3687",
   "trailDelays": null,
@@ -342,7 +342,7 @@ exports[`layout goldens > hopAnchor {"anchorId":105,"arriving":true} @beside 1`]
 
 exports[`layout goldens > hopAnchor {"anchorId":105,"arriving":true} @phone 1`] = `
 {
-  "attrs": "ab8bf9eb3d6bd155",
+  "attrs": "04a0be8c2b13ecad",
   "decor": "61c73a6fb18660a7",
   "delays": "65af6610eb1c3687",
   "trailDelays": null,
@@ -352,7 +352,7 @@ exports[`layout goldens > hopAnchor {"anchorId":105,"arriving":true} @phone 1`] 
 
 exports[`layout goldens > hopAnchor {"anchorId":105,"arriving":true} @stacked 1`] = `
 {
-  "attrs": "60296a617bae4063",
+  "attrs": "2473e868facf1279",
   "decor": "7800ba228e1ef31f",
   "delays": "65af6610eb1c3687",
   "trailDelays": null,
@@ -362,7 +362,7 @@ exports[`layout goldens > hopAnchor {"anchorId":105,"arriving":true} @stacked 1`
 
 exports[`layout goldens > hopBands null @beside 1`] = `
 {
-  "attrs": "9a96837384c72ac9",
+  "attrs": "0a76edc52000eb39",
   "decor": "444144cfce5205c4",
   "delays": "81adf7d1bf8819f7",
   "trailDelays": null,
@@ -372,7 +372,7 @@ exports[`layout goldens > hopBands null @beside 1`] = `
 
 exports[`layout goldens > hopBands null @phone 1`] = `
 {
-  "attrs": "2f7d2cffec85a741",
+  "attrs": "c75a0257187a015f",
   "decor": "ce6a6c42ee933f80",
   "delays": "81adf7d1bf8819f7",
   "trailDelays": null,
@@ -382,7 +382,7 @@ exports[`layout goldens > hopBands null @phone 1`] = `
 
 exports[`layout goldens > hopBands null @stacked 1`] = `
 {
-  "attrs": "4591aad09fe7b853",
+  "attrs": "2ffee992ce1b26c0",
   "decor": "52bd339a49a26d6a",
   "delays": "81adf7d1bf8819f7",
   "trailDelays": null,

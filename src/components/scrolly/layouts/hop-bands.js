@@ -142,6 +142,41 @@ function departureColumn(id, w, h, skyBox, contraction) {
 // the top edge and the first hop band
 const HEADER_H = 60;
 
+// the top of the header row, and of the four bands under it
+const TOP = MARGIN + 12;
+const BANDS_TOP = TOP + HEADER_H;
+
+/** the height the four rows share, once the three gaps between them are
+ * reserved */
+const bandsHeight = (h) => plotBottom(h) - BANDS_TOP - BAND_GAP * 3;
+
+/** the px² the rows come to between them — the crowd's whole canvas, since a
+ * dot's column spans the plot and its row spans the stack */
+const bandArea = (w, bandsH) => (w - MARGIN * 2) * bandsH;
+
+// What the crowd's ink comes to, as a multiple of the band area it is packed
+// into. Held constant instead of the RADIUS, which is what makes the chart read
+// the same at every box.
+//
+// Coverage is already uniform across the four ROWS by construction: a row's
+// height is proportional to its dot count, so every one of them carries the
+// same ink per px² and the only thing that distinguishes them is thickness.
+// What is not uniform is the BOX. The phone's bands come to a sixth of the
+// side-by-side column's area and hold the same 22,500 dots, so a fixed radius
+// puts them at 10.4x coverage against 1.8x — far past the point where any alpha
+// survives, and the rows stop reading as a crowd and become four blocks of
+// flat colour.
+//
+// The number is the side-by-side column's own coverage, so the widest box keeps
+// the 3px dot it has always had and every narrower one shrinks to meet it:
+// nothing this scaling touches gets denser than it is today.
+const CROWD_COVERAGE = 1.772;
+
+/** the radius that puts CROWD_COVERAGE times `area` of ink on the canvas,
+ * spread over `count` dots */
+const crowdDotR = (area, count) =>
+	Math.sqrt((CROWD_COVERAGE * area) / (Math.PI * count));
+
 /**
  * The rows: the header band for the anchor, then hops 1–4 sized by the shares
  * they are handed, out of whatever the three gaps between them leave behind.
@@ -150,16 +185,13 @@ const HEADER_H = 60;
  * of what's left.
  *
  * @param {number[]} shares the anchor's four row weights (see anchorShares)
- * @param {number} h the canvas height
+ * @param {number} bandsH the height the four rows share (see bandsHeight)
  * @returns {{ bandTop: number[], bandH: number[] }} per hop, index = hop
  */
-function bandGeometry(shares, h) {
-	const top = MARGIN + 12;
-	const bandsTop = top + HEADER_H;
-	const bandsH = plotBottom(h) - bandsTop - BAND_GAP * 3;
-	const bandTop = [top];
+function bandGeometry(shares, bandsH) {
+	const bandTop = [TOP];
 	const bandH = [HEADER_H];
-	let y = bandsTop;
+	let y = BANDS_TOP;
 	for (let hop = 1; hop <= 4; hop++) {
 		const share = shares[hop - 1] * bandsH;
 		bandTop[hop] = y;
@@ -194,7 +226,7 @@ function placeAnchor(attrs, id, f, arriving) {
  *
  * @param {number} band which hop row, 1–4
  * @param {{ w: number, h: number, skyBox: number[], contraction: number,
- *   bandTop: number[], bandH: number[], seed: boolean }} f the frame
+ *   bandTop: number[], bandH: number[], r: number, seed: boolean }} f the frame
  */
 function placeInBand(attrs, id, band, f) {
 	set(
@@ -203,7 +235,7 @@ function placeInBand(attrs, id, band, f) {
 		// the column the dot leaves the chapter card in, parallax and all
 		departureColumn(id, f.w, f.h, f.skyBox, f.contraction),
 		f.bandTop[band] + hash01(id, 4) * f.bandH[band],
-		3,
+		f.r,
 		HOP_RGB[band],
 		// `seed` parks every node at its band position but invisible — what
 		// sits behind hopSeed's zoomed-out network, so the fifteen the network
@@ -222,16 +254,19 @@ function hopLegend(labels, f) {
 	}));
 }
 
-/** the sky the crowd arrives from, and how far one of its pixels travels as it
- * funnels back into the reading column. Struck once, outside the dot loop */
-function bandFrame(w, h, bleed, shares, seed = false) {
+/** the sky the crowd arrives from, how far one of its pixels travels as it
+ * funnels back into the reading column, and the size a dot is at this box.
+ * Struck once, outside the dot loop */
+function bandFrame(w, h, bleed, shares, count, seed = false) {
+	const bandsH = bandsHeight(h);
 	return {
 		w,
 		h,
 		skyBox: galaxyBox(w, h, bleed),
 		contraction: skyToColumn(w, h, bleed),
 		seed,
-		...bandGeometry(shares, h)
+		r: crowdDotR(bandArea(w, bandsH), count),
+		...bandGeometry(shares, bandsH)
 	};
 }
 
@@ -326,7 +361,7 @@ function layoutHopBands(nodes, w, h, _edges, params, bleed = NO_BLEED) {
 	const shares = anchorShares(counts, anchorId);
 	const attrs = new Float64Array(ATTR_SIZE);
 	const delays = new Float64Array(DELAY_SIZE);
-	const frame = bandFrame(w, h, bleed, shares, seed);
+	const frame = bandFrame(w, h, bleed, shares, nodes.length - 1, seed);
 	placeAnchor(attrs, anchorId, frame, arriving);
 	delays[anchorId] = bandDelay(anchorId, 0);
 	dealBands(attrs, delays, bandCuts(shares, nodes.length - 1), anchorId, frame);
