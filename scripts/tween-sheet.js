@@ -212,7 +212,7 @@ async function openAt(browser, base, move, opts) {
 		await page.addInitScript(SEEK_ANIMATIONS);
 	}
 	await page.goto(`${base}?step=${move.from}`);
-	await page.waitForSelector(".tap-gutter.next");
+	await page.waitForSelector(".tap-half.next");
 	await page.waitForSelector(".scrolly-visual canvas");
 	await page.evaluate(() => document.fonts.ready);
 	if (!opts.realClock) await page.clock.pauseAt(PAUSE_AT);
