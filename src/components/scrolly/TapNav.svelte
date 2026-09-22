@@ -80,6 +80,13 @@
 			Math.hypot(e.clientX - downAt.x, e.clientY - downAt.y) > SLOP;
 		downAt = null;
 		if (dragged) return;
+		// A pointer click leaves the half focused, and :focus-visible starts
+		// matching it the moment the reader touches the keyboard — so a tap
+		// followed by arrow keys paints a full-height ring the reader has no way
+		// to dismiss (arrows never move focus; they go through <svelte:window>).
+		// Hand focus back to the body. A keyboard-driven click (detail 0) keeps
+		// its focus, which is the only way that reader can reach the half at all.
+		if (e.detail > 0) e.currentTarget.blur();
 		if (direction === "prev") steps.prev();
 		// forward off the last step leaves the wizard for the credits, one-way —
 		// there is nothing beyond it in the registry for next()/go() to land on
