@@ -15,6 +15,12 @@
 	 * `exit` on the registry) — the back half disappears along with the rest
 	 * of the step chrome once that happens, so there is no route back in.
 	 *
+	 * At the title card (the one step `atStart` is ever true for — nothing
+	 * before it to go back to) the prev half stays live rather than disabled,
+	 * and advances instead of going back: the splash cue's instruction is
+	 * "click to continue" or "tap to continue", not "tap the right side", so
+	 * the whole screen has to answer a tap, left half included.
+	 *
 	 * A full left/right split, edge to edge: the halves reach out past the
 	 * reading column's own padding (--column-gutter) so the outermost pixels of
 	 * a phone screen — exactly where a thumb lands — are live rather than dead.
@@ -87,7 +93,7 @@
 		// Hand focus back to the body. A keyboard-driven click (detail 0) keeps
 		// its focus, which is the only way that reader can reach the half at all.
 		if (e.detail > 0) e.currentTarget.blur();
-		if (direction === "prev") steps.prev();
+		if (direction === "prev" && !atStart) steps.prev();
 		// forward off the last step leaves the wizard for the credits, one-way —
 		// there is nothing beyond it in the registry for next()/go() to land on
 		else if (atEnd) steps.exit();
@@ -100,8 +106,7 @@
 <button
 	type="button"
 	class="tap-half prev"
-	aria-label="Previous step"
-	disabled={atStart}
+	aria-label={atStart ? "Continue" : "Previous step"}
 	onpointerdown={onPointerDown}
 	onclick={(e) => onTap(e, "prev")}
 ></button>

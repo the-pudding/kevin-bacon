@@ -290,23 +290,14 @@
 			{/snippet}
 			<!-- TITLE CARD -->
 			<!-- Step 0: the piece's name over the same sky the chapter cards
-			     and the credits rest on, and one line teaching the only
-			     control the story has. Stepping off it is that control's first
-			     use, and the constellation grows out of the sky it leaves (see
-			     `titleGalaxy` / `lone`'s revealFrom in layouts/intro.js).
-
-			     The CTA says a different thing depending on the screen, because
-			     the mechanism a reader reaches for is different: a thumb at the
-			     edge of a phone, an arrow key at a desk. Both are always live —
-			     only the wording changes.
- -->
+			     and the credits rest on. Stepping off it is the story's first
+			     use of its only control, and the constellation grows out of the
+			     sky it leaves (see `titleGalaxy` / `lone`'s revealFrom in
+			     layouts/intro.js). How to move is taught by Stage.svelte's
+			     splash cue, not by this card. -->
 			<Splash state="titleGalaxy">
 				{#snippet title()}
 					Gen Z's Kevin Bacon
-				{/snippet}
-				{#snippet cta()}
-					<span class="on-narrow">Tap the right of the screen to begin</span>
-					<span class="on-wide">Press the right arrow key to begin</span>
 				{/snippet}
 			</Splash>
 
@@ -841,25 +832,6 @@
 	@media (prefers-reduced-motion: reduce) {
 		.route {
 			animation: none;
-		}
-	}
-
-	/* Which sentence the reader gets. Width, not pointer type: the ask is about
-	   which control is within reach, and a narrow window on a desktop is one a
-	   reader has already made small enough that the edge is the nearer target.
-	   display:none rather than opacity so the unused sentence is out of the
-	   accessibility tree too — the reader is told one thing, once. */
-	.on-wide {
-		display: none;
-	}
-
-	@media (min-width: 40rem) {
-		.on-narrow {
-			display: none;
-		}
-
-		.on-wide {
-			display: inline;
 		}
 	}
 

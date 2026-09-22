@@ -27,6 +27,9 @@
 	import RankBars from "./RankBars.svelte";
 	import StepProgress from "./StepProgress.svelte";
 	import TapNav from "./TapNav.svelte";
+	import ChevronLeft from "@lucide/svelte/icons/chevron-left";
+	import ChevronRight from "@lucide/svelte/icons/chevron-right";
+	import PointerIcon from "./PointerIcon.svelte";
 	import { story } from "./story.svelte.js";
 	import { isRankState } from "./states.js";
 	import { TITLE_BAND } from "./plot.js";
@@ -378,9 +381,8 @@
 				{/if}
 				<!-- the title card. Same stable-{#if} arrangement as the chapter
 			     card above and for the same reason (see Splash.svelte); the
-			     arrow cue is a sibling rather than part of the card because it
-			     belongs to the right-hand tap half, not to the centred column
-			     the title and its line sit in. -->
+			     cue is a sibling rather than part of the card because it is
+			     pinned to the corner, not centred with the title. -->
 				{#if activeSplash}
 					<div
 						class="splash-card"
@@ -389,7 +391,6 @@
 						out:fade={chapterOut}
 					>
 						<h1>{@render activeSplash.title()}</h1>
-						<p class="splash-cta">{@render activeSplash.cta()}</p>
 					</div>
 					<div
 						class="splash-cue"
@@ -397,8 +398,29 @@
 						in:fade={chapterIn}
 						out:fade={chapterOut}
 					>
-						→
+						<span class="splash-cue-row on-wide">
+							<strong>Click to continue</strong>
+							<span class="splash-cue-icon"><PointerIcon /></span>
+						</span>
+						<span class="splash-cue-row on-narrow">
+							<strong>Tap to continue</strong>
+							<span class="splash-cue-icon"><PointerIcon /></span>
+						</span>
+						<span class="splash-keys on-wide">
+							Or use the keyboard
+							<span class="key"><ChevronLeft /></span>
+							<span class="key"><ChevronRight /></span>
+						</span>
 					</div>
+					<p class="sr-only">
+						<span class="on-narrow"
+							>Tap anywhere on the screen to navigate through the story.</span
+						>
+						<span class="on-wide"
+							>Click, or use the left and right arrow keys, to navigate through
+							the story.</span
+						>
+					</p>
 				{/if}
 				<!-- dev-only race tuners. Mounted outside the step registry so they span
 			     the whole race chapter and keep their values installed across step
@@ -684,12 +706,8 @@
 		flex-direction: column;
 		align-items: center;
 		justify-content: center;
-		gap: 1.75rem;
-		/* The one card measured off the tap cue rather than the reading column:
-		   this is the only screen that MARKS where a tap goes (.splash-cue), and
-		   a title running under that mark would have the reader reading the
-		   instruction through the word it is pointing at. The type wraps earlier
-		   for it, which on a phone is what turns the name into a poster. */
+		/* Wrapped narrower than the full column on purpose: the type wraps
+		   earlier, which on a phone is what turns the name into a poster. */
 		padding: 0 var(--control-inset);
 		pointer-events: none;
 	}
@@ -721,44 +739,27 @@
 			0 0 36px var(--color-bg, #fff);
 	}
 
-	/* The one line of instruction. Set in the mono at the names' size, like every
-	   other piece of machine-voice in the story (the tour caption, the chart
-	   labels) — it is the interface talking, not the author. */
-	.splash-cta {
-		margin: 0;
-		font-family: var(--font-mono);
-		font-size: var(--14px, 0.875rem);
-		line-height: 1.3;
-		text-align: center;
-		text-wrap: balance;
-		color: var(--color-fg);
-		opacity: 0.75;
-		text-shadow:
-			0 0 4px var(--color-bg, #fff),
-			0 0 4px var(--color-bg, #fff),
-			0 0 8px var(--color-bg, #fff),
-			0 0 8px var(--color-bg, #fff),
-			0 0 12px var(--color-bg, #fff);
-	}
-
-	/* Where the tap goes. The sentence says "the right of the screen"; this is
-	   that place, marked. The whole right half answers (TapNav), so the arrow
-	   does not have to fill it — it sits in the outermost strip, where the thumb
-	   the sentence is talking about actually is. It is the only marking either
-	   half ever carries, and it leaves with the card. */
+	/* Where the tap goes — pinned to the corner rather than centred over the
+	   half, so it never runs into the title above it, however many lines that
+	   wraps to. A hand-cursor icon, "click"/"tap to continue" (ported
+	   like-for-like from The Pudding's pop-love-songs Tap.svelte) and, past
+	   40rem, the keyboard alternative spelled out as two key glyphs. The whole
+	   screen answers a tap while this card is up (see TapNav's atStart
+	   branch), so the cue does not have to sit over any one half of it. */
 	.splash-cue {
 		position: absolute;
-		top: 0;
-		right: 0;
-		bottom: 0;
-		width: var(--control-inset);
+		right: var(--column-gutter);
+		bottom: max(1.5rem, 6%);
+		width: max-content;
+		max-width: 70%;
 		display: flex;
-		align-items: center;
-		justify-content: center;
-		font-family: var(--font-mono);
-		font-size: var(--24px, 1.5rem);
+		flex-direction: column;
+		align-items: flex-end;
+		gap: 0.5rem;
+		font-family: var(--font-sans);
+		font-weight: 700;
+		text-align: right;
 		color: var(--color-fg);
-		opacity: 0.5;
 		/* over the half it points at, but never catching the press it is asking
 		   for — the button underneath has to get it */
 		pointer-events: none;
@@ -771,7 +772,73 @@
 		animation: splash-nudge 2.6s ease-in-out infinite;
 	}
 
-	/* a nudge, not a bounce: the arrow leans the way the story goes and settles
+	.splash-cue strong {
+		font-size: var(--20px, 1.25rem);
+		line-height: 1.1;
+	}
+
+	.splash-cue-row {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+	}
+
+	/* :global(svg) resets app.css's `svg { width: 100% }` (sized for full-bleed
+	   chart art), which otherwise stretches the inlined pointer icon to the
+	   width of its flex item instead of its own size. Height stays auto so the
+	   doodle keeps its own (taller than wide) proportions. */
+	.splash-cue-icon :global(svg) {
+		width: 1.25rem;
+		height: auto;
+	}
+
+	/* the keyboard alternative: a bold sans label, like the "click to
+	   continue" line above it, and two key glyphs */
+	.splash-keys {
+		display: flex;
+		align-items: center;
+		gap: 0.4rem;
+		font-size: var(--14px, 0.875rem);
+	}
+
+	.splash-keys .key {
+		display: flex;
+		padding: 3px;
+		border: 1px solid var(--color-gray-300);
+		border-radius: 4px;
+		background: var(--color-bg);
+	}
+
+	.splash-keys .key :global(svg) {
+		width: 0.75rem;
+		height: 0.75rem;
+	}
+
+	/* Which copy the cue and the sr-only instruction give: width decides which
+	   control is in reach, not pointer type — same rule the piece's title
+	   card CTA used to switch on before the cue absorbed its job. display:none,
+	   not opacity, so the unused copy never reaches the a11y tree. Below 40rem
+	   the cue is just "tap to continue" — the whole screen already answers a
+	   tap, so there is no keyboard alternative to spell out. */
+	.on-wide {
+		display: none;
+	}
+
+	@media (min-width: 40rem) {
+		.on-narrow {
+			display: none;
+		}
+
+		.on-wide {
+			display: inline;
+		}
+
+		.splash-cue .on-wide {
+			display: flex;
+		}
+	}
+
+	/* a nudge, not a bounce: the row leans the way the story goes and settles
 	   back, so it reads as a direction rather than as something demanding a tap */
 	@keyframes splash-nudge {
 		0%,
