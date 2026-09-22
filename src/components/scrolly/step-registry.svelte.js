@@ -54,6 +54,13 @@ function readStep() {
 	return Number.isInteger(n) ? n : null;
 }
 
+// whether the URL already carried a step param on load — only then does the
+// registry keep writing it back, so a bare "/" never grows a ?step=0
+function hasStepParam() {
+	if (typeof window === "undefined") return false;
+	return urlParams.get(STEP_PARAM) !== "";
+}
+
 /**
  * @param {{ navigate: (move: Move) => void }} hooks `navigate` runs with the
  *   resolved destination BEFORE `current` changes (see `go`), so it can
@@ -62,6 +69,7 @@ function readStep() {
  */
 export function createStepRegistry({ navigate }) {
 	const restored = readStep();
+	const trackUrl = hasStepParam();
 	let value = $state(restored !== null && restored > 0 ? restored : 0);
 	// true only when a saved step from a prior visit exists, so this render
 	// isn't the reader's first-ever view. ScrollyVisual uses this to skip the
@@ -76,7 +84,7 @@ export function createStepRegistry({ navigate }) {
 	let exited = $state(false);
 
 	$effect(() => {
-		urlParams.set(STEP_PARAM, value);
+		if (trackUrl) urlParams.set(STEP_PARAM, value);
 	});
 
 	// safety net for a stale/malformed URL (?step past the end of the story):
