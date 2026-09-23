@@ -571,9 +571,9 @@ export const states = {
 		layout: layoutHopBands,
 		// One chart with hopAnchor, so the two share one scene: the legend stays
 		// up and glides with its rows across the step change instead of fading
-		// out and in around them, and only the title changes — crossfading on its
-		// own the moment the step does (ScrollyVisual's chartFurniture). As two
-		// scenes, 4 <-> 5 blanked the title and legend for a whole tween.
+		// out and in around them. The title changes the way every title does:
+		// out on the press, in on the landing (ScrollyVisual's titleState). As
+		// two scenes, 4 <-> 5 blanked the legend for a whole tween.
 		scene: "hops",
 		// The bands span the whole screen (see bandFrame), so the prose lies
 		// over them rather than beside them — Stage.svelte reads this.

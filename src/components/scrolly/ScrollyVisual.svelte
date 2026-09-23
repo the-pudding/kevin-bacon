@@ -461,6 +461,15 @@
 		layoutCache.clear();
 		return true;
 	}
+	/**
+	 * How far a state's title moves off the column's centre onto the screen's:
+	 * a chart the prose lies over spans the whole screen, so its title belongs
+	 * to the screen's middle. Zero wherever the bleed is even (every stacked
+	 * box), so it only moves beside the prose.
+	 */
+	const titleShiftFor = (name) =>
+		isProseOver(name) ? (labelBleed.r - labelBleed.l) / 2 : 0;
+
 	/** the static chart furniture a layout hands the template */
 	/**
 	 * Everything the overlay draws for ONE state, as one value — so the departing
@@ -470,12 +479,6 @@
 	function furnitureSet(d, name) {
 		return {
 			decor: d,
-			title: STATE_TITLE[name],
-			// how far the title moves off the column's centre onto the screen's:
-			// a chart the prose lies over spans the whole screen, so its title
-			// belongs to the screen's middle. Zero wherever the bleed is even
-			// (every stacked box), so it only moves beside the prose.
-			titleShift: isProseOver(name) ? (labelBleed.r - labelBleed.l) / 2 : 0,
 			overlay: OVERLAYS[name],
 			xTop,
 			yTop: yLabelTop,
@@ -781,6 +784,18 @@
 	 */
 	let leaving = $state.raw(null);
 	let leavingRaf = 0;
+	/**
+	 * The state whose title is up, or null while none is. The title is not
+	 * scene furniture: whatever the scene does, a title that changes goes on the
+	 * press, like the departing names and links, and the new one comes up on
+	 * the landing (land()). One that does not change stays up. One value
+	 * rather than a held/leaving pair, so a mashed Next can neither leave a
+	 * stale title nor stack two.
+	 * @type {string | null}
+	 */
+	let titleState = $state(null);
+	const shownTitle = $derived(titleState && STATE_TITLE[titleState]);
+	const shownTitleShift = $derived(titleState ? titleShiftFor(titleState) : 0);
 	// tappable chart regions (layout `hits` + the state's `pick`): rendered as
 	// transparent buttons over the canvas, so a pick is keyboard- and
 	// screen-reader-reachable without any canvas hit-testing
@@ -1449,6 +1464,7 @@
 		// branches), which must not come to depend on the hold it releases
 		const released = untrack(() => furnitureHeld);
 		furnitureHeld = false;
+		if (untrack(() => titleState) !== stateName) titleState = stateName;
 		if (story.settledStep !== step) story.settledStep = step;
 		// The names are cut in drawScene, and nothing guarantees another frame
 		// once the arrival has landed: a state with no ambient (the
@@ -1457,6 +1473,12 @@
 		// back stayed at nothing until something else happened to draw. One more
 		// frame puts them up the moment the beat lands.
 		if (released) untrack(drawScene);
+	}
+
+	/** A title the arriving state does not share goes on the press; land() puts
+	 *  the arriving one up. Unchanged text stays where it is. */
+	function dropChangedTitle() {
+		if (untrack(() => shownTitle) !== STATE_TITLE[stateName]) titleState = null;
 	}
 
 	/** how long the reader watches each kind of arrival before it settles */
@@ -2127,6 +2149,7 @@
 		prevState = stateName;
 		prevParamsKey = paramsKey;
 		const layout = layoutFor(stateName, width, height, layoutParams, bleed);
+		dropChangedTitle();
 		swapFurniture(
 			staticDecor(layout),
 			from,
@@ -2281,24 +2304,10 @@
 
 	     The gate below unmounts and remounts the whole set on a scene change,
 	     which is the crossfade across chapters. Within a scene the overlay's
-	     strings do not change (registry.spec.js checks that); the two that can,
-	     the title and a legend item's label, are keyed to crossfade on their
-	     own. The hop scene is one chart under two titles: the old one fades
-	     where it stands while the new one mounts over it on .fade-in — both
-	     absolute on one line. -->
+	     strings do not change (registry.spec.js checks that); the one that can,
+	     a legend item's label, is keyed to crossfade on its own. The title is
+	     not in the set at all: it keeps its own rule (titleState). -->
 	{#snippet chartFurniture(set, live = false)}
-		{#if set.title}
-			{#key set.title}
-				<p
-					class="chart-title fade-in"
-					aria-hidden="true"
-					style="--title-shift: {set.titleShift}px"
-					out:fade={furnitureOut}
-				>
-					{set.title}
-				</p>
-			{/key}
-		{/if}
 		{#if set.overlay?.xLabel}
 			<p
 				class="x-label fade-in"
@@ -2500,6 +2509,23 @@
 			<div class="layer gone" aria-hidden="true" out:fade={furnitureOut}>
 				{@render chartFurniture(leaving)}
 			</div>
+		{/if}
+		<!-- Out on the press, in on the landing, on every step: cleared by an
+		     arrival whose title differs, so the old one fades where it stands,
+		     and set by land(), so the new one mounts on .fade-in. `|global`: the
+		     clear destroys the {#if} around the {#key}, and a local out: does not
+		     play for a parent block's destruction. -->
+		{#if shownTitle}
+			{#key shownTitle}
+				<p
+					class="chart-title fade-in"
+					aria-hidden="true"
+					style="--title-shift: {shownTitleShift}px"
+					out:fade|global={furnitureOut}
+				>
+					{shownTitle}
+				</p>
+			{/key}
 		{/if}
 	</div>
 	{#if pick}
@@ -2733,7 +2759,7 @@
 		   sits a little further down still (--chart-title-top, Stage.svelte) */
 		top: var(--chart-title-top);
 		left: 50%;
-		/* --title-shift: set inline, from the set's titleShift */
+		/* --title-shift: set inline, from titleShiftFor */
 		transform: translateX(calc(-50% + var(--title-shift)));
 		/* max-content, or `left: 50%` caps the shrink-to-fit width at the box's
 		   right half and a mobile title wraps at half the screen. Capped at the

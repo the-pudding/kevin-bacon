@@ -64,9 +64,15 @@ travelling is something the reader has to re-find.
    Δ column reads as a hump, not a plateau.
    The out and in beats are for a change of chart. Inside one scene (states
    declaring the same `scene`) the chart is the same chart, so its furniture
-   stays up through the travel: a legend rides its rows, and a title that
-   differs crossfades as the step changes (the `hops` scene, steps 4 and 5).
-   Blanking it for the length of a tween reads as a flicker.
+   stays up through the travel: a legend rides its rows. Blanking it for the
+   length of a tween reads as a flicker.
+   The chart title is the exception, on every step alike: a title whose text
+   changes fades out on the press, like the departing names and links, and the
+   new one fades in when the arrival lands. A title that does not change stays
+   up. That holds inside a scene too, so 4 → 5, which moves no dot, still runs
+   its out beat and its tween with no title up (about 0.7s) — Owen's call
+   (2026-09-23), taken over landing a still arrival at once, which would start
+   `hopAnchor`'s cycle while the words were still changing.
 
 7. **Nothing pops.** Anything that appears or disappears does so through alpha,
    and nothing on the canvas jumps between two consecutive frames. A snap is

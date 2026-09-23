@@ -257,9 +257,11 @@ band it names while that band resizes under it, and its text crossfades on
 `--name-alpha` from an inner span. Only `hopBands`/`hopAnchor` pin a legend, and
 it glides only within one scene — the two share `scene: "hops"`, so it glides
 across the step between them as well; across a scene change the arriving legend
-is held and fades in, and a resize snaps. The chart title is the one string a
-scene's states may differ on: it is `{#key}`ed in `chartFurniture`, so the old
-title fades out where it stands while the new one fades in over it. A layout's
+is held and fades in, and a resize snaps. The chart title is not scene
+furniture: it is one `{#key}`ed element of its own (`titleState`), cleared by an
+arrival whose title differs, so the old one fades out on the press, and set by
+`land()`, so the new one fades in on the landing. A title that does not change
+stays up, so a scene's states may differ on it. A layout's
 `axes`, `notes`, `legend`, `band` and `hits` are rendered in the overlay; the race
 chart's per-frame furniture (the live callout, the future block) rides the frame
 writer's return so it stays glued through a pan. A race step may mark more than

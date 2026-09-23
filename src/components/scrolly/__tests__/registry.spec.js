@@ -171,9 +171,10 @@ describe("state registry", () => {
 	// A scene is an assertion, not a hint: ScrollyVisual does not swap the
 	// furniture between two states that share one, so if their overlay actually
 	// differed the reader would be left looking at the wrong chart's axis text
-	// with no transition to explain it. The title is exempt because it is keyed
-	// to crossfade on its own (ScrollyVisual's chartFurniture) — the hop scene is
-	// one chart under two titles.
+	// with no transition to explain it. The title is not scene furniture (it
+	// goes on the press and comes up on the landing wherever its text changes,
+	// see ScrollyVisual's titleState), so the hop scene can be one chart under
+	// two titles.
 	test("states sharing a scene declare the same overlay", () => {
 		/** @type {Record<string, string[]>} */
 		const byScene = {};
@@ -191,9 +192,9 @@ describe("state registry", () => {
 		}
 	});
 
-	// The chart title is part of the scene's furniture and holds still across
-	// it, and a proseOver state centres that title on the screen rather than
-	// the column — so a scene split on the flag would walk its title sideways
+	// A title two of a scene's states share stays up across the step between
+	// them, and a proseOver state centres its title on the screen rather than
+	// the column — so a scene split on the flag would walk that title sideways
 	// on a step change that is meant to leave the furniture alone.
 	test("states sharing a scene agree on whether the prose lies over them", () => {
 		/** @type {Record<string, string[]>} */
