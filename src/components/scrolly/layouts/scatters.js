@@ -7,6 +7,7 @@ import { MARGIN, plotBottom, lin } from "../plot.js";
 import {
 	scatterPosition,
 	deLogFilms,
+	filmAxisTicks,
 	FILM_MIN_SHOWN
 } from "../scatter-scales.js";
 import {
@@ -49,7 +50,11 @@ function filmsScatter(nodes, w, h, cfg) {
 	}
 	return {
 		attrs,
-		axes: { xBase: bottom + 10, y: scatterTicks(vMin, vMax, cfg, yS) }
+		axes: {
+			xBase: bottom + 10,
+			x: filmAxisTicks(w),
+			y: scatterTicks(vMin, vMax, cfg, yS)
+		}
 	};
 }
 
@@ -104,8 +109,7 @@ function placeScatterDot(attrs, n, v, hi, w, h, yS, vMin, vMax) {
 	);
 }
 
-// y ticks at even metric steps, no gridlines; the x axis carries no ticks or
-// numbers — just the title below (the log scale is described, not quantified)
+// y ticks at even metric steps, no gridlines
 function scatterTicks(vMin, vMax, cfg, yS) {
 	const step = cfg.tickStep ?? 0.5;
 	const labelOf = cfg.labelOf ?? ((t) => t.toFixed(1));

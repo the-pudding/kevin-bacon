@@ -45,6 +45,22 @@ export function scatterPosition(n, w, h) {
 	];
 }
 
+// nice round film counts to tick the shared log axis at, filtered to whatever
+// falls inside the fixed FILM_LOG_MIN/MAX range — a corpus rebuild that
+// shrinks the data below one of these just drops that tick rather than
+// clamping it into the plot
+const FILM_AXIS_COUNTS = [5, 10, 20, 50, 100, 200];
+
+/** x ticks every films-scatter shares: same log scale as scatterPosition's x */
+export function filmAxisTicks(w) {
+	return FILM_AXIS_COUNTS.filter((f) => Math.log(f) <= FILM_LOG_MAX).map(
+		(f) => ({
+			pos: lin(Math.log(f), FILM_LOG_MIN, FILM_LOG_MAX, MARGIN, w - MARGIN),
+			label: String(f)
+		})
+	);
+}
+
 /**
  * Hidden park spot for any node not placed by the current state: its position
  * on the distance-vs-films scatter (alpha 0), so it fades in where a later
