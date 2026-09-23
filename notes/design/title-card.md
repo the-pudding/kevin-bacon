@@ -49,15 +49,37 @@ itself is handed `FIELD_IDS` rather than the cards' `UNIVERSE_IDS` for the same
 reason: the fifteen ride Bacon's authored trip (`withAnchorInSky`), and a hashed
 trip would carry them off it (see the opening flight below).
 
-Its `castFrom` is 75, in the gap the cards' 0/30/60 leave. Worth knowing what
-that does and does not buy: `pickFocus` starts at `(from + hash(beat) * n) % n`
-and walks forward to the first ELIGIBLE actor, so while only a handful of the
-cast are on canvas and clear of the flight's fade ramps, every offset converges
-on the same opening actor — measured, 0 through 75 all open on Alfred Molina at
-1280px and Harvey Keitel at 390px. The offsets separate the second beat onward,
-once each card's no-repeat window has diverged. The three chapter cards have
-always shared this; the checklist row asking whether a card opens on the same
-actor as the last one is still the open question it was.
+Until 2026-09-23 the opening beat converged: `pickFocus` hashed a start index
+into the eligible set, but at `t = 0` almost nothing is on canvas and clear of
+the flight's fade ramps yet, so the eligible set was one or two candidates wide
+regardless of the hash — measured, every possible starting offset opened on the
+same actor, Alfred Molina at 1280px and Harvey Keitel at 390px. Worse, because
+`nonce` was a plain counter starting at a fixed `0` on every fresh page load,
+this was not just true of the first beat measured — it was the same actor for
+every real visitor, at a given viewport, forever. That is the actual substance
+of "it reads like the answer": not an under-eligible first beat so much as a
+FIXED one.
+
+Two changes fixed it (`galaxy-highlight.js`): the beat clock now waits
+`GALAXY_START_DELAY_MS` (2s) before its first strike, so by the time it fires
+the flight has moved enough for a real pool to choose from, and the flight's
+`nonce` is now seeded from `Math.random()` once per page load rather than from
+a fixed counter, so the same viewport no longer opens on the same actor twice.
+The two-card convergence the old paragraph here described (three chapter cards
+sharing an opening actor) no longer applies to the title card at all, since it
+no longer shares a fixed offset with anything — see `flightSeq` and
+`GALAXY_START_DELAY_MS` in `galaxy-highlight.js` for the full reasoning.
+
+**The beat also now runs two staggered slots rather than one.** A second actor
+joins partway through the first's turn (`GALAXY_SLOT_PHASE_MS`, half a beat),
+then each slot changes independently — never both at once — so the sequence
+reads as "someone, then someone else joins, then the first one changes while
+the second stays," rather than a single spotlight or two names swapping in
+lockstep. `GALAXY_CAST` was also widened (`GALAXY_CAST_N`, 90 → 130) and now
+includes a short curated list of actors by name (`GALAXY_EXTRA_IDS`) who are
+well known to the story's Gen Z audience despite a film count too low to reach
+any film-count cutoff — film count stands in for career length as much as for
+fame, and systematically underrates younger stars.
 
 **The cluster.** The fourteen are drawn about Bacon, at his depth
 (`writeCluster`): each one's landed offset from him in the constellation, times

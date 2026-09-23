@@ -1573,14 +1573,14 @@
 			y <= racePlotRect.bottom + 0.5
 		);
 	}
-	// The galaxy beat's one name, reused rather than rebuilt: like raceLabelCut
+	// The galaxy beat's names, reused rather than rebuilt: like raceLabelCut
 	// this is decided per FRAME, and the per-frame writers on this path document
 	// themselves as allocating nothing.
 	const galaxyShownSet = new Set();
-	/** the chapter card's highlight beat names exactly the actor it is on */
+	/** the title card's highlight beat names exactly the actors it is on (up to two at once) */
 	function galaxyLabelCut() {
 		galaxyShownSet.clear();
-		galaxyShownSet.add(galaxyHighlight.id);
+		for (const id of galaxyHighlight.ids) galaxyShownSet.add(id);
 		return galaxyShownSet;
 	}
 	/**
@@ -1605,7 +1605,7 @@
 				top: RACE_LABEL_TOP
 			});
 		}
-		return galaxyHighlight.id != null ? galaxyLabelCut() : labelIds;
+		return galaxyHighlight.ids.length > 0 ? galaxyLabelCut() : labelIds;
 	}
 	const stacker = createLabelStacker(LABEL_LINE_GAP_PX);
 	// The label de-collider relaxes toward its target a little per DRAWN frame,

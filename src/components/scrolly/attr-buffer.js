@@ -26,8 +26,8 @@ export const EDGE_BASE = NODE_COUNT * STRIDE;
 
 /**
  * Spare edge slots past the baked ones, for links whose ENDPOINTS are chosen at
- * runtime rather than at build time — the chapter card's highlight spokes (see
- * galaxy-highlight.js), which fan out from whichever actor the beat is on.
+ * runtime rather than at build time — the title card's highlight spokes (see
+ * galaxy-highlight.js), which fan out from whichever actor(s) the beat is on.
  *
  * The baked edges are a fixed table: `edgeEnds` in ScrollyVisual binds slot e to
  * one node pair at module load, so a link between an arbitrary pair has nowhere
@@ -36,11 +36,12 @@ export const EDGE_BASE = NODE_COUNT * STRIDE;
  * by the SAME loop as the constellation's — which already reads both endpoints
  * out of the live buffer every frame, and so follows dots that are moving.
  *
- * This is also the spoke count the most prolific actor in the cast gets, so the
- * pool is full exactly when the beat is at its densest and can never be asked
- * for more — galaxy-highlight.js asserts that at module load rather than
- * clamping, so an over-large spoke range is a startup error and not a silently
- * shortened fan.
+ * Split into two equal, disjoint halves since a beat can light two actors at
+ * once (`GALAXY_FOCUS_SLOTS` in galaxy-highlight.js) — each half is full
+ * exactly when its focus is the most prolific the cast has, and neither half
+ * can ever be asked for more — galaxy-highlight.js asserts that at module load
+ * rather than clamping, so an over-large spoke range is a startup error and not
+ * a silently shortened fan.
  */
 export const GALAXY_LINK_MAX = 80;
 

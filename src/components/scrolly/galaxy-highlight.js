@@ -5,7 +5,7 @@ import {
 	GALAXY_LINK_MAX,
 	setEdge
 } from "./attr-buffer.js";
-import { FIELD_IDS } from "./cast.js";
+import { FIELD_IDS, idOf } from "./cast.js";
 import { dotHash } from "./nodes.js";
 import { CROWD, INK } from "./palette.js";
 import { TITLE_BAND, NO_BLEED, lin } from "./plot.js";
@@ -21,15 +21,24 @@ import {
 } from "./sky.js";
 
 // ---------------------------------------------------------------------------
-// The chapter card's highlight beat: one well-known actor at a time picked out
-// of the flowing crowd — inked, enlarged and named — with spokes drawn from them
-// out across the sky, more spokes for a more prolific actor.
+// The title card's highlight beat: up to two well-known actors at a time picked
+// out of the flowing crowd — inked, enlarged and named — with spokes drawn from
+// each out across the sky, more spokes for a more prolific actor.
 //
 // It is an ILLUSTRATION, not a measurement. The spokes do not go to the actor's
 // real co-stars: the corpus co-star graph is not in this repo (the data carries
 // eighteen baked edges, all inside the intro constellation), and the story never
 // claims otherwise. What the spokes carry is one true thing — that some actors
 // sit on far more of the corpus than others — and they carry it by count alone.
+// Two actors overlapping, on staggered clocks rather than a single one, is
+// deliberate too: the first actor the beat ever named used to read as an
+// answer ("this is Gen Z's Kevin Bacon") for two compounding reasons — the
+// flight hadn't moved yet when beat 0 was picked (see GALAXY_START_DELAY_MS),
+// and the pick was seeded from a value fixed at 0 on every single page load,
+// so it was not just under-eligible but the SAME actor for every visitor (see
+// flightSeq). A second actor joining partway through the first's turn, then
+// each changing independently rather than both swapping together, is part of
+// what keeps any single actor from reading as *the* answer.
 //
 // Two things shape the whole design:
 //
@@ -40,7 +49,8 @@ import {
 // spoke would ever move (and `sweeping` must not become `$state`; see
 // notes/scrolly-framework.md). The ambient writer already holds the rAF, the
 // buffers and an elapsed `t`, so the cycle lives there and derives everything
-// from `Math.floor(t / GALAXY_BEAT_MS)`.
+// from `Math.floor(tEff / GALAXY_BEAT_MS)`, `tEff` being `t` shifted by the
+// start delay (see `withGalaxyHighlight`).
 //
 // Nothing here draws. Spokes rent slots from the attr array's edge pool and are
 // stroked by the same loop as the constellation's links — which reads both
@@ -49,11 +59,41 @@ import {
 // ---------------------------------------------------------------------------
 
 /** one actor's turn in the light */
-export const GALAXY_BEAT_MS = 5000;
+export const GALAXY_BEAT_MS = 3000;
 // the name and the ink ramp up and down inside the beat rather than switching:
 // at t = 0 this is what makes the writer reproduce the static layout exactly,
 // since the envelope opens at zero and the card names nobody standing still
 const GALAXY_FADE_MS = 600;
+/**
+ * How long slot 0's clock waits, from the card's own mount, before striking its
+ * first beat — folded into that clock (see `withGalaxyHighlight`'s per-slot
+ * `tEff`) rather than a separate gate, so it stays a pure function of `t`.
+ *
+ * This exists for two reasons that turn out to be one fix. At `t = 0` almost
+ * nothing in the flight is `wrapSafe`/`focusHolds`-eligible yet — the crowd has
+ * barely started moving — so beat 0's `eligible` set is one or two candidates
+ * wide regardless of the hash, which is what used to make the title card open
+ * on the same actor (Alfred Molina) every time: see the old measurement in
+ * `notes/design/title-card.md`. Waiting two seconds lets enough of the flight
+ * accrue that the opening pick is drawn from a real pool, and, as a side
+ * effect, reads as an intentional beat of quiet before the sky starts naming
+ * anyone rather than a name appearing the instant the card does.
+ */
+const GALAXY_START_DELAY_MS = 2000;
+/**
+ * How far apart the two slots' clocks are staggered, so only one of them ever
+ * changes at once — see `withGalaxyHighlight`. Half a beat means each slot's
+ * OWN change lands exactly midway through the other slot's current turn, so a
+ * reader always has a moment to register "one changed" before the other one
+ * does; a smaller stagger would leave less of that moment, a larger one would
+ * make the two turns feel unrelated rather than interleaved.
+ *
+ * Slot 1's own start delay is `GALAXY_START_DELAY_MS + GALAXY_SLOT_PHASE_MS`,
+ * so the very first sequence is: nothing, then slot 0's first actor, then
+ * slot 1 joins partway through slot 0's turn, then slot 0 changes while slot 1
+ * keeps showing, and so on — never both changing on the same tick.
+ */
+const GALAXY_SLOT_PHASE_MS = GALAXY_BEAT_MS / 2;
 /**
  * How fast a spoke unspools from the actor outward, as a share of the sky's own
  * width per second — a constant SPEED rather than a constant duration, so a
@@ -78,11 +118,16 @@ const GALAXY_FADE_MS = 600;
  *     0.22         1145ms          4330ms           70ms
  *     0.20         1259ms          4763ms      cut off part-drawn
  *
- * At 0.28 a typical spoke lands in ~0.9s and the deepest phone spoke in ~3.4s,
- * still leaving the finished fan a second on screen before it goes. Slower than
- * this wants a longer `GALAXY_BEAT_MS` to sit in, not a smaller number here.
+ * `GALAXY_BEAT_MS` shortened to 3000ms cuts the budget to 2400ms, which rules
+ * out every rate below 0.45 in the table above (0.35's phone-slowest alone
+ * already blows the budget). 0.45 is the fastest rate this file measured, so it
+ * is reused rather than extrapolated past what was actually timed: a typical
+ * spoke lands in ~0.6s and the deepest phone spoke in ~2.1s, leaving ~280ms of
+ * margin before the fade. That margin is real but not generous — if a future
+ * device or dataset makes the phone-slowest spoke measurably longer than 2117px,
+ * this needs re-measuring rather than assumed to still hold.
  */
-const GALAXY_DRAW_WIDTHS_PER_S = 0.28;
+const GALAXY_DRAW_WIDTHS_PER_S = 0.45;
 
 /**
  * How many actors the cycle runs through. Sized by the visibility gate
@@ -102,21 +147,56 @@ const GALAXY_DRAW_WIDTHS_PER_S = 0.28;
  *      110   47 films     2.0%    0.0%
  *
  * `GALAXY_NO_REPEAT` then strikes a few more candidates off each beat, which at
- * ninety takes the real figure to ~6% on a desktop and ~1% on a phone — a quiet
+ * ninety took the real figure to ~6% on a desktop and ~1% on a phone — a quiet
  * beat about once every minute and a half at the wide end.
  *
- * Ninety is the balance struck, against a cast reaching down to 49 films in a
- * corpus whose median actor has five. Deeper is quieter but less famous — the
- * tail of this ordering is prolific character and voice actors rather than
- * household names, which is the known cost of deriving the cast from film count
- * instead of curating it. A silent beat is not a glitch: it is the card as it
- * was before this existed.
+ * 130 (down to 47 films, between the measured 110 and 150 rows of the same
+ * trend) trades a little more of that headroom for a bigger, more varied pool —
+ * against a corpus whose median actor has five films. Deeper is quieter but
+ * less famous — the tail of this ordering is prolific character and voice
+ * actors rather than household names, which is the known cost of deriving the
+ * cast from film count instead of curating it, and is also why `GALAXY_EXTRA_IDS`
+ * below adds a handful of actors BY NAME rather than raising this further:
+ * several current, widely recognised actors (shorter careers, so far fewer
+ * films) sit well outside any film-count cutoff a cast this size could reach. A
+ * silent beat is not a glitch: it is the card as it was before this existed.
+ *
+ * The table above is against ONE focus. There are now two independent slots
+ * (see `withGalaxyHighlight`), and whichever strikes second on any given beat
+ * additionally wants an eligible actor `GALAXY_FOCUS_MIN_SEP` away from the
+ * other slot's current one — stricter than a lone pick, though not as strict as
+ * needing two such actors AT ONCE, since the slots strike at different times.
+ * Expect a somewhat higher share of quiet or single-slot moments than the
+ * figures above, offset in part by the shorter `GALAXY_BEAT_MS` independently
+ * widening the eligible window (`SAFE_HI`). 130 has not been re-measured
+ * against the two-slot predicate; if quiet moments read as too frequent rather
+ * than as sporadic, this is the knob to lower before touching anything else.
  */
-export const GALAXY_CAST_N = 90;
+export const GALAXY_CAST_N = 130;
 
-/** spokes at the least and most prolific of the cast (see spokeCount) */
-const GALAXY_SPOKES_MIN = 12;
-const GALAXY_SPOKES_MAX = GALAXY_LINK_MAX;
+/**
+ * Spokes at the least and most prolific of the cast (see spokeCount), per
+ * focus. Halved from the pool's full `GALAXY_LINK_MAX` now that a beat lights
+ * two actors at once and they share one edge pool — each focus gets a disjoint
+ * half of the slots (see `writeSpokes`), so neither can be sized against the
+ * whole pool any more.
+ */
+const GALAXY_SPOKES_MIN = 6;
+const GALAXY_SPOKES_MAX = GALAXY_LINK_MAX / 2;
+/** the focus a spoke range belongs to gets this many of the pool's slots */
+const GALAXY_FOCUS_SLOTS = GALAXY_LINK_MAX / 2;
+/**
+ * How far apart (in `worldSpot`'s entry-plane px, the same units a spoke's own
+ * length is measured in) a slot's new pick must land from the OTHER slot's
+ * current focus before it is preferred (see `awayFrom`). Without this a slot
+ * could strike on an actor standing shoulder to shoulder with the one already
+ * showing, which reads as one clump rather than two distinct highlights, and
+ * their spoke fans would overlap into an unreadable tangle. There is no
+ * measured table behind this number the way there is for the draw rate above —
+ * it is a judgement call to revisit if the two ever land implausibly close, or
+ * if requiring this separation is starving a slot's strikes too often.
+ */
+const GALAXY_FOCUS_MIN_SEP = 220;
 
 /**
  * A spoke's ink at full envelope, over EDGE_GREY. The stroke stays the plain
@@ -157,14 +237,21 @@ export const GALAXY_FOCUS_R_MULT = 3;
  */
 export const GALAXY_FOCUS_MARGIN = 32;
 /**
- * How many recent actors a beat refuses to repeat (see pickFocus). Every one of
- * these is a candidate struck off an already narrow field, so it trades directly
- * against the silent-beat rate: four takes it from ~3% to ~6% on a desktop.
+ * How many recent focuses either slot refuses to repeat (see pickFocus). Every
+ * one of these is a candidate struck off an already narrow field, so it trades
+ * directly against the silent-strike rate: four takes it from ~3% to ~6% on a
+ * desktop (that figure predates the two-slot change above; see `GALAXY_CAST_N`).
  *
  * Worth every point of that. Four is enough to remove back-to-back repeats and
  * repeats-within-four entirely (measured over 900 beats on both viewports and
  * all three cards), and a name that comes up twice running reads as a bug in a
  * way that a quiet beat does not.
+ *
+ * One list shared by both slots rather than one each: a strike from EITHER slot
+ * unshifts one id, and the two slots strike roughly twice as often between them
+ * as a single beat used to, so this window still spans a comparable stretch of
+ * real time — about two full beat periods — even though it is now four STRIKES
+ * rather than four beats.
  */
 const GALAXY_NO_REPEAT = 4;
 /**
@@ -177,25 +264,66 @@ const GALAXY_NO_REPEAT = 4;
 const GALAXY_TARGET_DRAWS = 1500;
 
 /**
- * The cast: the most prolific actors the flight actually carries. `FIELD_IDS` is
- * already the right pool — every actor at hop 1–4 bar the intro fifteen — which
- * matters twice over: the fifteen are held OUT of the flight on `hopSeed` and
- * `outro`, so a cast clear of them stays usable if the beat ever extends to
- * those states, and the pool is the whole corpus bar the fifteen, so the beat
- * can light any actor the story ever plots.
+ * Offset folded into the second focus's target-hash seed (see `pickTargets`'s
+ * `beat` param, an integer, not the beat state object) so its fan draws from a
+ * different candidate ordering than the first focus's — otherwise both foci
+ * would walk the same `dotHash(beat * 8191 + a, 17)` sequence and tend to pick
+ * the same crowd dots in the same order. Arbitrary and large enough that the
+ * two seeds never collide across any real beat index.
+ */
+const FOCUS2_SEED = 0x2f5a;
+
+/**
+ * A handful of actors added BY NAME regardless of where film count would rank
+ * them — see the note on `GALAXY_CAST_N` above. Film count stands in for
+ * degree, but it also stands in for CAREER LENGTH, and a story aimed at a Gen Z
+ * audience should not let its highlight reel be entirely veterans and
+ * character actors just because they have been in more things. Curated by
+ * name, not by a lower threshold, the same way the scatter's `GENZ_NAMED_IDS`
+ * is: a rule ("anyone under N films but ranked above X") would let in whoever
+ * the data happens to favour instead of who the story means, and would need
+ * its own justification anyway.
+ *
+ * Looked up via `idOf`, same as every other named actor in `cast.js`: an id
+ * that stops resolving throws at import time rather than silently dropping
+ * someone from the pool.
+ */
+const GALAXY_EXTRA_IDS = [
+	idOf(1136406), // Tom Holland
+	idOf(505710), // Zendaya
+	idOf(1190668), // Timothée Chalamet
+	idOf(234352), // Margot Robbie
+	idOf(1373737), // Florence Pugh
+	idOf(1397778) // Anya Taylor-Joy
+];
+
+/**
+ * The cast: the most prolific actors the flight actually carries, plus
+ * `GALAXY_EXTRA_IDS`. `FIELD_IDS` is already the right pool — every actor at
+ * hop 1–4 bar the intro fifteen — which matters twice over: the fifteen are
+ * held OUT of the flight on `hopSeed` and `outro`, so a cast clear of them
+ * stays usable if the beat ever extends to those states, and the pool is the
+ * whole corpus bar the fifteen, so the beat can light any actor the story ever
+ * plots.
  *
  * `films` is the story's only stand-in for degree — the corpus has no co-star
- * count — and it is a fair one: an actor's co-stars scale with the films they
- * are in, which is why Samuel L. Jackson tops both. Ties break on id so the
- * order is stable across builds.
+ * count — and it is a fair one for the ranked slice: an actor's co-stars scale
+ * with the films they are in, which is why Samuel L. Jackson tops both. Ties
+ * break on id so the order is stable across builds. `Set` dedupes in case a
+ * named extra is already inside the ranked slice.
  */
-export const GALAXY_CAST = FIELD_IDS.map((id) => ({
-	id,
-	films: rawNodes.nodes[id][3]
-}))
-	.sort((a, b) => b.films - a.films || a.id - b.id)
-	.slice(0, GALAXY_CAST_N)
-	.map((c) => c.id);
+export const GALAXY_CAST = [
+	...new Set([
+		...FIELD_IDS.map((id) => ({
+			id,
+			films: rawNodes.nodes[id][3]
+		}))
+			.sort((a, b) => b.films - a.films || a.id - b.id)
+			.slice(0, GALAXY_CAST_N)
+			.map((c) => c.id),
+		...GALAXY_EXTRA_IDS
+	])
+];
 
 const CAST_FILMS = GALAXY_CAST.map((id) => rawNodes.nodes[id][3]);
 const CAST_MIN = Math.min(...CAST_FILMS);
@@ -208,21 +336,23 @@ if (CAST_MIN === CAST_MAX)
 	throw new Error(
 		`galaxy highlight: cast of ${GALAXY_CAST_N} has no spread in films (all ${CAST_MIN}), so spoke counts cannot scale`
 	);
-if (GALAXY_SPOKES_MAX > GALAXY_LINK_MAX)
+if (GALAXY_SPOKES_MAX > GALAXY_FOCUS_SLOTS)
 	throw new Error(
-		`galaxy highlight: GALAXY_SPOKES_MAX ${GALAXY_SPOKES_MAX} exceeds the edge pool's ${GALAXY_LINK_MAX}`
+		`galaxy highlight: GALAXY_SPOKES_MAX ${GALAXY_SPOKES_MAX} exceeds one focus's half of the edge pool (${GALAXY_FOCUS_SLOTS})`
 	);
 
 /**
- * Who the beat is on, for the name. Published rather than returned because the
- * reader of it is the annotation layer, which runs in `drawScene` a moment after
- * the writer — the same one-live-number arrangement `skyFlight.t` uses, and for
- * the same reason: one definition, two readers on different clocks.
+ * Who the beat is on, for the name(s). Published rather than returned because
+ * the reader of it is the annotation layer, which runs in `drawScene` a moment
+ * after the writer — the same one-live-array arrangement `skyFlight.t` uses,
+ * and for the same reason: one definition, two readers on different clocks.
  *
- * `null` whenever no name should show, which includes both ends of every beat.
- * @type {{ id: number|null }}
+ * Up to two ids, never more; empty whenever no name should show, which
+ * includes both ends of every beat and any beat that found fewer than two
+ * eligible, separated candidates.
+ * @type {{ ids: number[] }}
  */
-export const galaxyHighlight = { id: null };
+export const galaxyHighlight = { ids: [] };
 
 /**
  * The pool's endpoint table — `[from, to]` per rented slot, mutated in place so
@@ -236,7 +366,7 @@ export const galaxyLinks = {
 
 /** drops the beat, so a name cannot outlive the flight that was showing it */
 export function resetGalaxyHighlight() {
-	galaxyHighlight.id = null;
+	galaxyHighlight.ids = [];
 }
 
 // A dot has to survive its whole turn: picked inside either ramp of the flight's
@@ -380,44 +510,87 @@ const envelope = (into) =>
 /** the eligible set, hoisted so a beat's choice allocates nothing */
 /** @type {number[]} */
 const eligible = [];
+/** of `eligible`, those far enough from the other slot's current focus */
+/** @type {number[]} */
+const secondEligible = [];
+/** of `eligible`, those merely not the other slot's current focus — the
+ * fallback pool when nothing clears the separation gate */
+/** @type {number[]} */
+const nearEligible = [];
 
 /**
  * How many flights have begun — the one thing here not derived from the cast and
  * the clock. The flight's clock RESTARTS at zero on every arrival, so anything
  * keyed purely on the beat index replays the same sequence every visit.
  *
- * A counter rather than `Math.random`: stable for the life of a flight, which is
- * what matters (a re-seed mid-beat would swap the name being read), while still
- * differing between flights. Reproducible too, so the distribution stays
- * measurable.
+ * A counter rather than a fresh `Math.random()` per flight: stable for the life
+ * of a flight, which is what matters (a re-seed mid-beat would swap the name
+ * being read), while still differing between flights within the same session —
+ * a page with several galaxy cards should not open all of them on the same
+ * actor.
+ *
+ * The STARTING value used to be the fixed `0`, on the reasoning that it made the
+ * opening pick reproducible for measurement. That reasoning held only across
+ * ARTIFICIAL variation of the starting offset (which is what the old measured
+ * table in `notes/design/title-card.md` swept) — every real visitor's session
+ * re-evaluates this module fresh and always starts at the same fixed value, so
+ * a fixed `0` made the opening actor(s) at a given viewport identical on EVERY
+ * real page load, not just the first one measured. That is the actual substance
+ * of "it feels like the answer": not that beat 0 was under-eligible (fixed by
+ * `GALAXY_START_DELAY_MS` above), but that it was the same actor(s) every time,
+ * for everyone. Seeding from `Math.random()` once per module load (once per
+ * real visit) fixes that at the cost of the old measurement table no longer
+ * being reproducible from a fixed seed — re-run it with an explicit override if
+ * `GALAXY_CAST_N` or the eligibility gates ever need re-tuning.
  */
-let flightSeq = 0;
+let flightSeq = Math.floor(Math.random() * 1_000_000);
 
 /**
- * The cast member this beat lights: the next one round the cycle that can hold
- * the frame for the whole beat, skipping anyone who cannot and anyone who has
- * just had a turn.
+ * The cast member a SLOT'S beat lights: an eligible actor who can hold the
+ * frame for the whole beat, skipping anyone who cannot, anyone who has just had
+ * a turn (in either slot), and — if the other slot currently has someone lit —
+ * anyone within `GALAXY_FOCUS_MIN_SEP` of them (measured in the same world
+ * units a spoke's own length is, via `worldSpot`). Two actors picked out
+ * shoulder to shoulder would read as one clump with two names, not two distinct
+ * highlights, so the nearer candidates are set aside first and only used if
+ * nothing else is left — a slot going dark is worse than a slightly close pair.
  *
- * **Both of those guards exist because the gate is narrow, and the second one is
- * not optional.** Only a handful of the cast hold the frame at any instant, and
- * eligibility PERSISTS: an actor's usable window is about 13s against a 5s beat,
- * so a well-placed actor stays well-placed for two or three beats running. Take
- * the first eligible one from a start index that merely advances by one, and the
- * same person is picked again and again — a reader really does get John Cusack
- * three times in a row, which reads as broken rather than as random.
+ * **The no-repeat guard exists because the gate is narrow, and it is not
+ * optional.** Only a handful of the cast hold the frame at any instant, and
+ * eligibility PERSISTS: an actor's usable window is several beats long against
+ * one short beat, so a well-placed actor stays well-placed for two or three
+ * beats running. Take the first eligible one from a start index that merely
+ * advances by one, and the same person is picked again and again — a reader
+ * really does get John Cusack three times in a row, which reads as broken
+ * rather than as random.
  *
  * So the start index is HASHED per beat rather than marched, and the last
- * `GALAXY_NO_REPEAT` focuses are excluded outright. The hash alone is not enough:
- * with only a few candidates, a random start still lands on one of the same few.
- * The exclusion is what actually guarantees a different face each beat.
+ * `GALAXY_NO_REPEAT` focuses (shared across both slots) are excluded outright.
+ * The hash alone is not enough: with only a few candidates, a random start
+ * still lands on one of the same few. The exclusion is what actually
+ * guarantees a different face each beat.
  *
- * Returning null is a real answer rather than a failure: a few beats in a
- * hundred find nobody well placed and stay silent, and there is deliberately no
+ * Returning null is a real answer rather than a failure: some beats find
+ * nobody well placed and the slot goes quiet, and there is deliberately no
  * second-choice actor, because a name the reader cannot see is worse than none.
  *
- * @param {number[]} recent most-recent focus ids first (see the writer)
+ * @param {number[]} recent most-recent focus ids first, from both slots (see the writer)
+ * @param {number|null} avoidId the other slot's current focus, if it has one
+ * @returns {number|null}
  */
-function pickFocus(beat, nonce, tBeat, attrs, cx, cy, w, h, recent) {
+function pickFocus(
+	beat,
+	nonce,
+	tBeat,
+	attrs,
+	cx,
+	cy,
+	w,
+	h,
+	depthPx,
+	recent,
+	avoidId
+) {
 	eligible.length = 0;
 	for (const id of GALAXY_CAST) {
 		if (recent.includes(id) || !wrapSafe(id, tBeat)) continue;
@@ -425,17 +598,51 @@ function pickFocus(beat, nonce, tBeat, attrs, cx, cy, w, h, recent) {
 		if (focusHolds(attrs, id, g, cx, cy, w, h)) eligible.push(id);
 	}
 	if (eligible.length === 0) return null;
+	const pool =
+		avoidId == null
+			? eligible
+			: awayFrom(avoidId, tBeat, attrs, cx, cy, depthPx);
+	if (pool.length === 0) return null;
 	// dotHash is [0, 1), so this indexes the set without running off its end
 	const r = dotHash(beat * 0x9e37 + nonce * 0x85eb, 15);
-	return eligible[(r * eligible.length) | 0];
+	return pool[(r * pool.length) | 0];
+}
+
+/**
+ * `eligible`, minus `avoidId` itself, preferring those `GALAXY_FOCUS_MIN_SEP`
+ * or further from it (see `pickFocus`) and falling back to whatever is left
+ * unfiltered if that leaves nothing.
+ * @returns {number[]}
+ */
+function awayFrom(avoidId, tBeat, attrs, cx, cy, depthPx) {
+	worldSpot(attrs, avoidId, tBeat, cx, cy, depthPx, wFocus);
+	secondEligible.length = 0;
+	nearEligible.length = 0;
+	for (const id of eligible) {
+		if (id === avoidId) continue;
+		worldSpot(attrs, id, tBeat, cx, cy, depthPx, wTarget);
+		const sep = Math.hypot(
+			wTarget[0] - wFocus[0],
+			wTarget[1] - wFocus[1],
+			wTarget[2] - wFocus[2]
+		);
+		nearEligible.push(id);
+		if (sep >= GALAXY_FOCUS_MIN_SEP) secondEligible.push(id);
+	}
+	return secondEligible.length > 0 ? secondEligible : nearEligible;
 }
 
 /**
  * How many spokes an actor gets — scaled across the CAST's own film range, not
- * the corpus's. The cast is the top of a very long tail (the corpus median is 5
- * films, the cast spans ~66 to 116), so measured against the corpus every one of
- * them would sit pinned at the top and look identical. Against each other the
- * difference is the thing the beat is actually showing.
+ * the corpus's. The ranked slice is the top of a very long tail (the corpus
+ * median is 5 films, that slice alone spans ~47 to 116), so measured against
+ * the corpus every one of them would sit pinned at the top and look identical.
+ * `GALAXY_EXTRA_IDS` pulls the floor down further still (Zendaya's 11, the
+ * lowest of them) — those actors read as connected to fewer things, which is
+ * honest: it is what "fewer films" means here, not a comment on how well known
+ * they are. `GALAXY_SPOKES_MIN` keeps them a real, visible fan rather than a
+ * bare stub. Against each other the difference is the thing the beat is
+ * actually showing.
  */
 function spokeCount(id) {
 	const films = rawNodes.nodes[id][3];
@@ -460,13 +667,35 @@ function spokeCount(id) {
  * The draw cap is flat and generous rather than a multiple of the count — this
  * runs once per beat, so a few hundred rejected hashes cost nothing, and sizing
  * it per spoke is what left the most-connected actors short of their spokes.
+ *
+ * `otherFocus` keeps the second focus's fan off the first focus's own dot (and
+ * vice versa): a spoke landing on the OTHER highlighted actor would read as the
+ * two being connected to each other, which is not a claim either fan makes.
  */
-function pickTargets(count, focus, attrs, cx, cy, w, h, bleed, beat, tBeat) {
+function pickTargets(
+	count,
+	focus,
+	otherFocus,
+	attrs,
+	cx,
+	cy,
+	w,
+	h,
+	bleed,
+	beat,
+	tBeat
+) {
 	/** @type {number[]} */
 	const out = [];
 	for (let a = 0; out.length < count && a < GALAXY_TARGET_DRAWS; a++) {
 		const id = FIELD_IDS[(dotHash(beat * 8191 + a, 17) * FIELD_IDS.length) | 0];
-		if (id === focus || out.includes(id) || !wrapSafe(id, tBeat)) continue;
+		if (
+			id === focus ||
+			id === otherFocus ||
+			out.includes(id) ||
+			!wrapSafe(id, tBeat)
+		)
+			continue;
 		const g = beatGrowth(skyFrac(id, tBeat));
 		if (!targetHolds(attrs, id, g, cx, cy, w, h, bleed)) continue;
 		out.push(id);
@@ -514,57 +743,73 @@ function toCrowd(attrs, id) {
 }
 
 /**
- * A new beat. The outgoing targets go back to the crowd BEFORE the new ones are
- * chosen — their colour is the one thing nothing else restores: the flight
- * rewrites radius and alpha from its own base every frame, and the cast's grey
- * is rewritten every frame too, but a dot that was a spoke's far end and is not
- * one any more would otherwise keep the ink it was given for good. Then the
+ * A slot's new beat — one of the two independent, staggered cycles (see
+ * `withGalaxyHighlight`); the OTHER slot's own focus, if it has one, is
+ * untouched here and keeps showing through this slot's change, which is the
+ * whole point of staggering them.
+ *
+ * The outgoing targets go back to the crowd BEFORE the new ones are chosen —
+ * their colour is the one thing nothing else restores: the flight rewrites
+ * radius and alpha from its own base every frame, and the cast's grey is
+ * rewritten every frame too, but a dot that was a spoke's far end and is not
+ * one any more would otherwise keep the ink it was given for good. Then the new
  * focus, its spokes, and each spoke's REAL length at the moment it was struck —
  * the distance through the volume, not across the screen — which is what lets
  * the fan draw at one speed rather than in one duration (see writeSpokes).
  * Floored at a pixel so that ramp is always a real division: two dots in the
  * same place would otherwise give 0/0 on the beat's first tick, and a NaN in
  * this buffer spreads.
- * @param {{ index: number, focus: number|null, targets: number[], lens: number[], recent: number[] }} beat
+ *
+ * The two slots' target hashes are seeded apart (`b` vs `b + FOCUS2_SEED`) so
+ * they draw from different candidate orderings rather than picking the same
+ * crowd dots in the same sequence, on the rare beat where their `b` happens to
+ * coincide.
+ * @param {{ slots: { index: number, focus: number|null, targets: number[], lens: number[] }[], recent: number[] }} beat
+ * @param {0|1} slot which of the two independent cycles this strike is for
  * @param {{ cx: number, cy: number, w: number, h: number, bleed: import("./plot.js").Bleed, depthPx: number, nonce: number }} f the flight
  */
-function strikeBeat(beat, b, tBeat, attrs, f) {
-	beat.index = b;
-	for (const id of beat.targets) toCrowd(attrs, id);
-	beat.focus = pickFocus(
+function strikeSlot(beat, slot, b, tBeat, attrs, f) {
+	const s = beat.slots[slot];
+	const other = beat.slots[1 - slot];
+	s.index = b;
+	for (const id of s.targets) toCrowd(attrs, id);
+	s.focus = pickFocus(
 		b,
-		f.nonce,
+		f.nonce + slot * 0x6f1,
 		tBeat,
 		attrs,
 		f.cx,
 		f.cy,
 		f.w,
 		f.h,
-		beat.recent
+		f.depthPx,
+		beat.recent,
+		other.focus
 	);
-	beat.lens.length = 0;
-	if (beat.focus == null) {
-		beat.targets = [];
+	s.lens.length = 0;
+	if (s.focus == null) {
+		s.targets = [];
 		return;
 	}
-	beat.recent.unshift(beat.focus);
+	beat.recent.unshift(s.focus);
 	if (beat.recent.length > GALAXY_NO_REPEAT) beat.recent.pop();
-	beat.targets = pickTargets(
-		spokeCount(beat.focus),
-		beat.focus,
+	s.targets = pickTargets(
+		spokeCount(s.focus),
+		s.focus,
+		other.focus,
 		attrs,
 		f.cx,
 		f.cy,
 		f.w,
 		f.h,
 		f.bleed,
-		b,
+		slot === 0 ? b : b + FOCUS2_SEED,
 		tBeat
 	);
-	worldSpot(attrs, beat.focus, tBeat, f.cx, f.cy, f.depthPx, wFocus);
-	for (const id of beat.targets) {
+	worldSpot(attrs, s.focus, tBeat, f.cx, f.cy, f.depthPx, wFocus);
+	for (const id of s.targets) {
 		worldSpot(attrs, id, tBeat, f.cx, f.cy, f.depthPx, wTarget);
-		beat.lens.push(
+		s.lens.push(
 			Math.max(
 				1,
 				Math.hypot(
@@ -578,30 +823,38 @@ function strikeBeat(beat, b, tBeat, attrs, f) {
 }
 
 /**
- * The connected nodes, brought forward out of the crowd, and the focus inked —
- * by the beat's envelope `e`. Alpha is nudged from whatever the flight just
- * gave them, which is safe to do relatively because the flight rewrites it every
- * frame — but COLOUR is written absolutely, from the constants, because nothing
- * resets it per frame and a relative blend would darken the same dot again on
- * every tick until it went black. Radius is left entirely alone on the targets:
- * it is this sky's depth cue. The focus last, so it wins outright over a target
- * that happens to be one of the cast, and is never scaled twice.
+ * The connected nodes, brought forward out of the crowd, and each slot's focus
+ * inked — by that slot's OWN envelope, since the two are on independent,
+ * staggered clocks and are almost never at the same point in their beat.
+ * Alpha is nudged from whatever the flight just gave them, which is safe to do
+ * relatively because the flight rewrites it every frame — but COLOUR is
+ * written absolutely, from the constants, because nothing resets it per frame
+ * and a relative blend would darken the same dot again on every tick until it
+ * went black. Radius is left entirely alone on the targets: it is this sky's
+ * depth cue. Each slot's focus last, so it wins outright over a target that
+ * happens to be one of the cast, and is never scaled twice.
+ * @param {[number, number]} es each slot's own envelope value
  */
-function inkBeat(attrs, beat, e) {
-	const ink = e * GALAXY_TARGET_INK;
-	for (const id of beat.targets) {
-		const i = id * STRIDE;
-		attrs[i + 6] += e * (GALAXY_TARGET_ALPHA - attrs[i + 6]);
-		attrs[i + 3] = CROWD[0] + ink * (INK[0] - CROWD[0]);
-		attrs[i + 4] = CROWD[1] + ink * (INK[1] - CROWD[1]);
-		attrs[i + 5] = CROWD[2] + ink * (INK[2] - CROWD[2]);
+function inkBeat(attrs, beat, es) {
+	for (let slot = 0; slot < 2; slot++) {
+		const e = es[slot];
+		if (e <= 0) continue;
+		const s = beat.slots[slot];
+		const ink = e * GALAXY_TARGET_INK;
+		for (const id of s.targets) {
+			const i = id * STRIDE;
+			attrs[i + 6] += e * (GALAXY_TARGET_ALPHA - attrs[i + 6]);
+			attrs[i + 3] = CROWD[0] + ink * (INK[0] - CROWD[0]);
+			attrs[i + 4] = CROWD[1] + ink * (INK[1] - CROWD[1]);
+			attrs[i + 5] = CROWD[2] + ink * (INK[2] - CROWD[2]);
+		}
+		const i = /** @type {number} */ (s.focus) * STRIDE;
+		attrs[i + 2] *= 1 + e * (GALAXY_FOCUS_R_MULT - 1);
+		attrs[i + 6] += e * (1 - attrs[i + 6]);
+		attrs[i + 3] += e * (INK[0] - attrs[i + 3]);
+		attrs[i + 4] += e * (INK[1] - attrs[i + 4]);
+		attrs[i + 5] += e * (INK[2] - attrs[i + 5]);
 	}
-	const i = beat.focus * STRIDE;
-	attrs[i + 2] *= 1 + e * (GALAXY_FOCUS_R_MULT - 1);
-	attrs[i + 6] += e * (1 - attrs[i + 6]);
-	attrs[i + 3] += e * (INK[0] - attrs[i + 3]);
-	attrs[i + 4] += e * (INK[1] - attrs[i + 4]);
-	attrs[i + 5] += e * (INK[2] - attrs[i + 5]);
 }
 
 /**
@@ -617,48 +870,74 @@ function inkBeat(attrs, beat, e) {
  * is the depth the sky has and the projection alone cannot say out loud. Struck
  * against each spoke's length at its own beat, so the ramp stays strictly
  * monotone even as the flow pulls the ends apart.
- * @param {number} drawn px of volume the fan has drawn so far
+ *
+ * Each slot rents a fixed, disjoint half of the pool (`GALAXY_FOCUS_SLOTS`
+ * slots each) rather than the two sharing it by however many spokes either
+ * happens to have — a fixed split keeps one slot's spoke count from ever
+ * encroaching on the other's, and lets an empty slot simply fall back to
+ * all-empty slots below. Each slot draws against its OWN elapsed time since its
+ * own beat began, since the two clocks are staggered and rarely agree.
+ * @param {[number, number]} es each slot's own envelope value
+ * @param {[number, number]} drawn each slot's own px of volume drawn so far
  */
-function writeSpokes(attrs, beat, e, drawn) {
-	for (let k = 0; k < GALAXY_LINK_MAX; k++) {
-		const slot = GALAXY_LINK_BASE + k;
-		if (k >= beat.targets.length) {
-			setEdge(attrs, slot, 0, 0);
-			continue;
+function writeSpokes(attrs, beat, es, drawn) {
+	for (let slot = 0; slot < 2; slot++) {
+		const base = slot * GALAXY_FOCUS_SLOTS;
+		const s = beat.slots[slot];
+		const e = es[slot];
+		for (let k = 0; k < GALAXY_FOCUS_SLOTS; k++) {
+			const linkSlot = GALAXY_LINK_BASE + base + k;
+			if (s.focus == null || k >= s.targets.length) {
+				setEdge(attrs, linkSlot, 0, 0);
+				continue;
+			}
+			galaxyLinks.ends[base + k][0] = s.focus;
+			galaxyLinks.ends[base + k][1] = s.targets[k];
+			setEdge(
+				attrs,
+				linkSlot,
+				Math.min(1, drawn[slot] / s.lens[k]),
+				e * GALAXY_LINK_ALPHA
+			);
 		}
-		galaxyLinks.ends[k][0] = /** @type {number} */ (beat.focus);
-		galaxyLinks.ends[k][1] = beat.targets[k];
-		setEdge(
-			attrs,
-			slot,
-			Math.min(1, drawn / beat.lens[k]),
-			e * GALAXY_LINK_ALPHA
-		);
 	}
 }
 
 /**
  * Wraps a galaxy state's ambient writer with the highlight beat. The flight runs
  * first and untouched — it owns every dot's x, y, radius and alpha — and this
- * then re-inks one of them and rents the pool for its spokes.
+ * then re-inks up to two of them and rents the pool for their spokes.
+ *
+ * The two are on independent clocks, staggered half a beat apart
+ * (`GALAXY_SLOT_PHASE_MS`), rather than changing together: slot 0 strikes at
+ * `GALAXY_START_DELAY_MS`, `+ GALAXY_BEAT_MS`, `+ 2 * GALAXY_BEAT_MS`, …, and
+ * slot 1 at the same points shifted forward by `GALAXY_SLOT_PHASE_MS`. That
+ * gives the sequence the beat is meant to read as — one actor appears, a
+ * second joins partway through the first's turn, the first then changes while
+ * the second keeps showing, and so on — rather than both swapping in lockstep,
+ * which reads as one bigger event instead of two independent ones.
  *
  * Three things hold the ambient contract:
  *
- * At t = 0 the envelope is zero, so no spoke has alpha, the focus is lerped none
- * of the way toward ink, and the cast is written at the crowd's own colour —
- * which is precisely what the static layout produces. The card still names
- * nobody standing still, so the loop's first tick moves nothing.
+ * At `t = tBeat` a slot's envelope is zero, so its spokes have no alpha and its
+ * focus is lerped none of the way toward ink — which is precisely what the
+ * static layout produces at `t = 0`, before either slot's delay has elapsed.
+ * The card still names nobody standing still, so the loop's first tick moves
+ * nothing.
  *
- * Nothing accumulates. Positions are only ever READ, once per beat, to test a
+ * Nothing accumulates. Positions are only ever READ, once per strike, to test a
  * candidate for being on canvas; everything written is absolute, and the flight
  * overwrites radius and alpha from its own stored base every frame regardless.
+ * Both slots' clocks stay pure functions of `t` too: each slot's `tEff`/`b`/
+ * `tBeat` below only ever derive from the `t` this frame was called with,
+ * folding in its own delay as an offset rather than as separate mutable state.
  *
  * Colour is the one channel `makeFlight` leaves alone, so it is the one that
  * could persist: the cast is re-written to the crowd's grey every frame, before
- * the focus is inked, rather than the outgoing focus being restored on a beat
- * change. One write per cast member, and no way for a past focus to stay lit —
- * which a restore-on-change would not guarantee, since the buffer is never
- * re-allocated between frames and a resize rebuilds the writer mid-beat.
+ * either focus is inked, rather than an outgoing focus being restored on its
+ * slot's change. One write per cast member, and no way for a past focus to stay
+ * lit — which a restore-on-change would not guarantee, since the buffer is
+ * never re-allocated between frames and a resize rebuilds the writer mid-beat.
  *
  * @param {import("./states.js").AmbientAnim["frames"]} framesFn
  * @returns {import("./states.js").AmbientAnim["frames"]}
@@ -677,8 +956,8 @@ export function withGalaxyHighlight(framesFn) {
 		// px of volume per ms, so the fan takes the same time relative to the frame
 		// whatever the viewport
 		const drawSpeed = (skyWidth * GALAXY_DRAW_WIDTHS_PER_S) / 1000;
-		// where this card joins the cycle, so the three of them do not all open on
-		// the same actor (the clock restarts at every arrival)
+		// where this card joins the cycle, so several galaxy cards on one page do
+		// not all open on the same actor (the clock restarts at every arrival)
 		const flight = {
 			cx,
 			cy,
@@ -688,23 +967,42 @@ export function withGalaxyHighlight(framesFn) {
 			depthPx: skyWidth * GALAXY_DEPTH_SPAN,
 			nonce: flightSeq++
 		};
-		// the beat's state: who is lit, who the spokes reach, how long each spoke
-		// is, and who was lit lately — per flight, so a resize or a re-arrival
-		// starts the no-repeat window fresh, which is right: the reader is looking
-		// at a new card either way
-		const beat = { index: -1, focus: null, targets: [], lens: [], recent: [] };
+		// two independent slots: who is lit, who the spokes reach, how long each
+		// spoke is — plus one no-repeat history shared by both. Per flight, so a
+		// resize or a re-arrival starts everything fresh, which is right: the
+		// reader is looking at a new card either way
+		const beat = {
+			slots: [
+				{ index: -1, focus: null, targets: [], lens: [] },
+				{ index: -1, focus: null, targets: [], lens: [] }
+			],
+			recent: []
+		};
+		/** @type {[number, number]} */
+		const es = [0, 0];
+		/** @type {[number, number]} */
+		const drawn = [0, 0];
 		return (attrs, _trails, t) => {
 			write(attrs, _trails, t);
-			const b = Math.floor(t / GALAXY_BEAT_MS);
-			const tBeat = b * GALAXY_BEAT_MS;
-			if (b !== beat.index) strikeBeat(beat, b, tBeat, attrs, flight);
+			for (let slot = 0; slot < 2; slot++) {
+				const delay = GALAXY_START_DELAY_MS + slot * GALAXY_SLOT_PHASE_MS;
+				const tEff = Math.max(0, t - delay);
+				const b = Math.floor(tEff / GALAXY_BEAT_MS);
+				const tBeat = b * GALAXY_BEAT_MS + delay;
+				if (b !== beat.slots[slot].index) {
+					strikeSlot(beat, /** @type {0|1} */ (slot), b, tBeat, attrs, flight);
+				}
+				es[slot] = beat.slots[slot].focus == null ? 0 : envelope(t - tBeat);
+				drawn[slot] = (t - tBeat) * drawSpeed;
+			}
 			for (const id of GALAXY_CAST) toCrowd(attrs, id);
-			const e = beat.focus == null ? 0 : envelope(t - tBeat);
-			if (e > 0) inkBeat(attrs, beat, e);
-			writeSpokes(attrs, beat, e, (t - tBeat) * drawSpeed);
-			// the name rides its dot's alpha in the annotation layer, so this only
-			// has to say WHO — and say nobody at both ends of the beat
-			galaxyHighlight.id = e > 0 ? beat.focus : null;
+			if (es[0] > 0 || es[1] > 0) inkBeat(attrs, beat, es);
+			writeSpokes(attrs, beat, es, drawn);
+			// the names ride their dots' alpha in the annotation layer, so this only
+			// has to say WHO — and say nobody where a slot's envelope is closed
+			galaxyHighlight.ids = beat.slots
+				.filter((_, slot) => es[slot] > 0)
+				.map((s) => /** @type {number} */ (s.focus));
 		};
 	};
 }
