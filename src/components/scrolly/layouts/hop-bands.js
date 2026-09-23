@@ -1,8 +1,9 @@
 import rawNodes from "$data/scrolly-nodes.json";
 import story from "$data/scrolly-story.json";
-import { ANCHOR_ID, INTRO_IDS, hash01 } from "../nodes.js";
+import PoissonDiskSampling from "poisson-disk-sampling";
+import { ANCHOR_ID, INTRO_IDS, dotHash, hash01 } from "../nodes.js";
 import { ATTR_SIZE, DELAY_SIZE, set } from "../attr-buffer.js";
-import { SKY_IDS, isIntroActor } from "../cast.js";
+import { HOP_CYCLE_IDS, SKY_IDS, isIntroActor } from "../cast.js";
 import {
 	NETWORK_HOP_DELAY_MS,
 	NETWORK_INTRO_RADIUS,
@@ -33,15 +34,13 @@ import { withGalaxyHighlight } from "../galaxy-highlight.js";
 // neighbouring degrees read as one gradient rather than four rows — hop 2's
 // blue and hop 3's cyan are the pair that blend.
 const BAND_GAP = 12;
-// hop 4 is a handful of pixels at every viewport; this is what keeps it drawn
-const MIN_BAND_H = 4;
 
 // How thick a row is, for whichever actor the stack is anchored on.
 //
 // Bacon's rows are the on-screen SAMPLE's shares, which is what they have always
 // been: the sample oversamples hop 1 and hop 4 — 3.4% and 0.6% of it against
 // 1.0% and 0.08% of the corpus — so those two rows stay legible instead of
-// collapsing onto MIN_BAND_H, while the number printed beside each row cites the
+// shrinking to a single row of dots, while the number printed beside each row cites the
 // corpus. That split is deliberate and this chart is built on it.
 //
 // Another actor's rows are Bacon's, scaled by how their corpus split differs
@@ -79,13 +78,13 @@ function anchorShares(counts, anchorId) {
 	return weights.map((weight) => weight / total);
 }
 
-/** the on-screen crowd per hop, index = hop — the sample the rows are scaled
- * from, and the quota that deals dots into them */
-function sampleCounts(nodes) {
-	const counts = [0, 0, 0, 0, 0];
-	for (const n of nodes) counts[n.hop]++;
-	return counts;
-}
+/** a sample dot's own distance from Bacon */
+const hopOf = (id) => rawNodes.nodes[id][2];
+
+/** the whole sample per hop, index = hop — what the rows are scaled from, and
+ * what the dots on show are drawn from in proportion (see shownDots) */
+const SAMPLE_COUNTS = [0, 0, 0, 0, 0];
+for (let id = 0; id < rawNodes.nodes.length; id++) SAMPLE_COUNTS[hopOf(id)]++;
 
 /**
  * The column one dot sets off from when it leaves the sky — hopSeed's, which
@@ -153,54 +152,97 @@ const BANDS_TOP = TOP + HEADER_H + BAND_GAP;
  * this chart has neither to clear — the prose lies over it at every width. */
 const bandsHeight = (h) => h - MARGIN - BANDS_TOP - BAND_GAP * 3;
 
-/** the px² the rows come to between them — the crowd's whole canvas, since a
- * dot's column spans the bands and its row spans the stack */
-const bandArea = (x0, x1, bandsH) => (x1 - x0) * bandsH;
-
-// What the crowd's ink comes to, as a multiple of the band area it is packed
-// into. Held constant instead of the RADIUS, which is what makes the chart read
-// the same at every box.
+// The crowd stands on a blue-noise scatter: every dot the same size, no two
+// touching, and no rows or columns for the eye to find. Seats are dealt by
+// Poisson-disc sampling, so no two seats are nearer than a dot's width plus the
+// gap, and the space between them varies, the way it does in a crowd. A
+// lattice packs tighter, but it reads as a honeycomb.
 //
-// Coverage is already uniform across the four ROWS by construction: a row's
-// height is proportional to its dot count, so every one of them carries the
-// same ink per px² and the only thing that distinguishes them is thickness.
-// What is not uniform is the BOX. The bands span the whole screen, so a phone's
-// come to a fraction of a desktop's area and hold the same 22,500 dots; a fixed
-// radius would put them at many times the desktop's coverage — far past the
-// point where any alpha survives, and the rows stop reading as a crowd and
-// become four blocks of flat colour.
-//
-// The number is the coverage the side-by-side column's 3px dot gave, when the
-// bands still stopped at the reading column. A wider box grows the dot to hold
-// it and a narrower one shrinks it, so the rows read at the same density on
-// every screen.
-const CROWD_COVERAGE = 1.772;
+// The dot's SIZE is what's held constant across boxes, not the ink it comes to:
+// a phone's rows hold fewer dots than a desktop's (see crowdSeats) rather than
+// the same dots drawn smaller. Every one of the sample's 22,500 would come to
+// about a pixel across on a phone, so this chart shows a proportional subset of
+// them and the rest fade out as they fall (see shownDots).
+export const CROWD_DOT_R = 3;
+// the least clear space between neighbours, edge to edge
+export const DOT_GAP = 0.5;
+// the least distance between two seats, centre to centre
+const SEAT_SPACING = CROWD_DOT_R * 2 + DOT_GAP;
 
-/** the radius that puts CROWD_COVERAGE times `area` of ink on the canvas,
- * spread over `count` dots */
-const crowdDotR = (area, count) =>
-	Math.sqrt((CROWD_COVERAGE * area) / (Math.PI * count));
+// a few boxes' seats, most recent last: a drag-resize strikes a new box on
+// every frame, and there is no reason to keep them all
+const SEAT_CACHE_SIZE = 8;
+const seatCache = new Map();
 
 /**
- * The rows: the header band for the anchor, then hops 1–4 sized by the shares
- * they are handed, out of whatever the three gaps between them leave behind.
- * The gap is reserved BEFORE the shares are struck rather than taken back out of
- * each band, so it is real whitespace and every band still gets its honest share
- * of what's left.
+ * Every seat the four bands have at this box, top to bottom: one fixed scatter
+ * across the bands' whole area, struck once per box and never re-dealt.
  *
- * @param {number[]} shares the anchor's four row weights (see anchorShares)
- * @param {number} bandsH the height the four rows share (see bandsHeight)
+ * The rows are cuts through it, in this order (see layoutHopBands): the first
+ * row takes the top so many seats, the next the so many after them, and each
+ * row below is moved down a BAND_GAP further than the one above. Seats are
+ * sorted by height, so everything above a cut is above everything below it, and
+ * moving the lower part down only pulls the two apart; no two dots can come to
+ * overlap across a cut. An anchor turn moves the cuts and not the seats, so
+ * only the dots near a moving cut change rows, and every other dot stays put.
+ *
+ * Seeded off `dotHash` (a sine hash stepped by one repeats; see its note), so
+ * the same box always gets the same seats: goldens hash this layout, and the
+ * render layer caches it.
+ * @returns {number[][]} [x, y] per seat, y measured from the top of the bands
+ */
+function crowdSeats(x0, x1, h) {
+	const key = `${x0},${x1},${h}`;
+	if (!seatCache.has(key)) {
+		let draw = 0;
+		const sampler = new PoissonDiskSampling(
+			{
+				shape: [x1 - x0 - CROWD_DOT_R * 2, bandsHeight(h) - CROWD_DOT_R * 2],
+				minDistance: SEAT_SPACING
+			},
+			() => dotHash(draw++, 24)
+		);
+		const seats = sampler
+			.fill()
+			.map(([x, y]) => [x0 + CROWD_DOT_R + x, CROWD_DOT_R + y])
+			.sort((a, b) => a[1] - b[1] || a[0] - b[0]);
+		seatCache.set(key, seats);
+		if (seatCache.size > SEAT_CACHE_SIZE)
+			seatCache.delete(seatCache.keys().next().value);
+	}
+	return seatCache.get(key);
+}
+
+/** how far down a row's seats are moved: a BAND_GAP per row above it */
+const bandOffset = (band) => BANDS_TOP + (band - 1) * BAND_GAP;
+
+/**
+ * The rows: the header band for the anchor, then hops 1–4, each running from
+ * its top seat to its bottom one. A row with nobody in it (an anchor with
+ * nobody at that distance) is a dot's height at the foot of the row above, so
+ * its label still has somewhere to hang.
+ *
+ * @param {number[][]} seats the box's seats (see crowdSeats)
+ * @param {number[]} cuts seats spent by the end of each row (see bandCuts)
  * @returns {{ bandTop: number[], bandH: number[] }} per hop, index = hop
  */
-function bandGeometry(shares, bandsH) {
+function bandGeometry(seats, cuts) {
 	const bandTop = [TOP];
 	const bandH = [HEADER_H];
-	let y = BANDS_TOP;
+	let foot = BANDS_TOP - BAND_GAP;
 	for (let hop = 1; hop <= 4; hop++) {
-		const share = shares[hop - 1] * bandsH;
-		bandTop[hop] = y;
-		bandH[hop] = Math.max(share, MIN_BAND_H);
-		y += share + BAND_GAP;
+		const first = hop > 1 ? cuts[hop - 2] : 0;
+		const last = cuts[hop - 1];
+		const top =
+			last > first
+				? bandOffset(hop) + seats[first][1] - CROWD_DOT_R
+				: foot + BAND_GAP;
+		foot =
+			last > first
+				? bandOffset(hop) + seats[last - 1][1] + CROWD_DOT_R
+				: top + CROWD_DOT_R * 2;
+		bandTop[hop] = top;
+		bandH[hop] = foot - top;
 	}
 	return { bandTop, bandH };
 }
@@ -229,32 +271,107 @@ function placeAnchor(attrs, id, f, arriving) {
 	);
 }
 
+// `seed` parks every node at its band position but invisible — what sits
+// behind hopSeed's zoomed-out network, so the fifteen the network draws are the
+// only actors with any distance left to travel there
+const bandAlpha = (f) => (f.seed ? 0 : HOP_DOT_ALPHA);
+
 /**
- * One actor's dot in a band, jittered within it.
+ * The dots on show in seat order: the dot at index k sits in seat k, whichever
+ * actor is anchoring.
  *
- * The band is passed rather than read off the node, because it is only the
- * node's own degree while Bacon is anchoring: for anyone else the rows are a
- * corpus split this sample cannot answer per dot, so bands are handed out by
- * quota instead (see BAND_ORDER).
+ * The order is struck on Bacon's rows. Each row's dots are ranked by the column
+ * they leave the sky in (`departureColumn`) and its seats by x, and the two are
+ * paired off, so each dot falls into a seat near its own column and the sort
+ * still reads as the sky raining straight down.
  *
- * @param {number} band which hop row, 1–4
- * @param {{ w: number, h: number, x0: number, x1: number, skyBox: number[],
- *   bandTop: number[], bandH: number[], r: number, seed: boolean }} f the frame
+ * Every other anchor seats the same list, which is what keeps a turn calm. The
+ * rows are cuts through the list and through the seats alike (see bandCuts), so
+ * when a cut moves, the dots it passes keep their seats and only move a
+ * BAND_GAP into the next row, and nobody else moves at all. The anchor going up
+ * to the header leaves its seat to Bacon, who comes down into the crowd. A
+ * searched anchor who is not on show leaves no seat, so Bacon takes the spare
+ * one at the foot (see shownDots).
+ *
+ * @param {Uint8Array} shown 1 per dot on show, indexed by id
+ * @returns {number[]} ids, index = seat
  */
-function placeInBand(attrs, id, band, f) {
+function seatOrder(shown, f) {
+	const bacon = dealBands(
+		BAND_ORDER.filter((id) => shown[id] && id !== ANCHOR_ID),
+		anchorShares(SAMPLE_COUNTS, ANCHOR_ID)
+	);
+	const order = [];
+	for (let band = 1; band <= 4; band++) {
+		const from = order.length;
+		const seats = bacon[band]
+			.map((_, k) => from + k)
+			.sort((a, b) => f.seats[a][0] - f.seats[b][0]);
+		bacon[band]
+			.map((id) => ({ id, x: departureColumn(id, f) }))
+			.sort((a, b) => a.x - b.x || a.id - b.id)
+			.forEach(({ id }, k) => (order[seats[k]] = id));
+	}
+	return order;
+}
+
+/**
+ * The dots on show for this anchor, in seat order: Bacon's order with the
+ * anchor taken out and Bacon put back in (see seatOrder).
+ */
+function seatedFor(order, anchorId) {
+	if (anchorId === ANCHOR_ID) return order;
+	const seat = order.indexOf(anchorId);
+	if (seat < 0) return [...order, ANCHOR_ID];
+	return order.map((id, k) => (k === seat ? ANCHOR_ID : id));
+}
+
+/**
+ * Seats the dots on show, each in the seat its index names, drawn in the row
+ * its seat falls in.
+ *
+ * The row is the seat's and not the node's own degree, because that is only
+ * the node's degree while Bacon is anchoring: for anyone else the rows are a
+ * corpus split this sample cannot answer per dot, so they are handed out by
+ * quota instead (see BAND_ORDER).
+ * @param {number[]} seated ids, index = seat
+ * @param {number[]} cuts seats spent by the end of each row (see bandCuts)
+ */
+function seatCrowd(attrs, delays, seated, cuts, f) {
+	let band = 1;
+	seated.forEach((id, k) => {
+		while (band < 4 && k >= cuts[band - 1]) band++;
+		const [x, y] = f.seats[k];
+		set(
+			attrs,
+			id,
+			x,
+			bandOffset(band) + y,
+			CROWD_DOT_R,
+			HOP_RGB[band],
+			bandAlpha(f)
+		);
+		delays[id] = bandDelay(id, band);
+	});
+}
+
+/**
+ * A dot this chart does not show: it falls into the band the whole crowd's
+ * quota puts it in, from the column it leaves the sky in, fading out as it
+ * goes — so the sort off the sky thins the crowd as it lands instead of
+ * dropping dots on the spot.
+ */
+function placeHidden(attrs, delays, id, band, f) {
 	set(
 		attrs,
 		id,
-		// the column the dot leaves hopSeed's sky in, parallax and all
 		departureColumn(id, f),
 		f.bandTop[band] + hash01(id, 4) * f.bandH[band],
-		f.r,
+		CROWD_DOT_R,
 		HOP_RGB[band],
-		// `seed` parks every node at its band position but invisible — what
-		// sits behind hopSeed's zoomed-out network, so the fifteen the network
-		// draws are the only actors with any distance left to travel there
-		f.seed ? 0 : HOP_DOT_ALPHA
+		0
 	);
+	delays[id] = bandDelay(id, band);
 }
 
 // How far below its row's top edge a label hangs, at most. A thin row is
@@ -275,16 +392,16 @@ function hopLegend(labels, f) {
 	}));
 }
 
-/** the bands' horizontal span, the sky the crowd arrives from, and the size a
- * dot is at this box. Struck once, outside the dot loop.
+/** the bands' horizontal span, the sky the crowd arrives from, and the seats
+ * at this box. Struck once, outside the dot loop; the rows' geometry is added
+ * once the dots on show have been dealt (see layoutHopBands).
  *
  * The span is the screen's, not the reading column's (`screenSpan`: edge to
  * edge up to a cap, centred on the screen), and the prose lies over it
  * (`proseOver` below). `.scrolly-visual`'s box is untouched — the canvas
  * element already reaches the viewport's edges, so widening the chart is a
  * matter of authoring into the bleed. */
-function bandFrame(w, h, bleed, shares, count, seed = false) {
-	const bandsH = bandsHeight(h);
+function bandFrame(w, h, bleed, seed = false) {
 	const [x0, x1] = screenSpan(w, bleed);
 	return {
 		w,
@@ -293,8 +410,7 @@ function bandFrame(w, h, bleed, shares, count, seed = false) {
 		x1,
 		skyBox: galaxyBox(w, h, bleed),
 		seed,
-		r: crowdDotR(bandArea(x0, x1, bandsH), count),
-		...bandGeometry(shares, bandsH)
+		seats: crowdSeats(x0, x1, h)
 	};
 }
 
@@ -316,6 +432,10 @@ function bandFrame(w, h, bleed, shares, count, seed = false) {
 // its own distance. Nothing labels a crowd dot — the only name here is the
 // anchor's — so it is not a claim the chart makes to anybody; it is written down
 // because it is the one thing the chart says less than it looks like it does.
+//
+// Only a subset of the crowd is on show (see shownDots): as many as the box
+// seats, drawn from each degree in proportion. The rest are dealt by the
+// same quota, fall into their rows unseen and are drawn at alpha 0.
 // ---------------------------------------------------------------------------
 
 /**
@@ -334,7 +454,7 @@ function bandFrame(w, h, bleed, shares, count, seed = false) {
  */
 const BAND_ORDER = rawNodes.nodes
 	.map((_, id) => id)
-	.sort((a, b) => rawNodes.nodes[a][2] - rawNodes.nodes[b][2] || a - b);
+	.sort((a, b) => hopOf(a) - hopOf(b) || a - b);
 
 /**
  * Where the three boundaries fall, as counts of dots spent by the end of each
@@ -366,33 +486,90 @@ const bandDelay = (id, band) =>
 	band * NETWORK_HOP_DELAY_MS + hash01(id, 5) * 400;
 
 /**
- * Everyone but the anchor, who is standing in the header row: one pass down
- * BAND_ORDER, moving to the next row as each cut is spent.
- * @param {number[]} cuts dots spent by the end of each band (see bandCuts)
+ * `ids`, in their BAND_ORDER order, split into the four rows: one pass down the
+ * list, moving to the next row as each cut is spent.
+ * @param {number[]} ids the dots to deal, in BAND_ORDER order
+ * @param {number[]} shares the anchor's four row weights (see anchorShares)
+ * @returns {number[][]} the dots per row, index = hop (index 0 is empty)
  */
-function dealBands(attrs, delays, cuts, anchorId, frame) {
-	let dealt = 0;
+function dealBands(ids, shares) {
+	const cuts = bandCuts(shares, ids.length);
+	const bands = [[], [], [], [], []];
 	let band = 1;
-	for (const id of BAND_ORDER) {
-		if (id === anchorId) continue;
+	ids.forEach((id, dealt) => {
 		while (band < 4 && dealt >= cuts[band - 1]) band++;
-		placeInBand(attrs, id, band, frame);
-		delays[id] = bandDelay(id, band);
-		dealt++;
-	}
+		bands[band].push(id);
+	});
+	return bands;
+}
+
+// The anchors the cycle turns through, who drop out of the header into a band
+// and climb back up on every turn — so they are always among the dots on show,
+// and the reader never watches one fade out as it lands.
+const FEATURED = new Set(HOP_CYCLE_IDS);
+
+/** each hop's dots in the order they are picked to be shown: the featured
+ * anchors first, then by a fixed hash. Struck once, at module scope. */
+const SHOW_ORDER = [1, 2, 3, 4].map((hop) =>
+	BAND_ORDER.filter((id) => hopOf(id) === hop).sort(
+		(a, b) =>
+			Number(FEATURED.has(b)) - Number(FEATURED.has(a)) ||
+			hash01(a, 23) - hash01(b, 23)
+	)
+);
+
+/**
+ * Which dots this chart shows at a box of `capacity` seats: Bacon, and
+ * `capacity − 1` more drawn from each hop in proportion to the sample.
+ *
+ * The draw is by each dot's own distance from Bacon, cut with the same
+ * `bandCuts` Bacon's rows are, so anchored on him every row holds exactly its
+ * share of the dots on show and each of them is in its own degree. It depends
+ * on the box and nothing else — not the anchor — so an anchor turn moves the
+ * dots on show between rows and never swaps one for another.
+ *
+ * At most `capacity` are ever dealt into the rows: `capacity − 1` when the
+ * anchor is one of them and has gone up to the header, `capacity` when a
+ * searched anchor is not and Bacon drops into a row. So the one seat left
+ * over while an anchor on show is up in the header is where Bacon sits when a
+ * searched one is not (see seatedFor).
+ * @returns {Uint8Array} 1 per dot on show, indexed by id
+ */
+function shownDots(capacity) {
+	const shown = new Uint8Array(rawNodes.nodes.length);
+	shown[ANCHOR_ID] = 1;
+	const cuts = bandCuts(
+		anchorShares(SAMPLE_COUNTS, ANCHOR_ID),
+		Math.max(0, capacity - 1)
+	);
+	SHOW_ORDER.forEach((ids, k) => {
+		const quota = cuts[k] - (k > 0 ? cuts[k - 1] : 0);
+		for (const id of ids.slice(0, quota)) shown[id] = 1;
+	});
+	return shown;
 }
 
 /** @type {import("../layout-types.js").LayoutFn} */
-function layoutHopBands(nodes, w, h, _edges, params, bleed = NO_BLEED) {
+function layoutHopBands(_nodes, w, h, _edges, params, bleed = NO_BLEED) {
 	const { seed = false, anchorId = ANCHOR_ID, arriving = false } = params ?? {};
-	const counts = sampleCounts(nodes);
-	const shares = anchorShares(counts, anchorId);
+	const shares = anchorShares(SAMPLE_COUNTS, anchorId);
 	const attrs = new Float64Array(ATTR_SIZE);
 	const delays = new Float64Array(DELAY_SIZE);
-	const frame = bandFrame(w, h, bleed, shares, nodes.length - 1, seed);
+	const base = bandFrame(w, h, bleed, seed);
+	const shown = shownDots(base.seats.length);
+	const seated = seatedFor(seatOrder(shown, base), anchorId);
+	const cuts = bandCuts(shares, seated.length);
+	const frame = { ...base, ...bandGeometry(base.seats, cuts) };
 	placeAnchor(attrs, anchorId, frame, arriving);
 	delays[anchorId] = bandDelay(anchorId, 0);
-	dealBands(attrs, delays, bandCuts(shares, nodes.length - 1), anchorId, frame);
+	seatCrowd(attrs, delays, seated, cuts, frame);
+	dealBands(
+		BAND_ORDER.filter((id) => id !== anchorId),
+		shares
+	).forEach((ids, band) => {
+		for (const id of ids)
+			if (!shown[id]) placeHidden(attrs, delays, id, band, frame);
+	});
 	// the seed frame carries no reveal choreography or legend — it only
 	// pre-positions the crowd behind hopSeed's network
 	if (seed) return { attrs };

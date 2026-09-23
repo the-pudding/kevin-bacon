@@ -80,6 +80,7 @@
 	},
 	"browserslist": "> 0.5%, last 4 versions, not ie <= 11, not ie_mob <= 11",
 	"dependencies": {
-		"@supabase/supabase-js": "^2.116.0"
+		"@supabase/supabase-js": "^2.116.0",
+		"poisson-disk-sampling": "^2.3.1"
 	}
 }
