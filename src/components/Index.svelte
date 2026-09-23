@@ -90,10 +90,12 @@
 	// and it simply carries on across the step change into step 2, which is the
 	// same state with different words.
 	//
-	// TOUR_MS is step 6's beat as well: both are one line of chart to read, and
-	// both sit on top of the same 450ms param tween the canvas answers a store
-	// write with (PARAM_TWEEN_MS in ScrollyVisual).
-	const TOUR_MS = 3400; // ~3s to read, on top of the 450ms highlight tween
+	// TOUR_MS is step 6's beat as well: both are one line of chart to read. Step
+	// 6 answers a store write with the 450ms param tween (PARAM_TWEEN_MS in
+	// ScrollyVisual); here the old route fades for 400ms, the bare network
+	// holds for 350ms and the new one walks in to Bacon at 700ms a movie
+	// (routeWalk in layouts/intro.js), so a two-movie route takes 2.15s of it.
+	const TOUR_MS = 3400; // ~1.25-1.95s to read, after the route has walked in
 	// The beat the whole constellation gets before anything is picked out of it.
 	// The network has just finished drawing itself and the step's paragraph has
 	// just landed; lighting a route straight away asks the reader to follow a

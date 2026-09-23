@@ -76,13 +76,23 @@ function variants(state) {
 
 /** the layout's whole output, as hashes — buffers by bytes, decor by JSON */
 function summarise(layout) {
-	const { attrs, trails, delays, trailDelays, ...decor } = layout;
+	const { attrs, trails, delays, paramWalk, trailDelays, ...decor } = layout;
 	return {
 		attrs: hashOf(attrs),
 		trails: trails ? hashOf(trails) : null,
 		delays: delays ? hashOf(delays) : null,
 		trailDelays: trailDelays ? hashOf(trailDelays) : null,
-		decor: hashOf(Buffer.from(JSON.stringify(decor)))
+		decor: hashOf(Buffer.from(JSON.stringify(decor))),
+		// only the layouts that author a retarget schedule carry the key
+		...(paramWalk && {
+			paramWalk: {
+				clear: hashOf(paramWalk.clear),
+				fadeMs: paramWalk.fadeMs,
+				ms: paramWalk.ms,
+				windows: hashOf(paramWalk.windows),
+				labelAt: paramWalk.labelAt
+			}
+		})
 	};
 }
 

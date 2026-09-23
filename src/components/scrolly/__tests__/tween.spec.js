@@ -55,6 +55,32 @@ describe("createTweener", () => {
 		expect(queue.size).toBe(0);
 	});
 
+	test("windows chain groups linearly, with no stall at the join", () => {
+		const { tw } = make();
+		const done = vi.fn();
+		tw.to(
+			Float64Array.of(1, 1),
+			100,
+			0,
+			null,
+			done,
+			Float64Array.of(0, 0.5, 0.5, 1)
+		);
+		// each group runs linearly through its half: the first is half done a
+		// quarter of the way in, and hands over to the second at the half
+		tick(25);
+		expect(tw.current[0]).toBeCloseTo(0.5, 6);
+		expect(tw.current[1]).toBe(0);
+		tick(50);
+		expect(tw.current[0]).toBeCloseTo(1, 6);
+		expect(tw.current[1]).toBeCloseTo(0, 6);
+		tick(75);
+		expect(tw.current[1]).toBeCloseTo(0.5, 6);
+		tick(100);
+		expect(Array.from(tw.current)).toEqual([1, 1]);
+		expect(done).toHaveBeenCalledTimes(1);
+	});
+
 	test("authored delays hold a group at its start until its clock begins", () => {
 		const { tw } = make();
 		tw.to(Float64Array.of(10, 10), 100, 0, Float64Array.of(0, 50));

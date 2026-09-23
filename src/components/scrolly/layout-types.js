@@ -83,6 +83,12 @@
  * @property {Float64Array} attrs ATTR_SIZE values, STRIDE per node + STRIDE per edge
  * @property {Float64Array} [delays] DELAY_SIZE per-node/per-edge start delays in ms;
  *   omitted = tweener applies its default hashed jitter
+ * @property {{ clear: Float64Array, fadeMs: number, ms: number, windows: Float64Array, labelAt: [number, number][] }} [paramWalk]
+ *   a retarget within the state (a params change) run in two stages: a
+ *   `fadeMs` tween to the `clear` frame, then a walk of `ms` with each group on
+ *   its `[from, to]` share of it (see the tweener's `windows`), each `labelAt`
+ *   name held until its ms from the retarget; omitted = a
+ *   PARAM_TWEEN_MS tween with everything moving at once
  * @property {Float64Array} [trails] TRAIL_SIZE polyline vertices + alpha +
  *   highlight per trail; omitted = trails fade out in place
  * @property {Float64Array} [trailDelays] per-trail start delays in ms

@@ -105,8 +105,17 @@ const ROUTE_RADIUS = 7; // the hub(s) their route passes through
 // (the route goes ink and thick against the crowd's grey), so this only has to
 // push them back, not hide them.
 const DIM_ALPHA = 0.6;
-const ROUTE_EDGE_ALPHA = 0.95;
+// Every link with a route lit, the route's own included: the route is the ink
+// drawn OVER its links (render.js's drawEdges), so the line under it stays as
+// quiet as the rest and the ink is the only thing that travels.
 const DIM_EDGE_ALPHA = 0.2; // enough that the network still reads as connected
+// one movie's leg of a route walk, so a two-movie route takes twice as long as
+// a one-movie one and the line travels at the same pace on both
+const ROUTE_LEG_MS = 700;
+// the route being left fades out over this, all of it — the parts it shares
+// with the new route included — and the new one waits out the gap after
+const ROUTE_FADE_MS = 400;
+const ROUTE_GAP_MS = 350;
 // hit regions: square, centred on the dot, sized off the tightest gap in the
 // fitted layout so boxes never overlap (a 360px viewport squeezes the graph hard)
 const HIT_MIN = 26;
@@ -170,7 +179,7 @@ export function writeNetwork(
 	}
 	for (let e = 0; e < EDGE_COUNT; e++) {
 		const onRoute = routeEdges.has(e);
-		setEdge(attrs, e, 1, edgeAlpha(focus, onRoute) * edgeFade, onRoute ? 1 : 0);
+		setEdge(attrs, e, 1, edgeAlpha(focus) * edgeFade, onRoute ? 1 : 0);
 	}
 	return pos;
 }
@@ -197,13 +206,9 @@ function introDot(id, n, focus, routeNodes) {
 	return { r, rgb: CROWD, alpha: DIM_ALPHA };
 }
 
-/** a link's alpha: the constellation's own at rest, and with a route lit, the route's or the dimmed rest's */
-const edgeAlpha = (focus, onRoute) =>
-	focus == null
-		? INTRO_EDGE_ALPHA
-		: onRoute
-			? ROUTE_EDGE_ALPHA
-			: DIM_EDGE_ALPHA;
+/** a link's alpha: the constellation's own at rest, dimmed with a route lit */
+const edgeAlpha = (focus) =>
+	focus == null ? INTRO_EDGE_ALPHA : DIM_EDGE_ALPHA;
 
 // The full intro frame: the constellation, with every other node parked at the
 // scatter spot a later chapter wants it at (alpha 0).
@@ -304,17 +309,96 @@ const INTRO_WALK_MS =
 	INTRO_DELAYS.reduce((m, d) => Math.max(m, d), 0) + INTRO_LINE_MS;
 
 /**
+ * A picked-out route's walk, in two stages. First every route clears (`clear`,
+ * over `fadeMs`): the one being left fades out where it lies, ALL of it, since
+ * a co-star or a line it shares with the new route would otherwise sit there
+ * lit while the new route draws into it. Then, after ROUTE_GAP_MS on the bare
+ * network, the line travels from the actor in to Bacon, one movie per leg, at
+ * a constant rate and straight on through every co-star between (see the
+ * tweener's `windows`). The lines leaving the actor all draw at once — every
+ * co-star they reach Bacon through, Margot Robbie's three included — and the
+ * lines from those co-stars on to Bacon pick up where they land. A co-star
+ * inks up and grows with the line arriving at it, the reveal's own rule, and
+ * their name waits for it (`labelAt`). The actor themselves needs no line to
+ * arrive: they ink up and grow while the old route fades, as their name
+ * appears.
+ * @param {Float64Array} attrs the frame the walk lands on
+ * @param {import("../nodes.js").ActorNode[]} nodes
+ * @param {number} focus
+ * @returns {{ clear: Float64Array, fadeMs: number, ms: number, windows: Float64Array, labelAt: [number, number][] }}
+ *   the cleared frame and how long it takes to reach, then the walk's length
+ *   and each group's `[from, to]` share of it (two per DELAY_SIZE slot), and
+ *   when each co-star's name is released, in ms from the retarget
+ */
+export function routeWalk(attrs, nodes, focus) {
+	const legs = introDistance(focus);
+	const ms = ROUTE_GAP_MS + legs * ROUTE_LEG_MS;
+	const windows = new Float64Array(DELAY_SIZE * 2);
+	const span = (slot, fromMs, toMs) =>
+		windows.set([fromMs / ms, toMs / ms], slot * 2);
+	const leg = (slot, k) =>
+		span(
+			slot,
+			ROUTE_GAP_MS + k * ROUTE_LEG_MS,
+			ROUTE_GAP_MS + (k + 1) * ROUTE_LEG_MS
+		);
+	// off the route nothing changes between the cleared frame and this one
+	for (let slot = 0; slot < DELAY_SIZE; slot++) span(slot, 0, ROUTE_GAP_MS);
+	// a segment runs outward-in, so `from` is the end its leg sets off from
+	for (const { edge, from } of routesTo(focus).flat()) {
+		leg(NODE_COUNT + edge, legs - introDistance(from));
+	}
+	/** @type {[number, number][]} */
+	const labelAt = [];
+	for (const id of routeActors(focus)) {
+		if (id === ANCHOR_ID || id === focus) continue;
+		const k = legs - introDistance(id) - 1;
+		leg(id, k);
+		labelAt.push([id, ROUTE_FADE_MS + ROUTE_GAP_MS + (k + 1) * ROUTE_LEG_MS]);
+	}
+	return {
+		clear: clearedRoute(attrs, nodes, focus),
+		fadeMs: ROUTE_FADE_MS,
+		ms,
+		windows,
+		labelAt
+	};
+}
+
+/**
+ * `attrs` with `focus`'s route taken back out: its co-stars dimmed with the
+ * rest and its lines uncovered — the network the new route draws onto. The
+ * actor keeps their landed look, so they take it on as their name appears.
+ */
+function clearedRoute(attrs, nodes, focus) {
+	const clear = attrs.slice();
+	const none = new Set();
+	for (const id of routeActors(focus)) {
+		if (id === focus) continue;
+		const i = id * STRIDE;
+		const { r, rgb, alpha } = introDot(id, nodes[id], focus, none);
+		set(clear, id, clear[i], clear[i + 1], r, rgb, alpha);
+	}
+	for (const { edge } of routesTo(focus).flat()) clear[edgeIndex(edge) + 2] = 0;
+	return clear;
+}
+
+/**
  * The constellation, at rest: the frame the layered walk above grows INTO, and
  * the one the tour then picks routes out of. `delays` is that walk — the
  * arrival's own schedule on the two ways in that play it (see the state's
  * `revealFrom`); every other arrival lands on this frame in one tween.
+ * `paramWalk` is the route walk a focus change retargets on (routeWalk);
+ * with nothing picked out there is no walk, and the tour's neutral frame comes
+ * back in one tween.
  * @type {import("../layout-types.js").LayoutFn}
  */
 function layoutNetworkIntro(nodes, w, h, _edges, params, bleed = NO_BLEED) {
 	const focus = params?.focus ?? null;
 	const { attrs, pos } = buildNetworkAttrs(nodes, w, h, focus, bleed);
 	const hits = buildHits(nodes, pos, focus);
-	return { attrs, hits, delays: INTRO_DELAYS };
+	const paramWalk = focus == null ? undefined : routeWalk(attrs, nodes, focus);
+	return { attrs, hits, delays: INTRO_DELAYS, paramWalk };
 }
 
 // ---------------------------------------------------------------------------

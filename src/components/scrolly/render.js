@@ -25,16 +25,34 @@ const dotBuckets = new Map();
 /** @type {number[]} */
 const inkedTrails = [];
 
+/** a plain network link's stroke at `alpha` */
+const edgeStroke = (alpha) => `rgba(${EDGE_GREY.join(", ")}, ${alpha})`;
+
 /**
- * An edge's stroke at `alpha`, blended from grey toward the highlight colour by
- * `hi` (slot 2) so a highlighted route animates in with everything else.
+ * A highlighted route's stroke, over the plain link it runs along. Its own
+ * opacity rather than the link's: the link under a route is as dim as the rest
+ * of the network, so that the ink travelling along it is the only thing that
+ * moves (see layouts/intro.js's DIM_EDGE_ALPHA).
  */
-function edgeStroke(hi, alpha) {
-	if (!hi) return `rgba(${EDGE_GREY.join(", ")}, ${alpha})`;
-	const rgb = EDGE_GREY.map((c, k) =>
-		Math.round(c + (EDGE_HIGHLIGHT[k] - c) * hi)
-	);
-	return `rgba(${rgb.join(", ")}, ${alpha})`;
+const routeStroke = (fade) =>
+	`rgba(${EDGE_HIGHLIGHT.join(", ")}, ${0.95 * fade})`;
+const ROUTE_WIDTH = 2.25;
+
+/**
+ * How much of an edge its route covers, and how opaque it is. A route being
+ * drawn grows along the line at full ink. A route being LEFT (its target
+ * covers none of the line) does not retract: it holds the length it had when
+ * the pick changed — the frame the tween left, as a dying line holds its ends
+ * (motion.md rule 2) — and fades out in place, its opacity riding the covered
+ * share down to zero.
+ * @returns {[number, number]} [covered, fade]
+ */
+function routeDraw(attrs, target, start, i) {
+	const covered = attrs[i + 2];
+	const leaving = !target || target[i + 2] <= ALPHA_SEEN;
+	if (!leaving) return [covered, 1];
+	const held = start[i + 2];
+	return held > ALPHA_SEEN ? [held, covered / held] : [covered, 1];
 }
 
 /**
@@ -51,8 +69,8 @@ export function clearCanvas(ctx, w, h, bleed) {
 
 /**
  * One trail polyline. `hi` (0-1) blends its TRAIL_META colour toward INK and
- * thickens it — the same treatment slot 2 gives a highlighted edge, and the
- * whole of how the race chart marks whoever is leading at its camera.
+ * thickens it — the whole of how the race chart marks whoever is leading at
+ * its camera.
  */
 function strokeTrail(ctx, trailAttrs, t, alpha, hi) {
 	const base = t * TRAIL_STRIDE;
@@ -104,6 +122,13 @@ export function drawTrails(ctx, trailAttrs) {
  * The network's edges, each drawn from its lower-hop end toward the other by
  * its own progress slot, so a line grows from Bacon outward.
  *
+ * A highlighted route travels the other way: slot 2 is how much of the line
+ * the route has covered, measured from the OUTER end, so a route lit from an
+ * actor reads as a walk from them in to Bacon — and one being left fades
+ * where it lies rather than walking back out (routeDraw) (the layout chains the legs;
+ * see layouts/intro.js's routeWalk). The routes go on in a second pass, over
+ * every plain line, so a later link never cuts across one.
+ *
  * A live (target alpha > 0) line's far endpoint is drawn at its FINAL spot,
  * not its live position, so the line points to where the actor is going and
  * the actor slides onto it, instead of the angle swinging as the actor tweens
@@ -126,34 +151,58 @@ export function drawTrails(ctx, trailAttrs) {
  * @param {boolean} liveEnds draw every edge to live endpoints
  */
 export function drawEdges(ctx, attrs, target, start, edgeEnds, liveEnds) {
+	/** @type {[number, number, number, number, number, number][]} */
+	const routes = [];
+	ctx.lineWidth = 1;
 	for (let e = 0; e < edgeEnds.length; e++) {
 		const i = EDGE_BASE + e * STRIDE;
 		const progress = attrs[i];
 		const alpha = attrs[i + 1];
 		if (alpha <= ALPHA_SEEN || progress <= ALPHA_SEEN) continue;
-		const [from, to] = edgeEnds[e];
-		// while a choreography owns the frame nothing but the live buffer means
-		// anything; a dying line reads both ends off the frame it left; a live one
-		// keeps its near end live and aims its far end at the target
-		const dying = !target || target[i + 1] <= ALPHA_SEEN;
-		const held = liveEnds ? attrs : dying ? start : null;
-		const near = held || attrs;
-		const far = held || target;
-		const xa = near[from * STRIDE];
-		const ya = near[from * STRIDE + 1];
-		const xb = far[to * STRIDE];
-		const yb = far[to * STRIDE + 1];
-		// slot 2 blends the stroke toward the highlight colour and thickens it,
-		// so a highlighted route animates in with everything else
-		const hi = attrs[i + 2];
-		ctx.strokeStyle = edgeStroke(hi, alpha);
-		ctx.lineWidth = 1 + hi * 1.25;
+		const [xa, ya, xb, yb] = edgeLine(
+			attrs,
+			target,
+			start,
+			edgeEnds[e],
+			i,
+			liveEnds
+		);
+		ctx.strokeStyle = edgeStroke(alpha);
 		ctx.beginPath();
 		ctx.moveTo(xa, ya);
 		ctx.lineTo(xa + (xb - xa) * progress, ya + (yb - ya) * progress);
 		ctx.stroke();
+		if (attrs[i + 2] <= ALPHA_SEEN) continue;
+		routes.push([xa, ya, xb, yb, ...routeDraw(attrs, target, start, i)]);
+	}
+	ctx.lineWidth = ROUTE_WIDTH;
+	for (const [xa, ya, xb, yb, covered, fade] of routes) {
+		ctx.strokeStyle = routeStroke(fade);
+		ctx.beginPath();
+		ctx.moveTo(xb, yb);
+		ctx.lineTo(xb + (xa - xb) * covered, yb + (ya - yb) * covered);
+		ctx.stroke();
 	}
 	ctx.lineWidth = 1;
+}
+
+/**
+ * One edge's two ends, near (lower hop) first. While a choreography owns the
+ * frame nothing but the live buffer means anything; a dying line reads both
+ * ends off the frame it left; a live one keeps its near end live and aims its
+ * far end at the target.
+ */
+function edgeLine(attrs, target, start, [from, to], i, liveEnds) {
+	const dying = !target || target[i + 1] <= ALPHA_SEEN;
+	const held = liveEnds ? attrs : dying ? start : null;
+	const near = held || attrs;
+	const far = held || target;
+	return [
+		near[from * STRIDE],
+		near[from * STRIDE + 1],
+		far[to * STRIDE],
+		far[to * STRIDE + 1]
+	];
 }
 
 /**

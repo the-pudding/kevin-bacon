@@ -69,10 +69,10 @@ export function set(attrs, id, x, y, r, [red, green, blue], alpha) {
 }
 
 /**
- * Writes one edge's render state. `highlight` (0–1) blends the stroke from the
- * plain grey toward EDGE_HIGHLIGHT and thickens it (see ScrollyVisual's drawScene);
- * a scalar rather than an rgb triple so the untouched slots of every layout that
- * doesn't draw edges still mean "plain grey" rather than black.
+ * Writes one edge's render state. `highlight` (0–1) is how much of the line a
+ * highlighted route covers, drawn thick in EDGE_HIGHLIGHT from the edge's OUTER
+ * end in toward the anchor (see render.js's drawEdges); 0, which every layout
+ * that doesn't draw edges leaves it at, is a plain grey line.
  */
 export function setEdge(attrs, e, progress, alpha, highlight = 0) {
 	const i = edgeIndex(e);

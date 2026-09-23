@@ -93,6 +93,38 @@ describe("drawEdges", () => {
 		expect(calls.find(([op]) => op === "lineTo")).toEqual(["lineTo", 30, 0]);
 	});
 
+	test("a route draws from the edge's outer end in, over the plain line", () => {
+		const frame = Float64Array.from(attrs);
+		setEdge(frame, 0, 1, 1, 0.25);
+		const { ctx, calls } = fakeContext();
+		drawEdges(ctx, frame, target, start, [[0, 1]], false);
+		const moves = calls.filter(([op]) => op === "moveTo");
+		const lines = calls.filter(([op]) => op === "lineTo");
+		// the plain line, Bacon's end out; then the route, a quarter in from the far end
+		expect(moves).toEqual([
+			["moveTo", 0, 0],
+			["moveTo", 100, 0]
+		]);
+		expect(lines).toEqual([
+			["lineTo", 100, 0],
+			["lineTo", 75, 0]
+		]);
+	});
+
+	test("a route being left holds its length and fades instead of retracting", () => {
+		// the tween left it fully covered; the target covers none of it
+		const leftFrom = Float32Array.from(start);
+		setEdge(leftFrom, 0, 1, 1, 1);
+		const frame = Float64Array.from(attrs);
+		setEdge(frame, 0, 1, 1, 0.5);
+		const { ctx, calls } = fakeContext();
+		drawEdges(ctx, frame, target, leftFrom, [[0, 1]], false);
+		const [, route] = calls.filter(([op]) => op === "stroke");
+		const [, routeLine] = calls.filter(([op]) => op === "lineTo");
+		expect(routeLine).toEqual(["lineTo", 0, 0]);
+		expect(route[1]).toMatch(/, 0\.475\)$/);
+	});
+
 	test("an edge at alpha 0 or progress 0 is not drawn", () => {
 		const frame = Float64Array.from(attrs);
 		setEdge(frame, 0, 0, 1);

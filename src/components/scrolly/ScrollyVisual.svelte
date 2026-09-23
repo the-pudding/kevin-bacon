@@ -1057,10 +1057,22 @@
 	// annotation layer arrives together, once the dots have mostly landed, rather
 	// than gliding along beside them. Names carried over from the previous state
 	// are never held; blanking one already on screen would blink it off and back
-	// on. Not $state, for the same reason as entryLabels above.
-	/** @type {Set<number> | null} */
-	let heldLabels = null;
-	let labelHoldUntil = 0;
+	// on. Each name is held to its own time, because a route walk (`paramWalk`)
+	// releases its co-stars one by one, as the line reaches each. Not $state,
+	// for the same reason as entryLabels above.
+	/** @type {Map<number, number> | null} id → performance.now() it is released at */
+	let labelHolds = null;
+	/** hold every one of `ids` until `until` */
+	const holdLabels = (ids, until) => {
+		labelHolds = ids.size ? new Map([...ids].map((id) => [id, until])) : null;
+	};
+	/** the names still waiting out their hold at `now`, or null for none */
+	function heldAt(now) {
+		if (!labelHolds) return null;
+		const held = new Set();
+		for (const [id, until] of labelHolds) if (now < until) held.add(id);
+		return held.size ? held : null;
+	}
 	// ids the current state labels, kept so the next arrival can tell an
 	// introduced name from a carried-over one
 	let prevLabelIds = new Set();
@@ -1645,10 +1657,10 @@
 			choreo.active
 		);
 		drawDots(ctx, attrs, dotCull(attrs));
-		// held names (see heldLabels) are still waiting out their lag; drawScene
+		// held names (see labelHolds) are still waiting out their lag; drawScene
 		// runs every frame of the arrival tween, which always outlasts the hold, so
 		// this flips over mid-tween with no timer of its own
-		const holding = heldLabels && performance.now() < labelHoldUntil;
+		const held = heldAt(performance.now());
 		stepLegendGlide();
 		const nextTracked = trackLabels(attrs, TRACKED_IDS, {
 			names: (id) => labelTexts[id] ?? nodes[id].name,
@@ -1661,7 +1673,7 @@
 			// pan still carries its names.
 			shown: furnitureHeld ? EMPTY_LABELS : shownLabels(attrs),
 			gate: entryLabels,
-			held: holding ? heldLabels : null
+			held
 		});
 		const { moved, dirs, settled } = stacker.stack(
 			nextTracked,
@@ -1794,7 +1806,7 @@
 	 * waiting on its hold.
 	 *
 	 * Returns the names this arrival introduces — labelled now, but not by the
-	 * state we came from — for the wait-for-your-dot hold (see heldLabels).
+	 * state we came from — for the wait-for-your-dot hold (see labelHolds).
 	 */
 	function resetArrivalGates(from) {
 		entryLabels = null;
@@ -1802,7 +1814,7 @@
 		pendingArrival = null;
 		const introduced = new Set();
 		for (const id of labelIds) if (!prevLabelIds.has(id)) introduced.add(id);
-		heldLabels = null;
+		labelHolds = null;
 		prevLabelIds = labelIds;
 		// Arm the draw pass's plot cull only for a move that starts and ends on the
 		// chart — a step change or a param settle within the chapter, where a dot
@@ -1813,7 +1825,7 @@
 		return introduced;
 	}
 
-	/** @typedef {{ attrs: Float64Array, trails: Float64Array, delays?: Float64Array, trailDelays?: Float64Array }} Target */
+	/** @typedef {{ attrs: Float64Array, trails: Float64Array, delays?: Float64Array, paramWalk?: { clear: Float64Array, fadeMs: number, ms: number, windows: Float64Array, labelAt: [number, number][] }, trailDelays?: Float64Array }} Target */
 
 	/** land on the state and settle, with no motion */
 	function snapTo(target) {
@@ -1846,23 +1858,51 @@
 	 * reader who hits Next mid-reveal never settles.
 	 */
 	function tweenToState(target, stateDelays, introduced) {
-		heldLabels = introduced.size ? introduced : null;
-		labelHoldUntil = performance.now() + LABEL_HOLD_MS;
+		holdLabels(introduced, performance.now() + LABEL_HOLD_MS);
 		tweener.to(target.attrs, TWEEN_MS, TWEEN_JITTER, stateDelays, () =>
 			settle(stateName)
 		);
 		trailTweener.to(target.trails, TWEEN_MS, 0, target.trailDelays);
 	}
 	/**
-	 * An interaction: retarget quickly, no choreography (delays would make a
-	 * small pan/highlight feel laggy). Still settles on completion — rankFocus's
-	 * bar only gets its real target once RankBars measures its row
-	 * (story.rank.focusBar), so this is the one state whose "reveal has landed"
-	 * moment is a param retarget rather than the state's own arrival tween.
+	 * An interaction: retarget quickly, with no choreography of its own (delays
+	 * would make a small pan/highlight feel laggy). A layout that authors a
+	 * walk for the retarget (`paramWalk`) gets it instead, in two stages: a
+	 * tween to its `clear` frame, then the walk itself, each group on its own
+	 * linear share of it — the constellation's old route fades out whole, and
+	 * the new one travels from the picked actor in to Bacon without pausing at
+	 * the co-stars between. A retarget mid-way supersedes whichever stage is
+	 * running, and the clear's onDone with it. Still
+	 * settles on completion — rankFocus's bar only gets its real target once
+	 * RankBars measures its row (story.rank.focusBar), so this is the one state
+	 * whose "reveal has landed" moment is a param retarget rather than the
+	 * state's own arrival tween.
 	 */
 	function tweenToParams(target) {
-		tweener.to(target.attrs, PARAM_TWEEN_MS, 0, null, () => settle(stateName));
 		trailTweener.to(target.trails, PARAM_TWEEN_MS, 0);
+		const walk = target.paramWalk;
+		if (!walk) {
+			tweener.to(target.attrs, PARAM_TWEEN_MS, 0, null, () =>
+				settle(stateName)
+			);
+			return;
+		}
+		// each co-star's name waits for the line reaching them
+		const now = performance.now();
+		labelHolds = new Map(walk.labelAt.map(([id, ms]) => [id, now + ms]));
+		// a copy, parked like the target, because `walk.clear` is cached
+		const clear = walk.clear.slice();
+		parkLeavers(clear);
+		tweener.to(clear, walk.fadeMs, 0, null, () =>
+			tweener.to(
+				target.attrs,
+				walk.ms,
+				0,
+				null,
+				() => settle(stateName),
+				walk.windows
+			)
+		);
 	}
 
 	/** everything the render effect needs measured before it can build a layout */
@@ -2031,8 +2071,7 @@
 			// discard this and so never got the introduced-name hold at all, which
 			// meant an entry was the one arrival whose new names rode the dots
 			const introduced = resetArrivalGates(from);
-			heldLabels = introduced.size ? introduced : null;
-			labelHoldUntil = performance.now() + LABEL_HOLD_MS;
+			holdLabels(introduced, performance.now() + LABEL_HOLD_MS);
 			const delays = arrivalDelays(from, target);
 			departFade(target, from, () => arrive(entryAnim, from, target, delays));
 		},
@@ -2047,8 +2086,10 @@
 			// The deadline is restamped when the travel actually begins, so the
 			// hold still lifts three quarters of the way through the tween rather
 			// than three quarters of the way through the beat in front of it.
-			heldLabels = introduced.size ? introduced : null;
-			labelHoldUntil = performance.now() + DEPART_FADE_MS + LABEL_HOLD_MS;
+			holdLabels(
+				introduced,
+				performance.now() + DEPART_FADE_MS + LABEL_HOLD_MS
+			);
 			const delays = arrivalDelays(from, target);
 			departFade(target, from, () => tweenToState(target, delays, introduced));
 		},
@@ -2115,6 +2156,7 @@
 			// states without trails fade the previous ones out where they lie
 			trails: layout.trails ?? fadeOutTrails(),
 			delays: layout.delays,
+			paramWalk: layout.paramWalk,
 			trailDelays: layout.trailDelays
 		};
 		landOnSky(target.attrs, target.trails);

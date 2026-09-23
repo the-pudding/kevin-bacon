@@ -422,9 +422,16 @@ exports[`layout goldens > hopSeed null @stacked 1`] = `
 
 exports[`layout goldens > networkIntro {"focus":3} @beside 1`] = `
 {
-  "attrs": "abfa754e2987ec5f",
+  "attrs": "3db137aea20121e4",
   "decor": "ccd58555bbf3c66a",
   "delays": "78095b7e2fb8da51",
+  "paramWalk": {
+    "clear": "2abadeb3ac6fbe6b",
+    "fadeMs": 400,
+    "labelAt": [],
+    "ms": 1050,
+    "windows": "4bc66add4a4dbcec",
+  },
   "trailDelays": null,
   "trails": null,
 }
@@ -432,9 +439,16 @@ exports[`layout goldens > networkIntro {"focus":3} @beside 1`] = `
 
 exports[`layout goldens > networkIntro {"focus":3} @phone 1`] = `
 {
-  "attrs": "d95100eddfa7a8f3",
+  "attrs": "8249636a6ac94c3f",
   "decor": "c6a8a7f300a98c87",
   "delays": "78095b7e2fb8da51",
+  "paramWalk": {
+    "clear": "dc2aa89fce836ea0",
+    "fadeMs": 400,
+    "labelAt": [],
+    "ms": 1050,
+    "windows": "4bc66add4a4dbcec",
+  },
   "trailDelays": null,
   "trails": null,
 }
@@ -442,9 +456,16 @@ exports[`layout goldens > networkIntro {"focus":3} @phone 1`] = `
 
 exports[`layout goldens > networkIntro {"focus":3} @stacked 1`] = `
 {
-  "attrs": "655457b3286e8977",
+  "attrs": "0c57e5a91fd3d3ec",
   "decor": "ccd58555bbf3c66a",
   "delays": "78095b7e2fb8da51",
+  "paramWalk": {
+    "clear": "d274ecdef7ea1bdc",
+    "fadeMs": 400,
+    "labelAt": [],
+    "ms": 1050,
+    "windows": "4bc66add4a4dbcec",
+  },
   "trailDelays": null,
   "trails": null,
 }

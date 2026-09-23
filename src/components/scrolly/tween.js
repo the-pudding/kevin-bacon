@@ -27,6 +27,30 @@ export const FADE_LEAD = 0.4;
 
 const easeFade = (t) => easeCubicInOut(Math.min(1, t / FADE_LEAD));
 
+const clamp01 = (t) => Math.min(1, Math.max(0, t));
+
+// one group's progress this frame: written by the two functions below and read
+// straight back by the tick, so the hot loop allocates nothing
+const progress = { eased: 0, faded: 0 };
+
+/** a group on its own clock, `delay` ms late; returns its raw progress */
+function delayProgress(delay, elapsed, duration) {
+	const t = clamp01((elapsed - delay) / duration);
+	progress.eased = easeCubicInOut(t);
+	progress.faded = easeFade(t);
+	return t;
+}
+
+/** a group covering its `windows` share of the tween's time, linearly; returns the tween's raw progress */
+function windowProgress(windows, g, share) {
+	const t = clamp01(share);
+	const from = windows[g * 2];
+	const to = windows[g * 2 + 1];
+	progress.eased = clamp01((t - from) / (to - from));
+	progress.faded = progress.eased;
+	return t;
+}
+
 /**
  * @typedef {Object} Tweener
  * @property {Float32Array} current live rendered values
@@ -43,7 +67,7 @@ const easeFade = (t) => easeCubicInOut(Math.min(1, t / FADE_LEAD));
  * @property {boolean} running a timed tween is in flight — `current` is still
  *   easing toward `target`. False after an instant `to`, after the tween has
  *   landed, and after `stop()`.
- * @property {(next: Float64Array, ms: number, jitter?: number, nodeDelays?: Float64Array, onDone?: (() => void) | null) => void} to
+ * @property {(next: Float64Array, ms: number, jitter?: number, nodeDelays?: Float64Array | null, onDone?: (() => void) | null, windows?: Float64Array | null) => void} to
  * @property {(apply: (buf: Float32Array) => void) => void} reframe
  * @property {() => void} stop
  */
@@ -53,6 +77,13 @@ const easeFade = (t) => easeCubicInOut(Math.min(1, t / FADE_LEAD));
  * start delay so nodes begin/finish at different times. Delays come from
  * `nodeDelays` (ms per group, layout-choreographed) when provided, otherwise
  * from a deterministic hash scaled by `jitter` (0 = in unison).
+ *
+ * `windows` (two per group: `[from, to]`, shares 0–1 of the tween's time)
+ * runs each group LINEARLY over its own stretch of the tween instead. Chained windows ([0, .5] then [.5, 1]) make one motion carried by
+ * several groups at a constant rate — the second picks up at exactly the speed
+ * the first hands over at, where two delayed tweens would each ease out and in
+ * and stall at the join. Alpha rides the group's window with everything else;
+ * there is no lead to take inside a stretch that short.
  *
  * @param {number} size total number of values
  * @param {(attrs: Float64Array) => void} draw called every frame
@@ -75,14 +106,18 @@ export function createTweener(size, draw, stride = 1, fadeOffset = -1) {
 	let running = false;
 	// fired once when the current tween settles; cleared if a new `to` supersedes
 	let onDone = null;
+	/** @type {Float64Array | null} */
+	let windows = null;
 
 	function tick(now) {
 		const elapsed = now - startTime;
 		let done = true;
 		for (let g = 0; g < groups; g++) {
-			const t = Math.min(1, Math.max(0, (elapsed - delays[g]) / duration));
+			const t = windows
+				? windowProgress(windows, g, elapsed / duration)
+				: delayProgress(delays[g], elapsed, duration);
 			if (t < 1) done = false;
-			const eased = easeCubicInOut(t);
+			const { eased, faded } = progress;
 			const end = Math.min((g + 1) * stride, size);
 			for (let i = g * stride; i < end; i++) {
 				current[i] = start[i] + (target[i] - start[i]) * eased;
@@ -92,7 +127,7 @@ export function createTweener(size, draw, stride = 1, fadeOffset = -1) {
 			if (fadeOffset >= 0) {
 				const a = g * stride + fadeOffset;
 				if (a < end) {
-					current[a] = start[a] + (target[a] - start[a]) * easeFade(t);
+					current[a] = start[a] + (target[a] - start[a]) * faded;
 				}
 			}
 		}
@@ -109,10 +144,18 @@ export function createTweener(size, draw, stride = 1, fadeOffset = -1) {
 		}
 	}
 
-	function to(next, ms, jitter = 0, nodeDelays = null, done = null) {
+	function to(
+		next,
+		ms,
+		jitter = 0,
+		nodeDelays = null,
+		done = null,
+		groupWindows = null
+	) {
 		cancelAnimationFrame(frame);
 		onDone = done;
 		target = next;
+		windows = groupWindows;
 		if (ms <= 0) {
 			running = false;
 			current.set(next);

@@ -65,9 +65,10 @@ and the measurements that were taken — lives in `notes/design/`.
 
 All dot state is one flat `Float64Array(ATTR_SIZE)`: `STRIDE = 7` values per node
 — `x, y, radius, r, g, b, alpha` — at `node.id * STRIDE`, then one group per edge
-from `EDGE_BASE` (slot 0 = draw progress 0–1, slot 1 = alpha, slot 2 = highlight
-0–1). Alpha carries visibility: hidden nodes get alpha 0 but still get
-_positions_, so a later fade-in never teleports. Trails are a second buffer of
+from `EDGE_BASE` (slot 0 = draw progress 0–1, from the lower-hop end; slot 1 =
+alpha; slot 2 = how much of the line a highlighted route covers, 0–1, drawn from
+the OUTER end in, so a route reads as a walk to Bacon). Alpha carries
+visibility: hidden nodes get alpha 0 but still get _positions_, so a later fade-in never teleports. Trails are a second buffer of
 `TRAIL_STRIDE = TRAIL_POINTS * 2 + 2` per slot — 48 vertices, alpha, and a 0–1
 ink channel the renderer blends toward `INK`. Every slot constant derives from
 the cast lists, so a cast can grow without touching an index.
@@ -83,7 +84,9 @@ state entry may carry:
 - `labels`, `labelDirs`, `labelText`, `pulse`, `title`, `overlay` — annotations;
 - `params: (story, stepParams) => Object` — the interaction fields it reads,
   merged with the step's static params; a change re-runs the current layout with
-  a `PARAM_TWEEN_MS` tween;
+  a `PARAM_TWEEN_MS` tween, or as the layout's `paramWalk` where it returns one
+  — a tween to its `clear` frame, then the walk (`networkIntro`'s route walk,
+  `routeWalk` in `layouts/intro.js`);
 - `pick: (story, value) => void` — what a `hits` button writes;
 - `revealFrom` — the prior states its authored `delays` (and entry) play from;
 - `entry`, `requests`, `ambient` — the choreographies below;
