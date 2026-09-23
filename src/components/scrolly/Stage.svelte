@@ -551,15 +551,15 @@
 
 	   The z ladder over this box, lowest first:
 	     auto  canvas, scrubber panel, title card
-	     5     the dev-only race tuners
-	     20    --z-tap: the two tap halves
+	     20   --z-tap: the two tap halves
 	     21    --z-card: the step card, which lies over them for its whole width.
 	           Pointer-transparent, so prose still gives its edges up to a tap;
 	           the controls it hosts (.guess, .quiz, .start-button, the inline
 	           InfoTerm triggers) opt back in.
 	     22    --z-tap-above: what must beat BOTH — .hits, .route, the search,
 	           the scrubber's .control, .tick-1980, the progress bar, the rank
-	           ladder (which forwards its taps; see onRankTap)
+	           ladder (which forwards its taps; see onRankTap), the dev-only
+	           race tuners
 	     100+  InfoTerm's scrim and panel, untouched */
 	.scrolly-layout {
 		position: relative;

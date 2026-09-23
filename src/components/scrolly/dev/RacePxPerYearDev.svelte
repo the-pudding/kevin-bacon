@@ -95,7 +95,7 @@
 		left: 0;
 		right: 0;
 		top: 72%;
-		z-index: 5;
+		z-index: var(--z-tap-above);
 		padding: 0.35rem 0.75rem;
 		display: flex;
 		align-items: center;
@@ -112,7 +112,7 @@
 		position: absolute;
 		right: 0.5rem;
 		top: 72%;
-		z-index: 5;
+		z-index: var(--z-tap-above);
 		background: var(--color-bg, #fff);
 		font-family: var(--font-mono);
 		font-size: 0.65rem;

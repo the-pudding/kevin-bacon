@@ -517,7 +517,7 @@
 		left: 0;
 		right: 0;
 		top: 64%;
-		z-index: 5;
+		z-index: var(--z-tap-above);
 		padding: 0.35rem 0.75rem 0.5rem;
 		display: flex;
 		flex-direction: column;
@@ -536,7 +536,7 @@
 		position: absolute;
 		right: 0.5rem;
 		top: 64%;
-		z-index: 5;
+		z-index: var(--z-tap-above);
 		background: var(--color-bg, #fff);
 		font-family: var(--font-mono);
 		font-size: 0.65rem;
