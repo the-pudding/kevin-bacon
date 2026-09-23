@@ -116,7 +116,14 @@ const ROUTE_LEG_MS = 700;
 // the route being left fades out over this, all of it — the parts it shares
 // with the new route included — and the new one waits out the gap after
 const ROUTE_FADE_MS = 400;
-const ROUTE_GAP_MS = 350;
+// the bare-network hold before the new route's first leg starts. Effectively
+// none: the actor is already fully lit by the end of ROUTE_FADE_MS (see
+// routeWalk), so the line should leave the instant they have arrived rather
+// than sit still for a further beat. Not a literal 0 — the tweener's window
+// math divides by a window's own width (see windowProgress in tween.js), so a
+// zero-width window is a division by zero — this is the smallest value that
+// keeps every off-route slot's [0, ROUTE_GAP_MS] window real.
+const ROUTE_GAP_MS = 1;
 // hit regions: square, centred on the dot, sized off the tightest gap in the
 // fitted layout so boxes never overlap (a 360px viewport squeezes the graph hard)
 const HIT_MIN = 26;
