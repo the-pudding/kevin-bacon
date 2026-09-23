@@ -16,8 +16,8 @@ and the measurements that were taken — lives in `notes/design/`.
 
 | Note                              | Covers                                                                                                                                    |
 | --------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| `notes/design/sky.md`             | The flowing sky the title card, chapter cards, `hopSeed` and `outro` share, and the chapter card's highlight beat.                        |
-| `notes/design/chapter-cards.md`   | The chapter cards, the side-by-side layout above 1200px and the swap of the prose column.                                                 |
+| `notes/design/sky.md`             | The flowing sky the title card, `hopSeed` and `outro` share, and the title card's highlight beat.                                         |
+| `notes/design/side-by-side.md`    | The side-by-side layout above 1200px and the canvas bleed the full-bleed states rest on.                                                  |
 | `notes/design/title-card.md`      | The title card and the opening flight into `networkIntro`.                                                                                |
 | `notes/design/race-chart.md`      | The race chart: fixed x scale, the camera, the y axis's two regimes, the future strip, the Gen Z field, the closing chart.                |
 | `notes/design/simulation-race.md` | The simulation replay.                                                                                                                    |
@@ -29,13 +29,13 @@ and the measurements that were taken — lives in `notes/design/`.
 
 | File                                                                 | Role                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | -------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `src/components/Index.svelte`                                        | The story: the `<Splash>`, `<Chapter>` and `<Step>` list with its prose (Owen's), the panel snippets each step names, the intro tour and the credits. Creates the step registry and hands the steps to `Stage`.                                                                                                                                                                                                                                                                                                              |
-| `scrolly/Stage.svelte`                                               | The layout shell: the canvas box, the rank ladder's placement and fade-in latch, the active step's panel, the chapter and title cards with their fades, the dev tuners' mount, the prose column, `StepProgress` and `TapNav`. Renders the steps as `children(layout)`.                                                                                                                                                                                                                                                       |
-| `scrolly/step-registry.svelte.js`                                    | `createStepRegistry({ navigate })`: the wizard. Registrations in document order, the step index (kept in `?step=N`), `go`/`advance`/`next`/`prev`/`exit`, gate and `skipback` resolution, the bar's `dotSteps`/`dotStep`, and the `advanceon` watcher.                                                                                                                                                                                                                                                                       |
+| `src/components/Index.svelte`                                        | The story: the `<Splash>` and the `<Step>` list with its prose (Owen's), grouped into `<Chapter>`s, the panel snippets each step names, the intro tour and the credits. Creates the step registry and hands the steps to `Stage`.                                                                                                                                                                                                                                                                                            |
+| `scrolly/Stage.svelte`                                               | The layout shell: the canvas box, the rank ladder's placement and fade-in latch, the active step's panel, the title card with its fade, the dev tuners' mount, the prose column, `StepProgress` and `TapNav`. Renders the steps as `children(layout)`.                                                                                                                                                                                                                                                                       |
+| `scrolly/step-registry.svelte.js`                                    | `createStepRegistry({ navigate })`: the wizard. Registrations in document order, the step index (kept in `?step=N`), `go`/`advance`/`next`/`prev`/`exit`, gate and `skipback` resolution, the bar's `chapters`/`currentChapter`/`dotSteps`/`dotStep`, and the `advanceon` watcher.                                                                                                                                                                                                                                           |
 | `scrolly/arrivals.js`                                                | `prepareArrival(move)`: what a move does to the story before the destination renders — the entry hold, the rank panel's handoff, the reset on leaving the rank chapter backwards, and per-state arrival rules (the constellation's focus, quiz, simulation, Gen Z draw-on).                                                                                                                                                                                                                                                  |
 | `scrolly/story.svelte.js`                                            | The shared interaction state, grouped by interaction (`intro`, `hops`, `rank`, `race`, `quiz`, `search`, `sim`) under four framework fields (`settled`, `entryHeld`, `request`, `running`); `request(kind)`, `resetSimRace()`, `resetGenzLines()`, `resetHopAnchor()`, `resetIntroFocus()`.                                                                                                                                                                                                                                  |
-| `scrolly/Step.svelte`, `Chapter.svelte`, `Splash.svelte`             | Register one step each with the `"scrolly-steps"` context in document order. `Step` renders its prose while active; `Chapter` and `Splash` render nothing — `Stage` draws their cards from the registry so they can transition out.                                                                                                                                                                                                                                                                                          |
-| `scrolly/TapNav.svelte`, `StepProgress.svelte`                       | The step driver (tap halves + arrow keys, through `go()`) and the chapter-segmented dot bar (indicator only).                                                                                                                                                                                                                                                                                                                                                                                                                |
+| `scrolly/Step.svelte`, `Chapter.svelte`, `Splash.svelte`             | `Step` and `Splash` register one step each with the `"scrolly-steps"` context in document order. `Step` renders its prose while active; `Splash` renders nothing — `Stage` draws the title card from the registry so it can transition out. `Chapter` takes no step: it wraps a run of `<Step>`s and puts its `title` in the `"scrolly-chapter"` context, which each `Step` registers as `chapter`.                                                                                                                          |
+| `scrolly/TapNav.svelte`, `StepProgress.svelte`                       | The step driver (tap halves + arrow keys, through `go()`) and the chapter progress bar (indicator only).                                                                                                                                                                                                                                                                                                                                                                                                                     |
 | `scrolly/ScrollyVisual.svelte`                                       | The canvas host: the two tweeners, the render effect (below), dpr scaling, resize and bleed, reduced motion, the HTML overlay and annotation layer, the scrub loop and the request player.                                                                                                                                                                                                                                                                                                                                   |
 | `scrolly/render.js`                                                  | One frame of the buffers onto a 2D context: `clearCanvas`, `drawTrails`, `drawEdges`, `drawDots`, `drawLabelLeaders`. Pure over (ctx, buffers).                                                                                                                                                                                                                                                                                                                                                                              |
 | `scrolly/annotations.js`                                             | The annotation layer's per-frame decisions: `raceLabelCut`, `trackLabels`, `createLabelStacker`.                                                                                                                                                                                                                                                                                                                                                                                                                             |
@@ -46,9 +46,9 @@ and the measurements that were taken — lives in `notes/design/`.
 | `scrolly/trails.js`                                                  | Trail slots (`TRAIL_META`, `RACE_SLOT`, `SIM_SLOT`, …) and writers over a monotone-cubic curve (`monotoneSegments`, `curveYAt`, `clipSeries`, `sampleTrail`, `setTrail`, `setTrailPoints`, `collapseTrail`, `setTrailHighlight`).                                                                                                                                                                                                                                                                                            |
 | `scrolly/plot.js`, `palette.js`, `cast.js`                           | Plot geometry (`MARGIN`, `TITLE_BAND`, `plotBottom`, `lin`, `Bleed`); the canvas palette as rgb of the CSS tokens; who is who (named actors, `BY_RANK`, every chart's cast list).                                                                                                                                                                                                                                                                                                                                            |
 | `scrolly/rank-geometry.js`, `scatter-scales.js`, `intro-geometry.js` | The rank bar's dot lattice shared by canvas and HTML; the films scatters' shared scales and `parkHidden`; the intro constellation's fit and pull-back camera.                                                                                                                                                                                                                                                                                                                                                                |
-| `scrolly/sky.js`, `galaxy-highlight.js`                              | The sky's volume and flow (`flowSpot`, `fieldSpot`, `writeFieldCrowd`, `makeFlight`, `galaxyBox`) and its one live clock; the chapter card's highlight beat (`withGalaxyHighlight`).                                                                                                                                                                                                                                                                                                                                         |
+| `scrolly/sky.js`, `galaxy-highlight.js`                              | The sky's volume and flow (`flowSpot`, `fieldSpot`, `writeFieldCrowd`, `makeFlight`, `galaxyBox`) and its one live clock; the title card's highlight beat (`withGalaxyHighlight`).                                                                                                                                                                                                                                                                                                                                           |
 | `scrolly/nodes.js`                                                   | `makeNodes()` → `{ nodes, edges }` from `src/data/scrolly-nodes.json`; `ANCHOR_ID`, `INTRO_IDS`, `hash01(id, salt)` and `dotHash` — deterministic per-node randomness, never `Math.random`.                                                                                                                                                                                                                                                                                                                                  |
-| `scrolly/layouts/*.js`                                               | One module per chart: `intro` (`titleGalaxy`, and `networkIntro` — the constellation, two steps on it), `hop-bands` (`hopSeed`, `hopBands` and `hopAnchor`, the cycling anchor), `chapters`, `rank`, `race`, `scatters`, `career`, `sim-race`. Each exports a `states` object; everything about one state is in its entry.                                                                                                                                                                                                   |
+| `scrolly/layouts/*.js`                                               | One module per chart: `intro` (`titleGalaxy`, and `networkIntro` — the constellation, two steps on it), `hop-bands` (`hopSeed`, `hopBands` and `hopAnchor`, the cycling anchor), `rank`, `race`, `scatters`, `career`, `sim-race`. Each exports a `states` object; everything about one state is in its entry.                                                                                                                                                                                                               |
 | `scrolly/states.js`                                                  | Merges every module's `states` into the registry and derives the per-state maps (`STATES`, `STATE_LABELS`, `STATE_PARAMS`, `STATE_ENTRIES`, `STATE_REQUESTS`, `STATE_AMBIENT`, `STATE_RACE`, …), `entryFor`, `isRankState`, `quizDone` and the typedefs below.                                                                                                                                                                                                                                                               |
 | `scrolly/layout-types.js`                                            | JSDoc only: `LayoutFn`, `LayoutResult`, `Tick`, `Note`, `RaceCallout`, `FutureBand`, `LegendItem`, `Hit`.                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | `scrolly/RankBars.svelte`, `RaceScrubber`, `RouteFilms`              | The over-canvas panels (see "Panels").                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
@@ -145,16 +145,46 @@ params and canvas size only.
 
 ### Steps, the registry and the arrival rules
 
-Every `<Step>`, `<Chapter>` and `<Splash>` registers `{ state, params?, panel?,
-gate?, skipback?, advanceon?, hideBar?, chapter?, splash? }` in document order.
+Every `<Step>` and `<Splash>` registers `{ state, params?, panel?, gate?,
+skipback?, advanceon?, hideBar?, chapter?, splash? }` in document order.
 The registry resolves a move — `skipback` first, then the departing step's
 `gate` on a forward move — and calls `prepareArrival({ to, from, forward, back })`
 with the destination's state _before_ the step changes, so a component that
 mounts with the step reads the right story at mount. `advance()` bypasses the
-gate: it is how a gated step's own control lets the reader out. `hideBar`,
-`dotSteps` and `dotStep` are what `StepProgress` renders; `story.entryHeld`
-hides the bar while a choreography holds the prose. `step-registry.spec.js`
-covers the moves.
+gate: it is how a gated step's own control lets the reader out.
+`step-registry.spec.js` covers the moves and the bar's derivations below.
+
+### Chapters and the progress bar
+
+A `<Chapter title="…">` wraps its `<Step>`s and is nothing else: it sets the
+`"scrolly-chapter"` context and each `Step` inside registers that title as
+`chapter`. It takes no index and renders nothing, so crossing a chapter is an
+ordinary step change. Four chapters today — "Introduction" (a placeholder
+title, steps 1–3), "The centers of Hollywood" (4–11), "The makings of a center
+of Hollywood" (12–18) and "Predicting the next center of Hollywood" (19–27);
+step 0, the title card, sits outside all of them. The chapter cards that used
+to open a chapter over the sky were removed on 2026-09-23.
+
+`StepProgress` draws the steps as LINES across the top of the layout, and
+reads everything off the registry rather than counting steps. `dotSteps` is
+every step that owns a line — all but the title card (`splash`) and a gated
+step (`skipback`), which shares its payoff's line because the two are one move
+to the reader. `dotStep` is the line the active step lights (a gated step
+lights its successor's). `chapters` groups `dotSteps` by `chapter` into
+`[{ title, steps }]` (`chaptersOf`) and `currentChapter` is the index of the
+one holding `dotStep` (the screen-reader line names it; nothing visible does).
+The bar is one full-width flex row with a line per step in `dotSteps`, each an
+equal share. No text: the active line
+is lit and the ones behind it greyed. The lines change by colour alone, so a
+step change moves no layout.
+
+It is shown by `hideBar` alone — a step declaring it (the title card, `hopSeed`,
+the outro) or `story.entryHeld` while a choreography holds the prose — behind a
+latch that keeps it up across ordinary step changes and brings it back off a
+`hideBar` step only once the arriving prose has landed (`steps.held`), on its
+own 300ms fade. It takes no pointer events: a tap over it steps the story like
+anywhere else, and it is never a jump target, which would skip the gated
+steps.
 
 ### The story store
 
@@ -170,10 +200,9 @@ and `running` the request in flight.
 `settledStep` is the one almost everything that arrives with a step reads, via
 `steps.held`: the chart furniture, the step's panel, its prose and the progress
 bar. A state name cannot answer "has this step landed?", because eight steps
-share a state with their neighbour — both `networkIntro` steps (1 and 2), both
-`hopBands` steps (5 and 7, with `hopAnchor`
-between them), both `raceRecent` steps,
-both `simRace` steps and three of the five `scatterCenters` steps — so on the
+share a state with the step before them — the second `networkIntro` step (2),
+the second `raceRecent` (9), four of the five `scatterCenters` steps (13–16),
+the second `raceGenz` (20) and the second `simRace` (25) — so on the
 second of any pair `settled` already reads that state before its arrival has
 begun. It is written by `land()`, which fires when the dots reach their places:
 a plain arrival's settle, an entry's arrival tween (its legs are the step's
@@ -266,7 +295,7 @@ on. The rank guess (`GuessRank` → `advance()`), the race rewind (`StartButton
 advance`), the pair quiz (the one gate the reader's own Next walks through, on
 `quizDone`), the Gen Z draw-on and the simulation replay (both `advanceon` on the
 field the run publishes). The progress bar merges a gated step and its payoff
-into one dot. The arrival rules re-arm each of them on the way back in
+into one line. The arrival rules re-arm each of them on the way back in
 (`arrivals.js`). The full agreement, with its history: `notes/design/interactions.md`.
 
 Every one of those controls lives **in the step card**, in the prose flow under
@@ -319,7 +348,7 @@ the prose for exactly this.
 Use `hash01(n.id, <salt>)` for per-node scatter or jitter, with an unused salt.
 Taken: 3–8 across layouts, 9 in `tween.js`, 14 in `writeFieldCrowd`'s trickle,
 17 for the highlight beat's spoke draw, 21 for a dot's phase in the sky's flow,
-22 for the band column of a dot that is off canvas when it leaves a chapter card.
+22 for the band column of a dot that is off canvas when it leaves hopSeed's sky.
 The sky's entry spots and the beat's spoke picker use `dotHash`, whose counter
 walks by one — stepping a sine hash's input by a constant steps its phase by a
 constant, and a dot would re-enter on a slow march instead of somewhere new.
@@ -373,7 +402,8 @@ rank order, never by raw rank against `nodes.length`.
   ~12k dots are a handful of fills a frame; the sky's flight adds ~0.04ms.
 - Beside the prose (≥ 1200px, `Stage`'s `beside`) the plot takes
   `PLOT_BOTTOM_BESIDE` of the column instead of `PLOT_BOTTOM_STACKED`, and the
-  prose swaps sides on every chapter card (`notes/design/chapter-cards.md`).
+  prose holds a column of its own on the left for the whole story
+  (`notes/design/side-by-side.md`).
 
 ## Known gaps
 
@@ -423,7 +453,7 @@ The suite under `src/components/scrolly/__tests__/`, by contract:
 | `registry.spec.js`                                                                      | The state registry's invariants: every state has a layout, every `revealFrom` names a state, every dynamic label id is tracked, …                                                                                              |
 | `tween.spec.js`                                                                         | The tweener's timing, supersede and reframe semantics.                                                                                                                                                                         |
 | `render.spec.js`, `annotations.spec.js`, `choreographer.spec.js`, `race-camera.spec.js` | The visual's extracted modules.                                                                                                                                                                                                |
-| `step-registry.spec.js`                                                                 | The wizard: document-order registration, gates, `skipback`, `advance`, the bar's dots, the move handed to the arrival rules.                                                                                                   |
+| `step-registry.spec.js`                                                                 | The wizard: document-order registration, gates, `skipback`, `advance`, the bar's chapters and lines, the move handed to the arrival rules.                                                                                     |
 | `stale-checklist.spec.js`                                                               | The checklist script's blast-radius rules, and that the real table has one row per registered step in the registry's order.                                                                                                    |
 
 What the tests cannot see — whether a tween reads as motion, whether a name

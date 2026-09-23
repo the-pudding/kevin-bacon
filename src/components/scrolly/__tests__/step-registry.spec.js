@@ -4,16 +4,16 @@ import { story } from "../story.svelte.js";
 
 const NEVER = () => false;
 
-/** the shape of the story's opening: a title card, a step, a chapter card,
- * a gated interaction that a backward move skips, its reveal, and a step that
- * hides the bar */
+/** the shape of the story's opening: a title card outside every chapter, a
+ * first chapter of two steps, then a second opening on a gated interaction that
+ * a backward move skips, its reveal, and a step that hides the bar */
 const OPENING = [
-	{ state: "titleGalaxy", splash: {} },
-	{ state: "lone" },
-	{ state: "chapterCenters", chapter: { title: "The centers" } },
-	{ state: "rankFocus", gate: NEVER, skipback: true },
-	{ state: "rankReveal" },
-	{ state: "raceRecent", hideBar: true }
+	{ state: "titleGalaxy", splash: {}, hideBar: true },
+	{ state: "lone", chapter: "Intro" },
+	{ state: "hopSeed", chapter: "Intro" },
+	{ state: "rankFocus", gate: NEVER, skipback: true, chapter: "The centers" },
+	{ state: "rankReveal", chapter: "The centers" },
+	{ state: "raceRecent", hideBar: true, chapter: "The centers" }
 ];
 
 function registry(configs = OPENING) {
@@ -25,13 +25,26 @@ function registry(configs = OPENING) {
 }
 
 describe("createStepRegistry", () => {
-	test("registers in document order and derives the bar's segments", () => {
+	test("registers in document order and derives the bar's chapters", () => {
 		const { steps } = registry();
 		expect(steps.count).toBe(6);
 		expect(steps.current).toBe(0);
-		expect(steps.chapterStarts).toEqual([2]);
-		// no dot for the title card, the chapter card or the skipped interaction
-		expect(steps.dotSteps).toEqual([1, 4, 5]);
+		// no line for the title card or the skipped interaction
+		expect(steps.dotSteps).toEqual([1, 2, 4, 5]);
+		expect(steps.chapters).toEqual([
+			{ title: "Intro", steps: [1, 2] },
+			{ title: "The centers", steps: [4, 5] }
+		]);
+	});
+
+	test("the current chapter is the one holding the lit line", () => {
+		const { steps } = registry();
+		expect(steps.currentChapter).toBe(-1);
+		steps.go(2);
+		expect(steps.currentChapter).toBe(0);
+		steps.go(3);
+		// the gated step lights its successor's line, in the next chapter
+		expect(steps.currentChapter).toBe(1);
 	});
 
 	test("go moves forward through an open gate and reports the move first", () => {
@@ -67,14 +80,14 @@ describe("createStepRegistry", () => {
 		steps.prev();
 		expect(steps.current).toBe(2);
 		expect(moves.at(-1)).toEqual({
-			to: "chapterCenters",
+			to: "hopSeed",
 			from: "rankReveal",
 			forward: false,
 			back: true
 		});
 	});
 
-	test("the gated step shares its successor's dot", () => {
+	test("the gated step shares its successor's line", () => {
 		const { steps } = registry();
 		for (const to of [1, 2, 3]) steps.go(to);
 		expect(steps.dotStep).toBe(4);
@@ -91,14 +104,12 @@ describe("createStepRegistry", () => {
 		expect(moves).toEqual([]);
 	});
 
-	test("the bar hides on a chapter card, a hideBar step, and held prose", () => {
+	test("the bar hides on the title card, a hideBar step, and held prose", () => {
 		const { steps } = registry();
+		expect(steps.hideBar).toBe(true);
 		steps.go(1);
 		expect(steps.hideBar).toBe(false);
-		expect(steps.chapter).toBeNull();
-		steps.go(2);
-		expect(steps.chapter).toBe("The centers");
-		for (const to of [3]) steps.go(to);
+		for (const to of [2, 3]) steps.go(to);
 		steps.advance();
 		steps.advance();
 		expect(steps.hideBar).toBe(true);

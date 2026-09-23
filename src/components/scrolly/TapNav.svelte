@@ -108,7 +108,7 @@
 	   target where the hand isn't. What the card holds that must still be
 	   reachable opts back into pointer events up at --z-card (GuessRank's
 	   controls, the pair quiz, the Start buttons, the inline InfoTerm
-	   triggers); the dot bar is higher still and takes no pointer events, so a
+	   triggers); the progress bar is higher still and takes no pointer events, so a
 	   tap over it steps the story like any other.
 
 	   Half the SCREEN, not half the layout: #scrolly pads the column by

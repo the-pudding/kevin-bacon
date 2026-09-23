@@ -28,7 +28,8 @@ const MARKUP = `
 	{#snippet title()}Name{/snippet}
 </Splash>
 <Step state="lone"><p>one</p></Step>
-<Chapter state="chapterCenters" title="A" />
+<Chapter title="A">
+<Step state="hopBands"><p>two</p></Step>
 <Step state="rankFocus" gate={() => quizDone(story)} skipback>
 	<GuessRank />
 </Step>
@@ -40,6 +41,7 @@ const MARKUP = `
 	<p>quiz</p>
 </Step>
 <Step state="outro" hideBar><p>end</p></Step>
+</Chapter>
 `;
 
 const LAYOUT = `
@@ -55,7 +57,7 @@ const TABLE = `
 | --- | ------------ | --- | ---- | ------ | ----- |
 | 0   | \`titleGalaxy\` | [x] | n/a  | [x]    | title |
 | 1   | \`lone\`         | [ ] | [x]  | [!]    | a     |
-| 2   | \`chapterCenters\` — "A" | [x] | [x] | [x] | card |
+| 2   | \`hopBands\`     | [x] | [x]  | [x]    | bands |
 | 3   | \`rankFocus\` (gate) | [x] bug (see) | n/a | [x] | guess |
 | 4   | \`scatterQuiz\`  | [x] | [x]  | [x]    | quiz  |
 | 5   | \`outro\`        | [x] | [x]  | [x]    | end   |
@@ -69,14 +71,14 @@ describe("parseSteps", () => {
 		expect(steps.map((s) => s.state)).toEqual([
 			"titleGalaxy",
 			"lone",
-			"chapterCenters",
+			"hopBands",
 			"rankFocus",
 			"scatterQuiz",
 			"outro"
 		]);
 	});
 
-	test("a <Step> mentioned in the script or a comment is not a step", () => {
+	test("a <Step> mentioned in the script or a comment, or a <Chapter>, is not a step", () => {
 		expect(steps).toHaveLength(6);
 	});
 
@@ -153,7 +155,7 @@ describe("the table", () => {
 		expect(rows.map((r) => [r.index, r.state])).toEqual([
 			[0, "titleGalaxy"],
 			[1, "lone"],
-			[2, "chapterCenters"],
+			[2, "hopBands"],
 			[3, "rankFocus"],
 			[4, "scatterQuiz"],
 			[5, "outro"]
@@ -216,7 +218,6 @@ describe("the real checklist", () => {
 		const modules = [
 			"intro",
 			"hop-bands",
-			"chapters",
 			"rank",
 			"race",
 			"scatters",

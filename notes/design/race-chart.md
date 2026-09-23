@@ -355,8 +355,9 @@ leg has to meet, discharged by construction.
 
 **The Gen Z field (`raceGenz`).** The prediction chapter opens by bringing this
 chart back one more time and then leaving the crown behind. Three beats on one
-step: the reader arrives from the chapter card onto the view they left
-(`raceFuture`'s, with a few years of history on the plot); the camera pans DOWN
+step: the dots fly in from the quiz's scatter onto the view the reader left at
+the end of the race chapter (`raceFuture`'s, with a few years of history on the
+plot); the camera pans DOWN
 onto `[2.3, 3.0]`, where the 99 Gen Z contenders actually sit, and the whole race
 cast retires as it goes; a **Show Gen Z actors** button draws their trajectories
 in, and the draw carries the reader on to the next step.
@@ -527,7 +528,7 @@ exclusion is asserted rather than assumed.
 
 It is named BACKDROP and not FIELD because `sky.js` already owns a
 `FIELD_*` vocabulary for the pull-back crowd (`FIELD_IDS`, `fieldSpot`,
-`FIELD_ALPHA`) — the hop 1–4 actors the chapter card and `hopBands` sort. Two
+`FIELD_ALPHA`) — the hop 1–4 actors `hopSeed` flies and `hopBands` sorts. Two
 unrelated "fields" in one module is a collision that reads fine until someone
 imports the wrong one.
 

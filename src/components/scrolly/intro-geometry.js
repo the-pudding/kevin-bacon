@@ -1,6 +1,6 @@
 // The intro constellation's frame: how the baked planar layout fits the
 // canvas, where each of the fifteen stands in it, and the camera pull-back
-// about Bacon that hopSeed and the chapter cards share.
+// about Bacon that hopSeed lands on.
 import { ANCHOR_ID, INTRO_LAYOUT } from "./nodes.js";
 import { MARGIN } from "./plot.js";
 

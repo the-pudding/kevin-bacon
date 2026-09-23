@@ -90,7 +90,7 @@ export function prepareArrival(move) {
 	const { to, from, forward, back } = move;
 	// A step whose card is held back by its own entry choreography has to have
 	// that flag up BEFORE it renders. ScrollyVisual raises it too, but from an
-	// effect — one flush too late, which is long enough for the dot bar to mount
+	// effect — one flush too late, which is long enough for the progress bar to mount
 	// on the un-held step, start its fade in, and then be told to leave again.
 	// The reader sees it flash. Raised here for a FORWARD arrival only, which is
 	// the only direction a choreography ever plays on; if the arrival then turns

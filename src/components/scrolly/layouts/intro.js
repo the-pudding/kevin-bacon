@@ -49,7 +49,7 @@ import {
 	GALAXY_FOCUS_R_MULT
 } from "../galaxy-highlight.js";
 import { easeCubicInOut } from "../tween.js";
-import { CHAPTER_OUT_MS } from "../chapterFade.js";
+import { CARD_OUT_MS } from "../cardFade.js";
 
 const INTRO_EDGE_ALPHA = 0.5;
 
@@ -640,8 +640,8 @@ function withTitleReveal(framesFn) {
 }
 
 /**
- * The splash: the corpus as a sky, with nobody on it. Same galaxy the chapter
- * cards and the outro rest on — `writeFieldCrowd` at the landed camera, spread
+ * The splash: the corpus as a sky, with nobody on it. Same galaxy hopSeed and
+ * the outro rest on — `writeFieldCrowd` at the landed camera, spread
  * across `galaxyBox` — so the story opens on the picture it closes on.
  *
  * Bacon is here as a plain member of the crowd: same grey, same 2px, no name.
@@ -652,8 +652,8 @@ function withTitleReveal(framesFn) {
  * the constellation arrives as something the reader has been looking at all
  * along rather than something grown out of an empty frame.
  *
- * The crowd around him is named, though, once it is moving: the card takes the
- * chapter cards' highlight beat (see the state below), which picks its actors
+ * The crowd around him is named, though, once it is moving: the card carries
+ * the galaxy highlight beat (see the state below), which picks its actors
  * out of FIELD_IDS — a set that excludes all fifteen by construction, so the
  * beat can neither name him early nor hang a spoke off him.
  * @type {import("../layout-types.js").LayoutFn}
@@ -683,7 +683,7 @@ const APPROACH = 3; // the flight
 const WALK = 4; // the lines grow out of where it landed, one leg per hop layer
 // comfortably past the title's own out-transition, so the words are gone before
 // the dot under them starts to light
-const TITLE_CLEAR_MS = CHAPTER_OUT_MS + 100;
+const TITLE_CLEAR_MS = CARD_OUT_MS + 100;
 // The approach is the longest of them because it has three things to do in
 // order — swing onto Bacon, hold still long enough for the reader to see the sky
 // pouring out from behind him, then empty the frame — and they cannot overlap
@@ -885,7 +885,7 @@ const crowdFade = (u) => {
  * flow on every leg, the approach included — the camera closes on him, it does
  * not pick him up and carry him — so his frame always starts at `anchorSkyAt`.
  * The light-up is an envelope ON it, never a replacement for it: exactly the
- * idiom the chapter card's highlight beat uses on a flowing dot, with radius and
+ * idiom the galaxy highlight beat uses on a flowing dot, with radius and
  * alpha nudged against whatever the flow just wrote and colour written
  * absolutely (a relative blend would darken the same dot again every tick).
  *
@@ -1209,7 +1209,7 @@ function networkEntryFrames(nodes, w, h, edges, params, bleed = NO_BLEED) {
 export const states = {
 	titleGalaxy: {
 		layout: layoutTitleGalaxy,
-		// No labels STANDING STILL, exactly as on a chapter card: the resting
+		// No labels STANDING STILL: the resting
 		// frame under the title is an anonymous crowd, and the names arrive with
 		// the motion instead — once the sky is flowing, the highlight beat picks
 		// one well-known actor out of it at a time (see galaxy-highlight.js). An
@@ -1217,7 +1217,7 @@ export const states = {
 		// per-frame cut in ScrollyVisual is what names anybody; this says the
 		// resting card names nobody, which is also what holds the t = 0 contract.
 		labels: () => [],
-		// FIELD_IDS, not the cards' UNIVERSE_IDS: the fifteen fly here as Bacon's
+		// FIELD_IDS, not SKY_IDS: the fifteen fly here as Bacon's
 		// cluster on his own authored trip (`withAnchorInSky`), not on hashed
 		// ones, and the flow must not write over it. The beat can never want one of
 		// them anyway — GALAXY_CAST is derived from FIELD_IDS, which excludes the

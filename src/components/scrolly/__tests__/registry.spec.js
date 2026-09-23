@@ -100,7 +100,7 @@ describe("state registry", () => {
 		expect(entryFor("raceFull", "raceRecent")).toBeUndefined();
 		expect(entryFor("raceFull", "raceFuture")?.ownsArrival).toBe(true);
 		expect(entryFor("raceFuture", "raceFull")?.ownsArrival).toBe(true);
-		expect(entryFor("raceGenz", "chapterCenters")).toBeDefined();
+		expect(entryFor("raceGenz", "scatterQuiz")).toBeDefined();
 		expect(entryFor("raceGenz", "careerTrio")).toBeUndefined();
 	});
 

@@ -278,16 +278,20 @@
 	   opt back in take anything from the halves — same idiom as .hits and
 	   .route. */
 	.search {
+		/* the top of the glyph's 1.75rem square: 4px above the title's line box,
+		   which centres the two on each other. The box and the chip hang 2rem
+		   below it. */
+		--glyph-top: calc(var(--chart-title-top) - 4px);
 		position: absolute;
 		inset: 0;
 		pointer-events: none;
 		z-index: var(--z-tap-above);
 	}
 
-	/* On the chart title's line, at the opposite end of it. The title is centred
-	   at `top: 4px` inside this same box (.chart-title in ScrollyVisual), so the
+	/* On the chart title's line, at the opposite end of it. The title sits at
+	   `--chart-title-top` inside this same box (.chart-title in ScrollyVisual), so the
 	   glyph reads as the title's own furniture rather than as page chrome — the
-	   26px band ABOVE this box belongs to the dot bar (--title-band offsets
+	   26px band ABOVE this box belongs to the progress bar (--title-band offsets
 	   .scrolly-visual down past it in Stage.svelte), and a glyph up there sits in
 	   the navigation's row instead of the chart's.
 
@@ -302,7 +306,7 @@
 	   than typed so it cannot drift from the plots it is lining up with. */
 	.search__glyph {
 		position: absolute;
-		top: calc((1.75rem - var(--48px)) / 2);
+		top: calc(var(--glyph-top) + (1.75rem - var(--48px)) / 2);
 		right: calc(var(--plot-margin) - (var(--48px) - 1.75rem) / 2);
 		display: flex;
 		align-items: center;
@@ -340,7 +344,7 @@
 	   — the reason this control stopped reserving a box when it left the card. */
 	.search__box {
 		position: absolute;
-		top: 2rem;
+		top: calc(var(--glyph-top) + 2rem);
 		right: var(--plot-margin);
 		width: min(16rem, 100%);
 		display: flex;
@@ -397,7 +401,7 @@
 	   transformed ancestor instead of the viewport (see fly-to-dot.js). */
 	.search__chip {
 		position: absolute;
-		top: 2rem;
+		top: calc(var(--glyph-top) + 2rem);
 		right: var(--plot-margin);
 		display: inline-flex;
 		align-items: center;

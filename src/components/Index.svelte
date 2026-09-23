@@ -357,7 +357,7 @@
 				{/if}
 			{/snippet}
 			<!-- TITLE CARD -->
-			<!-- Step 0: the piece's name over the same sky the chapter cards
+			<!-- Step 0: the piece's name over the same sky the outro
 			     and the credits rest on. Stepping off it is the story's first
 			     use of its only control, and the constellation grows out of the
 			     sky it leaves (see `titleGalaxy` / `networkIntro`'s revealFrom in
@@ -374,8 +374,10 @@
 				{/snippet}
 			</Splash>
 
-			<!-- PRESENT -->
-			<!-- Both steps rest on one state, so the step between them moves not a
+			<!-- PLACEHOLDER chapter title for Owen to reword -->
+			<Chapter title="Introduction">
+				<!-- PRESENT -->
+				<!-- Both steps rest on one state, so the step between them moves not a
 			     dot and the tour carries straight across it. This one grows the
 			     constellation and then demonstrates the game on it; the next one
 			     only changes the words.
@@ -389,54 +391,46 @@
 		     which is what it describes. Every other arrival here — a cold start,
 		     a step back from `hopSeed` — never raises the gate, so the card
 		     speaks straight away. -->
-			<!-- `alt`: what the canvas shows, for a screen reader (see Step.svelte).
+				<!-- `alt`: what the canvas shows, for a screen reader (see Step.svelte).
 			     PLACEHOLDERS — bare descriptions for Owen to reword. -->
-			<Step
-				state="networkIntro"
-				panel={routePanel}
-				alt="A network diagram with Kevin Bacon in the middle, joined by lines to actors he has made films with, and on to actors they have made films with."
-			>
-				<p>
-					The “Six Degrees of Kevin Bacon” is a game where players try to
-					connect an actor to Kevin Bacon via movies they've starred in with
-					other Hollywood actors, aiming to reach him in six movies or fewer.
-				</p>
-			</Step>
-			<Step state="networkIntro" panel={routePanel}>
-				<p>
-					The intuition is that Kevin Bacon is so prolific and well-known that
-					the game is a lot easier than if it were called the “Six Degrees of
-					John Doe”, implying he's some sort of all-encompassing center of
-					Hollywood.
-				</p>
-			</Step>
-			<Step
-				state="hopSeed"
-				hideBar
-				alt="The network shrinks away into a field of dots."
-			>
-				<!-- The copy lands over the constellation pulling back: the network
+				<Step
+					state="networkIntro"
+					panel={routePanel}
+					alt="A network diagram with Kevin Bacon in the middle, joined by lines to actors he has made films with, and on to actors they have made films with."
+				>
+					<p>
+						The “Six Degrees of Kevin Bacon” is a game where players try to
+						connect an actor to Kevin Bacon via movies they've starred in with
+						other Hollywood actors, aiming to reach him in six movies or fewer.
+					</p>
+				</Step>
+				<Step state="networkIntro" panel={routePanel}>
+					<p>
+						The intuition is that Kevin Bacon is so prolific and well-known that
+						the game is a lot easier than if it were called the “Six Degrees of
+						John Doe”, implying he's some sort of all-encompassing center of
+						Hollywood.
+					</p>
+				</Step>
+				<Step
+					state="hopSeed"
+					hideBar
+					alt="The network shrinks away into a field of dots."
+				>
+					<!-- The copy lands over the constellation pulling back: the network
 				     Bacon is in the middle of shrinks to a small thing as the line
 				     says he isn't the centre of Hollywood (see layouts/hop-bands.js).
 				     The bands' crowd is already parked behind it, invisible. -->
-				<p>
-					However, Kevin Bacon is <b>not</b> the center of Hollywood. Not only
-					that, he <b>never has been</b>, and almost certainly
-					<b>never will be</b>.
-				</p>
-			</Step>
+					<p>
+						However, Kevin Bacon is <b>not</b> the center of Hollywood. Not only
+						that, he <b>never has been</b>, and almost certainly
+						<b>never will be</b>.
+					</p>
+				</Step>
+			</Chapter>
 
-			<!-- CHAPTER: THE CENTERS OF HOLLYWOOD -->
-			<!-- The card opens on hopSeed's own closing frame — the crowd is
-			     already spread across the plot, so nothing moves and the picture
-			     simply holds while the title lands. The intro fifteen dissolve
-			     into the crowd where they stand, taking its mark without leaving
-			     their places, which is the line the reader has just read. It rests
-			     there drifting (the framework's one ambient loop) until they step
-			     on, and the field then sorts itself into the hop bands. -->
-			<Chapter state="chapterCenters" title="The centers of Hollywood" />
-
-			<!-- The prose waits for the bands to actually land rather than mounting
+			<Chapter title="The RKBs">
+				<!-- The prose waits for the bands to actually land rather than mounting
 		     the moment the step becomes active — the crowd sorting into rows is
 		     the point of the step, and the reader should see that finish before
 		     being told what it means. Held per STEP, so it holds again on each of
@@ -444,374 +438,372 @@
 		     The middle one is the cycling chart (`hopAnchor`); the two either
 		     side of it are about Bacon's own number and rest on him
 		     (`hopBands`) — see layouts/hop-bands.js. -->
-			<Step
-				state="hopBands"
-				alt="Chart: the four degrees of Kevin Bacon. Kevin Bacon's dot sits above four rows of dots, one for the actors 1, 2, 3 and 4 movies away from him, each labelled with its share of actors. The 2-movie row is by far the largest."
-			>
-				<p>
-					No doubt, he's well connected. With
-					<InfoTerm>
-						our dataset of 169,000 actors
-						{#snippet info()}
-							<p>
-								The corpus is the IMDb top 10,000 English-language feature films
-								by user vote count.
-							</p>
-							<p>
-								We then enrich the data with cast information from the TMDB API
-								so we can build the graph network. In total, there are just over
-								169,000 actors in the dataset.
-							</p>
-							<p>The data for this was taken in ~March 2026.</p>
-							<p>
-								Massive tangent: this dataset even includes <a
-									href="https://www.imdb.com/name/nm8509587/">my bestie</a
-								>, who got a role in the 2018 film Tolkien, putting him two
-								movies away from Kevin Bacon!
-							</p>
-						{/snippet}
-					</InfoTerm>, you can get from any Hollywood actor to Kevin Bacon in
-					four movies or fewer, a.k.a. the <b>four</b> degrees of Kevin Bacon.
-				</p>
-			</Step>
-			<Step
-				state="hopAnchor"
-				panel={anchorPanel}
-				alt="The same chart, redrawn for other actors in turn. Every one of them has a small 4-movie row."
-			>
-				<p>
-					Morgan Freeman, Meryl Streep and Scarlett Johansson are also four
-					degrees from every actor in Hollywood. In fact, 10% of actors in the
-					dataset are four degrees away from everyone else. <b
-						>No one can reach everyone within 3.</b
-					>
-				</p>
-				<p>
-					We need a more granular way to measure the connectivity of actors: the
-					average number of movies it takes to get to every actor in Hollywood.
-					In mathematics, this is referred to as <b>remoteness</b>.
-				</p>
-			</Step>
-			<!-- guessing #1 or giving up is the only way on: GuessRank calls the
+				<Step
+					state="hopBands"
+					alt="Chart: the four degrees of Kevin Bacon. Kevin Bacon's dot sits above four rows of dots, one for the actors 1, 2, 3 and 4 movies away from him, each labelled with its share of actors. The 2-movie row is by far the largest."
+				>
+					<p>
+						No doubt, he's well connected. With
+						<InfoTerm>
+							our dataset of 169,000 actors
+							{#snippet info()}
+								<p>
+									The corpus is the IMDb top 10,000 English-language feature
+									films by user vote count.
+								</p>
+								<p>
+									We then enrich the data with cast information from the TMDB
+									API so we can build the graph network. In total, there are
+									just over 169,000 actors in the dataset.
+								</p>
+								<p>The data for this was taken in ~March 2026.</p>
+								<p>
+									Massive tangent: this dataset even includes <a
+										href="https://www.imdb.com/name/nm8509587/">my bestie</a
+									>, who got a role in the 2018 film Tolkien, putting him two
+									movies away from Kevin Bacon!
+								</p>
+							{/snippet}
+						</InfoTerm>, you can get from any Hollywood actor to Kevin Bacon in
+						four movies or fewer, a.k.a. the <b>four</b> degrees of Kevin Bacon.
+					</p>
+				</Step>
+				<Step
+					state="hopAnchor"
+					panel={anchorPanel}
+					alt="The same chart, redrawn for other actors in turn. Every one of them has a small 4-movie row."
+				>
+					<p>
+						Morgan Freeman, Meryl Streep and Scarlett Johansson are also four
+						degrees from every actor in Hollywood. In fact, 10% of actors in the
+						dataset are four degrees away from everyone else. <b
+							>No one can reach everyone within 3.</b
+						>
+					</p>
+					<p>
+						We need a more granular way to measure the connectivity of actors:
+						the average number of movies it takes to get to every actor in
+						Hollywood. In mathematics, this is referred to as <b>remoteness</b>.
+					</p>
+				</Step>
+				<!-- guessing #1 or giving up is the only way on: GuessRank calls the
 		     registry's advance() itself, and stepping back off the reveal
 		     skips this step so its search box isn't left sitting under the
 		     answer (see `gate` / `skipback` in Step.svelte) -->
-			<Step
-				state="rankFocus"
-				gate={NEVER}
-				skipback
-				alt="A ranked list of the top 250 actors by remoteness. Every name is hidden except Kevin Bacon's, at #175."
-			>
-				<div class="rank-focus-text">
+				<Step
+					state="rankFocus"
+					gate={NEVER}
+					skipback
+					alt="A ranked list of the top 250 actors by remoteness. Every name is hidden except Kevin Bacon's, at #175."
+				>
+					<div class="rank-focus-text">
+						<p>
+							For example, Kevin Bacon's remoteness is 2.28: so an actor is, on
+							average, 2.28 degrees from Kevin Bacon. But 2.28 degrees is not
+							the best remoteness score: Kevin Bacon ranks 175th place of all
+							Hollywood actors. Can you guess who #1 is?
+						</p>
+						<GuessRank />
+					</div>
+				</Step>
+				<Step state="rankReveal" alt="The list's names are revealed.">
 					<p>
-						For example, Kevin Bacon's remoteness is 2.28: so an actor is, on
-						average, 2.28 degrees from Kevin Bacon. But 2.28 degrees is not the
-						best remoteness score: Kevin Bacon ranks 175th place of all
-						Hollywood actors. Can you guess who #1 is?
+						Samuel L. Jackson is the <b>center of Hollywood</b>, with a
+						remoteness of just 2.09. Willem Dafoe is second with 2.13, Robert De
+						Niro third with 2.14.
 					</p>
-					<GuessRank />
-				</div>
-			</Step>
-			<Step state="rankReveal" alt="The list's names are revealed.">
-				<p>
-					Samuel L. Jackson is the <b>center of Hollywood</b>, with a remoteness
-					of just 2.09. Willem Dafoe is second with 2.13, Robert De Niro third
-					with 2.14.
-				</p>
-				<p>
-					Women are under-represented here, taking only 16 of the top 100
-					places. Nicole Kidman is the first woman in at #21 with 2.19.
-				</p>
-			</Step>
+					<p>
+						Women are under-represented here, taking only 16 of the top 100
+						places. Nicole Kidman is the first woman in at #21 with 2.19.
+					</p>
+				</Step>
 
-			<!-- Start is the only way on, and it advances as it asks for the pan
+				<!-- Start is the only way on, and it advances as it asks for the pan
 		     (the rewind's StartButton) — the rewind is choreographed to play ACROSS
 		     the step change onto the view the next step describes -->
-			<Step
-				state="raceRecent"
-				gate={NEVER}
-				skipback
-				alt="Chart: the center of Hollywood, over time. A line per actor traces their remoteness year by year, lower being better, up to 2025."
-			>
-				<p>
-					We can repeat the process for calculating all actors' remoteness and
-					go backwards to create a time machine of centers. By using completed
-					calendar years, our time machine starts at the end of 2025.
-				</p>
-				<p>Remember, lower remoteness is better. Press 'Start' to begin.</p>
-				<StartButton kind="rewind" label="Start" advance />
-			</Step>
-			<Step
-				state="raceRecent"
-				alt="The chart rewinds to 2006, where Samuel L. Jackson's line overtakes Gene Hackman's."
-			>
-				<p>
-					Let's go back to where Samuel L. Jackson took the crown in 2006.
-					Interestingly, this was before the MCU era kicked off, which only made
-					strengthened his position.
-				</p>
-				<p>
-					Conversely, Kevin Bacon's highest ever ranking was #108 in 1996 with
-					his role in Sleepers.
-				</p>
-			</Step>
-			<Step
-				state="raceFull"
-				panel={racePanel}
-				alt="The same chart, now reaching back to 1980. A year slider moves it through time."
-			>
-				<p>
-					We can then view all centers of Hollywood since 1980. Use the slider
-					to take a look around, or go next.
-				</p>
-			</Step>
+				<Step
+					state="raceRecent"
+					gate={NEVER}
+					skipback
+					alt="Chart: the center of Hollywood, over time. A line per actor traces their remoteness year by year, lower being better, up to 2025."
+				>
+					<p>
+						We can repeat the process for calculating all actors' remoteness and
+						go backwards to create a time machine of centers. By using completed
+						calendar years, our time machine starts at the end of 2025.
+					</p>
+					<p>Remember, lower remoteness is better. Press 'Start' to begin.</p>
+					<StartButton kind="rewind" label="Start" advance />
+				</Step>
+				<Step
+					state="raceRecent"
+					alt="The chart rewinds to 2006, where Samuel L. Jackson's line overtakes Gene Hackman's."
+				>
+					<p>
+						Let's go back to where Samuel L. Jackson took the crown in 2006.
+						Interestingly, this was before the MCU era kicked off, which only
+						made strengthened his position.
+					</p>
+					<p>
+						Conversely, Kevin Bacon's highest ever ranking was #108 in 1996 with
+						his role in Sleepers.
+					</p>
+				</Step>
+				<Step
+					state="raceFull"
+					panel={racePanel}
+					alt="The same chart, now reaching back to 1980. A year slider moves it through time."
+				>
+					<p>
+						We can then view all centers of Hollywood since 1980. Use the slider
+						to take a look around, or go next.
+					</p>
+				</Step>
+			</Chapter>
+			<Chapter title="The makings of a RKB">
+				<Step
+					state="raceFuture"
+					alt="The chart runs on past 2025 into an empty shaded block labelled the future."
+				>
+					<p>
+						Now imagine us taking this into the future. How might we predict who
+						will take the crown from Samuel L. Jackson?
+					</p>
 
-			<Step
-				state="raceFuture"
-				alt="The chart runs on past 2025 into an empty shaded block labelled the future."
-			>
-				<p>
-					Now imagine us taking this into the future. How might we predict who
-					will take the crown from Samuel L. Jackson?
-				</p>
-
-				<p>
-					To do that, we need to find what moves an actor towards the center.
-				</p>
-			</Step>
-			<Chapter
-				state="chapterCenters"
-				title="The makings of a center of Hollywood"
-			/>
-			<Step
-				state="scatterCenters"
-				params={{ showFilms: true }}
-				panel={searchPanel}
-				alt="Chart: films vs. remoteness. A dot per actor, with film count across on a log scale and remoteness up. Actors with more films sit lower on remoteness. Samuel L. Jackson and Nicolas Cage are labelled with their film counts."
-			>
-				<p>
-					The obvious one is film count. More films mean closer to the center.
-					Indeed, Samuel L. Jackson has been in far more films than anyone else,
-					20 more than Nicolas Cage, who's next closest.
-				</p>
-			</Step>
-			<Step
-				state="scatterCenters"
-				params={{ showPair: true }}
-				panel={searchPanel}
-				alt="Natalie Portman and Anna Kendrick are labelled with their remoteness: similar film counts, far apart on remoteness."
-			>
-				<p>
-					The relationship between film count and remoteness is strong, but it
-					doesn't explain it fully. Two actors can have the same film counts but
-					very different remoteness. For example, Natalie Portman and Anna
-					Kendrick are shown here at the two extremes of the data.
-				</p>
-			</Step>
-			<Step
-				state="scatterCenters"
-				params={{ showPair: true }}
-				panel={searchPanel}
-			>
-				<p>
-					So what's different about them? Put simply: better costars. Natalie
-					Portman stars with more “big dogs” than Anna Kendrick. They say in
-					Hollywood “It's not what you know, it's who you know”, and it seems
-					this is also true when explaining an actor's remoteness.
-				</p>
-			</Step>
-			<Step
-				state="scatterCenters"
-				params={{ showPair: true, showCostars: true }}
-				panel={searchPanel}
-				alt="Natalie Portman's label now reads 97 of the top 250, and Anna Kendrick's 35 of the top 250."
-			>
-				<p>
-					For example, of the 250 most-connected actors from earlier, Natalie
-					Portman has worked with almost three times as many.
-				</p>
-			</Step>
-			<Step
-				state="scatterCenters"
-				params={{ showPair: true, showCostars: true }}
-				panel={searchPanel}
-			>
-				<p>
-					It would be too circular to use costars with low remoteness as our
-					measure. That's like saying “We think the most expensive houses will
-					be the ones with the highest price”.
-				</p>
-			</Step>
-			<Step
-				state="degScatter"
-				panel={searchPanel}
-				alt="Chart: films vs. costar film count. A dot per actor, with film count across and their costars' average film count up, both on log scales."
-			>
-				<p>
-					Instead we use the costar film count as a sort of proxy. Concretely,
-					this is an actor's 50 most prolific costars by number of films, taken
-					as an average. If you work with more “big dog” actors compared to
-					someone with the same film count, you'll almost certainly be closer to
-					the center of Hollywood than them.
-				</p>
-			</Step>
-			<!-- the one gate the reader's own Next walks through once it opens:
+					<p>
+						To do that, we need to find what moves an actor towards the center.
+					</p>
+				</Step>
+				<Step
+					state="scatterCenters"
+					params={{ showFilms: true }}
+					panel={searchPanel}
+					alt="Chart: films vs. remoteness. A dot per actor, with film count across on a log scale and remoteness up. Actors with more films sit lower on remoteness. Samuel L. Jackson and Nicolas Cage are labelled with their film counts."
+				>
+					<p>
+						The obvious one is film count. More films mean closer to the center.
+						Indeed, Samuel L. Jackson has been in far more films than anyone
+						else, 20 more than Nicolas Cage, who's next closest.
+					</p>
+				</Step>
+				<Step
+					state="scatterCenters"
+					params={{ showPair: true }}
+					panel={searchPanel}
+					alt="Natalie Portman and Anna Kendrick are labelled with their remoteness: similar film counts, far apart on remoteness."
+				>
+					<p>
+						The relationship between film count and remoteness is strong, but it
+						doesn't explain it fully. Two actors can have the same film counts
+						but very different remoteness. For example, Natalie Portman and Anna
+						Kendrick are shown here at the two extremes of the data.
+					</p>
+				</Step>
+				<Step
+					state="scatterCenters"
+					params={{ showPair: true }}
+					panel={searchPanel}
+				>
+					<p>
+						So what's different about them? Put simply: better costars. Natalie
+						Portman stars with more “big dogs” than Anna Kendrick. They say in
+						Hollywood “It's not what you know, it's who you know”, and it seems
+						this is also true when explaining an actor's remoteness.
+					</p>
+				</Step>
+				<Step
+					state="scatterCenters"
+					params={{ showPair: true, showCostars: true }}
+					panel={searchPanel}
+					alt="Natalie Portman's label now reads 97 of the top 250, and Anna Kendrick's 35 of the top 250."
+				>
+					<p>
+						For example, of the 250 most-connected actors from earlier, Natalie
+						Portman has worked with almost three times as many.
+					</p>
+				</Step>
+				<Step
+					state="scatterCenters"
+					params={{ showPair: true, showCostars: true }}
+					panel={searchPanel}
+				>
+					<p>
+						It would be too circular to use costars with low remoteness as our
+						measure. That's like saying “We think the most expensive houses will
+						be the ones with the highest price”.
+					</p>
+				</Step>
+				<Step
+					state="degScatter"
+					panel={searchPanel}
+					alt="Chart: films vs. costar film count. A dot per actor, with film count across and their costars' average film count up, both on log scales."
+				>
+					<p>
+						Instead we use the costar film count as a sort of proxy. Concretely,
+						this is an actor's 50 most prolific costars by number of films,
+						taken as an average. If you work with more “big dog” actors compared
+						to someone with the same film count, you'll almost certainly be
+						closer to the center of Hollywood than them.
+					</p>
+				</Step>
+				<!-- the one gate the reader's own Next walks through once it opens:
 		     the quiz has no single completing press, so finishing the last
 		     pair is what unblocks it. Stepping back to 20 stays open, and
 		     `quizDone` is the same predicate PairQuiz seeds itself from, so
 		     the gate can never hold the reader on a quiz with nothing left
 		     to ask. PairQuiz sits in the card, under the sentence putting the
 		     question — see its own file for why it stopped being a panel -->
-			<Step
-				state="scatterQuiz"
-				gate={() => quizDone(story)}
-				panel={searchPanel}
-			>
-				<p>
-					Let's test our knowledge with a few more examples. For these actors
-					with similar film counts, who do you think works with more “big dogs”
-					and is therefore closer to the center?
-				</p>
-				<PairQuiz visual={layout.visual} />
-			</Step>
-			<Chapter
-				state="chapterCenters"
-				title="Predicting the next center of Hollywood"
-			/>
-			<!-- The race chart comes back for one beat, and the camera pans down
+				<Step
+					state="scatterQuiz"
+					gate={() => quizDone(story)}
+					panel={searchPanel}
+				>
+					<p>
+						Let's test our knowledge with a few more examples. For these actors
+						with similar film counts, who do you think works with more “big
+						dogs” and is therefore closer to the center?
+					</p>
+					<PairQuiz visual={layout.visual} />
+				</Step>
+			</Chapter>
+			<Chapter title="Predicting the next RKB">
+				<!-- The race chart comes back for one beat, and the camera pans down
 		     off the crown onto the stretch of remoteness the contenders
 		     actually live on — Samuel L. Jackson leaves through the top of the
 		     plot, which is the distance the rest of the chapter is about.
 		     "Show Gen Z actors" is the only way on (the reader's Next is
 		     refused) and the draw-on carries them to the next step when it
 		     lands, so the step and its payoff read as one move. -->
-			<Step
-				state="raceGenz"
-				gate={NEVER}
-				skipback
-				alt="The center of Hollywood chart returns, panned down below Samuel L. Jackson to the remoteness where younger actors sit."
-				advanceon={() =>
-					story.race.genzLinesShown && story.running !== "genzLines"}
-			>
-				<p>
-					We now have everything we need to predict Gen Z's Kevin Bacon using
-					film count and costar data. Our contenders are actors born since 1997
-					who have been in at least 5 films.
-				</p>
-				<StartButton kind="genzLines" label="Show Gen Z actors" />
-			</Step>
-			<Step
-				state="raceGenz"
-				alt="Lines for the Gen Z contenders are drawn onto the chart."
-			>
-				<p>
-					To predict future remoteness we need to model their trajectory by
-					stating what we think their film count and costar data will look like
-					at a certain point in time. To do this, we look at what has happened
-					to actors with similar stats in the past.
-				</p>
-			</Step>
-			<Step
-				state="careerTrio"
-				panel={searchPanel}
-				alt="Chart: film count by career age. Sydney Sweeney's line reaches 16 films at 15 years, where Robert De Niro's and Chevy Chase's lines meet it; De Niro's goes on to 87 films and Chase's to 27."
-			>
-				<p>
-					Films first. Take Sydney Sweeney: she's been in 16 films since her
-					debut 15 years ago. At the same point in their career, Robert De Niro
-					had also racked up 16 films, and went on to have a brilliant career
-					totalling 87. By contrast, Chevy Chase reached the same milestone at
-					the same point, but only ever appeared in 27.
-				</p>
-			</Step>
-			<Step
-				state="careerBacon"
-				panel={searchPanel}
-				alt="Kevin Bacon's line, alongside Helen Mirren's and Gene Hackman's."
-			>
-				<p>
-					Conversely, after 47 years making Hollywood films, he has a similar
-					output to Helen Mirren and Gene Hackman at this stage.
-				</p>
-				<p>
-					You'll remember Gene Hackman from the time machine; turns out Kevin
-					Bacon could have been the center of Hollywood if he were born 20 years
-					earlier.
-				</p>
-			</Step>
-			<Step
-				state="careerMany"
-				panel={searchPanel}
-				alt="Back on Sydney Sweeney's line, with many other careers fanning out from the same point."
-			>
-				<p>
-					Back to Sydney Sweeney. We can now see that whatever actor we use to
-					model a Gen Z actor's film trajectory can massively impact the
-					results. For each actor, we consider similar actors based on proximity
-					to them, and randomly select one weighted by how close they are.
-				</p>
-				<p>
-					By applying the same approach for costar film counts, we can start
-					predicting.
-				</p>
-			</Step>
-			<!-- Start is the only way on, and the run itself carries the reader
+				<Step
+					state="raceGenz"
+					gate={NEVER}
+					skipback
+					alt="The center of Hollywood chart returns, panned down below Samuel L. Jackson to the remoteness where younger actors sit."
+					advanceon={() =>
+						story.race.genzLinesShown && story.running !== "genzLines"}
+				>
+					<p>
+						We now have everything we need to predict Gen Z's Kevin Bacon using
+						film count and costar data. Our contenders are actors born since
+						1997 who have been in at least 5 films.
+					</p>
+					<StartButton kind="genzLines" label="Show Gen Z actors" />
+				</Step>
+				<Step
+					state="raceGenz"
+					alt="Lines for the Gen Z contenders are drawn onto the chart."
+				>
+					<p>
+						To predict future remoteness we need to model their trajectory by
+						stating what we think their film count and costar data will look
+						like at a certain point in time. To do this, we look at what has
+						happened to actors with similar stats in the past.
+					</p>
+				</Step>
+				<Step
+					state="careerTrio"
+					panel={searchPanel}
+					alt="Chart: film count by career age. Sydney Sweeney's line reaches 16 films at 15 years, where Robert De Niro's and Chevy Chase's lines meet it; De Niro's goes on to 87 films and Chase's to 27."
+				>
+					<p>
+						Films first. Take Sydney Sweeney: she's been in 16 films since her
+						debut 15 years ago. At the same point in their career, Robert De
+						Niro had also racked up 16 films, and went on to have a brilliant
+						career totalling 87. By contrast, Chevy Chase reached the same
+						milestone at the same point, but only ever appeared in 27.
+					</p>
+				</Step>
+				<Step
+					state="careerBacon"
+					panel={searchPanel}
+					alt="Kevin Bacon's line, alongside Helen Mirren's and Gene Hackman's."
+				>
+					<p>
+						Conversely, after 47 years making Hollywood films, he has a similar
+						output to Helen Mirren and Gene Hackman at this stage.
+					</p>
+					<p>
+						You'll remember Gene Hackman from the time machine; turns out Kevin
+						Bacon could have been the center of Hollywood if he were born 20
+						years earlier.
+					</p>
+				</Step>
+				<Step
+					state="careerMany"
+					panel={searchPanel}
+					alt="Back on Sydney Sweeney's line, with many other careers fanning out from the same point."
+				>
+					<p>
+						Back to Sydney Sweeney. We can now see that whatever actor we use to
+						model a Gen Z actor's film trajectory can massively impact the
+						results. For each actor, we consider similar actors based on
+						proximity to them, and randomly select one weighted by how close
+						they are.
+					</p>
+					<p>
+						By applying the same approach for costar film counts, we can start
+						predicting.
+					</p>
+				</Step>
+				<!-- Start is the only way on, and the run itself carries the reader
 		     over once it lands: the 10,000 runs are the payoff and the next
 		     step names the winner -->
-			<Step
-				state="simRace"
-				gate={NEVER}
-				skipback
-				alt="Chart: wins after 10,000 simulations, counting each Gen Z actor's wins as the simulations run."
-				advanceon={() => story.sim.runs > 0 && story.running !== "run"}
-			>
-				<p>
-					To achieve a stable result, we'll run the simulation 10,000 times and
-					see who comes out on top. Press start to find out who wins.
-				</p>
-				<StartButton kind="run" label="Start" />
-			</Step>
-			<!-- 
+				<Step
+					state="simRace"
+					gate={NEVER}
+					skipback
+					alt="Chart: wins after 10,000 simulations, counting each Gen Z actor's wins as the simulations run."
+					advanceon={() => story.sim.runs > 0 && story.running !== "run"}
+				>
+					<p>
+						To achieve a stable result, we'll run the simulation 10,000 times
+						and see who comes out on top. Press start to find out who wins.
+					</p>
+					<StartButton kind="run" label="Start" />
+				</Step>
+				<!-- 
           1. GCM is the winner
           2. A typical sim doesn't get her close, only an over-performing sim gets her close
           3. The sim doesn't just confirm today's leaderboard, it reshuffles it
            -->
-			<Step state="simRace">
-				<p>
-					Chloë Grace Moretz is the most likely to be Gen Z's Kevin Bacon,
-					winning just over 10% of the simulations. It's by no means a
-					landslide: her median remoteness is 2.19 with a median projected film
-					count of 66, quite far away from Samuel L. Jackson's stratospheric
-					numbers.
-				</p>
-			</Step>
-			<!-- the story's closing chart (PRD P-27-1): the race chart's future
+				<Step state="simRace">
+					<p>
+						Chloë Grace Moretz is the most likely to be Gen Z's Kevin Bacon,
+						winning just over 10% of the simulations. It's by no means a
+						landslide: her median remoteness is 2.19 with a median projected
+						film count of 66, quite far away from Samuel L. Jackson's
+						stratospheric numbers.
+					</p>
+				</Step>
+				<!-- the story's closing chart (PRD P-27-1): the race chart's future
 		     view returns, SLJ's line falls away across the block, and the
 		     contenders the reader just watched win 10,000 simulations land on
 		     their simulated medians above him. His 2030 landing is AUTHORED,
 		     not modelled — the simulation projects the 99 contenders and
 		     nobody else. See RACE_CLOSE_SLJ_END in layouts/race.js. -->
-			<Step
-				state="raceClose"
-				alt="The future view of the center of Hollywood chart returns. Samuel L. Jackson's line falls away and the contenders land on their simulated medians above him."
-			>
-				<p>
-					From our time machine you'll recall lines dropping off as actors stop
-					appearing in so many films. From a purely biological standpoint, we
-					know this will eventually happen to Samuel L. Jackson, it's just a
-					matter of how long that takes for someone else to take the crown.
-				</p>
-			</Step>
-			<Step state="outro" hideBar>
-				<p>
-					What is far more certain is that the first woman to be the center of
-					Hollywood is on the horizon, with 65% of the wins going to women.
-				</p>
-				<p>
-					We can also be pretty sure of the fact that it's not going to be Kevin
-					Bacon.
-				</p>
-			</Step>
+				<Step
+					state="raceClose"
+					alt="The future view of the center of Hollywood chart returns. Samuel L. Jackson's line falls away and the contenders land on their simulated medians above him."
+				>
+					<p>
+						From our time machine you'll recall lines dropping off as actors
+						stop appearing in so many films. From a purely biological
+						standpoint, we know this will eventually happen to Samuel L.
+						Jackson, it's just a matter of how long that takes for someone else
+						to take the crown.
+					</p>
+				</Step>
+				<Step state="outro" hideBar>
+					<p>
+						What is far more certain is that the first woman to be the center of
+						Hollywood is on the horizon, with 65% of the wins going to women.
+					</p>
+					<p>
+						We can also be pretty sure of the fact that it's not going to be
+						Kevin Bacon.
+					</p>
+				</Step>
+			</Chapter>
 		{/snippet}
 	</Stage>
 	{#if steps.exited}
@@ -885,7 +877,7 @@
 	}
 
 	/* rankFocus' own staged reveal: Bacon's bar/row lands first (panel-in,
-	   above; both now held on the same story.settled === "rankFocus" check —
+	   above; both now held on the step landing (`steps.held`) —
 	   see the step's `hold`), then this text fades in a beat later so the reader
 	   meets Bacon before the question — see RankBars.svelte's row-in for the
 	   next stage (everyone else fading in after this). The 0.55s delay is
@@ -967,7 +959,7 @@
 		text-align: center;
 	}
 
-	/* same halo as .chapter-card h2 — this text also sits over the drifting
+	/* same halo as Stage's .splash-card h1 — this text also sits over the drifting
 	   dot field rather than a plain background */
 	#credits :global(.credits-block h2) {
 		margin: 0;

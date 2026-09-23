@@ -10,11 +10,11 @@ registered in document order like every other step, so leaving it is the reader'
 first use of the very press the line has just taught them, and every later step's
 index shifts by itself.
 
-It borrows `Chapter.svelte`'s arrangement wholesale — the component registers and
-renders nothing, `Index.svelte` renders the card from `stepConfigs[value].splash`
-inside a stable `{#if}` so it can transition out, and it fades on the chapter
-card's own timings (`chapterFade.js`) so opening the story and opening a chapter
-are visibly the same move. Two things are its own:
+`Splash.svelte` registers and renders nothing: `Stage.svelte` renders the card
+from the registry's active config (`steps.config.splash`) inside a stable
+`{#if}` so it can transition out, on the timings in `cardFade.js`. It sits
+outside every `<Chapter>`, so the progress bar claims no line for it. Two things
+are its own:
 
 **The copy arrives as snippets, and says a different thing per screen.** `title`
 and `cta` are snippets rather than strings so the words live in `Index.svelte`
@@ -39,13 +39,12 @@ Bacon (see the cluster below). Before 2026-09-23 the card left the constellation
 out, on the grounds that showing the co-stars would spend the opening beat
 before the tap. Owen changed that so the approach zooms in on the whole graph
 rather than on Bacon alone. It does
-take the chapter cards' highlight beat, wrapping its flight in
-`withGalaxyHighlight` and declaring `labels: () => []` exactly as
-`chapterCenters` does, so the card rests anonymous and the names arrive only once
+carry the galaxy highlight beat (`notes/design/sky.md`), wrapping its flight in
+`withGalaxyHighlight` and declaring `labels: () => []`, so the card rests anonymous and the names arrive only once
 the sky is moving. That is safe against the cluster without any coordination:
 `GALAXY_CAST` is derived from `FIELD_IDS`, which excludes the fifteen by
 construction, so the beat can never reach for one of the cluster. The flight
-itself is handed `FIELD_IDS` rather than the cards' `UNIVERSE_IDS` for the same
+itself is handed `FIELD_IDS` rather than `SKY_IDS` for the same
 reason: the fifteen ride Bacon's authored trip (`withAnchorInSky`), and a hashed
 trip would carry them off it (see the opening flight below).
 
@@ -65,10 +64,8 @@ Two changes fixed it (`galaxy-highlight.js`): the beat clock now waits
 the flight has moved enough for a real pool to choose from, and the flight's
 `nonce` is now seeded from `Math.random()` once per page load rather than from
 a fixed counter, so the same viewport no longer opens on the same actor twice.
-The two-card convergence the old paragraph here described (three chapter cards
-sharing an opening actor) no longer applies to the title card at all, since it
-no longer shares a fixed offset with anything — see `flightSeq` and
-`GALAXY_START_DELAY_MS` in `galaxy-highlight.js` for the full reasoning.
+See `flightSeq` and `GALAXY_START_DELAY_MS` in `galaxy-highlight.js` for the
+full reasoning.
 
 **The beat also now runs two staggered slots rather than one.** A second actor
 joins partway through the first's turn (`GALAXY_SLOT_PHASE_MS`, half a beat),
@@ -136,7 +133,7 @@ as a member of the crowd so that he cannot be told from it before the tap; a dot
 that halts the instant it is named was never really one of them. So `LIGHT` and
 `LOCK` read `anchorSkyAt` at the leg's own clock and apply the light-up as an
 ENVELOPE on that frame — radius and alpha nudged against whatever the flow just
-wrote, colour written absolutely — which is exactly the idiom the chapter card's
+wrote, colour written absolutely — which is exactly the idiom the galaxy
 highlight beat uses on a flowing dot, and why a tap that catches him deep in the
 volume or part way through his entry fade lights the dot that is actually there.
 Only the APPROACH takes his heading away.
@@ -321,7 +318,7 @@ instead of popping them in from nothing. This is the one writer in the story tha
 ms — `runPhase` hands every writer both, because easing a schedule authored in
 real time would stretch its ends and compress its middle.
 
-**The step card waits for the landing, and so does the dot bar.**
+**The step card waits for the landing, and so does the progress bar.**
 `cardAfter: APPROACH` raises `story.entryHeld` for the choreography's first four
 legs, and `Index.svelte` gates step 1's paragraph on it — and, on the same flag,
 the registry's `hideBar`, so `StepProgress` stays down until the words it sits

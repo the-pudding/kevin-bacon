@@ -15,9 +15,8 @@ import { hopFractions, hopShareLabels } from "../rank-geometry.js";
 import {
 	writeFieldCrowd,
 	makeFlight,
-	onSkyClock,
 	galaxyBox,
-	cardSpot,
+	landedSpot,
 	flowSpot,
 	restingSkyDot,
 	skyFlight,
@@ -89,20 +88,20 @@ function sampleCounts(nodes) {
 }
 
 /**
- * The column one dot sets off from when it leaves the chapter card.
+ * The column one dot sets off from when it leaves hopSeed's sky.
  *
- * Each dot keeps the COLUMN it stands in on the card — the band only decides its
+ * Each dot keeps the COLUMN it stands in on the sky — the band only decides its
  * row. The crowd's columns are a uniform scatter across the plot and the intro
  * fifteen's are their places in the pulled-back constellation, so the chart is
  * indistinguishable from any other arrival; what changes is the arrival from the
- * card, where an independent x would send twelve thousand dots off on twelve
+ * sky, where an independent x would send twelve thousand dots off on twelve
  * thousand unrelated diagonals and read as static. Sharing the x makes it fall:
  * the universe rains straight down into rows, which is the only reading of this
  * transition that says "sorted".
  *
  * The column the dot is standing in NOW, not the one it rests in, because the
  * sky never stops: it streams outward from the vanishing point the whole time
- * the reader is on the card, so a dot can be most of the way across the screen
+ * the reader is on hopSeed, so a dot can be most of the way across the screen
  * from where the static layout has it. Taking the resting column would put the
  * sort's whole first frame somewhere other than the crowd the reader is looking
  * at. At the flow's t = 0 this is exactly the resting column — which is what a
@@ -112,7 +111,7 @@ function sampleCounts(nodes) {
  * contraction the resting position gets, and because the flow's magnification is
  * about that centre too the two commute: this is exactly where the dot would be
  * if the whole flow had been authored in the column. The intro fifteen are
- * outside the flow (see `cardSpot`) and simply keep their column.
+ * outside the flow (see `landedSpot`) and simply keep their column.
  * (`fieldSpot`'s keep-out dots, the handful nudged off Bacon, are the one place
  * the contraction is approximate, as it always has been.)
  *
@@ -127,7 +126,7 @@ function sampleCounts(nodes) {
  * plot.
  */
 function departureColumn(id, w, h, skyBox, contraction) {
-	if (isIntroActor(id)) return cardSpot(id, w, h)[0];
+	if (isIntroActor(id)) return landedSpot(id, w, h)[0];
 	// contract about the SKY's centre, land on the COLUMN's. The two are the same
 	// point while the prose sits over the canvas and differ once it sits beside
 	// it; the flow commutes with either, see skyToColumn.
@@ -234,7 +233,7 @@ function placeInBand(attrs, id, band, f) {
 	set(
 		attrs,
 		id,
-		// the column the dot leaves the chapter card in, parallax and all
+		// the column the dot leaves hopSeed's sky in, parallax and all
 		departureColumn(id, f.w, f.h, f.skyBox, f.contraction),
 		f.bandTop[band] + hash01(id, 4) * f.bandH[band],
 		f.r,
@@ -332,7 +331,7 @@ function bandCuts(shares, n) {
 }
 
 /** bands cascade 1→4, and each dot jitters within its own so the row fills in
- * rather than snapping on all at once. Arriving from the chapter card this clock
+ * rather than snapping on all at once. Arriving from hopSeed this clock
  * staggers TRAVEL, not a fade: the crowd is already on screen, spread across the
  * plot, and falls into its rows a degree at a time. Keyed on the band the dot is
  * falling INTO — which for Bacon is its own hop, and for anyone else is the row
@@ -391,14 +390,10 @@ function layoutHopBands(nodes, w, h, _edges, params, bleed = NO_BLEED) {
 // else. The reader gets the network while the camera is still close enough to
 // read it, and a single sky once it isn't.
 //
-// This step no longer hands straight to hopBands: the chapter card sits between
-// them and opens on this exact closing frame (see layouts/chapters.js). It is
-// the same frame in the literal sense — the crowd is authored across the card's
-// `galaxyBox`, not the plot's `fieldBox`, so the pull-back lands on a sky that
-// already fills the screen and stepping onto the card moves nothing: the title
-// fades up and the dot bar fades out, over a sky that does not so much as
-// blink. The network itself still sits in the column; only the field around it
-// is full-bleed.
+// The crowd is authored across `galaxyBox`, not the plot's `fieldBox`, so the
+// pull-back lands on a sky that fills the screen, and hopBands sorts it into
+// rows straight from there (see departureColumn). The network itself still sits
+// in the column; only the field around it is full-bleed.
 // ---------------------------------------------------------------------------
 
 const mix = (a, b, e) => a + (b - a) * e;
@@ -509,13 +504,7 @@ export const states = {
 		// drawn into the crowd (see writeIntroIntoSky), so they stream, brighten,
 		// swell and wrap behind the same fade as the dots around them, with
 		// nothing left to tell them apart.
-		// `clocked`, so the flight can be handed on to the chapter card's and taken
-		// back from it: the two states fly the same ids off the same box, so a
-		// handoff moves nothing at all and the sky simply never stops.
-		ambient: {
-			clocked: true,
-			frames: onSkyClock(makeFlight(layoutHopSeed, SKY_IDS))
-		}
+		ambient: { frames: makeFlight(layoutHopSeed, SKY_IDS) }
 	},
 	hopBands: {
 		// Straight through, with no params of its own, so the layout falls back to
@@ -526,18 +515,16 @@ export const states = {
 		layout: layoutHopBands,
 		title: "The four degrees of Kevin Bacon",
 		labels: [ANCHOR_ID],
-		// The cascade is authored for the forward arrival off the chapter card,
+		// The cascade is authored for the forward arrival off hopSeed's sky,
 		// where the crowd is spread across the plot and sorts itself into rows;
 		// any other direction (a step back from rankFocus) is one plain tween.
-		// It used to reveal from hopSeed's invisible seed park, before the card
-		// was inserted between them — see layouts/chapters.js.
-		revealFrom: ["chapterCenters"]
+		revealFrom: ["hopSeed"]
 	},
 	hopAnchor: {
 		// The same layout `hopBands` draws, handed an anchor.
 		layout: layoutHopBands,
-		// No state plays this layout's cascade on the way in. The cascade is the
-		// chapter card's sort — a degree at a time, out of a crowd spread across
+		// No state plays this layout's cascade on the way in. The cascade is
+		// hopBands' sort off hopSeed — a degree at a time, out of a crowd spread across
 		// the plot — and every arrival HERE comes off a step already resting on
 		// Bacon, so not a dot moves. Left to default the delays would still be
 		// spent: measured 2026-09-22, 1.8s of blank chart between the departing

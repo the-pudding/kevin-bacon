@@ -252,57 +252,6 @@ describe("titleGalaxy reveal: shut at t = 0, open once every dot's window has pa
 	});
 });
 
-// The fault this is here for: a clocked loop that derives its rays from a base
-// authored at the handoff clock instead of at zero drifts a little further out
-// on every visit, and nothing else in the suite can see it — `skyFlight.t` is 0
-// under Node, so every other assertion passes while the contract is void.
-describe("clocked ambient: the arrival lands on the loop's first frame", () => {
-	for (const [state, ambient] of Object.entries(STATE_AMBIENT)) {
-		if (!ambient.clocked) continue;
-		for (const box of BOXES) {
-			for (const t0 of [0, 9_000, 37_000]) {
-				test(`${state} @${box.name} t0=${t0}`, () => {
-					const params = layoutParamsFor(state);
-					const layout = buildLayout(state, box, params);
-					const write = ambient.frames(
-						nodes,
-						box.w,
-						box.h,
-						edges,
-						params,
-						box.bleed,
-						t0
-					);
-					// what the arrival lands on
-					const { attrs, trails } = copy(layout);
-					write(attrs, trails, 0);
-					// ...and the loop's own first tick, which must move nothing
-					const again = { attrs: Float64Array.from(attrs), trails: Float64Array.from(trails) }; // prettier-ignore
-					write(again.attrs, again.trails, 0);
-					expectSameFrame(again.attrs, attrs, "attrs");
-					expectSameFrame(again.trails, trails, "trails");
-				});
-			}
-		}
-	}
-
-	test("at clock 0 a clocked loop is the unclocked one exactly", () => {
-		for (const [state, ambient] of Object.entries(STATE_AMBIENT)) {
-			if (!ambient.clocked) continue;
-			for (const box of BOXES) {
-				const params = layoutParamsFor(state);
-				const layout = buildLayout(state, box, params);
-				const args = [nodes, box.w, box.h, edges, params, box.bleed];
-				const zero = copy(layout);
-				ambient.frames(...args, 0)(zero.attrs, zero.trails, 0);
-				const none = copy(layout);
-				ambient.frames(...args)(none.attrs, none.trails, 0);
-				expectSameFrame(zero.attrs, none.attrs, `${state} attrs`);
-			}
-		}
-	});
-});
-
 describe("race steps: the resting frame is a fixed point of the frame writer", () => {
 	for (const [state, step] of Object.entries(STATE_RACE)) {
 		for (const box of BOXES) {

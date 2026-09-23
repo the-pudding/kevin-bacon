@@ -1,34 +1,23 @@
 <script>
 	// @ts-check
-	import { getContext } from "svelte";
+	import { setContext } from "svelte";
 
 	/**
-	 * A chapter card: one step whose whole content is a title, over whatever the
-	 * canvas state it declares is doing behind it. It carries no prose, so the
-	 * step card below is empty and tapping forward stays live like any other
-	 * step.
+	 * A chapter: a run of <Step>s under one title. Renders nothing of its own —
+	 * each step inside registers with the chapter's title (Step.svelte reads it
+	 * from the "scrolly-chapter" context), and the progress bar groups its lines
+	 * by it and names the chapter the reader is in (StepProgress.svelte).
 	 *
-	 * Registers itself with the "scrolly-steps" context exactly as <Step> does —
-	 * a chapter is a step, and taking its own index in document order is what
-	 * keeps every later step's index shifting automatically. But unlike <Step> it
-	 * renders NOTHING here: the title has to play an out-transition as the reader
-	 * moves on, and content rendered from the active step's registration (the way
-	 * `panel` is) is destroyed the instant the index changes, with no chance to
-	 * transition out. So Stage.svelte renders the card itself from the
-	 * registry's active config, inside a stable {#if} block Svelte can
-	 * transition both ways.
-	 *
-	 * `params` reaches the canvas state exactly as <Step>'s does — the cards share
-	 * one state (`chapterCenters`), so it is the only way to tell them apart.
-	 * Unlike the splash's titleGalaxy state, `chapterCenters` carries no galaxy
-	 * highlight beat, so no actor is ever named on a chapter card.
+	 * A wrapper rather than a step of its own, so it takes no index: moving
+	 * between chapters is an ordinary step change, with nothing between the last
+	 * step of one and the first of the next.
 	 *
 	 * @see notes/scrolly-framework.md
-	 * @type {{ state: import("./states.js").VisualState, title: string,
-	 *   params?: Object }}
+	 * @type {{ title: string, children: import("svelte").Snippet }}
 	 */
-	let { state: layoutState, title, params } = $props();
+	let { title, children } = $props();
 
-	const steps = getContext("scrolly-steps");
-	steps.register({ state: layoutState, params, chapter: { title } });
+	setContext("scrolly-chapter", title);
 </script>
+
+{@render children()}

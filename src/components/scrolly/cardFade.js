@@ -1,9 +1,9 @@
 // @ts-check
-// Shared timing for the chapter title card's fade — also used by StepProgress
-// to crossfade the dot bar against it (see StepProgress.svelte).
-export const CHAPTER_IN_MS = 600;
-export const CHAPTER_IN_DELAY_MS = 400;
-export const CHAPTER_OUT_MS = 300;
+// Shared timing for the title card's fade (Stage.svelte), which the opening
+// flight's own clearing leg is timed off (layouts/intro.js).
+export const CARD_IN_MS = 600;
+export const CARD_IN_DELAY_MS = 400;
+export const CARD_OUT_MS = 300;
 
 /** How long a step's over-canvas panel takes to leave. The same beat the chart
  *  furniture leaves on (ScrollyVisual's DECOR_OUT_MS): a panel is furniture,
@@ -12,7 +12,7 @@ export const PANEL_OUT_MS = 220;
 
 // The splash's COLD-LOAD reveal, in CSS rather than `in:fade`: SvelteKit's
 // client entry never plays a hydrated element's `in:` transition on the very
-// first paint (no `intro: true` passed to `mount()`), so `chapterIn` above
+// first paint (no `intro: true` passed to `mount()`), so Stage's `cardIn`
 // never actually fires on a fresh load — only on a later navigation back to
 // step 0. A plain CSS opacity transition, triggered by a class added a tick
 // after mount, has no such exemption. Staggered per element (logo, title,

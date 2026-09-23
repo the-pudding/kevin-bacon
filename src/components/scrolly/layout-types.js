@@ -115,7 +115,7 @@
  * @param {import("./plot.js").Bleed} [bleed] how far the canvas extends past the column. Almost every
  *   layout ignores this and stays inside [0, w]: `w` is the reading column, and a
  *   chart drawn wider than the prose it belongs to stops being readable. Only the
- *   chapter card spends it, to author its crowd across the full screen (galaxyBox).
+ *   galaxy states spend it, to author their crowd across the full screen (galaxyBox).
  * @returns {LayoutResult}
  */
 export {};

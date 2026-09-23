@@ -1,45 +1,25 @@
 # The sky
 
-> Design notes for the flowing sky and the chapter card's highlight beat, moved out of `notes/scrolly-framework.md` on
+> Design notes for the flowing sky and the title card's highlight beat, moved out of `notes/scrolly-framework.md` on
 > 2026-09-19. The framework map there carries the contracts; this carries the
 > reasoning behind them and the measurements that were taken.
 
 The galaxy states are the only users, and they share one writer: `makeFlight`
-(`sky.js`) takes a state's own layout function and the ids to fly
-and returns its `frames`. `chapterCenters` flies the crowd **and** the intro
-fifteen, who have stopped being a diagram by then; `hopSeed` and `outro` fly
-`FIELD_IDS` only, because `hopSeed` is still drawing the constellation as
-something to find Bacon in and a diagram that drifts is not one — and holding it
-still leaves it standing in front of a sky with parallax, the one place in the
-story the constellation reads as foreground. Both of those also have an `entry`
-leg — the ambient starts when the pull-back settles, because `settle()` is the
-common terminus of both paths.
+(`sky.js`) takes a state's own layout function and the ids to fly and returns
+its `frames`. `hopSeed` flies the crowd **and** the intro fifteen (`SKY_IDS`),
+who have stopped being a diagram by the time its camera lands
+(`writeIntroIntoSky`); `titleGalaxy` and `outro` fly `FIELD_IDS` only — the
+title card carries the fifteen on Bacon's own authored trip (`withAnchorInSky`),
+and the outro's cast is its own. `hopSeed` and `outro` also have an `entry` leg —
+the ambient starts when the pull-back settles, because `settle()` is the common
+terminus of both paths.
 
-**The flight is handed over, not restarted.** `hopSeed` and `chapterCenters`
-both declare `clocked` ambients (`AmbientAnim.clocked`, `onSkyClock`), so
-stepping between them carries the sky's clock across: the arrival lands the
-crowd on the frame the flow _will_ be showing when it gets there, which for
-these two states is exactly where the crowd already is, so nothing travels.
-Without it the card's layout was the flow at t = 0 and the arrival dragged
-twelve thousand dots back to it — ~800ms of the whole sky re-dealing, at roughly
-the rate the flow itself runs, which is why it read as motion rather than as a
-fault. Measured on a phone, the arrival's peak frame-to-frame change fell from
-25.7% to 15.1% against a flying sky's own 9.7%.
-
-The card's flight runs two clocks, and must: the crowd is continuing a flight,
-but the intro fifteen have been standing still in front of it and are authored
-at `cardSpot` rather than at a flow position, so resuming _their_ clock would
-carry them out along their own rays and sweep the constellation apart on
-arrival. See `cardSky`.
-
-**Declared, not a defect:** on that step the fifteen are drawn at the crowd's
-grey and radius with no links between them, so the only thing separating them
-from the sky is that they are the part of it holding still. Read cold that can
-look like the flight has snagged rather than like a diagram in front of it. It
-stays as it is: the step's job is to hand the constellation over to the crowd,
-and re-inking the fifteen here would re-assert a diagram the next step exists to
-dissolve. If it is ever changed, the change is to draw them at the network's ink
-and radius — not to fly them, which is the one thing that would cost the beat.
+**Every flight starts at the flow's own zero**, which is where each galaxy
+state's static layout is authored, so an ambient's t = 0 frame is its arrival's
+frame by construction. No two adjacent steps both fly, so no flight is handed
+from one state to the next. The clocked handoff that once carried the sky's
+clock between `hopSeed` and the chapter card after it (`AmbientAnim.clocked`,
+`onSkyClock`) was removed with the cards on 2026-09-23.
 
 **The flight is a flow, not a displacement**, and that is the one way it departs
 from the shape everything else here has. The sky is a volume and the camera moves
@@ -95,7 +75,7 @@ not where the dots are heading — aim at it and every link detaches from its do
 While the choreography itself owns the frame (`sweeping`) it writes positions
 straight into `current` and its target is stale, so edges track both **live** dots.
 
-**The chapter card's highlight beat** (`galaxy-highlight.js`) rides on that last
+**The title card's highlight beat** (`galaxy-highlight.js`) rides on that last
 sentence. Every `GALAXY_BEAT_MS` the card picks one prolific actor out of the
 flowing crowd, inks and enlarges them, names them, and fans spokes from them
 across the sky — more spokes for more films. It is an **illustration**: there is
@@ -124,7 +104,7 @@ are moving. No second line-drawing path exists, and a departing card fades the
 pool out through the ordinary state tween, since every other layout leaves those
 slots at zero.
 
-**The name is a per-frame label cut**, beside `raceLabelCut`. `chapterCenters`
+**The name is a per-frame label cut**, beside `raceLabelCut`. `titleGalaxy`
 declares `labels: () => []` — the resting card names nobody — and the cast goes in
 `STATE_TRACKED`, so each has a label element. `drawScene` then reads the
 published `galaxyHighlight.id` and shows that one. The name needs no opacity
@@ -166,7 +146,7 @@ before any of this existed.
 
 **What the beat weights is nodes, not lines.** The spokes stay the plain network
 grey — `setEdge`'s highlight channel is left at zero on purpose, because a fan of
-dozens of weighted lines becomes a black web over a chapter title. The emphasis
+dozens of weighted lines becomes a black web over the title. The emphasis
 goes on the dots instead, in three tiers: the focus at full ink, opaque and
 `GALAXY_FOCUS_R_MULT` times its flight radius; its connected dots part-way to ink
 (`GALAXY_TARGET_INK`) at `GALAXY_TARGET_ALPHA`, deliberately unnamed, and

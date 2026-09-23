@@ -58,7 +58,7 @@ function routeDraw(attrs, target, start, i) {
 /**
  * Clear the bled canvas: past the column on both sides and above its top edge.
  * The origin sits on `.visual`'s top left corner, so clearing [0, w] x [0, h]
- * would leave the chapter card's sky smeared across the bleed and the title
+ * would leave a full-bleed sky smeared across the bleed and the title
  * band for the rest of the story.
  * @param {CanvasRenderingContext2D} ctx
  * @param {import("./plot.js").Bleed} bleed

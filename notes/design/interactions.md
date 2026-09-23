@@ -228,13 +228,12 @@ behind every letter, where a name at the edge of a cloud mostly does not.
      the step's own state and needs no "from outside" test — `skipback` means
      the only arrival there is a forward one.
 
-4. **The progress bar merges a gated pair into one dot.** A gated step and its
-   payoff are one move to the reader, so they share a dot and the bar does not
-   tick twice for it. `Index.svelte` derives `dotSteps` (no `chapter`, no
-   `skipback`) and `dotStep` (the gated step lights its successor's), and
-   `StepProgress` renders those — it never counts steps by hand. 24 dots today
-   (the Gen Z step is gated and `skipback`, so it shares its payoff's dot and
-   adding it moved the count by nothing).
+4. **The progress bar merges a gated pair into one line.** A gated step and
+   its payoff are one move to the reader, so they share a line and the bar does
+   not tick twice for it. The registry derives `dotSteps` (every step but the
+   title card and the `skipback` ones) and `dotStep` (the gated step lights its
+   successor's), groups them by chapter (`chapters`), and `StepProgress` renders
+   those — it never counts steps by hand.
 
 Exception: a visual that abandons the dot metaphor entirely gains nothing from
 the shared canvas — layer a plain HTML component over (or beside) the canvas

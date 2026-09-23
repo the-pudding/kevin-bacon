@@ -25,7 +25,6 @@ import {
 } from "./layouts/scatters.js";
 import { states as careerStates } from "./layouts/career.js";
 import { states as simRaceStates } from "./layouts/sim-race.js";
-import { states as chapterStates } from "./layouts/chapters.js";
 import { GALAXY_CAST } from "./galaxy-highlight.js";
 
 /**
@@ -45,8 +44,7 @@ const REGISTRY = {
 	...raceStates,
 	...scattersStates,
 	...careerStates,
-	...simRaceStates,
-	...chapterStates
+	...simRaceStates
 };
 
 const pick = (field) => {
@@ -383,20 +381,10 @@ export const STATE_REQUESTS = pick("requests");
  * and rebuilds its base with it — the same arguments, or the base is a different
  * frame from the one the arrival landed on and the t = 0 contract above breaks.
  *
- * `clocked` says the loop takes a seventh argument — the sky clock its arrival
- * landed on — and continues the story's flow from there instead of starting at
- * the flow's own zero. Only a loop whose t = 0 frame is therefore a FUNCTION of
- * that clock may declare it, and a clock is only ever handed over between two
- * states that both declare it (see ScrollyVisual's skyHandoff). At clock 0 it
- * must reduce exactly to the unclocked loop, which is what keeps the t = 0
- * contract above true and what contracts.spec.js checks.
- *
  * @typedef {Object} AmbientAnim
  * @property {(nodes: import("./nodes.js").ActorNode[], w: number, h: number,
- *   edges: import("./nodes.js").Edge[], params?: Object, bleed?: number,
- *   t0?: number) =>
+ *   edges: import("./nodes.js").Edge[], params?: Object, bleed?: number) =>
  *   (attrs: Float32Array, trails: Float32Array, t: number) => void} frames
- * @property {boolean} [clocked]
  * @property {boolean} [liveReveal] says the very first paint should start this
  *   loop immediately (ScrollyVisual's `arrivalKind` "liveIn") rather than
  *   running the generic zero-to-static `popIn` tween first — for a state
@@ -429,7 +417,7 @@ export const STATE_LABEL_TEXT = pick("labelText");
 
 /**
  * every id a dynamic STATE_LABELS function could return (for frame tracking).
- * The galaxy cast is here rather than in `chapterCenters`'s own `labels`, which
+ * The galaxy cast is here rather than in `titleGalaxy`'s own `labels`, which
  * returns nothing: the beat's name is chosen per FRAME, inside drawScene, and an
  * id with no tracked entry has no label element to show.
  *

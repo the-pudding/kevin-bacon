@@ -24,13 +24,12 @@ evidence.
 4. **Sheet every affected transition**: `npm run sheet -- <from> <to>`. The
    default is both directions on the mobile box; add `--box desktop` or
    `--box wide` when the change touches a layout that differs by box (the
-   side-by-side chapter cards above 1200px).
+   side-by-side layout above 1200px).
    - **`--box desktop` is not optional** when the change touches `Stage.svelte`,
      `Step.svelte`, `StepProgress.svelte` or any `@media (min-width: 75rem)`
-     rule. Above 1200px the prose sits in a column of its own and swaps sides on
-     every chapter card, and that column is laid out differently — a mobile-only
-     sweep cannot see any of it. The swaps are 3→4, 12→13 and 20→21 (the last
-     behind the quiz gate, so it needs `--click`).
+     rule. Above 1200px the prose sits in a column of its own beside the canvas
+     and the charts take a taller plot — a mobile-only sweep cannot see any of
+     it.
    - A gated step refuses the arrow; leave it by its own control with
      `--click "Start"` (or the button's visible text).
    - A long choreography (the race sweep, the simulation) needs a wider window:

@@ -2,7 +2,7 @@
 	// @ts-check
 	/**
 	 * The story's stage: the canvas, everything laid over it (the rank ladder,
-	 * the active step's panel, a chapter or title card, the dev tuners) and the
+	 * the active step's panel, the title card, the dev tuners) and the
 	 * prose column with its navigation. Index.svelte writes the story — the
 	 * <Step>s and their prose — into `children`, which renders in the prose
 	 * column with the stage's measurements (`layout`) for the pieces the prose
@@ -36,13 +36,13 @@
 	import { isRankState } from "./states.js";
 	import { TITLE_BAND } from "./plot.js";
 	import {
-		CHAPTER_IN_MS,
-		CHAPTER_IN_DELAY_MS,
-		CHAPTER_OUT_MS,
+		CARD_IN_MS,
+		CARD_IN_DELAY_MS,
+		CARD_OUT_MS,
 		PANEL_OUT_MS,
 		SPLASH_REVEAL_MS,
 		SPLASH_REVEAL_STEP_MS
-	} from "./chapterFade.js";
+	} from "./cardFade.js";
 
 	// Beside, rather than over. Below this width the prose is a card lying across
 	// the bottom of the canvas; past it the two sit side by side and the charts
@@ -67,22 +67,6 @@
 	let visualWidth = $state(0);
 	let visualHeight = $state(0);
 
-	// Which side the prose sits on: it swaps every chapter, so the reader crosses
-	// the screen as the argument turns over. The ordinal is how many chapter cards
-	// the reader has reached — a card announces the chapter it OPENS, so it counts
-	// as part of the new one, which is what puts the swap ON the card.
-	//
-	// That placement is the whole trick and it is not a nicety. A card is
-	// full-bleed and carries no prose, so at the instant the column changes sides
-	// there is no chart boxed in it and no words in it to move: the sky is
-	// authored about the middle of the SCREEN, which the swap does not move, and
-	// the canvas compensates for the rest (see ScrollyVisual's bleed-only branch).
-	// Swapping anywhere else would slide a chart across the viewport.
-	const chapterOrdinal = $derived(
-		steps.chapterStarts.filter((i) => i <= (steps.current ?? 0)).length
-	);
-	const flipped = $derived(beside && chapterOrdinal % 2 === 1);
-
 	// The card's height, HELD across a step change — the one measurement every
 	// clearance is taken off, so it is held here rather than by each consumer.
 	//
@@ -103,8 +87,8 @@
 	// would be a step whose words never arrived, and the story would already be
 	// broken. It releases on every step — a gated one included (a gate is asked
 	// before the reader LEAVES, never on arrival), a `skipback` one trivially
-	// (the registry never lands on one), and a chapter or title card, which
-	// renders no prose at all, so 0 is its true height and the hold hands that
+	// (the registry never lands on one), and the title card, which renders no
+	// prose at all, so 0 is its true height and the hold hands that
 	// straight over.
 	let cardHeight = $state(0);
 	$effect(() => {
@@ -230,7 +214,7 @@
 		devTuners = await import("./dev/Tuners.svelte");
 	});
 
-	// Flips one tick after hydration — see SPLASH_REVEAL_MS in chapterFade.js
+	// Flips one tick after hydration — see SPLASH_REVEAL_MS in cardFade.js
 	// for why the splash's cold-load reveal rides this rather than `in:fade`.
 	let mounted = $state(false);
 	onMount(() => {
@@ -242,32 +226,26 @@
 		false
 	);
 
-	// A chapter card's title, rendered from the registry rather than by <Chapter>
-	// so it sits in a stable {#if} and can transition OUT as the reader moves on
-	// (see Chapter.svelte). It fades in behind a beat, so the constellation
-	// dissolving into the crowd underneath reads first, and leaves briskly — it
-	// must be gone before the next step starts sorting the field into bands.
-	const activeChapter = $derived(steps.config?.chapter);
-	// the title card, rendered from the registry for exactly the reasons a
-	// chapter's title is (see Splash.svelte) — and on the same fade, so opening
-	// the story and opening a chapter are visibly the same move
+	// The title card, rendered from the registry rather than by <Splash> so it
+	// sits in a stable {#if} and can transition OUT as the reader moves on (see
+	// Splash.svelte).
 	const activeSplash = $derived(steps.config?.splash);
 	// cubicInOut is the same curve the dot tweener eases on (tween.js's
 	// easeCubicInOut), so the title arrives on the motion the canvas is already
 	// moving to
-	const chapterIn = $derived(
+	const cardIn = $derived(
 		reducedMotion.current
 			? { duration: 0 }
 			: {
-					duration: CHAPTER_IN_MS,
-					delay: CHAPTER_IN_DELAY_MS,
+					duration: CARD_IN_MS,
+					delay: CARD_IN_DELAY_MS,
 					easing: cubicInOut
 				}
 	);
-	const chapterOut = $derived(
+	const cardOut = $derived(
 		reducedMotion.current
 			? { duration: 0 }
-			: { duration: CHAPTER_OUT_MS, easing: cubicInOut }
+			: { duration: CARD_OUT_MS, easing: cubicInOut }
 	);
 	// The step's own panel. `{#key}`ed on the snippet so two steps declaring
 	// different panels back to back would swap rather than mutate; today the two
@@ -298,7 +276,6 @@
 		class="scrolly-layout"
 		bind:this={layoutBox}
 		class:exited={steps.exited}
-		class:flipped
 		style="--viewport-height: {dimensions.height
 			? `${dimensions.height}px`
 			: '100svh'}; --title-band: {TITLE_BAND}px; --splash-reveal-ms: {SPLASH_REVEAL_MS}ms; --splash-reveal-step: {SPLASH_REVEAL_STEP_MS}ms"
@@ -308,7 +285,7 @@
 		     order, decides that): a keyboard or screen-reader reader meets the
 		     step's words, then Previous/Next, and only then the chart's own
 		     controls — rather than tabbing through every actor target on the
-		     constellation to reach the next step. The dot bar stays last so it
+		     constellation to reach the next step. The progress bar stays last so it
 		     keeps painting over the panels it shares --z-tap-above with. -->
 		{#if !steps.exited}
 			<div
@@ -316,12 +293,6 @@
 				bind:clientHeight={stepsHeight}
 				aria-live="polite"
 			>
-				<!-- a chapter card's title is drawn over the canvas (below), outside
-				     this live region, so a screen reader stepping onto one heard
-				     nothing: it is said here instead, and the drawn one is hidden -->
-				{#if activeChapter}
-					<h2 class="sr-only">{activeChapter.title}</h2>
-				{/if}
 				{@render children(layout)}
 			</div>
 			<TapNav />
@@ -393,7 +364,7 @@
 			     above, so a step's own controls (raceRecent's Start button) sit
 			     over it rather than under it.
 
-			     Wrapped in a stable {#if} for the same reason the chapter card
+			     Wrapped in a stable {#if} for the same reason the title card
 			     below is, and the file already said why: a bare snippet render
 			     cannot carry a transition, so the panel was cut in and out in the
 			     frame of the press. The quiz painted its blurred question over a
@@ -408,22 +379,9 @@
 						</div>
 					{/if}
 				{/key}
-				<!-- a chapter card's title. Rendered from the registry rather than by
-			     <Chapter> itself so this {#if} is stable and Svelte can play the
-			     out-transition; the panel render above cannot, which is the whole
-			     reason chapters aren't just a panel. -->
-				{#if activeChapter}
-					<div
-						class="chapter-card"
-						aria-hidden="true"
-						in:fade={chapterIn}
-						out:fade={chapterOut}
-					>
-						<h2>{activeChapter.title}</h2>
-					</div>
-				{/if}
-				<!-- the title card. Same stable-{#if} arrangement as the chapter
-			     card above and for the same reason (see Splash.svelte); the
+				<!-- the title card. Rendered from the registry rather than by
+			     <Splash> itself so this {#if} is stable and Svelte can play the
+			     out-transition, which the panel render above cannot; the
 			     cue and the logo are siblings rather than part of the card
 			     because they are pinned (to the corner, and to the top of the
 			     screen) rather than centred with the title — the logo also
@@ -433,12 +391,12 @@
 					<div
 						class="splash-logo"
 						class:reveal={mounted}
-						in:fade={chapterIn}
-						out:fade={chapterOut}
+						in:fade={cardIn}
+						out:fade={cardOut}
 					>
 						<PuddingLogo />
 					</div>
-					<div class="splash-card" in:fade={chapterIn} out:fade={chapterOut}>
+					<div class="splash-card" in:fade={cardIn} out:fade={cardOut}>
 						<h1 class:reveal={mounted}>{@render activeSplash.title()}</h1>
 						{#if activeSplash.byline}
 							<p class="splash-byline" class:reveal={mounted}>
@@ -450,8 +408,8 @@
 						class="splash-cue"
 						class:reveal={mounted}
 						aria-hidden="true"
-						in:fade={chapterIn}
-						out:fade={chapterOut}
+						in:fade={cardIn}
+						out:fade={cardOut}
 					>
 						<span class="splash-cue-row on-wide">
 							<strong>Click to continue</strong>
@@ -528,13 +486,13 @@
 	   — that is the fragile part worth knowing. Resolves to 56px below a 467px
 	   viewport and 80px at 700px+.
 
-	   --progress-band: the strip the dot bar occupies. The bar takes no pointer
+	   --progress-band: the strip the progress bar occupies. The bar takes no pointer
 	   events and the tap halves run the full height beneath it, so a tap over a
 	   dot steps the story like any other — the dots report position, they are
 	   never a jump target.
 
 	   The z ladder over this box, lowest first:
-	     auto  canvas, scrubber panel, chapter card
+	     auto  canvas, scrubber panel, title card
 	     5     the dev-only race tuners
 	     20    --z-tap: the two tap halves
 	     21    --z-card: the step card, which lies over them for its whole width.
@@ -542,7 +500,7 @@
 	           the controls it hosts (.guess, .quiz, .start-button, the inline
 	           InfoTerm triggers) opt back in.
 	     22    --z-tap-above: what must beat BOTH — .hits, .route, the search,
-	           the scrubber's .control, .tick-1980, the dot bar, the rank
+	           the scrubber's .control, .tick-1980, the progress bar, the rank
 	           ladder (which forwards its taps; see onRankTap)
 	     100+  InfoTerm's scrim and panel, untouched */
 	.scrolly-layout {
@@ -550,17 +508,15 @@
 		height: var(--viewport-height);
 		--control-inset: clamp(56px, 12%, 88px);
 		--progress-band: 30px;
-		/* --visual-l / --visual-r: how far the canvas box is inset from the
-		   column's two edges. Zero here — the canvas has the whole column and
-		   the prose lies over it — and one of them becomes the prose measure
-		   once the two sit abreast (below), which side depending on the flip.
-		   They are properties rather than three copies of `left`/`right`
-		   because the credits backdrop has to reproduce this box against the
-		   VIEWPORT (see .scrolly-visual.exited), and it can only do that from
-		   numbers it can read. */
+		/* --visual-l: how far the canvas box is inset from the column's left
+		   edge. Zero here — the canvas has the whole column and the prose lies
+		   over it — and the prose measure once the two sit abreast (below). A
+		   property rather than two copies of `left` because the credits
+		   backdrop has to reproduce this box against the VIEWPORT (see
+		   .scrolly-visual.exited), and it can only do that from numbers it can
+		   read. */
 		--visual-l: 0px;
-		--visual-r: 0px;
-		/* --title-band — space for each chart's title, between the dot bar and the
+		/* --title-band — space for each chart's title, between the progress bar and the
 		   canvas's own MARGIN-based top clearance — is set inline above, from
 		   TITLE_BAND in plot.js: the render path needs the same number,
 		   and canvas can't read CSS custom properties. */
@@ -572,13 +528,19 @@
 	   layouts already keep clear.
 
 	   Top is offset by --title-band (rather than inset: 0) so each chart's
-	   title has room to sit below the dot bar (StepProgress, absolute over the
+	   title has room to sit below the progress bar (StepProgress, absolute over the
 	   same top edge) without overlapping either it or the chart's own content,
-	   which starts MARGIN px below this box's top edge. */
+	   which starts MARGIN px below this box's top edge.
+
+	   --chart-title-top: how far down this box the chart title's line sits —
+	   the title (ScrollyVisual) and the search glyph at the far end of it
+	   (ActorSearch) both read it, so the two stay on one line. Its size is the
+	   air left under the progress bar; the title still clears MARGIN. */
 	.scrolly-visual {
+		--chart-title-top: 10px;
 		position: absolute;
 		top: var(--title-band);
-		right: var(--visual-r);
+		right: 0;
 		bottom: 0;
 		left: var(--visual-l);
 	}
@@ -629,8 +591,8 @@
 		top: var(--title-band);
 		bottom: 0;
 		left: calc(var(--column-gutter) + var(--visual-l));
-		right: calc(var(--column-gutter) + var(--visual-r));
-		max-width: calc(var(--column) - var(--visual-l) - var(--visual-r));
+		right: var(--column-gutter);
+		max-width: calc(var(--column) - var(--visual-l));
 		margin: 0 auto;
 		z-index: -1;
 	}
@@ -652,9 +614,11 @@
 		z-index: var(--z-tap-above);
 	}
 
-	/* the rank chapter's "everyone else" list: sits below the space where
-	   Bacon's hop bar dissolves (see layouts/rank.js) and above the measured
-	   step card (inline `bottom`). Its opaque background must not hide the
+	/* the rank chapter's "everyone else" list: hangs 2rem under the chart
+	   title's line and sits above the measured step card (inline `bottom`).
+	   Nothing on the canvas needs the space above it — Bacon's hop bar
+	   collapses straight onto his own row in the list (layouts/rank.js), which
+	   RankBars measures wherever the list lands. Its opaque background must not hide the
 	   hopBands → rankFocus canvas collapse (the bar can only be aimed once
 	   RankBars has measured its focus row), so the fade-in is held back — via
 	   the `.revealed` class, driven by `story.rank.revealed`, which
@@ -664,7 +628,7 @@
 	.rank-bars-panel {
 		position: absolute;
 		z-index: var(--z-tap-above);
-		top: 84px;
+		top: calc(var(--chart-title-top) + 2rem);
 		left: 0;
 		right: 0;
 		background: var(--color-bg);
@@ -694,53 +658,11 @@
 		}
 	}
 
-	/* A chapter card's title, centred in the field's own box — which on a card is
-	   the whole visual box, since the crowd spreads over the entire canvas (inset
-	   on all four sides of .scrolly-visual, so its height comes from that box's
-	   own CSS rather than a JS measurement — the inline height this used to carry
-	   read 0 for the frame before Svelte measured the canvas, which pushed the
-	   card's vertically-centred content half off the top of the screen). It sits
-	   in the middle of the universe drifting behind it. Note the title stays in
-	   the 700px column while the dots run past it on both sides: the sky is
-	   full-bleed, the words are not. Nothing here is interactive and the canvas
-	   underneath may carry a layout's `hits`, so the whole layer stays out of the
-	   way of taps. */
-	.chapter-card {
-		position: absolute;
-		inset: 0;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		padding: 0 1rem;
-		pointer-events: none;
-	}
-
-	/* Set in the piece's own serif rather than the sans: only three faces load
-	   (Atlas Grotesk, Tiempos, Atlas Typewriter) and a neo-grotesque at this size
-	   reads as a default rather than a decision. Tiempos regular, uppercase and
-	   tracked out, is the editorial register a chapter break wants. Uppercasing
-	   is presentational — the title string stays as written. */
-	.chapter-card h2 {
-		margin: 0;
-		font-family: var(--font-serif);
-		font-size: var(--28px, 28px);
-		font-weight: 400;
-		line-height: 1.06;
-		/* uppercase serifs set tight look cramped; open them up a little */
-		letter-spacing: 0.03em;
-		text-transform: uppercase;
-		text-align: center;
-		text-wrap: balance;
-		color: var(--color-fg);
-		/* halo, not a plate: the title lies over the drifting crowd, and a solid
-		   background would punch a rectangle out of the universe it is meant to be
-		   inside. */
-		text-shadow: var(--text-halo);
-	}
-
-	/* The title card, in the same centred box as a chapter's — see .chapter-card
-	   for why the layer takes no pointer events: the canvas underneath is the
-	   tap halves' ground, and the card's whole instruction is to use them. */
+	/* The title card, centred in the visual box (inset on all four sides of
+	   .scrolly-visual, so its height comes from that box's own CSS rather than a
+	   JS measurement). The layer takes no pointer events: the canvas underneath
+	   is the tap halves' ground, and the card's whole instruction is to use
+	   them. */
 	.splash-card {
 		position: absolute;
 		inset: 0;
@@ -754,12 +676,13 @@
 		pointer-events: none;
 	}
 
-	/* The piece's name. Same face and treatment as a chapter title (see
-	   .chapter-card h2 for why it is the serif, uppercased and tracked out) at
-	   the one size in the story allowed to be display type — this is the only
-	   heading that is not a break between two things the reader is reading.
-	   Tracking comes back in a little from the chapter's 0.03em: uppercase
-	   serifs need the air at 28px and start to fall apart at 64. */
+	/* The piece's name, set in the piece's own serif rather than the sans: only
+	   three faces load (Atlas Grotesk, Tiempos, Atlas Typewriter) and a
+	   neo-grotesque at this size reads as a default rather than a decision.
+	   Uppercase and tracked out, at the one size in the story allowed to be
+	   display type. Uppercasing is presentational — the title string stays as
+	   written. The tracking is tighter than smaller uppercase serifs want:
+	   they need the air at 28px and start to fall apart at 64. */
 	.splash-card h1 {
 		margin: 0;
 		font-family: var(--font-serif);
@@ -771,7 +694,9 @@
 		text-align: center;
 		text-wrap: balance;
 		color: var(--color-fg);
-		/* the same halo the chapter title carries */
+		/* halo, not a plate: the title lies over the drifting crowd, and a solid
+		   background would punch a rectangle out of the sky it is meant to be
+		   inside */
 		text-shadow: var(--text-halo);
 	}
 
@@ -901,7 +826,7 @@
 		height: 0.75rem;
 	}
 
-	/* The cold-load reveal (see SPLASH_REVEAL_MS in chapterFade.js for why this
+	/* The cold-load reveal (see SPLASH_REVEAL_MS in cardFade.js for why this
 	   rides a plain CSS transition rather than `in:fade`): each element sits at
 	   opacity 0 until `.reveal` lands, staggered logo → title → byline → cue so
 	   the cascade reads as one composed entrance. `in:fade`/`out:fade` above
@@ -1014,8 +939,8 @@
 		   own files: .guess, .quiz, .start-button, .bits-infoterm below. */
 		z-index: var(--z-card);
 		pointer-events: none;
-		/* halo, not a plate — the same reason .chapter-card h2 carries one. A
-		   full-bleed state (hopSeed, the chapter cards) puts the crowd behind the
+		/* halo, not a plate — the same reason .splash-card h1 carries one. A
+		   full-bleed state (hopSeed, the outro) puts the crowd behind the
 		   copy all the way to the bottom edge, and a background would be a
 		   rectangle cut out of the sky. It costs
 		   nothing on the boxed steps, where the field stops at plotBottom and the
@@ -1050,8 +975,8 @@
 	   A percentage split gives the charts a fixed fraction of every screen and
 	   spends the rest widening a measure that was already right.
 
-	   Holding it in one custom property is also what makes the full-bleed cards
-	   trivial: a card has to reach back across exactly this much to sit on the
+	   Holding it in one custom property is also what makes the title card
+	   trivial: it has to reach back across exactly this much to sit on the
 	   screen's middle, so its offset is the measure negated rather than a ratio
 	   between two columns. */
 	@media (min-width: 75rem) {
@@ -1069,7 +994,7 @@
 			   ladder's rows (steps 7-8), whose own scrollbar lands on that edge
 			   on a platform with classic bars.
 			   --prose-col: the whole of what the canvas gives up. Named because
-			   the full-bleed cards have to reach back across exactly this much
+			   the title card has to reach back across exactly this much
 			   to sit on the screen's middle (below). */
 			--prose-gutter: 1.5rem;
 			--prose-col: calc(var(--prose-w) + var(--prose-gutter));
@@ -1085,8 +1010,8 @@
 			/* Full height and centred by the grid, NOT by `top: 50%` and a
 			   translate. A transform makes its element the containing block for
 			   `position: fixed` descendants, and the departing copy of a step's
-			   prose is pinned that way while the column swaps sides beneath it (see
-			   Step.svelte's proseLeave) — so the viewport coordinates it was pinned
+			   prose is pinned that way as it leaves (see Step.svelte's
+			   proseLeave) — so the viewport coordinates it was pinned
 			   at resolved against this box instead and dropped it ~400px down the
 			   screen, to the bottom left corner. Nothing here is measured on this
 			   breakpoint (`overlayHeight` is 0 beside the prose), so the taller box
@@ -1107,34 +1032,9 @@
 		   pointer-events: none, so reaching back across the prose costs nothing.
 		   .splash-logo joins them for the same reason — it is centred on the
 		   screen the sky fills, not on the visual column alone. */
-		.chapter-card,
 		.splash-card,
 		.splash-logo {
 			left: calc(-1 * var(--prose-col));
-		}
-
-		/* THE SWAP. Every chapter puts the prose on the other side, so the reader
-		   crosses the screen as the argument turns over — right, centre, left and
-		   back, with a full-bleed chapter card holding the middle beat each time.
-		   The two insets swap rather than `left`/`right`, so the credits
-		   backdrop keeps whichever side the last chapter left the canvas on —
-		   the reader steps off the story into the same frame they were reading
-		   in, and the crowd does not move to meet them. */
-		.scrolly-layout.flipped {
-			--visual-l: 0px;
-			--visual-r: var(--prose-col);
-		}
-
-		.scrolly-layout.flipped .scrolly-steps {
-			left: auto;
-			right: 0;
-		}
-
-		.scrolly-layout.flipped .chapter-card,
-		.scrolly-layout.flipped .splash-card,
-		.scrolly-layout.flipped .splash-logo {
-			left: 0;
-			right: calc(-1 * var(--prose-col));
 		}
 	}
 </style>

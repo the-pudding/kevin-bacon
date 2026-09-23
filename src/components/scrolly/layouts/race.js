@@ -3635,8 +3635,8 @@ const closeFuture = raceChoreography(
 // either rides up and off the top edge as the window travels (curveExit ends
 // it there, like any line chart) or is genuinely inside the ground the step
 // lands on and stays as part of the crowd. The names are held through the
-// arrival: the contenders' dots are still fading out of the chapter card's
-// crowd, nowhere near where they are about to be.
+// arrival: the contenders' dots are still travelling in from the quiz's
+// scatter, nowhere near where they are about to be.
 const panDown = raceChoreography(
 	(ctx) => {
 		const restP = raceMaxPlayhead(ctx.w, ctx.h, RACE_GENZ_STEP);
@@ -3753,9 +3753,9 @@ export const states = {
 		labelDirs: Object.fromEntries(GENZ_NAMED_IDS.map((id) => [id, "right"])),
 		overlay: OVERLAY,
 		params: genzParams,
-		// the camera pans down off the crown on arrival from the chapter card, and
-		// the field arrives when the reader asks
-		revealFrom: ["chapterCenters"],
+		// the camera pans down off the crown on the forward arrival out of the
+		// quiz, and the field arrives when the reader asks
+		revealFrom: ["scatterQuiz"],
 		entry: panDown,
 		requests: { genzLines: drawGenz }
 	},

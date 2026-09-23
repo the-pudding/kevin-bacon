@@ -177,9 +177,9 @@ export function createTweener(size, draw, stride = 1, fadeOffset = -1) {
 	}
 
 	/**
-	 * Restate the live frame in a shifted coordinate system — used when the
-	 * drawing origin moves under a frame that must not appear to move (the
-	 * side-by-side column swapping sides).
+	 * Restate the live frame without drawing the change — used to move a mark
+	 * the reader cannot see (a concealed dot, a re-entering line at alpha 0) so
+	 * the move is not undone on the next tick.
 	 *
 	 * `apply` is handed BOTH buffers, and that is the contract: `current` is what
 	 * is on screen, `start` is where an in-flight tween is easing from, and a

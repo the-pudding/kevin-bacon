@@ -104,8 +104,8 @@ export const SIM_LABEL_IDS = SIM_SERIES.slice(0, SIM_LABEL_N);
  *
  * Named BACKDROP rather than FIELD because this file already owns a FIELD_*
  * vocabulary for something else entirely — the pull-back crowd (FIELD_IDS below,
- * fieldSpot, FIELD_ALPHA), the hop 1-4 actors the chapter card and hopBands
- * sort. Two unrelated "fields" on one chart module is the kind of collision that
+ * fieldSpot, FIELD_ALPHA), the hop 1-4 actors hopSeed flies and hopBands
+ * sorts. Two unrelated "fields" on one chart module is the kind of collision that
  * reads fine until someone imports the wrong one.
  */
 export const BACKDROP_IDS = Object.keys(story.backdropSeries)
@@ -167,9 +167,8 @@ export const FIELD_IDS = rawNodes.nodes.reduce(
 /**
  * Everyone who flies when the sky flies: the crowd plus the intro fifteen.
  *
- * The two states where the constellation has stopped being a diagram — the
- * camera's landed pull-back (`hopSeed`) and the chapter card it hands to — draw
- * the fifteen as sky and hand them to the same flight as everyone else, so the
+ * The state where the constellation has stopped being a diagram — the camera's
+ * landed pull-back (`hopSeed`) — draws the fifteen as sky and hand them to the same flight as everyone else, so the
  * crowd the reader is looking at is one crowd. A separate export rather than a
  * wider `FIELD_IDS`, because the states that still owe the fifteen their own
  * treatment (`titleGalaxy`'s named anchor, `outro`'s cast) read that one.
@@ -177,7 +176,7 @@ export const FIELD_IDS = rawNodes.nodes.reduce(
 export const SKY_IDS = [...FIELD_IDS, ...INTRO_IDS];
 
 /**
- * Is this one of the intro fifteen — the exception `cardSpot` already makes, and
+ * Is this one of the intro fifteen — the exception `landedSpot` already makes, and
  * the one the contraction above has to make too? They stand at
  * `introPosition(PULLBACK_ZOOM)` in both boxes and are outside the flow
  * entirely, so nothing about them funnels when the sky does.

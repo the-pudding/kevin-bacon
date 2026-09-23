@@ -35,9 +35,11 @@
 	 * step is active and advances once it returns true (the simulation's
 	 * end-of-run hand-off).
 	 *
-	 * `hideBar` drops the progress bar for this step alone — for a closing beat
-	 * (the outro) that wants the full-bleed canvas to itself, the way a chapter
-	 * card already does.
+	 * `hideBar` drops the progress bar for this step alone — for a beat that
+	 * wants the full-bleed canvas to itself (hopSeed's pull-back, the outro).
+	 *
+	 * The enclosing <Chapter>'s title is registered with the step, read from the
+	 * "scrolly-chapter" context, so the progress bar can group steps by chapter.
 	 *
 	 * `alt` is what the canvas is showing, said to a screen reader. The drawn
 	 * chart is hidden from assistive tech (ScrollyVisual), so this is its only
@@ -73,8 +75,8 @@
 
 	// The prose's own swap, out and then in with a beat between, so the column is
 	// never showing two steps at once and the words read as one thing leaving and
-	// another arriving rather than a cut. Brisker than the chapter card's fade
-	// (chapterFade.js): a card is the only thing on screen and can take its time,
+	// another arriving rather than a cut. Brisker than the title card's fade
+	// (cardFade.js): a card is the only thing on screen and can take its time,
 	// a paragraph is being read.
 	const PROSE_OUT_MS = 200;
 	const PROSE_IN_DELAY_MS = 260;
@@ -92,7 +94,8 @@
 		gate,
 		skipback,
 		advanceon,
-		hideBar
+		hideBar,
+		chapter: getContext("scrolly-chapter")
 	});
 	const active = $derived(steps.current === index);
 
@@ -123,11 +126,7 @@
 
 	// Where this copy is standing while it is the active one. Captured in a PRE
 	// effect, on the flush that deactivates it and before the DOM updates, which
-	// is the only moment it is both still laid out and not yet moved: above
-	// 1200px a chapter card swaps the prose column to the other side of the
-	// screen (see `flipped` in Stage.svelte), and the outgoing copy is a grid
-	// item of the column that just moved — so without this it is teleported a
-	// full column's width and fades out over there.
+	// is the only moment it is still laid out as the reader saw it.
 	/** @type {HTMLElement | null} */
 	let el = $state(null);
 	/** @type {DOMRect | null} */
@@ -139,10 +138,9 @@
 	});
 
 	/**
-	 * The exit, pinned to the side the words were read on. Freezing the box the
-	 * copy already occupied is what lets the column move underneath it: the old
-	 * words leave where they were, and the new ones arrive wherever the column
-	 * now is.
+	 * The exit, pinned where the words were read. Freezing the box the copy
+	 * already occupied takes it out of flow, so the column measures only the
+	 * arriving copy and the old words leave where they were.
 	 */
 	function proseLeave(node, params) {
 		if (leftFrom) {

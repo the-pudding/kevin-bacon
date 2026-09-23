@@ -81,7 +81,7 @@ export function parseSteps(source) {
 	const markup = templateOf(source);
 	const snippets = snippetsOf(markup);
 	const steps = [];
-	const open = /<(Step|Chapter|Splash)(?=[\s/>])/g;
+	const open = /<(Step|Splash)(?=[\s/>])/g;
 	for (const m of markup.matchAll(open)) {
 		const { attrs, end, selfClosing } = readTag(markup, m.index);
 		const state = attrs.match(/\bstate="(\w+)"/)?.[1];

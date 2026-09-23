@@ -21,10 +21,10 @@ import { MARGIN, NO_BLEED, TITLE_BAND, plotBottom } from "./plot.js";
 // point of the beat — only Bacon stays darker and larger.
 //
 // Well under 1, because the galaxy is meant to read as deep space rather than
-// as a page of dots: faint enough that the display type on a chapter card sits
+// as a page of dots: faint enough that the display type on the title card sits
 // in front of it rather than in it, and that the field the camera pulls back
 // into reads as depth. Every galaxy writer takes its alpha from here — the
-// crowd (writeFieldCrowd), the fifteen greying into it (chapters.js) and the
+// crowd (writeFieldCrowd), the fifteen greying into it (hop-bands.js) and the
 // closing chart's cast (race.js) — so they cannot drift apart.
 //
 // The field's MEAN rather than its flat value: every writer spreads it about
@@ -136,18 +136,16 @@ const FIELD_KEEPOUT =
 const fieldBox = (w, h) => [MARGIN, w - MARGIN, MARGIN, plotBottom(h)];
 
 /**
- * The chapter card's rect: the whole bled canvas, edge to edge and from the top
- * of the screen down. A card carries no chart and no step prose, so nothing
- * needs the margins or the bottom 40% that `fieldBox` keeps clear — the crowd
- * is the picture, and boxing it into the column reads as a rectangle of dots
- * rather than a sky.
+ * A full-bleed state's rect: the whole bled canvas, edge to edge and from the
+ * top of the screen down. A sky carries no chart, so nothing needs the margins
+ * or the bottom 40% that `fieldBox` keeps clear — the crowd is the picture, and
+ * boxing it into the column reads as a rectangle of dots rather than a sky.
  *
  * `bleed` is how far the canvas extends past the 700px reading column on each
  * side, and TITLE_BAND how far it extends above the box (see ScrollyVisual's
  * render transform), so negative x, x past `w` and negative y are all on screen.
- * Everything else keeps `fieldBox`: the pull-back and hopBands share the column,
- * and widening theirs would spread the bands' rain across the whole viewport
- * too.
+ * The charts keep `fieldBox`: widening hopBands' would spread the bands' rain
+ * across the whole viewport too.
  *
  * The rect is then inflated past the canvas by GALAXY_SPREAD, and the flow
  * carries dots out past that again, so most of the crowd is off screen at any
@@ -174,7 +172,7 @@ export const GALAXY_SPREAD = 1.46;
  * rather than written twice for that reason.
  *
  * It is the middle of the SCREEN, not of the column, and stays so when the two
- * differ: a chapter card fills the viewport, so a vanishing point sitting in the
+ * differ: a full-bleed sky fills the viewport, so a vanishing point sitting in the
  * half the charts use would fly the sky off toward one edge.
  * @returns {[number, number]}
  */
@@ -201,8 +199,8 @@ export const SKY_MID = (SKY_NEAR + SKY_FAR) / 2;
 /**
  * How long one dot takes to cross the whole volume, far plane to near plane.
  * The story's main feel knob: at this length a dot out near the canvas edge
- * moves 15–25px a second, which reads as travel without turning the sky a
- * chapter title sits in front of into weather.
+ * moves 15–25px a second, which reads as travel without turning the sky the
+ * title sits in front of into weather.
  */
 export const FLIGHT_CYCLE_MS = 26000;
 
@@ -321,15 +319,13 @@ function entrySpot(id, cycle, box, bx, by) {
 
 /**
  * Where one actor stands in the flow at time `t` — the single definition of a
- * field dot's position, so anything else placing the same crowd (the chapter
- * card's universe, `hopBands` reading the column a dot leaves the card in) lands
+ * field dot's position, so anything else placing the same crowd (a galaxy
+ * state's universe, `hopBands` reading the column a dot leaves the sky in) lands
  * on the identical frame rather than one that merely looks the same. A pixel of
  * drift between them would twitch the whole field on a step change.
  *
  * `box` is the rect the crowd ENTERS across, defaulting to the plot area. The
- * chapter card passes `galaxyBox` to spread the same dots over the whole screen;
- * every other caller takes the default, so the pull-back and hopBands stay
- * pixel-identical. Because both boxes are struck about the same centre and the
+ * galaxy states pass `galaxyBox` to spread the same dots over the whole screen. Because both boxes are struck about the same centre and the
  * magnification is about that centre too, one is exactly the other contracted —
  * which is what `skyToColumn` trades on.
  *
@@ -356,11 +352,11 @@ export function fieldSpot(id, w, h, box = fieldBox(w, h)) {
 }
 
 /**
- * Where one actor stands on the chapter card — `fieldSpot` for the crowd, and
- * for the intro fifteen the place hopSeed's landed camera already has them: the
- * card holds the constellation's geometry and changes only how the dots are
- * drawn, so the fifteen blend into the crowd where they stand instead of flying
- * out across the plot to scatter spots of their own. They are the one part of
+ * Where one actor stands once hopSeed's camera has landed — `fieldSpot` for the
+ * crowd, and for the intro fifteen the place the landed camera has them: the
+ * pull-back holds the constellation's geometry and changes only how the dots
+ * are drawn, so the fifteen blend into the crowd where they stand instead of
+ * flying out across the plot to scatter spots of their own. They are the one part of
  * the sky that is NOT in the flow — a constellation streaming past the reader
  * would stop being a diagram — so they simply stand in front of it.
  *
@@ -370,7 +366,7 @@ export function fieldSpot(id, w, h, box = fieldBox(w, h)) {
  *
  * @returns {[number, number]}
  */
-export function cardSpot(id, w, h, box = fieldBox(w, h)) {
+export function landedSpot(id, w, h, box = fieldBox(w, h)) {
 	return isIntroActor(id)
 		? introPosition(id, w, h, PULLBACK_ZOOM)
 		: fieldSpot(id, w, h, box);
@@ -385,8 +381,7 @@ export function cardSpot(id, w, h, box = fieldBox(w, h)) {
  * layout that hands a dot to the flight has to land it here or the loop's first
  * tick would resize and rebrighten it. That is the whole reason this is one
  * function rather than four lines in each caller: the crowd's own writer below,
- * the constellation joining the sky on `hopSeed` and the fifteen greying into
- * the card all have to agree with the flight to the last decimal.
+ * and the constellation joining the sky on `hopSeed` all have to agree with the flight to the last decimal.
  *
  * @returns {[number, number]} radius, alpha
  */
@@ -451,7 +446,7 @@ export function writeFieldCrowd(
 /**
  * How far a sky pixel travels when the crowd funnels back into the reading
  * column — the ratio between `galaxyBox` and the plot's own `fieldBox`, so the
- * handoff off a chapter card is a uniform contraction.
+ * handoff off hopSeed's sky is a uniform contraction.
  *
  * The two boxes share a centre only while the column is centred in the viewport.
  * Side by side with the prose they do not, and the contraction becomes that same
@@ -471,14 +466,14 @@ export function skyToColumn(w, h, bleed) {
 
 /**
  * The flight over one galaxy state. Every state that rests on the sky shares
- * this one writer, so the motion cannot differ between the pull-back, the
- * chapter cards and the outro.
+ * this one writer, so the motion cannot differ between the title card, the
+ * pull-back and the outro.
  *
  * `layoutFn` is the state's OWN static layout, rebuilt here with the same
  * `bleed` the arrival was built with — that rebuild is what makes the base the
  * frame the tween landed on, and a different bleed would snap the whole sky
  * inward on settle. `ids` is who flies: the crowd everywhere, plus the intro
- * fifteen on a card, where they have stopped being a diagram and joined it.
+ * fifteen on hopSeed, where they have stopped being a diagram and joined it.
  *
  * A dot's size and alpha follow its depth every frame, because a thing coming
  * toward you grows and darkens and that is most of what makes the motion read as
@@ -491,7 +486,7 @@ export function skyToColumn(w, h, bleed) {
  * entry offset is read back off whatever the static layout put it at, divided by
  * the magnification its resting depth implies. That is what makes t = 0 exact
  * for dots the flow did not author — the intro fifteen standing where hopSeed's
- * camera left them on a card, the closing chart's cast greyed in where the
+ * camera left them, the closing chart's cast greyed in where the
  * camera found them — and it keeps this writer's one job the same as the drift's
  * before it: take the frame the arrival landed on and move it.
  *
@@ -504,31 +499,6 @@ export function skyToColumn(w, h, bleed) {
  * @param {number[]} ids
  * @returns {import("./states.js").AmbientAnim["frames"]}
  */
-/**
- * The same flight, started at `t0` on the sky's clock instead of at the flow's
- * own zero: `t` is elapsed since the loop began, so this writer is the flow at
- * `t0 + t` and its t = 0 frame is the frame the reader's sky is already showing.
- *
- * The rays are still derived from the state's static layout — the flow at zero —
- * so this is purely a change of clock and nothing about the volume moves with
- * it. That matters: `makeFlight` divides each dot's entry offset by the
- * magnification its RESTING phase implies, so handing it a base authored at
- * some other time would scale every ray by up to 4x and the sky would spread a
- * little further on every visit.
- *
- * `t0 = 0` reduces to `makeFlight` exactly, which is what every state that is
- * not continuing a flight gets — and what holds the ambient's t = 0 contract.
- *
- * @param {import("./states.js").AmbientAnim["frames"]} frames
- * @returns {import("./states.js").AmbientAnim["frames"]}
- */
-export const onSkyClock =
-	(frames) =>
-	(nodes, w, h, edges, params, bleed = NO_BLEED, t0 = 0) => {
-		const write = frames(nodes, w, h, edges, params, bleed);
-		return (attrs, trails, t) => write(attrs, trails, t0 + t);
-	};
-
 export function makeFlight(layoutFn, ids) {
 	return (nodes, w, h, edges, params, bleed = NO_BLEED) => {
 		const { attrs: base } = layoutFn(nodes, w, h, edges, params, bleed);

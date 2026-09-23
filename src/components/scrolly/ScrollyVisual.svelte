@@ -7,7 +7,6 @@
 	import { createTweener, easeCubicInOut } from "./tween.js";
 	import { createChoreographer } from "./choreographer.js";
 	import { createRaceCamera } from "./race-camera.js";
-	import { skyFlight } from "./sky.js";
 	import {
 		ALPHA_SEEN,
 		clearCanvas,
@@ -141,7 +140,7 @@
 	// the line grows from Bacon toward the outer actor
 	//
 	// The baked edges first, then the runtime pool (see GALAXY_LINK_MAX): the
-	// chapter card's highlight spokes pick their endpoints per beat, so their
+	// title card's highlight spokes pick their endpoints per beat, so their
 	// pairs cannot be a build-time table like the constellation's. These are the
 	// pool's own arrays, mutated in place by the beat's writer, so this table sees
 	// each beat's pairs without being rebuilt — and every pool slot the beat isn't
@@ -385,7 +384,7 @@
 			camPanning = false;
 			// The sky has stopped where it stopped, and `skyFlight.t` now holds the
 			// moment the reader is stepping off. A layout that READS it — hopBands
-			// takes each dot's column off the card, mid-flow — is not pure in the
+			// takes each dot's column off hopSeed's sky, mid-flow — is not pure in the
 			// cache key's terms, so the cached layouts go: served a second visit's
 			// sort built against the first visit's frame, the crowd would set off
 			// from somewhere it is no longer standing. This runs before any layout is
@@ -398,7 +397,7 @@
 			// The beat went with the flight. Its spokes fade out through the ordinary
 			// departure tween (the next state's layout leaves the pool at zero), but
 			// the name is not in the buffer — it is read straight off the published
-			// beat — so without this the card's last actor would still be named over
+			// beat — so without this the title card's last actor would still be named over
 			// whatever the reader stepped onto.
 			resetGalaxyHighlight();
 		}
@@ -497,8 +496,8 @@
 	 * set is frozen and held for one out-fade while the arriving set waits for
 	 * the beat — "out, travel, in" in one place rather than per state.
 	 *
-	 * A resize, a bare column move and reduced motion take neither beat: the
-	 * coordinates the old copy would fade at have already moved (rules 7, 12, 13).
+	 * A resize and reduced motion take neither beat: the coordinates the old
+	 * copy would fade at have already moved (rules 7, 12, 13).
 	 */
 	function swapFurniture(next, from, box, handedOver, ms) {
 		// `handedOver`: the arriving state's frames draw their own chart furniture
@@ -517,10 +516,10 @@
 		// departing one is a frozen copy, so there is nothing on screen worth
 		// keeping — and a kept axis is worse than none: the hold lifts on the
 		// arrival's landing, one tick before the choreography's first frame, and
-		// the previous CHAPTER's axes got that tick to themselves. A resize, a
-		// bare column move and reduced motion have all moved the coordinates the
-		// kept frame was drawn at (rules 7, 12, 13).
-		const still = box.resized || box.moved || reducedMotion;
+		// the previous CHAPTER's axes got that tick to themselves. A resize and
+		// reduced motion have both moved the coordinates the kept frame was drawn
+		// at (rules 7, 12, 13).
+		const still = box.resized || reducedMotion;
 		const sceneChange = sceneOf(stateName) !== sceneOf(from);
 		const set =
 			handedOver && !sceneChange && !still
@@ -637,8 +636,8 @@
 	let width = $state(0);
 	let height = $state(0);
 	// The canvas's own width, which is the VIEWPORT's, not `.visual`'s: the canvas
-	// bleeds past the reading column so a chapter card can fill the screen (see the
-	// render transform below and sky.js's galaxyBox). Measured rather than
+	// bleeds past the reading column so a full-bleed state's sky can fill the
+	// screen (see the render transform below and sky.js's galaxyBox). Measured rather than
 	// taken from the 100vw it is styled with, so what the layouts get is what the
 	// browser actually laid out.
 	let canvasWidth = $state(0);
@@ -660,6 +659,8 @@
 	 * is written from it in the same place — one reader, one writer, no reactive
 	 * round trip to make the effect that sets it re-run. `resized` carries it, so
 	 * the backing store re-fits on a move exactly as it does on a width change.
+	 * A move never comes without one: the column only shifts in the viewport when
+	 * the viewport itself changes size.
 	 * @type {import("./plot.js").Bleed}
 	 */
 	let bleed = NO_BLEED;
@@ -675,19 +676,15 @@
 
 	/**
 	 * Re-measure the column's offset in the viewport.
-	 * @returns {number} how far the column's left edge moved, which is also how
-	 *   far the drawing origin moved along the canvas. 0 when nothing changed, and
-	 *   0 when only the far side did (the window got wider but the column stayed) —
-	 *   that case always changes `canvasWidth` too, so the resize branch has it.
+	 * @returns {boolean} whether either side moved
 	 */
 	function measureBleed() {
-		if (!container) return 0;
+		if (!container) return false;
 		const l = Math.max(0, container.getBoundingClientRect().left);
 		const r = Math.max(0, canvasWidth - width - l);
-		if (bleed.l === l && bleed.r === r) return 0;
-		const dx = l - bleed.l;
+		if (bleed.l === l && bleed.r === r) return false;
 		bleed = { l, r };
-		return dx;
+		return true;
 	}
 	/**
 	 * Re-fit the backing store to the measured box. It spans the bled canvas —
@@ -695,8 +692,8 @@
 	 * taller by TITLE_BAND above it — but the ORIGIN stays on `.visual`'s top left
 	 * corner: shifting the transform by the same two amounts is what keeps every
 	 * layout's coordinates meaning the same screen pixels they always did, so only
-	 * a layout that deliberately authors outside [0, width] x [0, height] — the
-	 * chapter card's sky — sees any difference. `height` itself is never
+	 * a layout that deliberately authors outside [0, width] x [0, height] — a
+	 * full-bleed sky — sees any difference. `height` itself is never
 	 * adjusted: it is the measured box, and making it depend on the band would put
 	 * the band in `resized` and snap every tween the band's value crossed.
 	 *
@@ -716,42 +713,6 @@
 		prevH = height;
 		prevCanvasW = canvasWidth;
 		prevPlotFrac = plotFrac;
-	}
-	/**
-	 * THE SWAP, and the whole reason it is invisible. The column has moved to the
-	 * other side of the screen without changing size, so the backing store is
-	 * already right and only the ORIGIN has travelled — `dx` px along the canvas.
-	 * Re-pin the element and the transform by that much, then take the same `dx`
-	 * back out of the live frame, and every mark the reader can see stays on the
-	 * pixel it was on: the buffer holds column coordinates, and the column's zero
-	 * has just moved.
-	 *
-	 * Doing it this way is what keeps the arrival onto the card a TWEEN. The snap
-	 * branch re-fits and lands instantly, which is right for a resize and would
-	 * throw away the one transition — a chart dissolving into the full-bleed sky —
-	 * that the swap is hidden inside. The state's own layout is rebuilt against
-	 * the new bleed, so nothing here touches the tween's target: only where the
-	 * frame is setting off FROM has to be restated.
-	 */
-	function reframe(dx) {
-		const dpr = Math.min(window.devicePixelRatio || 1, 2);
-		canvas.style.left = `${-bleed.l}px`;
-		ctx.setTransform(dpr, 0, 0, dpr, bleed.l * dpr, TITLE_BAND * dpr);
-		tweener.reframe((buf) => {
-			for (let i = 0; i < EDGE_BASE; i += STRIDE) buf[i] -= dx;
-		});
-		trailTweener.reframe((buf) => {
-			for (let t = 0; t < TRAIL_META.length; t++) {
-				const base = t * TRAIL_STRIDE;
-				for (let k = 0; k < TRAIL_POINTS; k++) buf[base + k * 2] -= dx;
-			}
-		});
-		// Repaint now, in this flush. Svelte has already moved `.annotations` with
-		// the column, but `tracked` still holds the transforms built against the
-		// OLD origin, and the next paint is the arrival tween's first frame — so
-		// without this every name spends one frame a whole prose column away from
-		// its dot. drawScene rebuilds `tracked` from the restated buffer.
-		drawScene();
 	}
 
 	// live, so DevTools' emulation (and a reader changing the OS setting mid-story)
@@ -939,18 +900,9 @@
 	 * for two things the reading column cannot give it: the box it clips to, and
 	 * the box a name's x is clamped into. Both are the CANVAS, not the column.
 	 *
-	 * The two boxes are the same until the column SWAPS sides (`reframe`), which
-	 * moves the column's zero without moving the picture: for the length of the
-	 * arrival every dot's x is restated against the new origin, and on desktop
-	 * that puts a name that was at x = 86 at x = -330. Clamped into the column it
-	 * lands on the column's left edge instead — which is the whole left-hand pile
-	 * of race names at 12 → 13. Clamped into the canvas it stays on the pixel it
-	 * was on, which is where a name that is leaving belongs (motion.md rule 2).
-	 *
 	 * Published here rather than read from `bleed` directly because `bleed` is
 	 * deliberately not $state: this is a copy of the value the last DRAWN frame
-	 * used, written by drawScene in the same flush reframe() repaints in, and
-	 * nothing the render effect reads.
+	 * used, written by drawScene, and nothing the render effect reads.
 	 * @type {import("./plot.js").Bleed}
 	 */
 	let labelBleed = $state.raw(NO_BLEED);
@@ -1383,15 +1335,7 @@
 		choreo.stop();
 		tweener.stop();
 		trailTweener.stop();
-		const write = anim.frames(
-			nodes,
-			width,
-			height,
-			edges,
-			layoutParams,
-			bleed,
-			skyLanding
-		);
+		const write = anim.frames(nodes, width, height, edges, layoutParams, bleed);
 		// armed AFTER stop() above, which would otherwise read the flag this call
 		// is about to set and drop the cache for a flight that had not started
 		skyFlying = true;
@@ -1401,12 +1345,9 @@
 	// Records the state whose arrival has just landed. A layout can read this to
 	// hold an interaction back until its own authored reveal has finished.
 	//
-	// Set-only, never cleared: it names a state, so stepping away un-arms every
-	// gate by itself. That matters — clearing it here would write state this
-	// effect derives its params from, re-running the effect with an unchanged
-	// params key, which lands in the catch-all below and snaps the reveal it was
-	// meant to wait for. Setting it always flips a gate, so that re-run is a
-	// param change (the interaction fading in), never the snap.
+	// Never cleared here: the arrival rules clear it on a change of state, before
+	// the step moves (see arrivals.js), so a round trip back into a state cannot
+	// find it already armed.
 	//
 	// Guarded on the live state so a callback that outlives its step can't arm the
 	// wrong one; a superseded tween drops its callback (see tween.js), so a reader
@@ -1451,45 +1392,6 @@
 		params: PARAM_TWEEN_MS,
 		entry: TWEEN_MS
 	};
-	/**
-	 * The sky's clock this arrival lands the crowd on, and the clock the ambient
-	 * then starts from. Zero is the flow's own beginning, where every galaxy
-	 * layout is authored — what a cold load, a resize and reduced motion get.
-	 *
-	 * Between two states that BOTH fly, it is where the sky will be when the
-	 * arrival lands, not where it is now: landing on the present frame would
-	 * freeze the whole sky for the length of the tween and then start it again,
-	 * which is a beginning the reader can notice (motion.md rule 9).
-	 */
-	let skyLanding = 0;
-	function skyHandoff(from, kind) {
-		if (!STATE_AMBIENT[stateName]?.clocked) return 0;
-		if (!STATE_AMBIENT[from]?.clocked) return 0;
-		return skyFlight.t + ARRIVAL_MS[kind];
-	}
-	/**
-	 * Land the arrival on the ambient's own first frame.
-	 *
-	 * An ambient's t = 0 frame IS the frame its arrival is meant to land on —
-	 * that is AmbientAnim's contract, asserted for every state in
-	 * contracts.spec.js — so for a clocked one carrying a handoff, that frame is
-	 * the flow at `skyLanding`. Running the writer here makes the arrival and the
-	 * ambient the same call rather than two frames that have to be kept in
-	 * agreement, which is what stops the chapter card re-dealing the sky: the
-	 * crowd's target IS where it will already be.
-	 */
-	function landOnSky(attrs, trails) {
-		if (!skyLanding) return;
-		STATE_AMBIENT[stateName].frames(
-			nodes,
-			width,
-			height,
-			edges,
-			layoutParams,
-			bleed,
-			skyLanding
-		)(attrs, trails, 0);
-	}
 
 	// -- The reader's pan -------------------------------------------------------
 	// One glide loop that eases the camera toward the reader's target
@@ -1592,7 +1494,7 @@
 	 * the declared set having to know which camera the reader is on; because it
 	 * reads the dots the frame just wrote, it also slides continuously as the
 	 * camera pans instead of resolving in one jump at the settle. The galaxy beat
-	 * is the other per-frame cut: a chapter card declares no names at all, and the
+	 * is the other per-frame cut: the title card declares no names at all, and the
 	 * flight's writer says who the beat is on as it writes each frame, so the
 	 * card's one name can only be resolved here.
 	 */
@@ -1929,8 +1831,8 @@
 
 	/**
 	 * Whether the backing store has to be re-fitted, which is also what makes the
-	 * arrival a snap. A change of the measured box is one — and so, for one case
-	 * only, is a bare move of the column (`dx`, see reframe).
+	 * arrival a snap. A change of the measured box is one, and so is a move of
+	 * the column in the viewport (`moved`, see measureBleed).
 	 *
 	 * The plot's share of the column counts as well, box or no box: `plotBottom`
 	 * scales every y a layout writes, so the frame on screen is as wrong after a
@@ -1942,38 +1844,23 @@
 	 * height for the rest of the session, until some other change happened to
 	 * rebuild it — which is how answering the quiz's first pair came to jump the
 	 * scatter's y-axis half a chart down the screen.
-	 *
-	 * A choreography that OUTLIVES this run is the one thing a bare move cannot
-	 * survive: its frame writer closes over the box it was built for, so the next
-	 * tick would paint the old frame back over the reframed one. Nothing in the
-	 * story does that — every swap is a chapter card arriving or departing, and a
-	 * state change abandons the choreography — so rather than carry a rebuild
-	 * path that never runs, that case falls back to the snap.
-	 *
-	 * The state qualifier is what makes it that case and not a wider one. A card
-	 * drifts its own sky, so a choreography is running on BOTH sides of every
-	 * swap; reading `choreo.active` alone handed the snap to the very arrival the
-	 * reframe exists for, and the chart the reader stepped back to was simply
-	 * there, in its final positions, under a fading title (motion.md rules 1, 7).
 	 */
-	function isResize(dx) {
-		const choreoOutlives = choreo.active && stateName === prevState;
+	function isResize(moved) {
 		return (
+			moved ||
 			width !== prevW ||
 			height !== prevH ||
 			canvasWidth !== prevCanvasW ||
-			plotFrac !== prevPlotFrac ||
-			(dx !== 0 && choreoOutlives)
+			plotFrac !== prevPlotFrac
 		);
 	}
 
 	/**
-	 * Fit the canvas to the box the story is showing. Returns what changed — a
-	 * resize (the backing store re-fitted) or a bare move of the column (the
-	 * frame reframed) — or null when a choreography owns the frame and nothing
-	 * about the state or box changed under it: a param/raceView change while a
-	 * choreography owns the rAF is its own handoff, and the effect steps aside
-	 * (scrubbing implies active, so this one guard covers both).
+	 * Fit the canvas to the box the story is showing. Returns whether it resized
+	 * (the backing store re-fitted), or null when a choreography owns the frame
+	 * and nothing about the state or box changed under it: a param/raceView
+	 * change while a choreography owns the rAF is its own handoff, and the effect
+	 * steps aside (scrubbing implies active, so this one guard covers both).
 	 */
 	function fitBox() {
 		// the plot's share of the column is a property of the PAGE's layout, not of
@@ -1982,19 +1869,15 @@
 		// the effect already re-runs when the breakpoint flips, and `isResize`
 		// is what stops that re-run being discarded as a no-op.
 		setPlotBottomFrac(plotFrac);
-		// Where the column sits in the viewport, which a width change does not
-		// always imply: on the chapter-card swap it keeps its width and MOVES.
-		// `dx` is how far, and a move on its own is a change of coordinate frame
-		// rather than a resize — see reframe and isResize.
-		const dx = measureBleed();
-		const resized = isResize(dx);
+		// where the column sits in the viewport, which the full-bleed layouts
+		// author their sky against
+		const resized = isResize(measureBleed());
 		if (choreo.active) {
 			if (stateName === prevState && !resized) return null;
 			abandonChoreography();
 		}
 		if (resized) fitCanvas();
-		else if (dx !== 0) reframe(dx);
-		return { resized, moved: dx !== 0 };
+		return { resized };
 	}
 
 	/**
@@ -2011,7 +1894,6 @@
 	 */
 	const unchanged = (box, cacheDropped, paramsKey) =>
 		!box.resized &&
-		!box.moved &&
 		!cacheDropped &&
 		stateName === prevState &&
 		paramsKey === prevParamsKey;
@@ -2152,16 +2034,12 @@
 		entered = true;
 		const stateChange = stateName !== from;
 		const entryAnim = stateChange ? entryFor(stateName, from) : undefined;
-		// classified BEFORE the target is built, because the target now depends on
-		// it: how long this arrival takes is how far the sky will have flown by the
-		// time it lands (skyHandoff)
 		const kind = arrivalKind({
 			firstPaint,
 			resized: box.resized,
 			stateChange,
 			entryAnim
 		});
-		skyLanding = skyHandoff(from, kind);
 		prevState = stateName;
 		prevParamsKey = paramsKey;
 		const layout = layoutFor(stateName, width, height, layoutParams, bleed);
@@ -2172,8 +2050,7 @@
 			kind === "entry" && !!entryAnim.ownsFurniture,
 			ARRIVAL_MS[kind]
 		);
-		// a copy, because parkLeavers and landOnSky rewrite it and `layout.attrs`
-		// is cached
+		// a copy, because parkLeavers rewrites it and `layout.attrs` is cached
 		const attrs = layout.attrs.slice();
 		parkLeavers(attrs);
 		/** @type {Target} */
@@ -2185,7 +2062,6 @@
 			paramWalk: layout.paramWalk,
 			trailDelays: layout.trailDelays
 		};
-		landOnSky(target.attrs, target.trails);
 		ARRIVE[kind](target, from, entryAnim);
 	});
 
@@ -2562,7 +2438,7 @@
 	}
 
 	/* Full-bleed, pinned to the VIEWPORT rather than sized by the reading column,
-	   and reaching up through the title band as well: a chapter card's crowd fills
+	   and reaching up through the title band as well: a full-bleed sky fills
 	   the screen, and a canvas clipped to the column — or stopping where
 	   .scrolly-visual starts, --title-band below the top of the window — could
 	   only ever draw a rectangle of dots in the middle of it. The drawing origin
@@ -2758,9 +2634,9 @@
 
 	.chart-title {
 		/* .scrolly-visual (this component's containing box) is already offset
-		   down by --title-band, clearing the dot bar above it — this just
-		   centres the title within that reserved strip */
-		top: 4px;
+		   down by --title-band, clearing the progress bar above it; the title
+		   sits a little further down still (--chart-title-top, Stage.svelte) */
+		top: var(--chart-title-top);
 		left: 50%;
 		transform: translateX(-50%);
 		/* max-content, or `left: 50%` caps the shrink-to-fit width at the box's

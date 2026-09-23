@@ -22,7 +22,7 @@ export const { nodes, edges } = makeNodes();
  * The canvas boxes: a phone, the reading column with the prose stacked over it
  * on a wide screen, and the same column beside the prose. `bleed` is how far the
  * canvas element reaches past the column on each side (see plot.js's
- * Bleed), which is what puts the chapter cards' sky off the column.
+ * Bleed), which is what puts a full-bleed sky off the column.
  */
 export const BOXES = [
 	{

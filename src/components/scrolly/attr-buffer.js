@@ -1,7 +1,7 @@
 // The frame buffer every layout writes and every writer reads: one Float64
 // group of STRIDE values per node — x, y, radius, r, g, b, alpha — then one
 // group per edge (progress, alpha, highlight), then the runtime edge pool the
-// chapter card's highlight spokes rent. Alpha carries visibility: a hidden
+// title card's highlight spokes rent. Alpha carries visibility: a hidden
 // node keeps its position at alpha 0, so a later fade-in never teleports.
 import { EDGE_COUNT, NODE_COUNT } from "./nodes.js";
 import { TRAIL_META, TRAIL_POINTS, TRAIL_STRIDE } from "./trails.js";

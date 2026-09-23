@@ -180,36 +180,6 @@ exports[`layout goldens > careerTrio {"searchId":null} @stacked 1`] = `
 }
 `;
 
-exports[`layout goldens > chapterCenters null @beside 1`] = `
-{
-  "attrs": "435db61c4edbb832",
-  "decor": "bf21a9e8fbc5a384",
-  "delays": null,
-  "trailDelays": null,
-  "trails": null,
-}
-`;
-
-exports[`layout goldens > chapterCenters null @phone 1`] = `
-{
-  "attrs": "31108aefe1ca0255",
-  "decor": "bf21a9e8fbc5a384",
-  "delays": null,
-  "trailDelays": null,
-  "trails": null,
-}
-`;
-
-exports[`layout goldens > chapterCenters null @stacked 1`] = `
-{
-  "attrs": "795eaf5e7dd6832c",
-  "decor": "bf21a9e8fbc5a384",
-  "delays": null,
-  "trailDelays": null,
-  "trails": null,
-}
-`;
-
 exports[`layout goldens > degScatter {"searchId":105} @beside 1`] = `
 {
   "attrs": "7a97cbeb851010a2",

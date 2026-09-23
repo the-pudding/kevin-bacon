@@ -1,76 +1,48 @@
 <script>
 	// @ts-check
 	/**
-	 * Chapter-segmented progress across the top of the story: one dot per beat,
-	 * chapter groups divided by a hairline tick.
+	 * Progress across the top of the story: one line per beat, the active one
+	 * lit. No text — the lines are the whole of it.
 	 *
-	 * A beat is not always a step. Chapter cards claim no dot, and neither does
-	 * a gated interaction step: it and the step that reads out its answer are
-	 * one move to the reader, so they share a dot and the bar doesn't tick twice
-	 * for it. The registry works out which steps own a dot and which dot the
-	 * active step lights (`dotSteps` / `dotStep` on the step registry) — nothing here
-	 * counts steps by hand.
+	 * A beat is not always a step. A gated interaction step claims no line: it
+	 * and the step that reads out its answer are one move to the reader, so they
+	 * share a line and the bar doesn't tick twice for it. The registry works out
+	 * which steps own a line, which chapter each is in and which line the active
+	 * step lights (`chapters` / `currentChapter` / `dotStep` on the step
+	 * registry) — nothing here counts steps by hand.
 	 *
-	 * Indicator only — the dots take no pointer events, so a tap over the bar
-	 * falls through to the tap half beneath it and steps the story by one
-	 * like anywhere else. Never a jump target: that would land a reader past the
-	 * gated steps, which the story deliberately makes unskippable — see
+	 * Indicator only — the bar takes no pointer events, so a tap over it falls
+	 * through to the tap half beneath it and steps the story by one like
+	 * anywhere else. Never a jump target: that would land a reader past the gated
+	 * steps, which the story deliberately makes unskippable — see
 	 * notes/scrolly-framework.md.
-	 *
-	 * Dots are the piece's own vocabulary: the canvas behind this bar is 11,486
-	 * of them, so the progress indicator is that, shrunk to a strip.
 	 */
 	import { getContext } from "svelte";
 	import { fade } from "svelte/transition";
 	import { MediaQuery } from "svelte/reactivity";
-	import {
-		CHAPTER_IN_MS,
-		CHAPTER_IN_DELAY_MS,
-		CHAPTER_OUT_MS
-	} from "$components/scrolly/chapterFade.js";
 
 	const steps = getContext("scrolly-steps");
 
-	// [0, ...chapterStarts] — the three chapter cards open at 3, 12 and 20, and
-	// the steps before the first one are a segment of their own rather than
-	// being folded into a chapter that hasn't been announced yet. Each segment
-	// then keeps only the steps that own a dot, so a chapter card and a gated
-	// step both fall out of the bar here rather than needing a guard in the
-	// markup — the tick already marks the chapter break.
-	const segments = $derived.by(() => {
-		const starts = [0, ...steps.chapterStarts];
-		return starts.map((from, i) => {
-			const to = (starts[i + 1] ?? steps.count) - 1;
-			return steps.dotSteps.filter((step) => step >= from && step <= to);
-		});
-	});
-
-	// Crossfades the bar against the chapter card's own fade (Stage.svelte):
-	// the bar leaves on the title's slow, delayed arrival, and returns on the
-	// title's quick exit — one transition, not two independent ones.
+	const BAR_FADE_MS = 300;
 	const reducedMotion = new MediaQuery(
 		"(prefers-reduced-motion: reduce)",
 		false
 	);
-	const barOut = $derived(
-		reducedMotion.current
-			? { duration: 0 }
-			: { duration: CHAPTER_IN_MS, delay: CHAPTER_IN_DELAY_MS }
-	);
-	const barIn = $derived(
-		reducedMotion.current ? { duration: 0 } : { duration: CHAPTER_OUT_MS }
-	);
+	const barFade = $derived({
+		duration: reducedMotion.current ? 0 : BAR_FADE_MS
+	});
+
+	const current = $derived(steps.chapters[steps.currentChapter]);
 
 	// The bar comes back with the words, and once up it STAYS up.
 	//
 	// A latch rather than a live read, for the reason story.rank.revealed is one:
-	// the dots ARE the step change, so an ordinary step must not blink the bar
-	// out and back. It is only coming back off a chapter card or a hideBar step
-	// that it arrives at all, and there it waits for the arriving step's prose
-	// like every other piece of arriving furniture — it used to be fully in 300ms
-	// after the press while the words were still 260ms from starting, so the bar
-	// announced a position the reader had not been given yet.
-	const down = $derived(steps.chapter || steps.hideBar);
+	// the lines ARE the step change, so an ordinary step must not blink the bar
+	// out and back. It is only coming back off a hideBar step that it arrives at
+	// all, and there it waits for the arriving step's prose like every other
+	// piece of arriving furniture, so the bar never announces a position the
+	// reader has not been given yet.
+	const down = $derived(steps.hideBar);
 	let up = $state(false);
 	$effect(() => {
 		if (down) up = false;
@@ -78,34 +50,26 @@
 	});
 </script>
 
-{#if !down && up}
+{#if !down && up && current}
 	<div
 		class="step-progress"
 		role="group"
 		aria-label="Story progress"
-		in:fade={barIn}
-		out:fade={barOut}
+		transition:fade={barFade}
 	>
-		<!-- the dots carry no information a screen reader can use; this line is
+		<!-- the lines carry no information a screen reader can use; this line is
 		     the same fact, said once -->
 		<span class="sr-only">
-			Step {steps.dotSteps.indexOf(steps.dotStep) + 1} of {steps.dotSteps
-				.length}
+			Chapter {steps.currentChapter + 1} of {steps.chapters.length}: {current.title}.
+			Step {current.steps.indexOf(steps.dotStep) + 1} of {current.steps.length}.
 		</span>
-		<div class="segments" aria-hidden="true">
-			{#each segments as segment, i (i)}
-				{#if i > 0}
-					<span class="tick"></span>
-				{/if}
-				<div class="segment">
-					{#each segment as step (step)}
-						<span
-							class="dot"
-							class:past={step < steps.dotStep}
-							class:current={step === steps.dotStep}
-						></span>
-					{/each}
-				</div>
+		<div class="lines" aria-hidden="true">
+			{#each steps.dotSteps as step (step)}
+				<span
+					class="line"
+					class:past={step < steps.dotStep}
+					class:lit={step === steps.dotStep}
+				></span>
 			{/each}
 		</div>
 	</div>
@@ -116,12 +80,12 @@
 	   exactly the window height, so a sibling above it would push the page past
 	   one viewport and start it scrolling. Above --z-tap-above so no over-canvas
 	   panel can cover it and the quiz's backdrop-filter can't blur it. No
-	   background — it lands on white everywhere, and a plate would
-	   be the only thing in the piece punching a rectangle out of the canvas.
-	   What the marks get instead is --bar-halo, the same hold-out the chapter
-	   title and the step prose carry: a full-bleed state runs its crowd up under
-	   the bar, and a 5px dot on a field of 3px dots needs separating from them
-	   without a plate. Invisible wherever the canvas behind it is empty. */
+	   background — it lands on white everywhere, and a plate would be the only
+	   thing in the piece punching a rectangle out of the canvas. What the marks
+	   get instead is --bar-halo, the same hold-out the step prose carries: a
+	   full-bleed state runs its crowd up under the bar, and a hairline on a
+	   field of 3px dots needs separating from them without a plate. Invisible
+	   wherever the canvas behind it is empty. */
 	.step-progress {
 		--bar-halo:
 			0 0 3px var(--color-bg, #fff), 0 0 3px var(--color-bg, #fff),
@@ -133,59 +97,39 @@
 		height: var(--progress-band);
 		z-index: var(--z-tap-above);
 		display: flex;
+		/* centred in the band, so the lines keep clear of the chart title that
+		   sits directly under it (--title-band) */
 		align-items: center;
-		justify-content: center;
+		padding: 0 var(--16px);
 		pointer-events: none;
 	}
 
-	.segments {
+	/* Every line takes an equal share, so the bar spans the screen at any
+	   width whatever the step count. */
+	.lines {
 		display: flex;
-		align-items: center;
-		/* the chapter break, as space. The tick below makes it unambiguous — at
-		   30 dots a gap alone reads as a rendering accident. */
-		gap: 6px;
-	}
-
-	.segment {
-		display: flex;
-		align-items: center;
 		gap: 3px;
-		/* 24 dots is 189px at these sizes, so the bar fits 320px without
-		   shrinking; never let it wrap into a second row if a step is added */
-		flex-wrap: nowrap;
+		width: 100%;
 	}
 
-	.tick {
-		width: 1px;
-		height: 10px;
-		background: var(--color-border);
-		box-shadow: var(--bar-halo);
-	}
-
-	/* Three states by colour alone. The current dot grows by transform, never by
-	   width: a width change would reflow its 23 neighbours and jiggle the whole
-	   bar on every step. */
-	.dot {
-		width: 5px;
-		height: 5px;
-		border-radius: 50%;
+	/* Three states by colour alone, so a step change moves no layout. */
+	.line {
+		flex: 1 1 0;
+		height: 2px;
 		background: var(--color-gray-200);
 		box-shadow: var(--bar-halo);
 		/* --1s rather than an explicit reduced-motion block (which is what
 		   Index.svelte uses): those disable keyframe animations with delays,
 		   where shrinking the duration leaves the delay standing. This is the
 		   plain single-duration transition the token exists for. */
-		transition:
-			background-color calc(var(--1s) * 0.2) ease,
-			transform calc(var(--1s) * 0.2) ease;
+		transition: background-color calc(var(--1s) * 0.2) ease;
 	}
 
-	.dot.past {
+	.line.past {
 		background: var(--color-gray-400);
 	}
 
-	.dot.current {
+	.line.lit {
 		background: var(--color-fg);
-		transform: scale(1.4);
 	}
 </style>
