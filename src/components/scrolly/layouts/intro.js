@@ -308,6 +308,32 @@ const INTRO_DELAYS = buildIntroDelays();
 const INTRO_WALK_MS =
 	INTRO_DELAYS.reduce((m, d) => Math.max(m, d), 0) + INTRO_LINE_MS;
 
+/** the hop layers out from Bacon, nearest first: 1, 2, ... */
+const INTRO_LAYERS = [
+	...new Set(INTRO_IDS.map(introDistance).filter((d) => d > 0))
+].sort((a, b) => a - b);
+
+/**
+ * When each layer's lines finish arriving, on the walk's own clock: its start
+ * plus the one tween every line in it runs. The walk is played as one leg per
+ * layer, ending here, so a layer's names can be introduced as its lines land
+ * rather than all at once as the walk begins.
+ */
+const LAYER_LANDED_MS = INTRO_LAYERS.map((d) => layerStart(d) + INTRO_LINE_MS);
+if (LAYER_LANDED_MS[LAYER_LANDED_MS.length - 1] !== INTRO_WALK_MS) {
+	throw new Error("intro: the last layer does not land when the walk ends");
+}
+/** where each layer's leg opens on the walk's clock */
+const LAYER_LEG_START_MS = [0, ...LAYER_LANDED_MS.slice(0, -1)];
+/** each layer's leg length */
+const LAYER_LEG_MS = LAYER_LANDED_MS.map(
+	(end, k) => end - LAYER_LEG_START_MS[k]
+);
+/** the actors each layer's leg names as it lands */
+const LAYER_IDS = INTRO_LAYERS.map((d) =>
+	INTRO_IDS.filter((id) => introDistance(id) === d)
+);
+
 /**
  * A picked-out route's walk, in two stages. First every route clears (`clear`,
  * over `fadeMs`): the one being left fades out where it lies, ALL of it, since
@@ -402,12 +428,15 @@ function layoutNetworkIntro(nodes, w, h, _edges, params, bleed = NO_BLEED) {
 }
 
 // ---------------------------------------------------------------------------
-// The opening flight: from one dot in the sky to the middle of the network.
+// The opening flight: from one clump in the sky to the middle of the network.
 //
 // The card rests on a crowd streaming toward the reader, and Bacon is one of
-// the dots in it. On the tap the title clears, that dot is lit and named while
-// it is still travelling, and the camera then breaks off and closes on the mark
-// the constellation is about to grow out of, running the sky past as it goes.
+// the dots in it — with his fourteen co-stars travelling as a small cluster
+// about him (`writeCluster`), the constellation seen from a long way off. On
+// the tap the title clears, his dot is lit and named while it is still
+// travelling, and the camera then breaks off and closes on the whole cluster,
+// running the sky past as it goes, until it lands on the constellation's marks
+// and the lines grow out between them.
 //
 // Bacon flies with the crowd, on the same law, at the same speed, fading in and
 // out of his trip like every other dot — he has to, or he is a fixed mark in a
@@ -433,9 +462,14 @@ function layoutNetworkIntro(nodes, w, h, _edges, params, bleed = NO_BLEED) {
 // plane it is still inside the reading column, which is the box the name under
 // him is clipped to.
 //
+// That bound is taken over the whole cluster, not just his dot: the room his
+// trip gets is what is left once the cluster's own reach either side of him at
+// the near plane is set aside (see `anchorSkyEntry`).
+//
 // That is the whole of his special treatment. He enters, streams outward,
 // brightens and swells as he comes on, and wraps, exactly as the crowd does;
-// he just does it down one part of the frame rather than anywhere at all.
+// he just does it down one part of the frame rather than anywhere at all, and
+// the cluster does it with him.
 // ---------------------------------------------------------------------------
 
 const SKY_SPAN = SKY_FAR - SKY_NEAR;
@@ -468,9 +502,21 @@ const roomTo = (c, lo, hi) => (hi - c >= c - lo ? hi - c : lo - c);
 function anchorSkyEntry(w, h, bleed) {
 	const [cx, cy] = galaxyCentre(w, h, bleed);
 	const k = ANCHOR_SKY_REACH / SKY_FAR;
+	// the cluster's own reach either side of him at the near plane, which is
+	// where the flow carries it furthest out
+	const s = skyMag(SKY_NEAR) / MAG_END;
+	const d = clusterOffsets(w, h);
+	const [x0, x1, y0, y1] = [0, 1].flatMap((axis) => [
+		Math.min(...d.map((o) => o[axis])) * s,
+		Math.max(...d.map((o) => o[axis])) * s
+	]);
 	return [
-		roomTo(cx, GALAXY_FOCUS_MARGIN, w - GALAXY_FOCUS_MARGIN) * k,
-		roomTo(cy, -TITLE_BAND + GALAXY_FOCUS_MARGIN, h - GALAXY_FOCUS_MARGIN) * k
+		roomTo(cx, GALAXY_FOCUS_MARGIN - x0, w - GALAXY_FOCUS_MARGIN - x1) * k,
+		roomTo(
+			cy,
+			-TITLE_BAND + GALAXY_FOCUS_MARGIN - y0,
+			h - GALAXY_FOCUS_MARGIN - y1
+		) * k
 	];
 }
 
@@ -478,7 +524,8 @@ function anchorSkyEntry(w, h, bleed) {
  * Where Bacon is in the sky at time `t`, and how he is drawn there: the crowd's
  * own treatment at the landed camera (`writeFieldCrowd`), read off his depth so
  * he cannot be told from the dots around him.
- * @returns {[number, number, number, number]} x, y, radius, alpha
+ * @returns {[number, number, number, number, number]} x, y, radius, alpha,
+ *   and the depth he is at, which the cluster around him is drawn at too
  */
 function anchorSkyAt(w, h, bleed, t) {
 	const [cx, cy] = galaxyCentre(w, h, bleed);
@@ -490,13 +537,45 @@ function anchorSkyAt(w, h, bleed, t) {
 		cx + ex * m,
 		cy + ey * m,
 		PULLBACK_DOT_R * depthSize(z),
-		FIELD_ALPHA * depthFade(z) * flightWindow(frac)
+		FIELD_ALPHA * depthFade(z) * flightWindow(frac),
+		z
 	];
 }
 
+/** the fourteen: everyone in the constellation but Bacon */
+const OTHERS = INTRO_IDS.filter((id) => id !== ANCHOR_ID);
+
+/** each of the fourteen's offset from Bacon in the landed constellation, px */
+const clusterOffsets = (w, h) => {
+	const [ax, ay] = introPosition(ANCHOR_ID, w, h);
+	return OTHERS.map((id) => {
+		const [x, y] = introPosition(id, w, h);
+		return [x - ax, y - ay];
+	});
+};
+
+/**
+ * The fourteen, drawn as a rigid cluster about Bacon at `(x, y)` and depth `z`:
+ * each one's landed offset from him, shrunk by how much further off the camera
+ * he is than where the approach lands him. They sit at HIS depth, so the flow's
+ * magnification is the whole of the law — no separate scale to tune — and at
+ * `APPROACH_Z_END` the factor is exactly 1, which is what lands the cluster on
+ * the constellation's own marks. Drawn as the crowd draws a dot at that depth,
+ * so on the title card it is a clump of the sky rather than a diagram in it.
+ */
+function writeCluster(attrs, offsets, x, y, z, alpha) {
+	const s = skyMag(z) / MAG_END;
+	const r = PULLBACK_DOT_R * depthSize(z);
+	for (let k = 0; k < OTHERS.length; k++) {
+		const [dx, dy] = offsets[k];
+		set(attrs, OTHERS[k], x + dx * s, y + dy * s, r, CROWD, alpha);
+	}
+}
+
 const writeAnchorSky = (attrs, w, h, bleed, t) => {
-	const [x, y, r, a] = anchorSkyAt(w, h, bleed, t);
+	const [x, y, r, a, z] = anchorSkyAt(w, h, bleed, t);
 	set(attrs, ANCHOR_ID, x, y, r, CROWD, a);
+	writeCluster(attrs, clusterOffsets(w, h), x, y, z, a);
 };
 
 /**
@@ -526,19 +605,13 @@ function withAnchorInSky(framesFn) {
  * cards and the outro rest on — `writeFieldCrowd` at the landed camera, spread
  * across `galaxyBox` — so the story opens on the picture it closes on.
  *
- * Fourteen of the fifteen are NOT drawn, for the same reason `outro` leaves
- * them out: the constellation is the story's opening BEAT, and a title card
- * that already had Bacon's co-stars on it would spend that beat before the
- * reader has tapped anything. They are seeded instead exactly where the walk
- * starts them — on their constellation marks at zero radius and zero alpha —
- * which is what makes the step forward out of this card byte-identical to the
- * first-paint frame the pop-in walk was authored from (see `networkIntro`'s
- * `revealFrom`).
- *
- * Bacon is the exception, and he is here as a plain member of the crowd: same
- * grey, same 2px, no name. He is the destination the opening flies to (see
- * `networkEntryFrames`), and a destination has to exist before you can set off
- * for one.
+ * Bacon is here as a plain member of the crowd: same grey, same 2px, no name.
+ * His fourteen co-stars travel with him as a small unlabelled cluster, drawn
+ * as the crowd draws a dot at his depth, with no lines between them. The
+ * cluster is the destination the opening flies to (see `networkEntryFrames`),
+ * and the approach zooms in on the whole of it rather than on him alone, so
+ * the constellation arrives as something the reader has been looking at all
+ * along rather than something grown out of an empty frame.
  *
  * The crowd around him is named, though, once it is moving: the card takes the
  * chapter cards' highlight beat (see the state below), which picks its actors
@@ -549,12 +622,8 @@ function withAnchorInSky(framesFn) {
 function layoutTitleGalaxy(_nodes, w, h, _edges, _params, bleed = NO_BLEED) {
 	const attrs = new Float64Array(ATTR_SIZE);
 	writeFieldCrowd(attrs, w, h, PULLBACK_ZOOM, galaxyBox(w, h, bleed));
-	for (const id of INTRO_IDS) {
-		if (id === ANCHOR_ID) continue;
-		const [x, y] = introPosition(id, w, h);
-		set(attrs, id, x, y, 0, CROWD, 0);
-	}
-	// his own trip's t = 0, which is what the flight below carries on from
+	// his own trip's t = 0, with the fourteen about him, which is what the
+	// flight below carries on from
 	writeAnchorSky(attrs, w, h, bleed, 0);
 	// edges are left at the array's zeros — no draw progress, no alpha — which
 	// is the same nothing the walk's seed frame starts its lines from
@@ -572,7 +641,7 @@ const CLEAR = 0; // the card's words go; the sky carries on underneath
 const LIGHT = 1; // the crowd dot inks, grows and takes its name, still flying
 const LOCK = 2; // and holds that ink, so the name can be read
 const APPROACH = 3; // the flight
-const WALK = 4; // the constellation grows out of where it landed
+const WALK = 4; // the lines grow out of where it landed, one leg per hop layer
 // comfortably past the title's own out-transition, so the words are gone before
 // the dot under them starts to light
 const TITLE_CLEAR_MS = CHAPTER_OUT_MS + 100;
@@ -580,7 +649,7 @@ const TITLE_CLEAR_MS = CHAPTER_OUT_MS + 100;
 // order — swing onto Bacon, hold still long enough for the reader to see the sky
 // pouring out from behind him, then empty the frame — and they cannot overlap
 // (see approachClose). At 1200 the hold fell off the end of the leg.
-const ENTRY_PHASES = [TITLE_CLEAR_MS, 700, 700, 1600, INTRO_WALK_MS];
+const ENTRY_PHASES = [TITLE_CLEAR_MS, 700, 700, 1600, ...LAYER_LEG_MS];
 /**
  * When each leg opens on the choreography's own clock, which starts at the
  * instant of the tap — there is no arrival tween in front of it (`ownsArrival`),
@@ -679,6 +748,8 @@ if (
 ) {
 	throw new Error("intro: APPROACH_Z_END does not invert depthSize");
 }
+/** the flow's magnification where the approach lands, which the cluster is sized against */
+const MAG_END = skyMag(APPROACH_Z_END);
 
 /**
  * How much of the sky's depth the camera has closed on Bacon by `u`, as a share
@@ -771,18 +842,22 @@ const crowdFade = (u) => {
 };
 
 /**
- * Bacon's writer for the four legs. He is in the flow on every leg, the
- * approach included — the camera closes on him, it does not pick him up and
- * carry him — so his frame always starts at `anchorSkyAt`. The light-up is an
- * envelope ON it, never a replacement for it: exactly the idiom the chapter
- * card's highlight beat uses on a flowing dot, with radius and alpha nudged
- * against whatever the flow just wrote and colour written absolutely (a
- * relative blend would darken the same dot again every tick).
+ * Bacon's writer for the four legs, and the cluster's with him. He is in the
+ * flow on every leg, the approach included — the camera closes on him, it does
+ * not pick him up and carry him — so his frame always starts at `anchorSkyAt`.
+ * The light-up is an envelope ON it, never a replacement for it: exactly the
+ * idiom the chapter card's highlight beat uses on a flowing dot, with radius and
+ * alpha nudged against whatever the flow just wrote and colour written
+ * absolutely (a relative blend would darken the same dot again every tick).
+ *
+ * The fourteen are drawn about wherever he is, at his depth (`writeCluster`),
+ * on every leg. They are not lit and not named: the camera closes on the whole
+ * cluster, and the walk inks it once it has landed.
  * @param {{ w: number, h: number, bleed: import("../plot.js").Bleed,
  *   anchorClock: (leg: number, ms: number) => number, zStart: number,
  *   driftShare: number, gx: number, gy: number, aex: number, aey: number,
- *   mx: number, my: number }} c the approach's geometry, struck once at the
- *   tap (see networkEntryFrames)
+ *   mx: number, my: number, offsets: [number, number][], window0: number }} c
+ *   the approach's geometry, struck once at the tap (see networkEntryFrames)
  */
 function anchorWriter(c) {
 	const lerp = (a, b, t) => a + (b - a) * t;
@@ -807,18 +882,33 @@ function anchorWriter(c) {
 		// completes — the same single camera the crowd is drawn under, which is
 		// what makes "he is the point the sky streams out of" true rather than
 		// arranged. There is no curve here to pick: his path is the camera's.
+		const x = c.gx + c.aex * m * k + (c.mx - c.gx) * p;
+		const y = c.gy + c.aey * m * k + (c.my - c.gy) * p;
 		set(
 			attrs,
 			ANCHOR_ID,
-			c.gx + c.aex * m * k + (c.mx - c.gx) * p,
-			c.gy + c.aey * m * k + (c.my - c.gy) * p,
+			x,
+			y,
 			PULLBACK_DOT_R * depthSize(z) * GALAXY_FOCUS_R_MULT,
 			HOP_RGB[0],
 			1
 		);
+		// The cluster rides the same camera at the same depth, so the slide
+		// cancels out of its offsets from him and only the magnification is left.
+		// Its alpha is the crowd's law at that depth, with whatever dimming the
+		// trip's entry/exit window had at the break-off lifted over the flight:
+		// the cluster is arriving now, not passing.
+		writeCluster(
+			attrs,
+			c.offsets,
+			x,
+			y,
+			z,
+			FIELD_ALPHA * depthFade(z) * lerp(c.window0, 1, p)
+		);
 	};
 	return (attrs, leg, e, ms) => {
-		const [ax, ay, ar, aa] = anchorSkyAt(
+		const [ax, ay, ar, aa, az] = anchorSkyAt(
 			c.w,
 			c.h,
 			c.bleed,
@@ -826,7 +916,10 @@ function anchorWriter(c) {
 		);
 		if (leg === APPROACH) {
 			approach(attrs, ms);
-		} else if (leg === LOCK) {
+			return;
+		}
+		writeCluster(attrs, c.offsets, ax, ay, az, aa);
+		if (leg === LOCK) {
 			set(attrs, ANCHOR_ID, ax, ay, ar * GALAXY_FOCUS_R_MULT, HOP_RGB[0], 1);
 		} else if (leg === LIGHT) {
 			for (let ch = 0; ch < 3; ch++)
@@ -845,6 +938,31 @@ function anchorWriter(c) {
 			set(attrs, ANCHOR_ID, ax, ay, ar, CROWD, aa);
 		}
 	};
+}
+
+/** the lines, held at nothing until the walk grows them */
+const holdLines = (attrs) => {
+	for (let e = 0; e < EDGE_COUNT; e++) setEdge(attrs, e, 0, 0);
+};
+
+/**
+ * The frame the approach lands on, and so the frame the walk grows out of.
+ * Built rather than captured: the approach's last frame is the static layout
+ * with Bacon landed on his mark `(mx, my)`, the fourteen on theirs still drawn
+ * as the crowd draws a dot that near, and no lines yet — which is exactly this.
+ */
+function approachLanding(final, offsets, mx, my) {
+	const frame = final.slice();
+	holdLines(frame);
+	writeCluster(
+		frame,
+		offsets,
+		mx,
+		my,
+		APPROACH_Z_END,
+		FIELD_ALPHA * depthFade(APPROACH_Z_END)
+	);
+	return frame;
 }
 
 /**
@@ -945,22 +1063,8 @@ function networkEntryFrames(nodes, w, h, edges, params, bleed = NO_BLEED) {
 	// clock, and re-deriving it here costs no hashing per frame.
 	const skyPhases = Float64Array.from(FIELD_IDS, (id) => skyFrac(id, 0));
 
-	// the fourteen, held at nothing on their marks until the walk grows them —
-	// which is also, slot for slot, the frame a cold start seeds from
-	const others = INTRO_IDS.filter((id) => id !== ANCHOR_ID);
-	const otherPos = others.map((id) => introPosition(id, w, h));
-	const hold = (attrs) => {
-		for (let k = 0; k < others.length; k++) {
-			set(attrs, others[k], otherPos[k][0], otherPos[k][1], 0, CROWD, 0);
-		}
-		for (let e = 0; e < EDGE_COUNT; e++) setEdge(attrs, e, 0, 0);
-	};
-	// The frame the approach lands on, and so the frame the walk grows out of.
-	// Built rather than captured: the approach's last frame is the static layout
-	// with Bacon landed on it and the constellation still held at nothing, which
-	// is exactly this.
-	const legStart = final.slice();
-	hold(legStart);
+	const offsets = clusterOffsets(w, h);
+	const legStart = approachLanding(final, offsets, mx, my);
 
 	const writeAnchor = anchorWriter({
 		w,
@@ -974,7 +1078,11 @@ function networkEntryFrames(nodes, w, h, edges, params, bleed = NO_BLEED) {
 		aex,
 		aey,
 		mx,
-		my
+		my,
+		offsets,
+		// the cluster's entry/exit window where the camera breaks off, which the
+		// approach lifts to full over its flight (see anchorWriter)
+		window0: flightWindow(skyFrac(ANCHOR_ID, t0 + flightSpan))
 	});
 
 	// The tweener's own per-group arithmetic (see tween.js), run against the very
@@ -993,10 +1101,14 @@ function networkEntryFrames(nodes, w, h, edges, params, bleed = NO_BLEED) {
 	};
 
 	return (attrs, _trails, phase, e, ms) => {
-		if (phase === WALK) {
-			for (const id of others) replay(attrs, id * STRIDE, INTRO_DELAYS[id], ms);
+		if (phase >= WALK) {
+			// the walk's own clock, carried across its per-layer legs
+			const walkMs = LAYER_LEG_START_MS[phase - WALK] + ms;
+			for (const id of OTHERS) {
+				replay(attrs, id * STRIDE, INTRO_DELAYS[id], walkMs);
+			}
 			for (let k = 0; k < EDGE_COUNT; k++) {
-				replay(attrs, edgeIndex(k), INTRO_DELAYS[NODE_COUNT + k], ms);
+				replay(attrs, edgeIndex(k), INTRO_DELAYS[NODE_COUNT + k], walkMs);
 			}
 			return;
 		}
@@ -1006,7 +1118,7 @@ function networkEntryFrames(nodes, w, h, edges, params, bleed = NO_BLEED) {
 		// lets this choreography take the rAF with no arrival tween in front of it
 		// (see `ownsArrival`).
 		flySky(attrs, _trails, skyClock(phase, ms));
-		hold(attrs);
+		holdLines(attrs);
 		if (phase === APPROACH) {
 			// The camera is running forward now — the clock above is what carries the
 			// crowd past — and it is also SWINGING onto Bacon. `flySky` has just
@@ -1066,9 +1178,9 @@ export const states = {
 		// per-frame cut in ScrollyVisual is what names anybody; this says the
 		// resting card names nobody, which is also what holds the t = 0 contract.
 		labels: () => [],
-		// FIELD_IDS, not the cards' UNIVERSE_IDS: the fifteen are parked at zero
-		// alpha here rather than dissolved into the crowd, and flying them would
-		// move the seed the pop-in walk seeds from. The beat can never want one of
+		// FIELD_IDS, not the cards' UNIVERSE_IDS: the fifteen fly here as Bacon's
+		// cluster on his own authored trip (`withAnchorInSky`), not on hashed
+		// ones, and the flow must not write over it. The beat can never want one of
 		// them anyway — GALAXY_CAST is derived from FIELD_IDS, which excludes the
 		// fifteen by construction, so every actor it can light is one this state
 		// actually draws.
@@ -1099,8 +1211,9 @@ export const states = {
 		// A cold start (ScrollyVisual seeds every node at zero radius/alpha) takes
 		// the plain route: one tween on the delays above. The step forward off the
 		// title card takes the choreography below, which lights Bacon where he
-		// stands in the sky, flies him onto his mark and then replays those same
-		// delays out of the frame he landed on.
+		// stands in the sky, flies the camera in on him and his cluster until it
+		// lands on the constellation's marks, and then replays those same
+		// delays out of the frame it landed on.
 		//
 		// Every OTHER arrival is the reader stepping BACK here, with the network
 		// already grown — replaying either would hold each actor (and the name
@@ -1116,12 +1229,16 @@ export const states = {
 			// arrival tween there is no hop for them to be mistaken for.
 			ownsArrival: true,
 			// Nobody is named until the light-up has finished inking the dot it
-			// names; from then on the fourteen ride their own dots' alphas through
-			// the walk, exactly as they do on a cold start. Without this, Bacon's
-			// name would be up at the crowd's own alpha from the first frame,
-			// competing with the title as it fades. Index 0 is the arrival, which
-			// this choreography owns, so it introduces nobody; then one beat per leg.
-			labelsAfter: [[], [], [ANCHOR_ID], [], INTRO_IDS],
+			// names. The fourteen are already on their marks when the walk begins,
+			// so riding their dots' alphas would name them all at once, before a
+			// line has reached any of them; instead each layer's names land with
+			// its lines, one walk leg per layer. Without the gate, Bacon's name
+			// would be up at the crowd's own alpha from the first frame, competing
+			// with the title as it fades. Index 0 is the arrival, which this
+			// choreography owns, so it introduces nobody; then one beat per leg,
+			// each firing as its leg ENDS — so a layer's names sit one past the
+			// approach's empty beat, at the end of that layer's own leg.
+			labelsAfter: [[], [], [ANCHOR_ID], [], [], ...LAYER_IDS],
 			// The step's prose names Bacon, so it waits until he is on his mark:
 			// through the light-up, the hold and the flight the card is empty and
 			// the reader has only the sky and the one dot in it to look at, which is

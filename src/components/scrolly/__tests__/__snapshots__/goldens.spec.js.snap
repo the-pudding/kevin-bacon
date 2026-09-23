@@ -1343,7 +1343,7 @@ exports[`layout goldens > simRace {"runs":10000,"names":5} @stacked 1`] = `
 
 exports[`layout goldens > titleGalaxy null @beside 1`] = `
 {
-  "attrs": "bab195008fba6df9",
+  "attrs": "71891397deaffcc9",
   "decor": "bf21a9e8fbc5a384",
   "delays": null,
   "trailDelays": null,
@@ -1353,7 +1353,7 @@ exports[`layout goldens > titleGalaxy null @beside 1`] = `
 
 exports[`layout goldens > titleGalaxy null @phone 1`] = `
 {
-  "attrs": "3a3d9e66202508b0",
+  "attrs": "d220113a008a2a88",
   "decor": "bf21a9e8fbc5a384",
   "delays": null,
   "trailDelays": null,
@@ -1363,7 +1363,7 @@ exports[`layout goldens > titleGalaxy null @phone 1`] = `
 
 exports[`layout goldens > titleGalaxy null @stacked 1`] = `
 {
-  "attrs": "c0bd3ec3880986a3",
+  "attrs": "81b3edfdd0d2f280",
   "decor": "bf21a9e8fbc5a384",
   "delays": null,
   "trailDelays": null,

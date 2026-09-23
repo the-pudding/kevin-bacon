@@ -31,21 +31,23 @@ rather than off the reading column (`padding: 0 var(--control-inset)`) — a tit
 running under the arrow would have the reader reading the instruction through the
 word it points at.
 
-**`titleGalaxy` is the sky with the story's opening beat withheld.** It is the
-crowd every other galaxy state draws — `writeFieldCrowd` at the landed camera,
-across `galaxyBox`, flying on `makeFlight` — and, like `outro`, it leaves the
-constellation out: that is the opening BEAT, and a title card already carrying
-Bacon's co-stars would spend it before the reader has tapped anything. It does
+**`titleGalaxy` is the sky with the story's opening beat far off in it.** It is
+the crowd every other galaxy state draws — `writeFieldCrowd` at the landed
+camera, across `galaxyBox`, flying on `makeFlight` — with the constellation in it
+as a small unlabelled cluster of crowd-grey dots, no lines, travelling with
+Bacon (see the cluster below). Before 2026-09-23 the card left the constellation
+out, on the grounds that showing the co-stars would spend the opening beat
+before the tap. Owen changed that so the approach zooms in on the whole graph
+rather than on Bacon alone. It does
 take the chapter cards' highlight beat, wrapping its flight in
 `withGalaxyHighlight` and declaring `labels: () => []` exactly as
 `chapterCenters` does, so the card rests anonymous and the names arrive only once
-the sky is moving. That is safe against the park below without any coordination:
+the sky is moving. That is safe against the cluster without any coordination:
 `GALAXY_CAST` is derived from `FIELD_IDS`, which excludes the fifteen by
-construction, so the beat can never reach for a dot this state draws at zero
-alpha — nor for Bacon, who it draws as an ordinary member of the crowd. The
-flight itself is handed `FIELD_IDS` rather than the cards' `UNIVERSE_IDS` for the
-same reason: flying the fourteen would move the seed, and flying Bacon would move
-the target (see the opening flight below).
+construction, so the beat can never reach for one of the cluster. The flight
+itself is handed `FIELD_IDS` rather than the cards' `UNIVERSE_IDS` for the same
+reason: the fifteen ride Bacon's authored trip (`withAnchorInSky`), and a hashed
+trip would carry them off it (see the opening flight below).
 
 Its `castFrom` is 75, in the gap the cards' 0/30/60 leave. Worth knowing what
 that does and does not buy: `pickFocus` starts at `(from + hash(beat) * n) % n`
@@ -57,11 +59,18 @@ once each card's no-repeat window has diverged. The three chapter cards have
 always shared this; the checklist row asking whether a card opens on the same
 actor as the last one is still the open question it was.
 
-What the fourteen get instead is a park: their `networkIntro` constellation marks at zero
-radius and zero alpha, which is **exactly** the seed frame `ScrollyVisual` builds
-on a first paint, edge slots included.
+**The cluster.** The fourteen are drawn about Bacon, at his depth
+(`writeCluster`): each one's landed offset from him in the constellation, times
+`skyMag(z) / skyMag(APPROACH_Z_END)`. Because they are at his depth, the flow's
+own magnification is the whole law, with no separate scale to tune. At the depth
+the approach lands him on the factor is exactly 1, so the cluster lands on the
+constellation's marks. Radius and alpha are the crowd's at that depth, in
+`CROWD` grey, so at rest it reads as a clump of the sky: about a tenth of the
+landed constellation's size at the far plane and about a third at the near one.
+It enters, wraps and fades with his trip. Its edge slots stay at zero until the
+walk.
 
-Bacon is not parked with them. He flies with the crowd, drawn as a plain member
+Bacon flies with the crowd, drawn as a plain member
 of it — same grey, same size and alpha off his own depth, no name — because he
 is the star the opening flies to and a fixed mark in a moving field reads as a
 fixed mark long before the reader taps.
@@ -90,13 +99,13 @@ it draws anything. `networkIntro` carries a five-leg `entry` (`networkEntryFrame
 takes the rAF at the instant of the tap — there is no arrival tween in front of
 it (see `ownsArrival` below):
 
-| leg        | ms   | what moves                                                              |
-| ---------- | ---- | ----------------------------------------------------------------------- |
-| `CLEAR`    | 400  | nothing but the sky; the card's own words fade out over it              |
-| `LIGHT`    | 700  | the flying dot inks to `HOP_RGB[0]`, swells `GALAXY_FOCUS_R_MULT`×, α 1 |
-| `LOCK`     | 700  | still flying, now lit; the name is up and can be read                   |
-| `APPROACH` | 1600 | the flight — the camera banks onto him and runs the sky past            |
-| `WALK`     | 2050 | the constellation grows by hop layer, on the schedule a cold start runs |
+| leg        | ms   | what moves                                                                                                                       |
+| ---------- | ---- | -------------------------------------------------------------------------------------------------------------------------------- |
+| `CLEAR`    | 400  | nothing but the sky; the card's own words fade out over it                                                                       |
+| `LIGHT`    | 700  | the flying dot inks to `HOP_RGB[0]`, swells `GALAXY_FOCUS_R_MULT`×, α 1                                                          |
+| `LOCK`     | 700  | still flying, now lit; the name is up and can be read                                                                            |
+| `APPROACH` | 1600 | the flight — the camera banks onto him and his cluster, running the sky past, and lands the cluster on the constellation's marks |
+| `WALK`     | 2050 | the lines grow by hop layer on the schedule a cold start runs, each co-star inking up as its line arrives                        |
 
 Six things hold it together.
 
@@ -271,7 +280,7 @@ slide inherited a nonzero opening and stepped the crowd's speed at the join by
 its depth term: measured worst step 2.3 px/s on a phone (resting 21) and 4.5 px/s
 on a wide viewport (resting 44).
 
-The leg's last job is to empty the frame the walk grows into: crowd alpha is
+The leg's last job is to clear the crowd from around the landed cluster: crowd alpha is
 scaled by `crowdFade`, which holds full to `APPROACH_HOLD` and smoothsteps to
 exactly zero at the end. The runner's closing snap onto the static layout then
 moves them to a different park under alpha 0, which is invisible, and `WALK`
@@ -282,7 +291,11 @@ module load (nothing in it depends on the viewport), `networkIntro` hands that a
 the tweener on a cold start, and the `WALK` leg runs `tween.js`'s own per-group
 arithmetic against the very same array. One schedule, so the two arrivals cannot
 tell different stories, and `INTRO_WALK_MS` falls out of it rather than being
-guessed. This is the one writer in the story that wants a leg's LINEAR elapsed
+guessed. The difference from a cold start is only where it starts from:
+`approachLanding` puts the fourteen on their marks already, drawn crowd-grey at
+the crowd's size and alpha for the landed depth (5.3px against the resting 6),
+so the walk grows the lines and inks each co-star up as its line arrives,
+instead of popping them in from nothing. This is the one writer in the story that wants a leg's LINEAR elapsed
 ms — `runPhase` hands every writer both, because easing a schedule authored in
 real time would stretch its ends and compress its middle.
 
@@ -326,8 +339,9 @@ through a starfield, which reads as a slight zoom. No choice of TARGET can fix
 that; only not having the tween can. It is the same t = 0 contract an
 `AmbientAnim` holds, one step earlier, and it is discharged the same way:
 `layoutLone` writes the crowd's colours, `flySky` at `t0` writes their positions,
-sizes and alphas, `hold` parks the fourteen and their links at nothing, and
-`writeAnchor` at zero envelope draws Bacon as the crowd draws him. Measured, the
+sizes and alphas, `holdLines` parks the links at nothing, and
+`writeAnchor` at zero envelope draws Bacon as the crowd draws him, with the
+cluster about him. Measured, the
 seed matches the ambient's last frame to 0.0px in position and 0.0 on the anchor
 at every viewport and every tap instant; the only slots that differ are the
 highlight beat's own — its inked focus and its spoke targets, which clear in one
