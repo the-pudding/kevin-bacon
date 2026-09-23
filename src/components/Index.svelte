@@ -497,8 +497,8 @@
 					with 2.14.
 				</p>
 				<p>
-					Female actors are under-represented here, taking only 16 of the top
-					100 places. Nicole Kidman is the first female in at #21 with 2.19.
+					Women are under-represented here, taking only 16 of the top 100
+					places. Nicole Kidman is the first woman in at #21 with 2.19.
 				</p>
 			</Step>
 
@@ -740,8 +740,8 @@
 			</Step>
 			<Step state="outro" hideBar>
 				<p>
-					What is far more certain is that the first female center of Hollywood
-					is on the horizon, with 65% of the wins going to women.
+					What is far more certain is that the first woman to be the center of
+					Hollywood is on the horizon, with 65% of the wins going to women.
 				</p>
 				<p>
 					We can also be pretty sure of the fact that it's not going to be Kevin

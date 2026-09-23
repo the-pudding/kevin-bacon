@@ -1147,7 +1147,7 @@ function raceCalloutList(...list) {
 // nothing can guard it and a rebuild cannot invalidate it either. Confirmed by
 // Owen against the analysis repo (2026-09-21).
 const RACE_WOMAN_NOTE =
-	"With 6 film credits in 2012, Susan Sarandon reaches #9; the highest position for any female actor since 1980.";
+	"With 6 film credits in 2012, Susan Sarandon reaches #9; the highest position for any woman actor since 1980.";
 
 /** the nearest a woman has come to the centre on the years this step can reach */
 const RACE_WOMAN_CALLOUT = { ...RACE_WOMAN_PEAK, text: RACE_WOMAN_NOTE };
