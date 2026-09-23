@@ -8,9 +8,9 @@
 	 * (arrivals.js) prepare (see notes/scrolly-framework.md).
 	 *
 	 * The next half goes disabled while the active step's gate is shut, so a
-	 * step that is holding the reader reads as held rather than as a dead tap —
-	 * the halves carry no marking of their own, so the missing press tint is
-	 * the only signal available. At the very last step it stays live instead:
+	 * tap there does nothing and the cursor drops back to the default arrow.
+	 * The halves carry no marking of their own and no press tint — a tap's
+	 * only feedback is the step it takes. At the very last step it stays live instead:
 	 * a forward press there exits the wizard for the credits, one-way (see
 	 * `exit` on the registry) — the back half disappears along with the rest
 	 * of the step chrome once that happens, so there is no route back in.
@@ -144,12 +144,6 @@
 
 	.next {
 		right: calc(-1 * var(--column-gutter));
-	}
-
-	/* The halves carry no mark of their own, so the press tint is the only
-	   feedback a tap gets — keep it. */
-	.tap-half:active {
-		background: color-mix(in oklch, var(--color-fg) 6%, transparent);
 	}
 
 	.tap-half:disabled {
