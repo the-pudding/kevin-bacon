@@ -144,9 +144,4 @@ What each rule looks like on a sheet:
 
 ## Open questions
 
-- **`cardAfter` against rule 5.** An entry that holds the prose back until the
-  arrival has found its subject (the race chart's pan) moves the canvas before
-  the reader has read anything, which is the order rule 5 forbids. Either the
-  arrival is the sentence (and the prose is a caption, not an introduction), or
-  the pan should wait for a press. Decide per entry, and record it in that
-  chart's note.
+None open.

@@ -197,9 +197,8 @@ export const STATE_REVEAL_FROM = pick("revealFrom");
  *
  * It is handed both the leg's eased progress `e` and its LINEAR elapsed `ms`.
  * Use `e` for motion authored as a share of the leg, which is nearly
- * everything; `ms` is for a leg whose motion is a schedule in real time — the
- * one case today is `networkIntro`, whose walk leg replays the delay array its
- * own layout returns, and which would be warped by the trapezoidal ease.
+ * everything; `ms` is for a leg whose motion is a schedule in real time, which
+ * the trapezoidal ease would warp. No state authors one today.
  * @typedef {(nodes: import("./nodes.js").ActorNode[], w: number, h: number,
  *   edges: import("./nodes.js").Edge[], params: Object | null,
  *   bleed: import("./plot.js").Bleed, ctx: ArrivalContext) =>
@@ -241,10 +240,7 @@ export const STATE_REVEAL_FROM = pick("revealFrom");
  * and the gate lifts entirely once the last listed beat has landed — so a name
  * lands with the mark that earns it instead of captioning a dot mid-flight. An
  * empty list at the last index introduces nobody and says only "hold every
- * name until here". `cardAfter` holds the step's PROSE back the same way
- * (`story.entryHeld`), until leg `cardAfter` lands: for an arrival that spends
- * its first seconds finding the thing the prose is about, the words would
- * otherwise be describing an empty frame.
+ * name until here".
  *
  * `ownsArrival` says leg 0 at e = 0 reproduces the frame the reader is LEAVING,
  * so there is nothing for an arrival tween to carry and the legs take the rAF
@@ -284,7 +280,6 @@ export const STATE_REVEAL_FROM = pick("revealFrom");
  * @property {FrameWriterFactory} frames
  * @property {LayoutState[]} [from]
  * @property {number[][]} [labelsAfter]
- * @property {number} [cardAfter]
  * @property {boolean} [ownsArrival]
  * @property {boolean} [ownsFurniture] its frames publish their own `decor`, so
  *   the arriving state's static chart furniture is never put up in front of them
@@ -381,16 +376,25 @@ export const STATE_REQUESTS = pick("requests");
  * and rebuilds its base with it — the same arguments, or the base is a different
  * frame from the one the arrival landed on and the t = 0 contract above breaks.
  *
+ * `skyT0`, the factory's last argument, is where a sky flight's clock starts:
+ * 0 on every arrival but a carry (below), which is what the t = 0 contract is
+ * stated against.
+ *
+ * `carryFrom` names the states whose running ambient this one carries ON
+ * rather than restarting: two skies resting on the same flight (hopSeed and
+ * the title card). Arriving from one of them there is no tween and no out
+ * beat — the step lands at once, and this loop starts at the clock the
+ * departing flight stopped on (`skyT0`), so the drift never winds back to its
+ * t = 0 frame at the join. Whatever the departing loop drew on top of the
+ * shared flight (the highlight beat's ink and spokes) fades where it stands
+ * (ScrollyVisual's carryResidual).
+ *
  * @typedef {Object} AmbientAnim
  * @property {(nodes: import("./nodes.js").ActorNode[], w: number, h: number,
- *   edges: import("./nodes.js").Edge[], params?: Object, bleed?: number) =>
+ *   edges: import("./nodes.js").Edge[], params?: Object, bleed?: number,
+ *   skyT0?: number) =>
  *   (attrs: Float32Array, trails: Float32Array, t: number) => void} frames
- * @property {boolean} [liveReveal] says the very first paint should start this
- *   loop immediately (ScrollyVisual's `arrivalKind` "liveIn") rather than
- *   running the generic zero-to-static `popIn` tween first — for a state
- *   whose ambient authors its own fade-up (a per-dot alpha gate keyed off the
- *   loop's own clock), so the reveal is already in motion rather than static
- *   and then started. Only `titleGalaxy` declares it today.
+ * @property {LayoutState[]} [carryFrom]
  * @type {Partial<Record<LayoutState, AmbientAnim>>}
  */
 export const STATE_AMBIENT = pick("ambient");
@@ -418,8 +422,9 @@ export const STATE_LABEL_TEXT = pick("labelText");
 /**
  * every id a dynamic STATE_LABELS function could return (for frame tracking).
  * The galaxy cast is here rather than in `titleGalaxy`'s own `labels`, which
- * returns nothing: the beat's name is chosen per FRAME, inside drawScene, and an
- * id with no tracked entry has no label element to show.
+ * returns nothing: the title card's highlight beat chooses its name per FRAME,
+ * inside drawScene, and an id with no tracked entry has no label element to
+ * show.
  *
  * The second group is the cost of the actor search: the four searchable states
  * label the reader's own actor, so their `labels` had to become functions, and a

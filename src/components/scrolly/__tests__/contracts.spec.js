@@ -12,6 +12,7 @@ import {
 	STATE_YCAP
 } from "../states.js";
 import { TRAIL_SIZE, TRAIL_STRIDE, TRAIL_POINTS } from "../trails.js";
+import { EDGE_BASE, STRIDE } from "../attr-buffer.js";
 import {
 	writeRaceSweepFrame,
 	raceRestPlayhead,
@@ -19,7 +20,6 @@ import {
 	RACE_FUTURE_END
 } from "../layouts/race.js";
 import { writeSimFrame, SIM_N_SIMS } from "../layouts/sim-race.js";
-import { titleRevealGate } from "../sky.js";
 import {
 	BOXES,
 	arrivalContext,
@@ -62,6 +62,15 @@ function expectSameVisibleTrails(actual, expected) {
 		);
 	}
 }
+/** every node's x and y, and nothing else */
+const positions = (attrs) => {
+	const out = new Float64Array((EDGE_BASE / STRIDE) * 2);
+	for (let i = 0, k = 0; i < EDGE_BASE; i += STRIDE, k += 2) {
+		out[k] = attrs[i];
+		out[k + 1] = attrs[i + 1];
+	}
+	return out;
+};
 const trailsOf = (layout) => layout.trails ?? new Float64Array(TRAIL_SIZE);
 const copy = (layout) => ({
 	attrs: Float64Array.from(layout.attrs),
@@ -203,11 +212,6 @@ describe("requests: the last frame lands on the layout the finish publishes", ()
 
 describe("ambient loop: t = 0 reproduces the static layout", () => {
 	for (const [state, ambient] of Object.entries(STATE_AMBIENT)) {
-		// `liveReveal` is the one declared exception: its whole point is that the
-		// loop's t = 0 frame is the START of a cold-load reveal (see
-		// `withTitleReveal` in layouts/intro.js), not the resting static layout
-		// — see the `titleRevealGate` contract below instead.
-		if (ambient.liveReveal) continue;
 		for (const box of BOXES) {
 			test(`${state} @${box.name}`, () => {
 				const params = layoutParamsFor(state);
@@ -229,27 +233,47 @@ describe("ambient loop: t = 0 reproduces the static layout", () => {
 	}
 });
 
-// titleGalaxy's own exception to the contract above: at t = 0 its reveal gate
-// must be shut (or the cold load pops the crowd in whole, the exact thing this
-// feature exists to avoid), and once every dot's own delay + fade window has
-// passed it must be fully open (or the crowd never actually reaches the
-// alpha the rest of the flight has been drawing it at all along).
-describe("titleGalaxy reveal: shut at t = 0, open once every dot's window has passed", () => {
-	const SAMPLE_IDS = Array.from({ length: 200 }, (_, i) => i * 37);
-	// generous past HOLD (200) + STAGGER (1400) + FADE (500) in sky.js
-	const FULLY_OPEN_MS = 3000;
-
-	test("shut at t = 0", () => {
-		for (const id of SAMPLE_IDS) {
-			expect(titleRevealGate(id, 0)).toBe(0);
+// A carried arrival (AmbientAnim.carryFrom) has no tween: the arriving loop's
+// first frame, started at the clock the departing flight stopped on, must put
+// every dot where the departing flight had it at that clock. Positions only —
+// what the departing loop draws ON the flight (the title card's beat: ink,
+// size, spokes) is not the arriving one's to reproduce, and fades out as a
+// residual instead (ScrollyVisual's carryResidual). Checked a few seconds in —
+// mid trip for most of the crowd, and past a wrap for some — rather than at
+// 0, where every flight reproduces its static layout anyway.
+describe("carried ambient: the arriving flight picks up the departing one's frame", () => {
+	const CARRY_MS = [2500, 17000];
+	for (const [state, ambient] of Object.entries(STATE_AMBIENT)) {
+		for (const origin of ambient.carryFrom ?? []) {
+			for (const box of BOXES) {
+				for (const skyT of CARRY_MS) {
+					test(`${origin} → ${state} @${box.name}, ${skyT}ms`, () => {
+						const flight = (name, skyT0, t) => {
+							const params = layoutParamsFor(name);
+							const layout = buildLayout(name, box, params);
+							const write = STATE_AMBIENT[name].frames(
+								nodes,
+								box.w,
+								box.h,
+								edges,
+								params,
+								box.bleed,
+								skyT0
+							);
+							const { attrs, trails } = copy(layout);
+							write(attrs, trails, t);
+							return attrs;
+						};
+						expectSameFrame(
+							positions(flight(state, skyT, 0)),
+							positions(flight(origin, 0, skyT)),
+							"positions"
+						);
+					});
+				}
+			}
 		}
-	});
-
-	test("open once the window has passed", () => {
-		for (const id of SAMPLE_IDS) {
-			expect(titleRevealGate(id, FULLY_OPEN_MS)).toBe(1);
-		}
-	});
+	}
 });
 
 describe("race steps: the resting frame is a fixed point of the frame writer", () => {

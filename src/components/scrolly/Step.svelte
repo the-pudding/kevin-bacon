@@ -4,6 +4,12 @@
 	import { MediaQuery } from "svelte/reactivity";
 	import { fly } from "svelte/transition";
 	import { cubicInOut } from "svelte/easing";
+	import {
+		PROSE_OUT_MS,
+		PROSE_IN_DELAY_MS,
+		PROSE_IN_MS,
+		PROSE_RISE_PX
+	} from "./cardFade.js";
 
 	/**
 	 * One story step: prose in the slot, visual state declared alongside it.
@@ -36,7 +42,7 @@
 	 * end-of-run hand-off).
 	 *
 	 * `hideBar` drops the progress bar for this step alone — for a beat that
-	 * wants the full-bleed canvas to itself (hopSeed's pull-back, the outro).
+	 * wants the full-bleed canvas to itself (the outro).
 	 *
 	 * The enclosing <Chapter>'s title is registered with the step, read from the
 	 * "scrolly-chapter" context, so the progress bar can group steps by chapter.
@@ -72,19 +78,6 @@
 		alt,
 		children
 	} = $props();
-
-	// The prose's own swap, out and then in with a beat between, so the column is
-	// never showing two steps at once and the words read as one thing leaving and
-	// another arriving rather than a cut. Brisker than the title card's fade
-	// (cardFade.js): a card is the only thing on screen and can take its time,
-	// a paragraph is being read.
-	const PROSE_OUT_MS = 200;
-	const PROSE_IN_DELAY_MS = 260;
-	const PROSE_IN_MS = 300;
-	// Both ends drift the same way — the outgoing copy rises as it goes and the
-	// incoming one rises into place — so the column reads as moving through the
-	// step rather than swapping in place.
-	const PROSE_RISE_PX = 8;
 
 	const steps = getContext("scrolly-steps");
 	const index = steps.register({

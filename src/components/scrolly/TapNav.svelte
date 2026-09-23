@@ -15,9 +15,9 @@
 	 * `exit` on the registry) — the back half disappears along with the rest
 	 * of the step chrome once that happens, so there is no route back in.
 	 *
-	 * At the title card (the one step `atStart` is ever true for — nothing
-	 * before it to go back to) the prev half stays live rather than disabled,
-	 * and advances instead of going back: the splash cue's instruction is
+	 * At step 0 (the one step `atStart` is ever true for — nothing before it to
+	 * go back to) the prev half stays live rather than disabled, and advances
+	 * instead of going back: the cue Stage shows there says
 	 * "click to continue" or "tap to continue", not "tap the right side", so
 	 * the whole screen has to answer a tap, left half included.
 	 *

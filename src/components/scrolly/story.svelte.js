@@ -4,12 +4,12 @@
 // re-runs the current layout with a short tween — an interaction is a param
 // update, not a step change.
 //
-// Grouped by the interaction that owns the fields: `intro` (step 1's tour and
-// taps), `hops` (step 6's cycling hop-chart anchor), `rank` (the guess-the-rank ladder), `race` (the race chart's camera
+// Grouped by the interaction that owns the fields: `intro` (the opening
+// constellation's tour and taps), `hops` (the cycling hop-chart anchor), `rank` (the guess-the-rank ladder), `race` (the race chart's camera
 // and its Gen Z draw-on), `quiz` (the pair quiz), `search` (the reader's own
-// actor, on four charts) and `sim` (the simulation replay). The four top-level
+// actor, on four charts) and `sim` (the simulation replay). The top-level
 // fields are the framework's own: what the reader has asked for, what is
-// playing, what has landed, and whether a step's prose is still held back.
+// playing, and what has landed.
 //
 // Five of these interactions gate the story: the reader cannot be carried to
 // the step that reads out the answer without doing the thing (the rank guess,
@@ -48,15 +48,6 @@ export const story = $state({
 	 * Written only by ScrollyVisual's land(). No layout params selector reads
 	 * it, so writing it can never retarget a tween. */
 	settledStep: -1,
-	/** an entry choreography is running and has not yet reached the leg that
-	 * earns its step's prose (see EntryAnim's `cardAfter`). Written by
-	 * ScrollyVisual: raised on an arrival that declares one, dropped when that
-	 * leg lands, and dropped again by every later arrival, so an interrupted
-	 * choreography can never leave a step card silent. `settled` cannot serve
-	 * here — it marks the END of a reveal, which for the opening flight is eight
-	 * seconds of constellation after the beat the prose is waiting on, and which
-	 * a cold start does not reach for just as long. */
-	entryHeld: false,
 	/** a reader's ask for one of the active state's `requests` (see RequestAnim
 	 * in states.js): `kind` names it and `nonce` counts asks, so a second press
 	 * of the same button is a fresh ask and the reset back to nothing is not one.
@@ -68,7 +59,7 @@ export const story = $state({
 	 * steps away mid-run finds the button live if they come back */
 	running: null,
 
-	/** step 1's constellation: the tour in Index.svelte and the reader's taps
+	/** the opening constellation: the tour in Index.svelte and the reader's taps
 	 * (see layouts/intro.js) */
 	intro: {
 		/** node id whose route(s) to Bacon are highlighted; null = the plain
@@ -252,18 +243,6 @@ export const story = $state({
  * anything left to play. */
 export function request(kind) {
 	story.request = { kind, nonce: story.request.nonce + 1 };
-}
-
-/** Put the constellation back to neutral, with the tour live. Called by the
- * arrival rules on the one arrival that regrows the network — the step off the
- * title card — because that arrival's frames are the layout at whatever focus
- * the story is carrying, so a highlight left behind by an earlier visit would
- * otherwise be what the two layers grow into. `releases` is left alone: it is a
- * monotonic counter, and resetting it would read to the tour as a fresh
- * dismissal. */
-export function resetIntroFocus() {
-	story.intro.focus = null;
-	story.intro.pinned = false;
 }
 
 /** Put the cycling hop chart back on Bacon, with the cycle live. Called by the

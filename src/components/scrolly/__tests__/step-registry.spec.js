@@ -5,13 +5,14 @@ import { story } from "../story.svelte.js";
 
 const NEVER = () => false;
 
-/** the shape of the story's opening: a title card outside every chapter, a
- * first chapter of two steps, then a second opening on a gated interaction that
- * a backward move skips, its reveal, and a step that hides the bar */
+/** the shape of the story's opening: a step and the title card outside every
+ * chapter, a first chapter of one step, then a second opening on a gated
+ * interaction that a backward move skips, its reveal, and a step that hides the
+ * bar */
 const OPENING = [
-	{ state: "titleGalaxy", splash: {}, hideBar: true },
-	{ state: "lone", chapter: "Intro" },
-	{ state: "hopSeed", chapter: "Intro" },
+	{ state: "networkIntro" },
+	{ state: "titleGalaxy", splash: {} },
+	{ state: "hopBands", chapter: "The RKBs" },
 	{ state: "rankFocus", gate: NEVER, skipback: true, chapter: "The centers" },
 	{ state: "rankReveal", chapter: "The centers" },
 	{ state: "raceRecent", hideBar: true, chapter: "The centers" }
@@ -30,10 +31,10 @@ describe("createStepRegistry", () => {
 		const { steps } = registry();
 		expect(steps.count).toBe(6);
 		expect(steps.current).toBe(0);
-		// no line for the title card or the skipped interaction
-		expect(steps.dotSteps).toEqual([1, 2, 4, 5]);
+		// no line for the steps outside every chapter or the skipped interaction
+		expect(steps.dotSteps).toEqual([2, 4, 5]);
 		expect(steps.chapters).toEqual([
-			{ title: "Intro", steps: [1, 2] },
+			{ title: "The RKBs", steps: [2] },
 			{ title: "The centers", steps: [4, 5] }
 		]);
 	});
@@ -53,9 +54,9 @@ describe("createStepRegistry", () => {
 		steps.go(1);
 		expect(steps.current).toBe(1);
 		expect(moves).toEqual([
-			{ to: "lone", from: "titleGalaxy", forward: true, back: false }
+			{ to: "titleGalaxy", from: "networkIntro", forward: true, back: false }
 		]);
-		expect(steps.state).toBe("lone");
+		expect(steps.state).toBe("titleGalaxy");
 		expect(steps.config).toBe(steps.configs[1]);
 	});
 
@@ -81,7 +82,7 @@ describe("createStepRegistry", () => {
 		steps.prev();
 		expect(steps.current).toBe(2);
 		expect(moves.at(-1)).toEqual({
-			to: "hopSeed",
+			to: "hopBands",
 			from: "rankReveal",
 			forward: false,
 			back: true
@@ -105,20 +106,19 @@ describe("createStepRegistry", () => {
 		expect(moves).toEqual([]);
 	});
 
-	test("the bar hides on the title card, a hideBar step, and held prose", () => {
+	test("the bar hides outside every chapter and on a hideBar step", () => {
 		const { steps } = registry();
 		expect(steps.hideBar).toBe(true);
 		steps.go(1);
+		expect(steps.hideBar).toBe(true);
+		steps.go(2);
 		expect(steps.hideBar).toBe(false);
-		for (const to of [2, 3]) steps.go(to);
+		steps.go(3);
 		steps.advance();
 		steps.advance();
 		expect(steps.hideBar).toBe(true);
 		steps.prev();
 		expect(steps.hideBar).toBe(false);
-		story.entryHeld = true;
-		expect(steps.hideBar).toBe(true);
-		story.entryHeld = false;
 	});
 
 	test("a step left before its neighbour landed is held again on return", () => {
@@ -140,7 +140,7 @@ describe("createStepRegistry", () => {
 
 	test("a change of state disarms `settled`; two steps on one state keep it", () => {
 		const steps = createStepRegistry({ navigate: prepareArrival });
-		for (const state of ["titleGalaxy", "networkIntro", "networkIntro"])
+		for (const state of ["hopSeed", "networkIntro", "networkIntro"])
 			steps.register({ state });
 		steps.go(1);
 		story.settled = "networkIntro";

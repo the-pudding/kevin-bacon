@@ -41,7 +41,11 @@
 		CARD_OUT_MS,
 		PANEL_OUT_MS,
 		SPLASH_REVEAL_MS,
-		SPLASH_REVEAL_STEP_MS
+		SPLASH_REVEAL_STEP_MS,
+		PROSE_IN_DELAY_MS,
+		PROSE_IN_MS,
+		PROSE_RISE_PX,
+		NAV_CUE_BEAT_MS
 	} from "./cardFade.js";
 
 	// Beside, rather than over. Below this width the prose is a card lying across
@@ -277,6 +281,24 @@
 	};
 </script>
 
+{#snippet navCue()}
+	<span class="nav-cue-body">
+		<span class="nav-cue-row on-wide">
+			<strong>Click to continue</strong>
+			<span class="nav-cue-icon"><PointerIcon /></span>
+		</span>
+		<span class="nav-cue-row on-narrow">
+			<strong>Tap to continue</strong>
+			<span class="nav-cue-icon"><PointerIcon /></span>
+		</span>
+		<span class="nav-keys on-wide">
+			Or use the keyboard
+			<span class="key"><ChevronLeft /></span>
+			<span class="key"><ChevronRight /></span>
+		</span>
+	</span>
+{/snippet}
+
 <section id="scrolly">
 	<div
 		class="scrolly-layout"
@@ -284,7 +306,9 @@
 		class:exited={steps.exited}
 		style="--viewport-height: {dimensions.height
 			? `${dimensions.height}px`
-			: '100svh'}; --title-band: {TITLE_BAND}px; --splash-reveal-ms: {SPLASH_REVEAL_MS}ms; --splash-reveal-step: {SPLASH_REVEAL_STEP_MS}ms"
+			: '100svh'}; --title-band: {TITLE_BAND}px; --splash-reveal-ms: {SPLASH_REVEAL_MS}ms; --splash-reveal-step: {SPLASH_REVEAL_STEP_MS}ms; --cue-in: {PROSE_IN_MS}ms; --cue-delay: {PROSE_IN_DELAY_MS +
+			PROSE_IN_MS +
+			NAV_CUE_BEAT_MS}ms; --cue-rise: {PROSE_RISE_PX}px"
 	>
 		<!-- The prose and the step controls come BEFORE the canvas in the
 		     document, though they paint over it (the z ladder below, not source
@@ -300,6 +324,20 @@
 				aria-live="polite"
 			>
 				{@render children(layout)}
+				<!-- step 0's nav cue, stacked: a row of its own under the prose.
+				     Mounted for the whole of the step rather than when it shows,
+				     so the row is already there when the prose lands and the words
+				     never shift up to make room for it. -->
+				{#if steps.current === 0 && !beside}
+					<div
+						class="nav-cue in-card"
+						class:shown={!steps.held}
+						aria-hidden="true"
+						out:fade={cardOut}
+					>
+						{@render navCue()}
+					</div>
+				{/if}
 			</div>
 			<TapNav />
 		{/if}
@@ -323,15 +361,23 @@
 			     the flow's t = 0 (sky.js), so the crowd flew back to the start
 			     of its trip and set off again the moment the reader stepped
 			     off the story. -->
-			<ScrollyVisual
-				bind:this={visual}
-				state={steps.state}
-				step={steps.current ?? -1}
-				params={steps.config?.params}
-				coldStart={steps.coldStart}
-				stepsHeight={overlayHeight}
-				{beside}
-			/>
+			<!-- Not mounted until the window has been measured. `beside` reads
+			     the window's width, which is 0 until the dimensions effect has
+			     run, and the plot's share of the column follows it — so a canvas
+			     that painted first would take the flip as a resize and snap
+			     whatever its first paint was playing. On a desktop cold load
+			     that was the constellation's whole grow-in. -->
+			{#if dimensions.width}
+				<ScrollyVisual
+					bind:this={visual}
+					state={steps.state}
+					step={steps.current ?? -1}
+					params={steps.config?.params}
+					coldStart={steps.coldStart}
+					stepsHeight={overlayHeight}
+					{beside}
+				/>
+			{/if}
 			{#if !steps.exited}
 				<!-- The rank ladder, mounted here rather than as a step's panel (the
 			     way the dev tuners below are) because it has to OUTLIVE the step
@@ -387,12 +433,9 @@
 				{/key}
 				<!-- the title card. Rendered from the registry rather than by
 			     <Splash> itself so this {#if} is stable and Svelte can play the
-			     out-transition, which the panel render above cannot; the
-			     cue and the logo are siblings rather than part of the card
-			     because they are pinned (to the corner, and to the top of the
-			     screen) rather than centred with the title — the logo also
-			     stays clear of the sky's busiest patch, where the opening
-			     flight converges behind the centred card. -->
+			     out-transition, which the panel render above cannot; the logo is
+			     a sibling rather than part of the card because it is pinned to
+			     the top of the screen rather than centred with the title. -->
 				{#if activeSplash}
 					<div
 						class="splash-logo"
@@ -410,27 +453,24 @@
 							</p>
 						{/if}
 					</div>
-					<div
-						class="splash-cue"
-						class:reveal={mounted}
-						aria-hidden="true"
-						in:fade={cardIn}
-						out:fade={cardOut}
-					>
-						<span class="splash-cue-row on-wide">
-							<strong>Click to continue</strong>
-							<span class="splash-cue-icon"><PointerIcon /></span>
-						</span>
-						<span class="splash-cue-row on-narrow">
-							<strong>Tap to continue</strong>
-							<span class="splash-cue-icon"><PointerIcon /></span>
-						</span>
-						<span class="splash-keys on-wide">
-							Or use the keyboard
-							<span class="key"><ChevronLeft /></span>
-							<span class="key"><ChevronRight /></span>
-						</span>
-					</div>
+				{/if}
+				<!-- How to move, taught on step 0 — where the reader makes their
+				     first press, and the one step where the whole screen advances
+				     (TapNav's `atStart` is the same test). Beside the prose it sits in
+				     the canvas's corner; stacked, it sits under the prose instead
+				     (in the card, below). Either way it waits for the prose to land
+				     and then rises in after it (`.shown`). -->
+				{#if steps.current === 0}
+					{#if beside}
+						<div
+							class="nav-cue in-corner"
+							class:shown={!steps.held}
+							aria-hidden="true"
+							out:fade={cardOut}
+						>
+							{@render navCue()}
+						</div>
+					{/if}
 					<p class="sr-only">
 						<span class="on-narrow"
 							>Tap anywhere on the screen to navigate through the story.</span
@@ -707,10 +747,8 @@
 	}
 
 	/* The Pudding's wordmark, pinned to the top of the screen rather than
-	   stacked into the centred card — same "pinned corner, not centred with
-	   the title" reasoning as .splash-cue (see the comment above it), and it
-	   keeps the mark clear of the sky's busiest patch, where the opening
-	   flight converges behind the card. Wide (600x247) rather than the
+	   stacked into the centred card, so however many lines the title wraps to
+	   the two never meet. Wide (600x247) rather than the
 	   compact mark, so it is sized by width with a cap for wide viewports
 	   rather than a fixed height. pointer-events: none for the same reason
 	   .splash-card is — it is decorative, not a control. */
@@ -736,10 +774,10 @@
 	}
 
 	/* "By Owen Lacey", under the title — sans, small and let breathe from the
-	   display serif above it, same halo idiom as the h1 and the cue so it
-	   stays legible over the moving sky. The link is the one live control this
-	   otherwise inert card carries, so it alone gets pointer-events back — and,
-	   like .splash-cue, --z-tap-above to actually beat the tap halves it sits
+	   display serif above it, same halo idiom as the h1 so it stays legible
+	   over the moving sky. The link is the one live control this otherwise
+	   inert card carries, so it alone gets pointer-events back — and
+	   --z-tap-above to actually beat the tap halves it sits
 	   over rather than just being painted under them. */
 	.splash-byline {
 		margin: 0.5rem 0 0;
@@ -761,23 +799,21 @@
 		pointer-events: auto;
 	}
 
-	/* Where the tap goes — pinned to the corner rather than centred over the
-	   half, so it never runs into the title above it, however many lines that
-	   wraps to. A hand-cursor icon, "click"/"tap to continue" (ported
-	   like-for-like from The Pudding's pop-love-songs Tap.svelte) and, past
-	   40rem, the keyboard alternative spelled out as two key glyphs. The whole
-	   screen answers a tap while this card is up (see TapNav's atStart
-	   branch), so the cue does not have to sit over any one half of it. */
-	.splash-cue {
-		position: absolute;
-		right: var(--column-gutter);
-		bottom: max(1.5rem, 6%);
+	/* Where the tap goes, on step 0: a hand-cursor icon, "click"/"tap to
+	   continue" (ported like-for-like from The Pudding's pop-love-songs
+	   Tap.svelte) and, past 40rem, the keyboard alternative spelled out as two
+	   key glyphs. The whole screen answers a tap on step 0 (see TapNav's
+	   atStart branch), so the cue does not have to sit over any one half of it.
+
+	   It is the last thing to arrive on the step: mounted with the step, held
+	   at nothing until the prose has landed (`.shown` is `!steps.held`, the
+	   question the prose itself asks), and then risen in on the prose's own
+	   rise and duration, a beat after the prose's entrance ends
+	   (`--cue-delay` is the prose's delay and duration plus NAV_CUE_BEAT_MS —
+	   cardFade.js). */
+	.nav-cue {
 		width: max-content;
 		max-width: 70%;
-		display: flex;
-		flex-direction: column;
-		align-items: flex-end;
-		gap: 0.5rem;
 		font-family: var(--font-sans);
 		font-weight: 700;
 		text-align: right;
@@ -785,70 +821,125 @@
 		/* over the half it points at, but never catching the press it is asking
 		   for — the button underneath has to get it */
 		pointer-events: none;
-		z-index: var(--z-tap-above);
 		text-shadow: var(--text-halo);
-		animation: splash-nudge 2.6s ease-in-out infinite;
+		opacity: 0;
+		transform: translateY(var(--cue-rise));
 	}
 
-	.splash-cue strong {
-		font-size: var(--20px, 1.25rem);
+	.nav-cue.shown {
+		opacity: 1;
+		transform: none;
+	}
+
+	/* A keyframe animation rather than a transition: the corner copy can be
+	   created already `.shown` (it mounts when `beside` turns true, which on a
+	   cold load can be the same flush the prose lands in), and a transition
+	   never plays on an element's first style. The curve is cubicInOut, the
+	   prose's own (Step.svelte). */
+	@media (prefers-reduced-motion: no-preference) {
+		.nav-cue.shown {
+			animation: nav-cue-in var(--cue-in) cubic-bezier(0.65, 0, 0.35, 1)
+				var(--cue-delay) both;
+		}
+	}
+
+	@keyframes nav-cue-in {
+		from {
+			opacity: 0;
+			transform: translateY(var(--cue-rise));
+		}
+
+		to {
+			opacity: 1;
+			transform: none;
+		}
+	}
+
+	/* Stacked: a row of its own under the step's prose, at the card's right
+	   edge. The paragraph's own bottom margin is the gap above it, and the cue
+	   takes that margin over at the foot of the card. */
+	.nav-cue.in-card {
+		grid-area: 2 / 1;
+		justify-self: end;
+		padding-bottom: var(--16px, 1rem);
+	}
+
+	/* Beside the prose: the canvas's bottom-right corner, lifted over the tap
+	   halves it sits on. */
+	.nav-cue.in-corner {
+		position: absolute;
+		right: var(--column-gutter);
+		bottom: max(1.5rem, 6%);
+		z-index: var(--z-tap-above);
+	}
+
+	/* the rows the nudge moves — an element of their own, so the nudge's
+	   transform never fights the rise on the cue itself */
+	.nav-cue-body {
+		display: flex;
+		flex-direction: column;
+		align-items: flex-end;
+		gap: 0.375rem;
+		animation: nav-nudge 2.6s ease-in-out infinite;
+	}
+
+	.nav-cue strong {
+		font-size: var(--16px, 1rem);
 		line-height: 1.1;
 	}
 
-	.splash-cue-row {
+	.nav-cue-row {
 		display: flex;
 		align-items: center;
-		gap: 0.5rem;
+		gap: 0.375rem;
 	}
 
 	/* :global(svg) resets app.css's `svg { width: 100% }` (sized for full-bleed
 	   chart art), which otherwise stretches the inlined pointer icon to the
 	   width of its flex item instead of its own size. Height stays auto so the
 	   doodle keeps its own (taller than wide) proportions. */
-	.splash-cue-icon :global(svg) {
-		width: 1.25rem;
+	.nav-cue-icon :global(svg) {
+		width: 1rem;
 		height: auto;
 	}
 
 	/* the keyboard alternative: a bold sans label, like the "click to
 	   continue" line above it, and two key glyphs */
-	.splash-keys {
+	.nav-keys {
 		display: flex;
 		align-items: center;
-		gap: 0.4rem;
-		font-size: var(--14px, 0.875rem);
+		gap: 0.3rem;
+		font-size: var(--12px, 0.75rem);
 	}
 
-	.splash-keys .key {
+	.nav-keys .key {
 		display: flex;
-		padding: 3px;
+		padding: 2px;
 		border: 1px solid var(--color-gray-300);
 		border-radius: 4px;
 		background: var(--color-bg);
 	}
 
-	.splash-keys .key :global(svg) {
-		width: 0.75rem;
-		height: 0.75rem;
+	.nav-keys .key :global(svg) {
+		width: 0.625rem;
+		height: 0.625rem;
 	}
 
 	/* The cold-load reveal (see SPLASH_REVEAL_MS in cardFade.js for why this
 	   rides a plain CSS transition rather than `in:fade`): each element sits at
-	   opacity 0 until `.reveal` lands, staggered logo → title → byline → cue so
-	   the cascade reads as one composed entrance. `in:fade`/`out:fade` above
-	   still carry every later mount and every exit (a reader stepping back onto
-	   the card, or off it) unaffected by any of this. */
+	   opacity 0 until `.reveal` lands, staggered logo → title → byline so the
+	   cascade reads as one composed entrance (a cold load of `?step=3`).
+	   `in:fade`/`out:fade` above still carry every later mount and every exit
+	   unaffected by any of this. */
 	.splash-logo,
 	.splash-card h1,
-	.splash-byline,
-	.splash-cue {
+	.splash-byline {
 		opacity: 0;
 	}
 
 	.splash-logo.reveal,
 	.splash-card h1.reveal,
-	.splash-byline.reveal,
-	.splash-cue.reveal {
+	.splash-byline.reveal {
 		opacity: 1;
 	}
 
@@ -865,11 +956,6 @@
 		.splash-byline {
 			transition: opacity var(--splash-reveal-ms) ease-out;
 			transition-delay: calc(var(--splash-reveal-step) * 2);
-		}
-
-		.splash-cue {
-			transition: opacity var(--splash-reveal-ms) ease-out;
-			transition-delay: calc(var(--splash-reveal-step) * 3);
 		}
 	}
 
@@ -892,14 +978,14 @@
 			display: inline;
 		}
 
-		.splash-cue .on-wide {
+		.nav-cue .on-wide {
 			display: flex;
 		}
 	}
 
 	/* a nudge, not a bounce: the row leans the way the story goes and settles
 	   back, so it reads as a direction rather than as something demanding a tap */
-	@keyframes splash-nudge {
+	@keyframes nav-nudge {
 		0%,
 		100% {
 			transform: translateX(0);
@@ -911,7 +997,7 @@
 	}
 
 	@media (prefers-reduced-motion: reduce) {
-		.splash-cue {
+		.nav-cue-body {
 			animation: none;
 		}
 	}

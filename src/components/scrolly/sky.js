@@ -83,34 +83,6 @@ const FIELD_OPEN_SKEW = 0.5;
 // x-hash is ~0.5 parked on his column at every viewport, on every frame); a
 // handful drifting through is not it, and chasing them would mean deflecting
 // dots mid-flight, which is a visible jump to fix an invisible one.
-// The title card's OWN reveal: a fixed schedule in real ms rather than one
-// gated on camera travel, because the card is already landed and there is no
-// travel to gate on (see FIELD_OPEN_* above, which the title card cannot use
-// for exactly that reason — `writeFieldCrowd` is called there at the landed
-// `PULLBACK_ZOOM`, so `travel` is always 1 and every `opening` already fully
-// resolved). Applied by `withTitleReveal` in `layouts/intro.js` as a multiply
-// on top of the flight's own alpha, so a dot's fade-up rides the live flow
-// clock — it is already mid-flight, at whatever depth `t` has carried it to,
-// rather than static and then set moving. A different hash salt (22, against
-// FIELD_OPEN's 14) so the title's own arrival order doesn't just echo the
-// pull-back's.
-const TITLE_REVEAL_HOLD_MS = 200;
-
-const TITLE_REVEAL_STAGGER_MS = 1400;
-
-const TITLE_REVEAL_FADE_MS = 500;
-
-const TITLE_REVEAL_SKEW = 0.5;
-
-/** a dot's own slot in the title card's reveal: when its fade-up begins */
-const titleRevealStart = (id) =>
-	TITLE_REVEAL_HOLD_MS +
-	hash01(id, 22) ** TITLE_REVEAL_SKEW * TITLE_REVEAL_STAGGER_MS;
-
-/** how open a dot's reveal is at t: 0 before its slot, 1 once its fade completes */
-export const titleRevealGate = (id, t) =>
-	Math.min(1, Math.max(0, (t - titleRevealStart(id)) / TITLE_REVEAL_FADE_MS));
-
 const FIELD_KEEPOUT_GAP = 12;
 
 const FIELD_KEEPOUT =
@@ -194,7 +166,7 @@ export const SKY_FAR = 4;
 
 const SKY_SPAN = SKY_FAR - SKY_NEAR;
 
-export const SKY_MID = (SKY_NEAR + SKY_FAR) / 2;
+const SKY_MID = (SKY_NEAR + SKY_FAR) / 2;
 
 /**
  * How long one dot takes to cross the whole volume, far plane to near plane.
@@ -267,7 +239,7 @@ export const fieldDepth = (id) => SKY_FAR - skyFrac(id, 0) * SKY_SPAN;
 // full strength the far plane is a quarter of the near one, which on a light
 // ground takes the back of the sky to nothing and leaves a field of foreground
 // dots.
-export const SKY_DEPTH_GAMMA = 0.5;
+const SKY_DEPTH_GAMMA = 0.5;
 
 /** a dot's radius multiplier at depth z — about 1.6x at the near plane, 0.8x at the far */
 export const depthSize = (z) => (SKY_MID / z) ** SKY_DEPTH_GAMMA;
@@ -473,7 +445,14 @@ export function skyToColumn(w, h, bleed) {
  * `bleed` the arrival was built with — that rebuild is what makes the base the
  * frame the tween landed on, and a different bleed would snap the whole sky
  * inward on settle. `ids` is who flies: the crowd everywhere, plus the intro
- * fifteen on hopSeed, where they have stopped being a diagram and joined it.
+ * fifteen on hopSeed and the title card, where they have stopped being a
+ * diagram and joined it.
+ *
+ * `skyT0` is where the flight's clock starts. 0 on an ordinary arrival, which
+ * lands on the static layout — the flow's t = 0 frame. On an arrival that
+ * carries the departing sky on (`carryFrom`), the clock that sky stopped at:
+ * the entry spots are a pure function of (id, trip), so a flight started there
+ * draws exactly the frame the departing one last drew.
  *
  * A dot's size and alpha follow its depth every frame, because a thing coming
  * toward you grows and darkens and that is most of what makes the motion read as
@@ -500,7 +479,7 @@ export function skyToColumn(w, h, bleed) {
  * @returns {import("./states.js").AmbientAnim["frames"]}
  */
 export function makeFlight(layoutFn, ids) {
-	return (nodes, w, h, edges, params, bleed = NO_BLEED) => {
+	return (nodes, w, h, edges, params, bleed = NO_BLEED, skyT0 = 0) => {
 		const { attrs: base } = layoutFn(nodes, w, h, edges, params, bleed);
 		const box = galaxyBox(w, h, bleed);
 		const [cx, cy] = galaxyCentre(w, h, bleed);
@@ -532,8 +511,8 @@ export function makeFlight(layoutFn, ids) {
 		const sizeRef = PULLBACK_DOT_R * ref;
 		const invFade = 1 / FLIGHT_FADE;
 		return (attrs, _trails, t) => {
-			skyFlight.t = t;
-			const march = t / FLIGHT_CYCLE_MS;
+			skyFlight.t = skyT0 + t;
+			const march = skyFlight.t / FLIGHT_CYCLE_MS;
 			for (let k = 0; k < n; k++) {
 				const u = phase[k] + march;
 				const c = u | 0;

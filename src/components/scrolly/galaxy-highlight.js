@@ -220,22 +220,14 @@ const GALAXY_LINK_ALPHA = 0.16;
 const GALAXY_TARGET_ALPHA = 0.75;
 /** how far a target's grey blends toward INK at full envelope */
 const GALAXY_TARGET_INK = 0.2;
-/**
- * The focused actor's radius against the one the flight gives it. Exported
- * because the title card lights the anchor on its own terms (see
- * `layouts/intro.js`) and a second number for "a dot picked out of this sky"
- * would let the two beats drift apart.
- */
-export const GALAXY_FOCUS_R_MULT = 3;
+/** The focused actor's radius against the one the flight gives it. */
+const GALAXY_FOCUS_R_MULT = 3;
 /**
  * px of the reading column the focused actor keeps clear of its edges, so the
  * NAME centred under the dot has somewhere to sit (see focusHolds). Targets take
  * no margin: a spoke ending on a dot at the very edge of the sky is fine.
- *
- * Exported for the same reason as the multiplier above: the title card's own
- * lit dot is named by the same annotation layer and needs the same room.
  */
-export const GALAXY_FOCUS_MARGIN = 32;
+const GALAXY_FOCUS_MARGIN = 32;
 /**
  * How many recent focuses either slot refuses to repeat (see pickFocus). Every
  * one of these is a candidate struck off an already narrow field, so it trades
@@ -300,11 +292,11 @@ const GALAXY_EXTRA_IDS = [
 /**
  * The cast: the most prolific actors the flight actually carries, plus
  * `GALAXY_EXTRA_IDS`. `FIELD_IDS` is already the right pool — every actor at
- * hop 1–4 bar the intro fifteen — which matters twice over: the fifteen are
- * held OUT of the flight on `hopSeed` and `outro`, so a cast clear of them
- * stays usable if the beat ever extends to those states, and the pool is the
- * whole corpus bar the fifteen, so the beat can light any actor the story ever
- * plots.
+ * hop 1–4 bar the intro fifteen — which matters twice over: the fifteen fly
+ * on the title card as crowd, the constellation having just dissolved into the
+ * sky on `hopSeed`, so a beat that could light one would pull the diagram back
+ * out of it; and the pool is the whole corpus bar the fifteen, so the beat can
+ * light any actor the story ever plots.
  *
  * `films` is the story's only stand-in for degree — the corpus has no co-star
  * count — and it is a fair one for the ranked slice: an actor's co-stars scale
@@ -766,7 +758,8 @@ function toCrowd(attrs, id) {
  * coincide.
  * @param {{ slots: { index: number, focus: number|null, targets: number[], lens: number[] }[], recent: number[] }} beat
  * @param {0|1} slot which of the two independent cycles this strike is for
- * @param {{ cx: number, cy: number, w: number, h: number, bleed: import("./plot.js").Bleed, depthPx: number, nonce: number }} f the flight
+ * @param {number} tBeat the beat's start on the SKY's clock
+ * @param {{ cx: number, cy: number, w: number, h: number, bleed: import("./plot.js").Bleed, depthPx: number, nonce: number, skyT0: number }} f the flight
  */
 function strikeSlot(beat, slot, b, tBeat, attrs, f) {
 	const s = beat.slots[slot];
@@ -893,10 +886,13 @@ function writeSpokes(attrs, beat, es, drawn) {
 			}
 			galaxyLinks.ends[base + k][0] = s.focus;
 			galaxyLinks.ends[base + k][1] = s.targets[k];
+			// clamped at 0 as well as 1: before a slot's beat opens `drawn` is
+			// negative, and a spoke that has not started is undrawn, which is what
+			// the static layout says too
 			setEdge(
 				attrs,
 				linkSlot,
-				Math.min(1, drawn[slot] / s.lens[k]),
+				Math.max(0, Math.min(1, drawn[slot] / s.lens[k])),
 				e * GALAXY_LINK_ALPHA
 			);
 		}
@@ -943,8 +939,8 @@ function writeSpokes(attrs, beat, es, drawn) {
  * @returns {import("./states.js").AmbientAnim["frames"]}
  */
 export function withGalaxyHighlight(framesFn) {
-	return (nodes, w, h, edges, params, bleed = NO_BLEED) => {
-		const write = framesFn(nodes, w, h, edges, params, bleed);
+	return (nodes, w, h, edges, params, bleed = NO_BLEED, skyT0 = 0) => {
+		const write = framesFn(nodes, w, h, edges, params, bleed, skyT0);
 		// the point the flow expands about — the same centre makeFlight magnifies
 		// from, which is what makes a dot's path radial and its beat-end position
 		// predictable (see beatGrowth)
@@ -965,7 +961,13 @@ export function withGalaxyHighlight(framesFn) {
 			h,
 			bleed,
 			depthPx: skyWidth * GALAXY_DEPTH_SPAN,
-			nonce: flightSeq++
+			nonce: flightSeq++,
+			// the sky's clock at this writer's t = 0. The beat is scheduled on
+			// the loop's own `t` — it opens on its start delay however long the
+			// sky under it has been flowing — but every prediction of where a dot
+			// will be is made on the SKY's clock, which a carried arrival starts
+			// part-way through (see makeFlight's `skyT0`)
+			skyT0
 		};
 		// two independent slots: who is lit, who the spokes reach, how long each
 		// spoke is — plus one no-repeat history shared by both. Per flight, so a
@@ -990,7 +992,14 @@ export function withGalaxyHighlight(framesFn) {
 				const b = Math.floor(tEff / GALAXY_BEAT_MS);
 				const tBeat = b * GALAXY_BEAT_MS + delay;
 				if (b !== beat.slots[slot].index) {
-					strikeSlot(beat, /** @type {0|1} */ (slot), b, tBeat, attrs, flight);
+					strikeSlot(
+						beat,
+						/** @type {0|1} */ (slot),
+						b,
+						flight.skyT0 + tBeat,
+						attrs,
+						flight
+					);
 				}
 				es[slot] = beat.slots[slot].focus == null ? 0 : envelope(t - tBeat);
 				drawn[slot] = (t - tBeat) * drawSpeed;

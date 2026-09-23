@@ -44,8 +44,8 @@ export function createTap(getSteps) {
 			downAt = null;
 			if (dragged) return false;
 			const steps = getSteps();
-			// At the title card the prev half advances rather than going back (the
-			// splash cue says "tap to continue", so the whole screen has to answer).
+			// At step 0 the prev half advances rather than going back (the cue there
+			// says "tap to continue", so the whole screen has to answer).
 			// Forward off the last step leaves the wizard for the credits, one-way —
 			// there is nothing beyond it in the registry for next()/go() to land on.
 			if (direction === "prev" && steps.current > 0) steps.prev();

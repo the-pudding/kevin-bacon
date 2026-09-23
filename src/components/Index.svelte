@@ -85,9 +85,9 @@
 	// who never taps still sees what "two movies away" means. A tap takes it over
 	// (story.intro.pinned, set by the state's `pick` — see layouts/intro.js).
 	//
-	// It is the fourth beat of step 1 — the two layers finish growing, the
+	// It is the last beat of step 0 — the two layers finish growing, the
 	// constellation rests for INTRO_DWELL_MS, and then the first route lights —
-	// and it simply carries on across the step change into step 2, which is the
+	// and it simply carries on across the step change into step 1, which is the
 	// same state with different words.
 	//
 	// TOUR_MS is step 6's beat as well: both are one line of chart to read. Step
@@ -124,7 +124,7 @@
 		return Math.min(introBottom(width, height) + ROUTE_GAP, floor);
 	}
 	// Gated on `settled`, which for this state means the walk is over: it is
-	// written by ScrollyVisual's settle() at the END of the entry's legs, i.e. the
+	// written by ScrollyVisual's settle() at the END of the pop-in, i.e. the
 	// instant the second layer of lines lands. Nothing should point at an actor
 	// whose dot has not arrived. Because both steps share the state, it is still
 	// true on the second one and the tour never pauses at the join.
@@ -356,13 +356,58 @@
 					</p>
 				{/if}
 			{/snippet}
+			<!-- THE OPENING -->
+			<!-- The story opens here, on the constellation, with no title card
+			     before it: a first load grows it from nothing (the walk, as the
+			     state's pop-in). These three steps and the title card after them sit
+			     outside every <Chapter>, so the progress bar claims no line for
+			     them and stays down until the first chapter begins.
+
+			     Both constellation steps rest on one state, so the step between
+			     them moves not a dot and the tour carries straight across it. This
+			     one grows the constellation and then demonstrates the game on it;
+			     the next one only changes the words. Step 0 is also where the reader
+			     is taught how to move (Stage.svelte's cue). -->
+			<!-- `alt`: what the canvas shows, for a screen reader (see Step.svelte).
+			     PLACEHOLDERS — bare descriptions for Owen to reword. -->
+			<Step
+				state="networkIntro"
+				panel={routePanel}
+				alt="A network diagram with Kevin Bacon in the middle, joined by lines to actors he has made films with, and on to actors they have made films with."
+			>
+				<p>
+					The “Six Degrees of Kevin Bacon” is a game where players try to
+					connect an actor to Kevin Bacon via movies they've starred in with
+					other Hollywood actors, aiming to reach him in six movies or fewer.
+				</p>
+			</Step>
+			<Step state="networkIntro" panel={routePanel}>
+				<p>
+					The intuition is that Kevin Bacon is so prolific and well-known that
+					the game is a lot easier than if it were called the “Six Degrees of
+					John Doe”, implying he's some sort of all-encompassing center of
+					Hollywood.
+				</p>
+			</Step>
+			<Step
+				state="hopSeed"
+				alt="The network shrinks away into a field of dots."
+			>
+				<!-- The copy lands over the constellation pulling back: the network
+				     Bacon is in the middle of shrinks to a small thing as the line
+				     says he isn't the centre of Hollywood (see layouts/hop-bands.js).
+				     The bands' crowd is already parked behind it, invisible. -->
+				<p>
+					However, Kevin Bacon is <b>not</b> the center of Hollywood. Not only
+					that, he <b>never has been</b>, and almost certainly
+					<b>never will be</b>.
+				</p>
+			</Step>
 			<!-- TITLE CARD -->
-			<!-- Step 0: the piece's name over the same sky the outro
-			     and the credits rest on. Stepping off it is the story's first
-			     use of its only control, and the constellation grows out of the
-			     sky it leaves (see `titleGalaxy` / `networkIntro`'s revealFrom in
-			     layouts/intro.js). How to move is taught by Stage.svelte's
-			     splash cue, not by this card. -->
+			<!-- Step 3: the piece's name over the sky hopSeed has just pulled
+			     back into — the same flight, carried on rather than restarted
+			     (`carryFrom` in layouts/intro.js), with the highlight beat picking
+			     actors out of it. hopBands sorts its crowd out of this sky. -->
 			<Splash state="titleGalaxy">
 				{#snippet title()}
 					Gen Z's Kevin Bacon
@@ -373,61 +418,6 @@
 					>
 				{/snippet}
 			</Splash>
-
-			<!-- PLACEHOLDER chapter title for Owen to reword -->
-			<Chapter title="Introduction">
-				<!-- PRESENT -->
-				<!-- Both steps rest on one state, so the step between them moves not a
-			     dot and the tour carries straight across it. This one grows the
-			     constellation and then demonstrates the game on it; the next one
-			     only changes the words.
-
-			     The prose waits for Bacon to land (`story.entryHeld`, raised by
-		     this state's entry choreography and dropped when its approach leg
-		     finishes). Off the title card the step opens by finding him in the
-		     sky and flying to him, and a paragraph naming him while the reader
-		     is still watching a dot cross the frame would answer the question
-		     the motion is asking. It then speaks over the two layers growing,
-		     which is what it describes. Every other arrival here — a cold start,
-		     a step back from `hopSeed` — never raises the gate, so the card
-		     speaks straight away. -->
-				<!-- `alt`: what the canvas shows, for a screen reader (see Step.svelte).
-			     PLACEHOLDERS — bare descriptions for Owen to reword. -->
-				<Step
-					state="networkIntro"
-					panel={routePanel}
-					alt="A network diagram with Kevin Bacon in the middle, joined by lines to actors he has made films with, and on to actors they have made films with."
-				>
-					<p>
-						The “Six Degrees of Kevin Bacon” is a game where players try to
-						connect an actor to Kevin Bacon via movies they've starred in with
-						other Hollywood actors, aiming to reach him in six movies or fewer.
-					</p>
-				</Step>
-				<Step state="networkIntro" panel={routePanel}>
-					<p>
-						The intuition is that Kevin Bacon is so prolific and well-known that
-						the game is a lot easier than if it were called the “Six Degrees of
-						John Doe”, implying he's some sort of all-encompassing center of
-						Hollywood.
-					</p>
-				</Step>
-				<Step
-					state="hopSeed"
-					hideBar
-					alt="The network shrinks away into a field of dots."
-				>
-					<!-- The copy lands over the constellation pulling back: the network
-				     Bacon is in the middle of shrinks to a small thing as the line
-				     says he isn't the centre of Hollywood (see layouts/hop-bands.js).
-				     The bands' crowd is already parked behind it, invisible. -->
-					<p>
-						However, Kevin Bacon is <b>not</b> the center of Hollywood. Not only
-						that, he <b>never has been</b>, and almost certainly
-						<b>never will be</b>.
-					</p>
-				</Step>
-			</Chapter>
 
 			<Chapter title="The RKBs">
 				<!-- The prose waits for the bands to actually land rather than mounting

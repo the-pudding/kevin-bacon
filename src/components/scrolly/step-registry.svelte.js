@@ -25,8 +25,8 @@ const STEP_PARAM = "step";
  * backward move passes through this step) and `advanceon` (the step carries
  * the reader on itself) — `hideBar` (drops the progress bar for this step
  * alone), `chapter` for the title of the <Chapter> it sits in, or `splash`
- * for the title card's own name-and-how-to-move pair.
- * @typedef {{ state: import("./states.js").VisualState, params?: Object, panel?: import("svelte").Snippet, gate?: () => boolean, skipback?: boolean, advanceon?: () => boolean, hideBar?: boolean, chapter?: string, splash?: { title: import("svelte").Snippet, cta: import("svelte").Snippet, byline?: import("svelte").Snippet } }} StepConfig
+ * for the title card's name and byline.
+ * @typedef {{ state: import("./states.js").VisualState, params?: Object, panel?: import("svelte").Snippet, gate?: () => boolean, skipback?: boolean, advanceon?: () => boolean, hideBar?: boolean, chapter?: string, splash?: { title: import("svelte").Snippet, byline?: import("svelte").Snippet } }} StepConfig
  */
 
 /**
@@ -63,7 +63,7 @@ function hasStepParam() {
 
 /**
  * The story's chapters in order, each with the steps that own a line on the
- * progress bar. A step outside every <Chapter> (the title card) belongs to none.
+ * progress bar. Every step in `dotSteps` sits in a <Chapter> by construction.
  * @param {StepConfig[]} configs
  * @param {number[]} dotSteps
  * @returns {{ title: string, steps: number[] }[]}
@@ -72,7 +72,6 @@ function chaptersOf(configs, dotSteps) {
 	const out = [];
 	for (const i of dotSteps) {
 		const title = configs[i].chapter;
-		if (!title) continue;
 		if (out.at(-1)?.title !== title) out.push({ title, steps: [] });
 		out.at(-1).steps.push(i);
 	}
@@ -173,13 +172,12 @@ export function createStepRegistry({ navigate }) {
 			const lit = steps.dotStep;
 			return steps.chapters.findIndex((c) => c.steps.includes(lit));
 		},
-		// The bar is down on a step that declares `hideBar`, and while its prose
-		// is still held back by an entry choreography (story.entryHeld). The bar reports a position, and the reader has not
-		// been given one until the words that go with it are on screen — off the
-		// title card it would otherwise be up for three seconds before the card
-		// speaks, which is the whole of the opening flight.
+		// The bar is down on a step outside every <Chapter> — the opening, up to
+		// and including the title card, which the bar does not count — and on a
+		// step that declares `hideBar`. The bar reports a position in the
+		// chapters, and the opening is not in one.
 		get hideBar() {
-			return !!active()?.hideBar || story.entryHeld;
+			return !active()?.chapter || !!active()?.hideBar;
 		},
 		// The active step's arrival is still playing, so everything that arrives
 		// WITH the words — the prose itself, the step's panel, the bar coming back
@@ -195,16 +193,16 @@ export function createStepRegistry({ navigate }) {
 			const gate = active()?.gate;
 			return !!gate && !gate();
 		},
-		// Which steps own a line on the progress bar. The title card is not a step
-		// the bar claims one for — the reader has arrived at the story, not moved
-		// through it — and neither is a gated interaction step: it and the step
-		// that reads out its answer are one beat to the reader (they cannot arrive
-		// at the second without passing the first, and stepping back skips
-		// straight over it), so they share the successor's line rather than making
-		// the bar tick twice for one move.
+		// Which steps own a line on the progress bar. A step outside every
+		// <Chapter> claims none — the opening and the title card are the story's
+		// prologue, not a position in it — and neither does a gated interaction
+		// step: it and the step that reads out its answer are one beat to the
+		// reader (they cannot arrive at the second without passing the first, and
+		// stepping back skips straight over it), so they share the successor's
+		// line rather than making the bar tick twice for one move.
 		get dotSteps() {
 			return configs.reduce(
-				(out, c, i) => (c.splash || c.skipback ? out : [...out, i]),
+				(out, c, i) => (!c.chapter || c.skipback ? out : [...out, i]),
 				[]
 			);
 		},

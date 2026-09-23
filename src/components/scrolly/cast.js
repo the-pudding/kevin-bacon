@@ -167,11 +167,12 @@ export const FIELD_IDS = rawNodes.nodes.reduce(
 /**
  * Everyone who flies when the sky flies: the crowd plus the intro fifteen.
  *
- * The state where the constellation has stopped being a diagram — the camera's
- * landed pull-back (`hopSeed`) — draws the fifteen as sky and hand them to the same flight as everyone else, so the
+ * The states where the constellation has stopped being a diagram — the camera's
+ * landed pull-back (`hopSeed`) and the title card carrying its sky on — draw the
+ * fifteen as sky and hand them to the same flight as everyone else, so the
  * crowd the reader is looking at is one crowd. A separate export rather than a
- * wider `FIELD_IDS`, because the states that still owe the fifteen their own
- * treatment (`titleGalaxy`'s named anchor, `outro`'s cast) read that one.
+ * wider `FIELD_IDS`, because the outro owes the fifteen its own treatment (its
+ * cast) and the highlight beat's cast must never include them.
  */
 export const SKY_IDS = [...FIELD_IDS, ...INTRO_IDS];
 

@@ -71,10 +71,6 @@ describe("state registry", () => {
 						expect(tracked.has(id), `${state} labelsAfter ${id}`).toBe(true);
 					}
 				}
-				if (entry.cardAfter != null) {
-					expect(entry.cardAfter, state).toBeGreaterThanOrEqual(0);
-					expect(entry.cardAfter, state).toBeLessThan(phases.length);
-				}
 				if (entry.hold) {
 					expect(entry.hold.until, state).toBeTypeOf("function");
 					expect(entry.hold.frame, state).toBeTypeOf("function");
@@ -120,6 +116,18 @@ describe("state registry", () => {
 	test("ambient loops declare a frame writer", () => {
 		for (const [state, ambient] of Object.entries(STATE_AMBIENT)) {
 			expect(ambient.frames, state).toBeTypeOf("function");
+		}
+	});
+
+	test("an ambient carries on only another state's ambient", () => {
+		for (const [state, ambient] of Object.entries(STATE_AMBIENT)) {
+			for (const origin of ambient.carryFrom ?? []) {
+				expect(names, `${state} carryFrom`).toContain(origin);
+				expect(
+					STATE_AMBIENT[origin],
+					`${state} carryFrom ${origin}`
+				).toBeDefined();
+			}
 		}
 	});
 

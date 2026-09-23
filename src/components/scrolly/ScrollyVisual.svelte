@@ -5,6 +5,7 @@
 	import { fade } from "svelte/transition";
 	import { makeNodes } from "./nodes.js";
 	import { createTweener, easeCubicInOut } from "./tween.js";
+	import { skyFlight } from "./sky.js";
 	import { createChoreographer } from "./choreographer.js";
 	import { createRaceCamera } from "./race-camera.js";
 	import {
@@ -377,6 +378,10 @@
 	// is dropped once per departure from the sky rather than on every state
 	// change in the story.
 	let skyFlying = false;
+	// the flight clock a state change stepped off, when the departing
+	// choreography was a sky flight (read in fitBox, before the stop) — what an
+	// arrival that carries the flight on (`carryFrom`) starts its own at
+	let skyCarry = /** @type {number | null} */ (null);
 	const choreo = createChoreographer({
 		ease: sweepEase,
 		draw: drawScene,
@@ -1101,7 +1106,6 @@
 	function finishChoreography(anim, finalAttrs, finalTrails) {
 		camPanning = false;
 		entryLabels = null;
-		story.entryHeld = false;
 		if (anim.finish) {
 			anim.finish(story, lastCamera ?? undefined);
 			// A finish that publishes a hold is naming where the chart now IS, so
@@ -1144,17 +1148,7 @@
 			phasesOf(anim, ctx),
 			(i, e, ms) =>
 				applyFrame(write(tweener.current, trailTweener.current, i, e, ms)),
-			(i) => {
-				introduceLabels(anim, i + 1);
-				// what the step's prose was waiting for is on screen now, so the
-				// card can speak (see EntryAnim.cardAfter) — and the beat counts as
-				// landed, which is what stops a long opening flight holding the
-				// words back for the whole of it
-				if (i === anim.cardAfter) {
-					story.entryHeld = false;
-					land();
-				}
-			},
+			(i) => introduceLabels(anim, i + 1),
 			() => finishChoreography(anim, finalAttrs, finalTrails)
 		);
 	}
@@ -1170,9 +1164,8 @@
 			// not the end of the legs that follow. The legs are the step's authored
 			// reveal and its prose describes them, so holding the card for the whole
 			// of a 1.6s fan or a 4s sweep leaves it blank over the very motion it is
-			// captioning. An entry that genuinely needs the words later says so with
-			// cardAfter, which runLegs honours at its own beat.
-			if (p.anim.cardAfter == null) land();
+			// captioning.
+			land();
 			runLegs(p.anim, p.write, p.ctx, p.finalAttrs, p.finalTrails);
 		});
 		// coterminous with the attrs tween, so runLegs' trailTweener.stop() can no
@@ -1203,10 +1196,8 @@
 			bleed,
 			ctx
 		);
-		// no name is on the chart until its beat lands, and the step card waits
-		// for the leg that earns it
+		// no name is on the chart until its beat lands
 		if (anim.labelsAfter) entryLabels = new Set();
-		if (anim.cardAfter != null) story.entryHeld = true;
 		if (phases.length === 0) {
 			lastCamera = null;
 			finishChoreography(anim, target.attrs, target.trails);
@@ -1244,9 +1235,8 @@
 			trailTweener.to(startTrails, 0);
 			// frame 0 IS the departing frame, so nothing is travelling and there is
 			// no landing to wait for: the legs ARE this step's subject and its words
-			// are their caption. Unless the entry names a later beat (cardAfter),
-			// which is how the opening flight holds its card for three seconds.
-			if (anim.cardAfter == null) land();
+			// are their caption.
+			land();
 			runLegs(anim, write, ctx, target.attrs, target.trails);
 			return;
 		}
@@ -1294,7 +1284,6 @@
 		if (trailTweener.running) trailTweener.to(trailTweener.target, 0);
 		pendingArrival = null;
 		entryLabels = null;
-		story.entryHeld = false;
 		const write = anim.frames(
 			nodes,
 			width,
@@ -1327,7 +1316,14 @@
 	// dots fly on from wherever the drift had them rather than snapping back.
 	//
 	// Never runs under reduced motion — the static layout is the still frame.
-	function playAmbient(anim) {
+	//
+	// `carry` is set on an arrival that carries the departing flight on
+	// (`carryFrom`): the clock it stopped at, which the new flight starts from so
+	// the two skies join without the drift winding back to its t = 0 frame, and
+	// the arriving state's static layout, for everything the flight does not
+	// write itself.
+	/** @param {{ t: number, base: Float64Array } | null} carry */
+	function playAmbient(anim, carry) {
 		if (!width || !height || reducedMotion) return;
 		// this loop never ends by itself, so it must never be started twice — a
 		// second loop would leave the first one running and uncancellable, two
@@ -1335,11 +1331,61 @@
 		choreo.stop();
 		tweener.stop();
 		trailTweener.stop();
-		const write = anim.frames(nodes, width, height, edges, layoutParams, bleed);
+		const write = anim.frames(
+			nodes,
+			width,
+			height,
+			edges,
+			layoutParams,
+			bleed,
+			carry?.t ?? 0
+		);
+		const residual = carry ? carryResidual(write, carry.base) : null;
 		// armed AFTER stop() above, which would otherwise read the flag this call
 		// is about to set and drop the cache for a flight that had not started
 		skyFlying = true;
-		choreo.loop((t) => write(tweener.current, trailTweener.current, t));
+		let fading = !!residual;
+		choreo.loop((t) => {
+			const live = tweener.current;
+			if (fading) live.set(carry.base);
+			write(live, trailTweener.current, t);
+			if (fading) fading = fadeResidual(live, residual, t);
+		});
+	}
+
+	/**
+	 * What the departing sky drew that the carried-on one does not — the title
+	 * card's highlight beat, stepping back off it. The flights agree on every
+	 * dot's position at the join, so the difference is the beat's ink and
+	 * spokes alone. Taken against the arriving state's own first frame (its
+	 * static layout, flown to the carried clock), and faded out over the out
+	 * beat by `fadeResidual`, so what is leaving goes where it stands rather
+	 * than in a single frame.
+	 */
+	function carryResidual(write, base) {
+		const live = tweener.current;
+		const first = new Float64Array(base);
+		write(first, trailTweener.current, 0);
+		for (let i = 0; i < ATTR_SIZE; i++) first[i] = live[i] - first[i];
+		return first;
+	}
+
+	/**
+	 * Adds the residual back on top of the carried flight's frame, scaled down
+	 * to nothing over DEPART_FADE_MS. A link keeps its full draw progress while
+	 * it fades, so it goes in place rather than retracting (motion.md rule 2).
+	 * @returns {boolean} whether any of it is still showing
+	 */
+	function fadeResidual(live, residual, t) {
+		const k = 1 - easeCubicInOut(Math.min(1, t / DEPART_FADE_MS));
+		if (k === 0) return false;
+		for (let i = 0; i < EDGE_BASE; i++) live[i] += residual[i] * k;
+		for (let i = EDGE_BASE; i < ATTR_SIZE; i += STRIDE) {
+			live[i] += residual[i];
+			live[i + 1] += residual[i + 1] * k;
+			live[i + 2] += residual[i + 2] * k;
+		}
+		return true;
 	}
 
 	// Records the state whose arrival has just landed. A layout can read this to
@@ -1358,7 +1404,8 @@
 	// into a state at once (a plain state tween's onDone, an entry's end, the
 	// cold-start and first-paint branches, and the reduced-motion/resize snap),
 	// and expresses the rule: the ambient begins where the reveal ends.
-	function settle(name) {
+	/** @param {{ t: number, base: Float64Array } | null} [carry] see playAmbient */
+	function settle(name, carry = null) {
 		if (name !== stateName) return;
 		story.settled = name;
 		land();
@@ -1366,7 +1413,7 @@
 		// the choreographer's `active` is not reactive, so setting it invalidates
 		// nothing — see its declaration for why that matters.
 		const ambient = STATE_AMBIENT[name];
-		if (ambient) playAmbient(ambient);
+		if (ambient) playAmbient(ambient, carry);
 	}
 
 	/**
@@ -1378,15 +1425,25 @@
 	 * that outlived its beat cannot land the wrong one.
 	 */
 	function land() {
+		// untracked: land() also runs inside the render effect (the snap
+		// branches), which must not come to depend on the hold it releases
+		const released = untrack(() => furnitureHeld);
 		furnitureHeld = false;
 		if (story.settledStep !== step) story.settledStep = step;
+		// The names are cut in drawScene, and nothing guarantees another frame
+		// once the arrival has landed: a state with no ambient (the
+		// constellation, the hop bands) stops drawing on the tween's last tick,
+		// which is BEFORE this runs from its onDone — so the names it had held
+		// back stayed at nothing until something else happened to draw. One more
+		// frame puts them up the moment the beat lands.
+		if (released) untrack(drawScene);
 	}
 
 	/** how long the reader watches each kind of arrival before it settles */
 	const ARRIVAL_MS = {
 		cold: 0,
 		snap: 0,
-		liveIn: 0,
+		carry: 0,
 		popIn: ENTER_MS,
 		state: TWEEN_MS,
 		params: PARAM_TWEEN_MS,
@@ -1693,11 +1750,7 @@
 	 * a reader who reloaded mid-story (the step restored from the URL) settles
 	 * straight onto the state, since this is not their first-ever view and the
 	 * pop-in reads as an empty chart on faint states; everyone else gets the
-	 * grow-in — unless the state's own ambient declares `liveReveal` (only
-	 * `titleGalaxy` today), which starts the loop immediately instead: its
-	 * ambient authors its own fade-up, so a dot is already moving by the time
-	 * it is visible rather than static and then set going (see
-	 * `withTitleReveal` in `layouts/intro.js`). After that a resize or reduced
+	 * grow-in. After that a resize or reduced
 	 * motion snaps, a declared entry plays, a state change tweens, a params
 	 * change retargets, and a run that rebuilt the same layout (a dev tuner's
 	 * edit) holds the frame.
@@ -1705,12 +1758,16 @@
 	function firstPaintKind() {
 		if (coldStart) return "cold";
 		if (reducedMotion) return "snap";
-		if (STATE_AMBIENT[stateName]?.liveReveal) return "liveIn";
 		return "popIn";
 	}
-	function arrivalKind({ firstPaint, resized, stateChange, entryAnim }) {
+	/** a sky flight was running as the reader left `from`, and the arriving
+	 * state's ambient carries it on (AmbientAnim.carryFrom) */
+	const carriesSky = (from) =>
+		skyCarry != null && !!STATE_AMBIENT[stateName]?.carryFrom?.includes(from);
+	function arrivalKind({ firstPaint, resized, stateChange, entryAnim, carry }) {
 		if (firstPaint) return firstPaintKind();
 		if (resized || reducedMotion) return "snap";
+		if (carry) return "carry";
 		if (entryAnim) return "entry";
 		if (stateChange) return "state";
 		return "params";
@@ -1720,17 +1777,14 @@
 	 * Drop any gate a previous choreography left behind — an arrival tween
 	 * superseded before its onDone fired never reaches its legs, and a stale gate
 	 * would hide the new state's names for good. Re-armed only if this arrival
-	 * actually plays an entry. The step card's own gate goes with it, and for the
-	 * same reason — a choreography the reader taps through must not leave the
-	 * next step's prose held back. Likewise an arrival a previous pass left
-	 * waiting on its hold.
+	 * actually plays an entry. Likewise an arrival a previous pass left waiting
+	 * on its hold.
 	 *
 	 * Returns the names this arrival introduces — labelled now, but not by the
 	 * state we came from — for the wait-for-your-dot hold (see labelHolds).
 	 */
 	function resetArrivalGates(from) {
 		entryLabels = null;
-		story.entryHeld = false;
 		pendingArrival = null;
 		const introduced = new Set();
 		for (const id of labelIds) if (!prevLabelIds.has(id)) introduced.add(id);
@@ -1872,8 +1926,12 @@
 		// where the column sits in the viewport, which the full-bleed layouts
 		// author their sky against
 		const resized = isResize(measureBleed());
+		skyCarry = null;
 		if (choreo.active) {
 			if (stateName === prevState && !resized) return null;
+			// read before the stop, which drops `skyFlying`: the flight clock the
+			// reader is stepping off, for an arrival that carries it on
+			if (skyFlying) skyCarry = skyFlight.t;
 			abandonChoreography();
 		}
 		if (resized) fitCanvas();
@@ -1921,7 +1979,8 @@
 		const delays = new Float64Array(DELAY_SIZE);
 		if (playReveal && target.delays != null) {
 			// node slots only: the one layout that authors edge delays is
-			// layoutNetworkIntro, whose own entry replays them inside its leg writer
+			// layoutNetworkIntro, whose walk plays only as its pop-in (popIn hands
+			// the tweener the whole array)
 			delays.set(target.delays.subarray(0, nodes.length));
 		}
 		const live = tweener.current;
@@ -1947,21 +2006,25 @@
 			prevLabelIds = labelIds;
 			snapTo(target);
 		},
+		// The pop-in grows every mark up from alpha 0, and a name rides its dot's
+		// alpha, so its names are let go at once rather than held for the beat:
+		// each arrives with its own dot — the constellation names each layer as
+		// its lines reach it — instead of all fifteen at the landing.
 		popIn: (target) => {
 			prevLabelIds = labelIds;
+			furnitureHeld = false;
 			popIn(target);
-		},
-		// `liveReveal`'s own arrival: the ambient authors its own fade-up (see
-		// `withTitleReveal`), so there is nothing for a tween to carry — settle
-		// immediately and let the loop's own t = 0 frame be what the reader
-		// sees first, exactly as an ambient's contract already promises.
-		liveIn: () => {
-			prevLabelIds = labelIds;
-			settle(stateName);
 		},
 		snap: (target, from) => {
 			resetArrivalGates(from);
 			snapTo(target);
+		},
+		// Onto a sky that carries on the one being left (`carryFrom`): nothing
+		// travels, so there is no tween and no out beat — the arrival lands at
+		// once and its ambient picks the flight up at the clock it stopped on.
+		carry: (target, from) => {
+			resetArrivalGates(from);
+			settle(stateName, { t: skyCarry, base: target.attrs });
 		},
 		// The two kinds that are transitions get the out beat in front: what the
 		// arriving state does not draw fades where it stands before anything
@@ -1972,8 +2035,8 @@
 		//
 		// The beat wraps `arrive` rather than sitting inside `startArrival`
 		// because `ownsArrival` bypasses the arrival tween entirely: without it,
-		// stepping off the title card snapped up to eighty highlight-beat spokes
-		// off in a single frame.
+		// whatever the departing chart drew that the arriving one does not would
+		// be cut off in a single frame.
 		entry: (target, from, entryAnim) => {
 			// threaded through the way ARRIVE.state does: an entry arrival used to
 			// discard this and so never got the introduced-name hold at all, which
@@ -2038,7 +2101,8 @@
 			firstPaint,
 			resized: box.resized,
 			stateChange,
-			entryAnim
+			entryAnim,
+			carry: stateChange && carriesSky(from)
 		});
 		prevState = stateName;
 		prevParamsKey = paramsKey;

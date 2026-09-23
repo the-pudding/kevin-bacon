@@ -8,16 +8,18 @@ The galaxy states are the only users, and they share one writer: `makeFlight`
 (`sky.js`) takes a state's own layout function and the ids to fly and returns
 its `frames`. `hopSeed` flies the crowd **and** the intro fifteen (`SKY_IDS`),
 who have stopped being a diagram by the time its camera lands
-(`writeIntroIntoSky`); `titleGalaxy` and `outro` fly `FIELD_IDS` only — the
-title card carries the fifteen on Bacon's own authored trip (`withAnchorInSky`),
-and the outro's cast is its own. `hopSeed` and `outro` also have an `entry` leg —
+(`writeIntroIntoSky`), and the title card after it flies the same sky on the
+same layout; `outro` flies `FIELD_IDS` only — its cast is its own. `hopSeed` and `outro` also have an `entry` leg —
 the ambient starts when the pull-back settles, because `settle()` is the common
 terminus of both paths.
 
 **Every flight starts at the flow's own zero**, which is where each galaxy
 state's static layout is authored, so an ambient's t = 0 frame is its arrival's
-frame by construction. No two adjacent steps both fly, so no flight is handed
-from one state to the next. The clocked handoff that once carried the sky's
+frame by construction. The one exception is a flight handed between two
+adjacent states on the same sky — hopSeed and the title card, which declare
+each other in `carryFrom`: there the arriving loop starts at the departing
+flight's clock (`skyT0`) rather than at zero, so the drift carries straight on
+through the step change instead of winding back to its resting frame. The clocked handoff that once carried the sky's
 clock between `hopSeed` and the chapter card after it (`AmbientAnim.clocked`,
 `onSkyClock`) was removed with the cards on 2026-09-23.
 
@@ -86,11 +88,14 @@ nothing but the count. `withGalaxyHighlight(frames)` wraps the state's flight.
 Four things are worth knowing before touching it.
 
 **It is a function of the flight's clock, not a timer.** A `setInterval` writing
-`story` — the way step 1's actor tour drives itself — cannot work here: the render
+`story` — the way the opening constellation's actor tour drives itself — cannot work here: the render
 effect's `sweeping` guard returns early on a param change while an ambient loop
 owns the frame, so nothing would move, and `sweeping` must not become `$state`
 (above). The ambient writer already holds the rAF, the buffers and an elapsed
-`t`, so the beat index is just `Math.floor(t / GALAXY_BEAT_MS)`. The t = 0
+`t`, so the beat index is just `Math.floor(t / GALAXY_BEAT_MS)`. That is the
+LOOP's clock, so the beat always opens on its start delay after the card
+arrives; where a dot will be during a beat is predicted on the SKY's clock
+(`skyT0 + t`), which a carried arrival starts part-way through. The t = 0
 contract then holds by construction, because the beat's envelope opens at zero:
 the card arrives anonymous, which is exactly what its static layout draws.
 
@@ -100,9 +105,11 @@ is their endpoint table, mutated per beat — `edgeEnds` in ScrollyVisual holds
 those very arrays. So spokes are drawn by the same loop as the constellation's
 links, with its progress draw-on, its alpha, its grey, and its habit of reading
 both endpoints out of the live buffer, which is what makes them follow dots that
-are moving. No second line-drawing path exists, and a departing card fades the
-pool out through the ordinary state tween, since every other layout leaves those
-slots at zero.
+are moving. No second line-drawing path exists, and a card departing forwards
+fades the pool out through the ordinary state tween, since every other layout
+leaves those slots at zero. Stepping back to hopSeed is a carry with no tween,
+so there the beat's ink and spokes fade as a residual over the out beat
+(ScrollyVisual's `carryResidual`) while the flight carries on.
 
 **The name is a per-frame label cut**, beside `raceLabelCut`. `titleGalaxy`
 declares `labels: () => []` — the resting card names nobody — and the cast goes in

@@ -5,11 +5,10 @@
 // PairQuiz decides whether to ask from story.quiz.revealed as it mounts, and a
 // post-render $effect would leave it painting the blurred question for a frame
 // before being told not to.
-import { entryFor, isRankState } from "./states.js";
+import { isRankState } from "./states.js";
 import {
 	resetGenzLines,
 	resetHopAnchor,
-	resetIntroFocus,
 	resetSimRace,
 	settleGenzLines,
 	settleSimRace,
@@ -24,15 +23,6 @@ import {
  * @type {Record<string, (move: Move) => void>}
  */
 const ARRIVALS = {
-	// Off the title card the constellation is grown again from nothing, and the
-	// walk grows into the layout at whatever focus the story is carrying — so a
-	// route the tour or a tap left highlighted on an earlier visit would be lit
-	// before a single line had been drawn. Only that one arrival: the second step
-	// on this state must not clear the reader's pick, and nor must stepping back
-	// in from `hopSeed`.
-	networkIntro: ({ from }) => {
-		if (from === "titleGalaxy") resetIntroFocus();
-	},
 	// the cycling hop chart always opens on Bacon — the anchor the step before it
 	// rests on — so the arrival moves the rows and nothing else, and the cycle is
 	// something the reader watches start. Both directions: the step after it is
@@ -87,16 +77,7 @@ function leaveRank() {
 
 /** @param {Move} move */
 export function prepareArrival(move) {
-	const { to, from, forward, back } = move;
-	// A step whose card is held back by its own entry choreography has to have
-	// that flag up BEFORE it renders. ScrollyVisual raises it too, but from an
-	// effect — one flush too late, which is long enough for the progress bar to mount
-	// on the un-held step, start its fade in, and then be told to leave again.
-	// The reader sees it flash. Raised here for a FORWARD arrival only, which is
-	// the only direction a choreography ever plays on; if the arrival then turns
-	// out not to play one (reduced motion, a resize) ScrollyVisual drops it on
-	// the same flush, so the hold lasts a frame and nothing waits on it.
-	story.entryHeld = forward && entryFor(to, from)?.cardAfter != null;
+	const { to, from, back } = move;
 	// Un-land the beat. `settledStep` is only ever written by a landing, so a
 	// reader who steps back and returns before the step they stepped back to has
 	// landed would find it still naming the step they came back to: landed from
@@ -110,7 +91,7 @@ export function prepareArrival(move) {
 	// "networkIntro", so the tour's dwell started on the frame of the press, over
 	// dots still flying home. Only on a change of STATE, because a move between
 	// two steps sharing one is not a landing at all — nothing travels, so nothing
-	// would settle it again, and the tour across the 1 → 2 join would stop dead.
+	// would settle it again, and the tour across the 0 → 1 join would stop dead.
 	if (to !== from) story.settled = null;
 	// the rank panel only carries over into raceRecent when the reader actually
 	// walks there out of the rank chapter — that is the one arrival whose bars

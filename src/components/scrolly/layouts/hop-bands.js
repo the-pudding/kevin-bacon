@@ -23,6 +23,7 @@ import {
 	skyToColumn
 } from "../sky.js";
 import { writeNetwork } from "./intro.js";
+import { withGalaxyHighlight } from "../galaxy-highlight.js";
 
 // ---------------------------------------------------------------------------
 // Hop bands (Present chapter): row per degree of separation. Band thickness
@@ -88,7 +89,8 @@ function sampleCounts(nodes) {
 }
 
 /**
- * The column one dot sets off from when it leaves hopSeed's sky.
+ * The column one dot sets off from when it leaves the sky — hopSeed's, which
+ * the title card carries on flowing, so the sort starts off the title.
  *
  * Each dot keeps the COLUMN it stands in on the sky — the band only decides its
  * row. The crowd's columns are a uniform scatter across the plot and the intro
@@ -101,7 +103,7 @@ function sampleCounts(nodes) {
  *
  * The column the dot is standing in NOW, not the one it rests in, because the
  * sky never stops: it streams outward from the vanishing point the whole time
- * the reader is on hopSeed, so a dot can be most of the way across the screen
+ * the reader is on hopSeed and the title card, so a dot can be most of the way across the screen
  * from where the static layout has it. Taking the resting column would put the
  * sort's whole first frame somewhere other than the crowd the reader is looking
  * at. At the flow's t = 0 this is exactly the resting column — which is what a
@@ -331,7 +333,7 @@ function bandCuts(shares, n) {
 }
 
 /** bands cascade 1→4, and each dot jitters within its own so the row fills in
- * rather than snapping on all at once. Arriving from hopSeed this clock
+ * rather than snapping on all at once. Arriving from the title card this clock
  * staggers TRAVEL, not a fade: the crowd is already on screen, spread across the
  * plot, and falls into its rows a degree at a time. Keyed on the band the dot is
  * falling INTO — which for Bacon is its own hop, and for anyone else is the row
@@ -391,8 +393,8 @@ function layoutHopBands(nodes, w, h, _edges, params, bleed = NO_BLEED) {
 // read it, and a single sky once it isn't.
 //
 // The crowd is authored across `galaxyBox`, not the plot's `fieldBox`, so the
-// pull-back lands on a sky that fills the screen, and hopBands sorts it into
-// rows straight from there (see departureColumn). The network itself still sits
+// pull-back lands on a sky that fills the screen; the title card carries it on,
+// and hopBands sorts it into rows straight from there (see departureColumn). The network itself still sits
 // in the column; only the field around it is full-bleed.
 // ---------------------------------------------------------------------------
 
@@ -504,7 +506,37 @@ export const states = {
 		// drawn into the crowd (see writeIntroIntoSky), so they stream, brighten,
 		// swell and wrap behind the same fade as the dots around them, with
 		// nothing left to tell them apart.
-		ambient: { frames: makeFlight(layoutHopSeed, SKY_IDS) }
+		//
+		// Stepping back from the title card carries its sky on rather than
+		// winding it back to rest (see `titleGalaxy` below); the beat the card
+		// was showing fades where it stands.
+		ambient: {
+			frames: makeFlight(layoutHopSeed, SKY_IDS),
+			carryFrom: ["titleGalaxy"]
+		}
+	},
+	// The title card, straight after the pull-back: the same sky hopSeed landed
+	// on, carrying on flowing under the piece's name, with the highlight beat
+	// picking well-known actors out of it (see galaxy-highlight.js). Nothing is
+	// moved to get here — the arrival carries hopSeed's flight on at the clock it
+	// had reached (`carryFrom`), so the step change is the card fading in and
+	// nothing else.
+	titleGalaxy: {
+		layout: layoutHopSeed,
+		// No labels STANDING STILL: the resting frame under the title is an
+		// anonymous crowd, and the names arrive with the motion instead — the
+		// beat's own per-frame cut in ScrollyVisual is what names anybody. An
+		// empty set rather than no declaration at all: it says the resting card
+		// names nobody, which is also what holds the t = 0 contract.
+		labels: () => [],
+		// The fifteen fly here as crowd, as they do on hopSeed. The beat can never
+		// want one of them — GALAXY_CAST is derived from FIELD_IDS, which excludes
+		// the fifteen by construction, so every actor it can light is one this
+		// state actually draws.
+		ambient: {
+			frames: withGalaxyHighlight(makeFlight(layoutHopSeed, SKY_IDS)),
+			carryFrom: ["hopSeed"]
+		}
 	},
 	hopBands: {
 		// Straight through, with no params of its own, so the layout falls back to
@@ -515,16 +547,17 @@ export const states = {
 		layout: layoutHopBands,
 		title: "The four degrees of Kevin Bacon",
 		labels: [ANCHOR_ID],
-		// The cascade is authored for the forward arrival off hopSeed's sky,
-		// where the crowd is spread across the plot and sorts itself into rows;
-		// any other direction (a step back from rankFocus) is one plain tween.
-		revealFrom: ["hopSeed"]
+		// The cascade is authored for the forward arrival off the title card's
+		// sky (hopSeed's, carried on), where the crowd is spread across the plot
+		// and sorts itself into rows; any other direction (a step back from
+		// rankFocus) is one plain tween.
+		revealFrom: ["titleGalaxy"]
 	},
 	hopAnchor: {
 		// The same layout `hopBands` draws, handed an anchor.
 		layout: layoutHopBands,
 		// No state plays this layout's cascade on the way in. The cascade is
-		// hopBands' sort off hopSeed — a degree at a time, out of a crowd spread across
+		// hopBands' sort off the sky — a degree at a time, out of a crowd spread across
 		// the plot — and every arrival HERE comes off a step already resting on
 		// Bacon, so not a dot moves. Left to default the delays would still be
 		// spent: measured 2026-09-22, 1.8s of blank chart between the departing
