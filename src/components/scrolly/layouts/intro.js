@@ -11,8 +11,7 @@ import {
 	edgeIndex,
 	STRIDE,
 	set,
-	setEdge,
-	pairKey
+	setEdge
 } from "../attr-buffer.js";
 import { FIELD_IDS } from "../cast.js";
 import {
@@ -42,7 +41,7 @@ import {
 	SKY_FAR,
 	SKY_NEAR
 } from "../sky.js";
-import { routesTo, routeActors } from "../intro-routes.js";
+import { routesTo, routeActors, introDistance } from "../intro-routes.js";
 import {
 	withGalaxyHighlight,
 	GALAXY_FOCUS_MARGIN,
@@ -53,29 +52,25 @@ import { CHAPTER_OUT_MS } from "../chapterFade.js";
 
 const INTRO_EDGE_ALPHA = 0.5;
 
-// Reveal is authored as paths (still keyed source→…→Bacon), but each is walked
-// outward from Bacon (id 0, already on screen) to its source actor, so the graph
-// grows out of Bacon. Per segment: the line grows from the inner node toward the
-// next one, and that next node pops as the line reaches it — so the step reads as
-// routes sprouting from Bacon rather than a graph dump. The first two paths
-// (Bacon→Ryan→Margot, Bacon→Cumberbatch→Zendaya) play strictly one at a time as a
-// deliberate walk; the rest fill in freely afterwards. Shared nodes/lines animate
-// once, at first mention. Bacon is the shared origin. This walk plays as `lone`'s
-// own entry pop-in (ScrollyVisual seeds every node at zero radius/alpha on first
-// paint, then tweens to these authored positions on these authored delays), so
-// the network is already fully grown by the time the reader reaches `networkIntro`.
-const INTRO_PATHS = [
-	[12, 3], // Margot Robbie → Ryan Gosling → Bacon
-	[14, 5], // Zendaya → Benedict Cumberbatch → Bacon
-	[7, 6], // Timothée Chalamet → Meryl Streep → Bacon
-	[11, 4], // Austin Butler → Tom Hanks → Bacon
-	[2, 1], // Cillian Murphy → Robert De Niro → Bacon
-	[9, 1], // Anya Taylor-Joy → Robert De Niro → Bacon
-	[8, 6], // Saoirse Ronan → Meryl Streep → Bacon
-	[10, 5], // Jessie Buckley → Benedict Cumberbatch → Bacon
-	[11, 13] // Austin Butler → Emma Stone → Bacon
-];
-// The order step 1's tour walks the network in (see Index.svelte). Authored, not
+// The reveal is by DISTANCE. Bacon is already on screen; then everybody one
+// movie away arrives as the six lines grow out to them, and then everybody two
+// movies away as their twelve grow out of those. Two beats, and they are the two
+// the chapter is about — the reader watches "one movie away" and "two movies
+// away" happen before a word of prose says either.
+//
+// Every line in a layer grows at once, and a node pops in step with the line(s)
+// reaching it, so both finish together as it arrives. An actor with more than one
+// parent (Austin Butler, through Hanks and through Stone; Margot Robbie, through
+// three) gets all of theirs at once: they really are two movies away by several
+// routes, and drawing one while holding the rest back would say otherwise.
+//
+// The walk plays as `networkIntro`'s own pop-in (ScrollyVisual seeds every node
+// at zero radius/alpha on first paint, then tweens to the authored positions on
+// the authored delays below) and is replayed by the last leg of the opening
+// flight off the title card — one schedule, so the two cannot tell different
+// stories.
+
+// The order the constellation's tour walks the network in (see Index.svelte). Authored, not
 // derived: it opens on a name the reader is likeliest to know, then alternates
 // two-hop and one-hop actors so the distance in the sentence keeps changing
 // rather than reading "two movies" ten times in a row. Eight of the fourteen are
@@ -99,13 +94,8 @@ export const CYCLE_ORDER = [
 
 // mirrors ScrollyVisual's TWEEN_MS so a node lands just as its line arrives
 const INTRO_LINE_MS = 700;
-const INTRO_START_DWELL_MS = 350; // beat after a new source appears before its line draws
-const INTRO_POP_MS = 0; // no beat between segments so the walk reads continuous
-const INTRO_PATH_GAP_MS = 400; // pause after a sequential route reaches Bacon
-const INTRO_SEQ_COUNT = 2; // first N routes play strictly one at a time; rest fill freely
-const INTRO_PATH_STEP_MS = 500; // stagger between the free-for-all routes
-// secondary lines (not on any authored path) draw this long after both ends appear
-const INTRO_EDGE_LAG_MS = 400;
+const INTRO_START_DWELL_MS = 350; // beat on Bacon alone before the first lines leave him
+const INTRO_LAYER_GAP_MS = 300; // pause between one layer landing and the next setting off
 
 // --- route focus (once the reveal has landed; see the `params` selector below) ---
 const FOCUS_RADIUS = 10; // the picked actor
@@ -266,74 +256,39 @@ function buildHits(nodes, pos, focus) {
 }
 
 /**
- * The reveal's delay schedule: when each actor pops, and when each line leaves
- * the node it grows out of.
+ * When the layer of actors `d` movies from Bacon sets off — Bacon himself is
+ * already on screen, and each layer after him waits out the one in front.
+ */
+const layerStart = (d) =>
+	d === 0
+		? 0
+		: INTRO_START_DWELL_MS + (d - 1) * (INTRO_LINE_MS + INTRO_LAYER_GAP_MS);
+
+/**
+ * The reveal's delay schedule: when each actor pops, and when the line(s)
+ * reaching them leave the layer in front.
  *
  * Struck once at load rather than per canvas, because nothing in it depends on
- * the viewport — it is a pure function of the authored paths above and the
- * baked edge table. Two things follow. The walk's total length is a constant
- * `lone`'s entry choreography can declare as a leg duration, before any layout
- * has been built. And the cold-start arrival and the step off the title card
- * are driven by the very same array, so they cannot tell different stories.
+ * the viewport — it is a pure function of the baked edge table. Two things
+ * follow. The walk's total length is a constant the entry choreography can
+ * declare as a leg duration, before any layout has been built. And the
+ * cold-start arrival and the step off the title card are driven by the very
+ * same array, so they cannot tell different stories.
  */
 function buildIntroDelays() {
 	const delays = new Float64Array(DELAY_SIZE);
-
-	// index edges by unordered endpoint pair so paths can look them up by name
-	const edgeByPair = new Map();
+	for (const id of INTRO_IDS) delays[id] = layerStart(introDistance(id));
 	EDGE_PAIRS.forEach(([source, target], e) => {
-		edgeByPair.set(pairKey(source, target), e);
-	});
-
-	// Walk each path outward from Bacon to its source actor: a line grows from the
-	// (already-visible) inner node toward the next one while that node pops in step
-	// with it, so both finish together as the line arrives. The first INTRO_SEQ_COUNT
-	// paths run on one running clock — strictly one at a time — so the opening reads
-	// as a single continuous walk out of Bacon; the rest start after those complete
-	// and overlap on a stagger. Everything animates once, at first mention; Bacon is
-	// already on screen.
-	const nodeDelay = new Map([[ANCHOR_ID, 0]]);
-	const edgeDelay = new Map();
-	// Bacon is already on screen, so seed the sequential clock with an opening
-	// beat before the first line leaves him (mirrors the source-dwell the old
-	// inward walk got for free from its first, appearing, source node)
-	let seqClock = INTRO_START_DWELL_MS; // running clock through the sequential routes
-	let freeStart = seqClock; // when the free-for-all routes begin
-	INTRO_PATHS.forEach((path, k) => {
-		const walk = [ANCHOR_ID, ...[...path].reverse()];
-		const sequential = k < INTRO_SEQ_COUNT;
-		let clock = sequential
-			? seqClock
-			: freeStart + (k - INTRO_SEQ_COUNT) * INTRO_PATH_STEP_MS;
-		const src = walk[0];
-		if (!nodeDelay.has(src)) {
-			nodeDelay.set(src, clock); // source appears, then dwells before its line leaves
-			clock += INTRO_START_DWELL_MS;
+		const from = introDistance(source);
+		const to = introDistance(target);
+		// A line belongs to the layer it arrives AT. Every link in this network
+		// crosses exactly one layer — there is no shortcut within one, and a
+		// same-layer link would have no layer of its own to draw on, so it is
+		// checked rather than given a fallback the reveal would then hide.
+		if (Math.abs(from - to) !== 1) {
+			throw new Error(`intro: edge ${e} does not cross exactly one layer`);
 		}
-		for (let i = 1; i < walk.length; i++) {
-			const e = edgeByPair.get(pairKey(walk[i - 1], walk[i]));
-			if (e === undefined || edgeDelay.has(e)) continue;
-			edgeDelay.set(e, clock); // line leaves the (already-visible) outer node
-			// node pops in step with the line so both finish together as it arrives
-			if (!nodeDelay.has(walk[i])) nodeDelay.set(walk[i], clock);
-			clock += INTRO_LINE_MS + INTRO_POP_MS;
-		}
-		if (sequential) {
-			clock += INTRO_PATH_GAP_MS;
-			seqClock = clock;
-			freeStart = clock; // free-for-all begins after the last sequential route
-		}
-	});
-
-	for (let id = 0; id < NODE_COUNT; id++) {
-		delays[id] = nodeDelay.get(id) ?? 0;
-	}
-	EDGE_PAIRS.forEach(([source, target], e) => {
-		// secondary links (not on any path) fill in once both ends are up
-		delays[NODE_COUNT + e] =
-			edgeDelay.get(e) ??
-			Math.max(nodeDelay.get(source) ?? 0, nodeDelay.get(target) ?? 0) +
-				INTRO_EDGE_LAG_MS;
+		delays[NODE_COUNT + e] = layerStart(Math.max(from, to));
 	});
 	return delays;
 }
@@ -348,23 +303,18 @@ const INTRO_DELAYS = buildIntroDelays();
 const INTRO_WALK_MS =
 	INTRO_DELAYS.reduce((m, d) => Math.max(m, d), 0) + INTRO_LINE_MS;
 
-/** @type {import("../layout-types.js").LayoutFn} */
-function layoutLone(nodes, w, h, _edges, _params, bleed = NO_BLEED) {
-	return {
-		attrs: buildNetworkAttrs(nodes, w, h, null, bleed).attrs,
-		delays: INTRO_DELAYS
-	};
-}
-
-/** @type {import("../layout-types.js").LayoutFn} */
+/**
+ * The constellation, at rest: the frame the layered walk above grows INTO, and
+ * the one the tour then picks routes out of. `delays` is that walk — the
+ * arrival's own schedule on the two ways in that play it (see the state's
+ * `revealFrom`); every other arrival lands on this frame in one tween.
+ * @type {import("../layout-types.js").LayoutFn}
+ */
 function layoutNetworkIntro(nodes, w, h, _edges, params, bleed = NO_BLEED) {
-	// The network is already fully grown by the time the reader lands here (see
-	// `lone`'s pop-in above), so this state is a static settle: same geometry,
-	// just picking out a route once the reader taps an actor.
 	const focus = params?.focus ?? null;
 	const { attrs, pos } = buildNetworkAttrs(nodes, w, h, focus, bleed);
 	const hits = buildHits(nodes, pos, focus);
-	return { attrs, hits };
+	return { attrs, hits, delays: INTRO_DELAYS };
 }
 
 // ---------------------------------------------------------------------------
@@ -495,16 +445,16 @@ function withAnchorInSky(framesFn) {
  * Fourteen of the fifteen are NOT drawn, for the same reason `outro` leaves
  * them out: the constellation is the story's opening BEAT, and a title card
  * that already had Bacon's co-stars on it would spend that beat before the
- * reader has tapped anything. They are seeded instead exactly where `lone`
+ * reader has tapped anything. They are seeded instead exactly where the walk
  * starts them — on their constellation marks at zero radius and zero alpha —
  * which is what makes the step forward out of this card byte-identical to the
- * first-paint frame the pop-in walk was authored from (see `lone`'s
+ * first-paint frame the pop-in walk was authored from (see `networkIntro`'s
  * `revealFrom`).
  *
  * Bacon is the exception, and he is here as a plain member of the crowd: same
  * grey, same 2px, no name. He is the destination the opening flies to (see
- * `loneEntryFrames`), and a destination has to exist before you can set off for
- * one.
+ * `networkEntryFrames`), and a destination has to exist before you can set off
+ * for one.
  *
  * The crowd around him is named, though, once it is moving: the card takes the
  * chapter cards' highlight beat (see the state below), which picks its actors
@@ -523,7 +473,7 @@ function layoutTitleGalaxy(_nodes, w, h, _edges, _params, bleed = NO_BLEED) {
 	// his own trip's t = 0, which is what the flight below carries on from
 	writeAnchorSky(attrs, w, h, bleed, 0);
 	// edges are left at the array's zeros — no draw progress, no alpha — which
-	// is the same nothing `lone`'s seed frame starts its lines from
+	// is the same nothing the walk's seed frame starts its lines from
 	return { attrs };
 }
 
@@ -748,7 +698,7 @@ const crowdFade = (u) => {
  *   anchorClock: (leg: number, ms: number) => number, zStart: number,
  *   driftShare: number, gx: number, gy: number, aex: number, aey: number,
  *   mx: number, my: number }} c the approach's geometry, struck once at the
- *   tap (see loneEntryFrames)
+ *   tap (see networkEntryFrames)
  */
 function anchorWriter(c) {
 	const lerp = (a, b, t) => a + (b - a) * t;
@@ -814,13 +764,13 @@ function anchorWriter(c) {
 }
 
 /**
- * `lone`'s arrival off the title card: the one arrival in the story that flies
- * somewhere before it draws anything.
+ * `networkIntro`'s arrival off the title card: the one arrival in the story that
+ * flies somewhere before it draws anything.
  *
- * Scoped to that single arrival by `lone`'s existing `revealFrom`, which gates
- * entry choreographies as well as delays — so a cold start still plays the plain
- * pop-in from nothing, and stepping BACK here from `networkIntro` still lands in
- * one tween on a network that is already grown.
+ * Scoped to that single arrival by the state's `revealFrom`, which gates entry
+ * choreographies as well as delays — so a cold start still plays the plain
+ * pop-in from nothing, and stepping BACK here from `hopSeed` still lands in one
+ * tween on a network that is already grown.
  *
  * It is also the story's one `ownsArrival` choreography, and the reason the flag
  * exists: the sky has a RATE, the reader has been watching it for as long as
@@ -832,8 +782,8 @@ function anchorWriter(c) {
  *
  * @type {import("../states.js").EntryAnim["frames"]}
  */
-function loneEntryFrames(nodes, w, h, edges, params, bleed = NO_BLEED) {
-	const final = layoutLone(nodes, w, h, edges, params, bleed).attrs;
+function networkEntryFrames(nodes, w, h, edges, params, bleed = NO_BLEED) {
+	const final = layoutNetworkIntro(nodes, w, h, edges, params, bleed).attrs;
 	// The card's own flight, rebuilt here so the sky carries on across the
 	// choreography at exactly the speed and phase the reader's tap found it at.
 	// Read t0 BEFORE the first call: the writer publishes its own clock to
@@ -1044,23 +994,33 @@ export const states = {
 			)
 		}
 	},
-	lone: {
-		layout: layoutLone,
-		labels: INTRO_IDS,
+	// Two steps rest here: the one that grows the constellation and demonstrates
+	// the game on it, and the one after it, whose prose is the only thing that
+	// changes. One state rather than two, so the step between them moves nothing
+	// at all and the tour never restarts (see notes/scrolly-framework.md).
+	networkIntro: {
+		layout: layoutNetworkIntro,
+		// Only the actor being talked about and the actors their route runs through
+		// keep their names: the sentence in the card names them, so the chart has to
+		// agree, and fourteen labels around one highlighted route is just noise. The
+		// rest keep their (dimmed) dots — the constellation is still the point.
+		// A function, so the fifteen are not discoverable from the declaration —
+		// they are declared in states.js's STATE_TRACKED instead.
+		labels: (p) => (p?.focus == null ? INTRO_IDS : [...routeActors(p.focus)]),
 		pulse: ANCHOR_ID,
+		params: (s) => ({ focus: s.intro.focus }),
 		// The walk plays on exactly two arrivals, and `revealFrom` is what scopes
 		// it to them — it gates entry choreographies as well as delays.
 		//
 		// A cold start (ScrollyVisual seeds every node at zero radius/alpha) takes
-		// the plain route: the tween above, on the delays above. The step forward
-		// off the title card takes the choreography below, which lights Bacon
-		// where he stands in the sky, flies him onto his mark and then replays
-		// those same delays out of the frame he landed on.
+		// the plain route: one tween on the delays above. The step forward off the
+		// title card takes the choreography below, which lights Bacon where he
+		// stands in the sky, flies him onto his mark and then replays those same
+		// delays out of the frame he landed on.
 		//
 		// Every OTHER arrival is the reader stepping BACK here, with the network
 		// already grown — replaying either would hold each actor (and the name
-		// riding its dot's alpha) wherever the interrupted tween left it for up to
-		// ten seconds.
+		// riding its dot's alpha) wherever the interrupted tween left it.
 		revealFrom: ["titleGalaxy"],
 		entry: {
 			phases: ENTRY_PHASES,
@@ -1081,22 +1041,11 @@ export const states = {
 			// The step's prose names Bacon, so it waits until he is on his mark:
 			// through the light-up, the hold and the flight the card is empty and
 			// the reader has only the sky and the one dot in it to look at, which is
-			// the whole point of those seconds.
+			// the whole point of those seconds. The two layers then grow under the
+			// words, which is what they describe.
 			cardAfter: APPROACH,
-			frames: loneEntryFrames
-		}
-	},
-	networkIntro: {
-		layout: layoutNetworkIntro,
-		// Only the actor being talked about and the actors their route runs through
-		// keep their names: the sentence in the card names them, so the chart has to
-		// agree, and fourteen labels around one highlighted route is just noise. The
-		// rest keep their (dimmed) dots — the constellation is still the point.
-		// `lone` still declares INTRO_IDS as a plain array, which is what keeps all
-		// fifteen in ScrollyVisual's TRACKED_IDS.
-		labels: (p) => (p?.focus == null ? INTRO_IDS : [...routeActors(p.focus)]),
-		pulse: ANCHOR_ID,
-		params: (s) => ({ focus: s.intro.focus }),
+			frames: networkEntryFrames
+		},
 		// A tap takes the step off its automatic tour and leaves the highlight where
 		// the reader put it. Tapping the highlighted actor again, or Bacon (a route
 		// from the anchor to itself says nothing), clears the pick and hands the step

@@ -9,6 +9,7 @@ import { entryFor, isRankState } from "./states.js";
 import {
 	resetGenzLines,
 	resetHopAnchor,
+	resetIntroFocus,
 	resetSimRace,
 	settleGenzLines,
 	settleSimRace,
@@ -23,6 +24,15 @@ import {
  * @type {Record<string, (move: Move) => void>}
  */
 const ARRIVALS = {
+	// Off the title card the constellation is grown again from nothing, and the
+	// walk grows into the layout at whatever focus the story is carrying — so a
+	// route the tour or a tap left highlighted on an earlier visit would be lit
+	// before a single line had been drawn. Only that one arrival: the second step
+	// on this state must not clear the reader's pick, and nor must stepping back
+	// in from `hopSeed`.
+	networkIntro: ({ from }) => {
+		if (from === "titleGalaxy") resetIntroFocus();
+	},
 	// the cycling hop chart always opens on Bacon — the anchor the step before it
 	// rests on — so the arrival moves the rows and nothing else, and the cycle is
 	// something the reader watches start. Both directions: the step after it is

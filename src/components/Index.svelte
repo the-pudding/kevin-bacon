@@ -79,16 +79,27 @@
 	setContext("scrolly-steps", steps);
 	let dimensions = new useWindowDimensions();
 
-	// --- step 1's tour of the network ---
+	// --- the constellation's tour of the network ---
 	// The step demonstrates the game rather than waiting to be asked: it picks each
-	// actor out in turn and the card reads their distance to Bacon, so a reader who
-	// never taps still sees what "two movies away" means. A tap takes it over
+	// actor out in turn and the caption reads their distance to Bacon, so a reader
+	// who never taps still sees what "two movies away" means. A tap takes it over
 	// (story.intro.pinned, set by the state's `pick` — see layouts/intro.js).
+	//
+	// It is the fourth beat of step 1 — the two layers finish growing, the
+	// constellation rests for INTRO_DWELL_MS, and then the first route lights —
+	// and it simply carries on across the step change into step 2, which is the
+	// same state with different words.
 	//
 	// TOUR_MS is step 6's beat as well: both are one line of chart to read, and
 	// both sit on top of the same 450ms param tween the canvas answers a store
 	// write with (PARAM_TWEEN_MS in ScrollyVisual).
 	const TOUR_MS = 3400; // ~3s to read, on top of the 450ms highlight tween
+	// The beat the whole constellation gets before anything is picked out of it.
+	// The network has just finished drawing itself and the step's paragraph has
+	// just landed; lighting a route straight away asks the reader to follow a
+	// third thing before they have read either. Shorter than a turn, because this
+	// is a pause in one step rather than a turn showing nobody.
+	const INTRO_DWELL_MS = 2000;
 	const reducedMotion = new MediaQuery(
 		"(prefers-reduced-motion: reduce)",
 		false
@@ -110,9 +121,11 @@
 		const floor = height - overlayHeight - routeHeight - ROUTE_GAP;
 		return Math.min(introBottom(width, height) + ROUTE_GAP, floor);
 	}
-	// gated on `settled` for the same reason the caption always was: the network
-	// finishes growing on the previous step, and nothing should point at an actor
-	// whose arrival hasn't landed
+	// Gated on `settled`, which for this state means the walk is over: it is
+	// written by ScrollyVisual's settle() at the END of the entry's legs, i.e. the
+	// instant the second layer of lines lands. Nothing should point at an actor
+	// whose dot has not arrived. Because both steps share the state, it is still
+	// true on the second one and the tour never pauses at the join.
 	const touring = $derived(
 		steps.state === "networkIntro" &&
 			story.settled === "networkIntro" &&
@@ -150,15 +163,26 @@
 		const released = releases !== seenReleases;
 		seenReleases = releases;
 		if (!touring) return;
-		// A tap that cleared the highlight means the reader wants it cleared: leave
-		// the constellation neutral and let the tour pick up on its next beat,
-		// rather than reselecting an actor out from under them.
-		if (!released) showNext();
 		// text that changes on its own is motion the reader didn't ask for: under
 		// reduced motion the step rests where it is and waits for a tap
 		if (reducedMotion.current) return;
-		const timer = setInterval(showNext, TOUR_MS);
-		return () => clearInterval(timer);
+		// Nobody is picked out straight away. On an arrival that is the dwell above
+		// — the constellation has just finished drawing itself and has earned a
+		// beat of being looked at whole. A tap that CLEARED the highlight means the
+		// reader wants it cleared, so that gets a full turn of the neutral
+		// constellation rather than an actor reselected out from under them.
+		let turns;
+		const first = setTimeout(
+			() => {
+				showNext();
+				turns = setInterval(showNext, TOUR_MS);
+			},
+			released ? TOUR_MS : INTRO_DWELL_MS
+		);
+		return () => {
+			clearTimeout(first);
+			clearInterval(turns);
+		};
 	});
 
 	// --- step 6's cycle of anchors ---
@@ -288,11 +312,53 @@
 					<RaceScrubber />
 				</div>
 			{/snippet}
+			<!-- The tour's caption, over the canvas rather than in the card: it is
+			     naming a dot, so it sits with the constellation and is typed like
+			     the names on it. Whoever the tour (or the reader's tap) has picked
+			     out is named here, and the chart labels the same actors, so
+			     sentence and constellation always agree.
+
+			     Declared out here rather than inside a <Step>, and passed to BOTH
+			     constellation steps by the same reference, so it survives the step
+			     change between them without remounting — the cycle runs across the
+			     two, and a caption that unmounted would blink at the join.
+
+			     One line by design. The films behind each hop go in the panel
+			     behind "two movies" instead of into the card, because as prose
+			     they ran to several sentences — and a step card that grows covers
+			     the very dots it is inviting taps on at 360×640 (see
+			     notes/scrolly-framework.md).
+
+			     Placed off the constellation's own lowest name (introBottom), not a
+			     fraction of the canvas: the intro fit is width-limited on a tall
+			     phone, so the graph stops well short of its band and any fixed
+			     fraction leaves a hole under it. -->
+			{#snippet routePanel()}
+				{#if story.settled === "networkIntro" && introRoute}
+					<p
+						class="route"
+						bind:clientHeight={routeHeight}
+						style="top: {routeTop(layout)}px"
+					>
+						<strong>{introRoute.name}</strong>:
+						<InfoTerm
+							title="{introRoute.name} → {introRoute.anchor}"
+							onclick={() => (story.intro.pinned = true)}
+						>
+							{introRoute.count}
+							{#snippet info()}
+								<RouteFilms routes={introRoute.routes} />
+							{/snippet}
+						</InfoTerm>
+						away from {introRoute.anchor}.
+					</p>
+				{/if}
+			{/snippet}
 			<!-- TITLE CARD -->
 			<!-- Step 0: the piece's name over the same sky the chapter cards
 			     and the credits rest on. Stepping off it is the story's first
 			     use of its only control, and the constellation grows out of the
-			     sky it leaves (see `titleGalaxy` / `lone`'s revealFrom in
+			     sky it leaves (see `titleGalaxy` / `networkIntro`'s revealFrom in
 			     layouts/intro.js). How to move is taught by Stage.svelte's
 			     splash cue, not by this card. -->
 			<Splash state="titleGalaxy">
@@ -307,60 +373,28 @@
 			</Splash>
 
 			<!-- PRESENT -->
-			<!-- The prose waits for Bacon to land (`story.entryHeld`, raised by
+			<!-- Both steps rest on one state, so the step between them moves not a
+			     dot and the tour carries straight across it. This one grows the
+			     constellation and then demonstrates the game on it; the next one
+			     only changes the words.
+
+			     The prose waits for Bacon to land (`story.entryHeld`, raised by
 		     this state's entry choreography and dropped when its approach leg
 		     finishes). Off the title card the step opens by finding him in the
 		     sky and flying to him, and a paragraph naming him while the reader
 		     is still watching a dot cross the frame would answer the question
-		     the motion is asking. Every other arrival here — a cold start, a
-		     step back from `networkIntro` — never raises the gate, so the card
+		     the motion is asking. It then speaks over the two layers growing,
+		     which is what it describes. Every other arrival here — a cold start,
+		     a step back from `hopSeed` — never raises the gate, so the card
 		     speaks straight away. -->
-			<Step state="lone">
+			<Step state="networkIntro" panel={routePanel}>
 				<p>
 					The “Six Degrees of Kevin Bacon” is a game where players try to
 					connect an actor to Kevin Bacon via movies they've starred in with
 					other Hollywood actors, aiming to reach him in six movies or fewer.
 				</p>
 			</Step>
-			<Step state="networkIntro">
-				<!-- The tour's caption, over the canvas rather than in the card: it is
-				     naming a dot, so it sits with the constellation and is typed like
-				     the names on it. Whoever the tour (or the reader's tap) has picked
-				     out is named here, and the chart labels the same actors, so
-				     sentence and constellation always agree.
-
-				     One line by design. The films behind each hop go in the panel
-				     behind "two movies" instead of into the card, because as prose
-				     they ran to several sentences — and a step card that grows covers
-				     the very dots it is inviting taps on at 360×640 (see
-				     notes/scrolly-framework.md). The network finishes growing back on
-				     the `lone` step, so actors are already tappable here.
-
-				     Placed off the constellation's own lowest name (introBottom), not a
-				     fraction of the canvas: the intro fit is width-limited on a tall
-				     phone, so the graph stops well short of its band and any fixed
-				     fraction leaves a hole under it. -->
-				{#snippet panel()}
-					{#if story.settled === "networkIntro" && introRoute}
-						<p
-							class="route"
-							bind:clientHeight={routeHeight}
-							style="top: {routeTop(layout)}px"
-						>
-							<strong>{introRoute.name}</strong>:
-							<InfoTerm
-								title="{introRoute.name} → {introRoute.anchor}"
-								onclick={() => (story.intro.pinned = true)}
-							>
-								{introRoute.count}
-								{#snippet info()}
-									<RouteFilms routes={introRoute.routes} />
-								{/snippet}
-							</InfoTerm>
-							away from {introRoute.anchor}.
-						</p>
-					{/if}
-				{/snippet}
+			<Step state="networkIntro" panel={routePanel}>
 				<p>
 					The intuition is that Kevin Bacon is so prolific and well-known that
 					the game is a lot easier than if it were called the “Six Degrees of

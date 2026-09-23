@@ -57,7 +57,7 @@ once each card's no-repeat window has diverged. The three chapter cards have
 always shared this; the checklist row asking whether a card opens on the same
 actor as the last one is still the open question it was.
 
-What the fourteen get instead is a park: their `lone` constellation marks at zero
+What the fourteen get instead is a park: their `networkIntro` constellation marks at zero
 radius and zero alpha, which is **exactly** the seed frame `ScrollyVisual` builds
 on a first paint, edge slots included.
 
@@ -86,7 +86,7 @@ way the flight does: `layoutTitleGalaxy` writes him at the wrapper's own t = 0.
 ## The opening flight
 
 The step off the card is the one arrival in the story that flies somewhere before
-it draws anything. `lone` carries a five-leg `entry` (`loneEntryFrames`) that
+it draws anything. `networkIntro` carries a five-leg `entry` (`networkEntryFrames`) that
 takes the rAF at the instant of the tap — there is no arrival tween in front of
 it (see `ownsArrival` below):
 
@@ -96,7 +96,7 @@ it (see `ownsArrival` below):
 | `LIGHT`    | 700  | the flying dot inks to `HOP_RGB[0]`, swells `GALAXY_FOCUS_R_MULT`×, α 1 |
 | `LOCK`     | 700  | still flying, now lit; the name is up and can be read                   |
 | `APPROACH` | 1600 | the flight — the camera banks onto him and runs the sky past            |
-| `WALK`     | 8350 | the constellation grows, on the schedule a cold start runs              |
+| `WALK`     | 2050 | the constellation grows by hop layer, on the schedule a cold start runs |
 
 Six things hold it together.
 
@@ -278,7 +278,7 @@ moves them to a different park under alpha 0, which is invisible, and `WALK`
 never touches those slots again.
 
 **The walk is replayed, not re-authored.** `buildIntroDelays` is struck once at
-module load (nothing in it depends on the viewport), `lone` hands that array to
+module load (nothing in it depends on the viewport), `networkIntro` hands that array to
 the tweener on a cold start, and the `WALK` leg runs `tween.js`'s own per-group
 arithmetic against the very same array. One schedule, so the two arrivals cannot
 tell different stories, and `INTRO_WALK_MS` falls out of it rather than being
@@ -336,9 +336,9 @@ with the flight" rule applied at the frame, and it happens under a title that is
 fading with it.
 
 Two things come with the flag. A state's authored `delays` can only be a LEG's
-(there is no arrival hop left for them to stagger), which is what `lone` wanted
+(there is no arrival hop left for them to stagger), which is what the walk wanted
 anyway — it is why the older `ownsDelays` is gone. And the seed is SNAPPED rather
-than tweened, so the departing state must hold no trails; `lone`'s
+than tweened, so the departing state must hold no trails; `networkIntro`'s
 `revealFrom: ["titleGalaxy"]` guarantees it. A reader can still step through
 it mid-flight, exactly as before: the
 render effect's `sweeping` guard abandons a running choreography exactly as a
@@ -347,5 +347,5 @@ entries (`hopSeed`, the career pair, `outro`) omit the flag and keep the tween.
 
 Everything above is scoped by `revealFrom`, which gates entry choreographies as
 well as delays. A cold start still plays the plain pop-in from nothing; every
-other arrival at `lone` is the reader stepping back into it with the network
+other arrival at `networkIntro` is the reader stepping back into it with the network
 already grown, and stays one plain tween; reduced motion bypasses the lot.

@@ -11,7 +11,7 @@ import {
 	HACKMAN,
 	MIRREN
 } from "./cast.js";
-import { ANCHOR_ID } from "./nodes.js";
+import { ANCHOR_ID, INTRO_IDS } from "./nodes.js";
 import { states as introStates } from "./layouts/intro.js";
 import { states as hopBandsStates } from "./layouts/hop-bands.js";
 import { states as rankStates } from "./layouts/rank.js";
@@ -200,8 +200,8 @@ export const STATE_REVEAL_FROM = pick("revealFrom");
  * It is handed both the leg's eased progress `e` and its LINEAR elapsed `ms`.
  * Use `e` for motion authored as a share of the leg, which is nearly
  * everything; `ms` is for a leg whose motion is a schedule in real time — the
- * one case today is `lone`, whose walk leg replays the delay array its own
- * layout returns, and which would be warped by the trapezoidal ease.
+ * one case today is `networkIntro`, whose walk leg replays the delay array its
+ * own layout returns, and which would be warped by the trapezoidal ease.
  * @typedef {(nodes: import("./nodes.js").ActorNode[], w: number, h: number,
  *   edges: import("./nodes.js").Edge[], params: Object | null,
  *   bleed: import("./plot.js").Bleed, ctx: ArrivalContext) =>
@@ -433,8 +433,13 @@ export const STATE_LABEL_TEXT = pick("labelText");
  * the names those states show at REST — the searched id itself is tracked
  * separately and reactively, because it is the one tracked id no build-time list
  * could hold (see ScrollyVisual's TRACKED_IDS).
+ *
+ * The constellation is here for the same reason: `networkIntro` names all
+ * fifteen at rest and the route's actors once one is picked out, so its `labels`
+ * is a function too and no declaration holds the fifteen any more.
  */
 export const STATE_TRACKED = [
+	...INTRO_IDS, // networkIntro
 	SLJ,
 	HANKS,
 	STREEP,

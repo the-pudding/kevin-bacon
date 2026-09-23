@@ -1,8 +1,8 @@
 # Matt's 9/21 feedback — triage
 
 Open items only (already-implemented items from Matt's list removed: curly quotes,
-nav tap zones, step 1/2 swap, top-dot label, "169,000 actors" line, remoteness
-intro text, search pool, give-up visibility, chart titles, future-label/x-axis).
+nav tap zones, top-dot label, "169,000 actors" line, remoteness intro text,
+search pool, give-up visibility, chart titles, future-label/x-axis).
 
 Step numbers below are Matt's own numbering from the doc where he gave one
 explicitly. Where he didn't name a step, it's marked "no step given" rather than
@@ -69,12 +69,33 @@ For each item, mark a decision: `skip`, `done`, or `do`.
 
 ## Visual/design
 
+- [x] 3. done — NOT by swapping. Step 1 and step 2 now rest on one state
+     (`networkIntro`, `lone` deleted): step 1 grows the constellation out of
+     Bacon by hop layer — everyone one movie away as their six lines are drawn,
+     then everyone two movies away as their twelve are — and then starts the
+     route-highlight cycle that used to belong to step 2. Step 2 keeps the same
+     picture with the cycle still running and only changes the words. Matt's
+     underlying ask is met (step 1 is now the literal game) and the opening
+     flight off the title card is kept, which a swap would have had to rebuild.
+     Step: 1 and 2 (explicit)
+     His words: "This first slide should just be the literal game — connecting
+     Kevin Bacon to another actor. You do this on the next slide, so I'd switch the
+     viz for step 1 and step 2. Step 1's viz, I think, works well for the idea that
+     Kevin Bacon is in fact the 'center'." The copy stays where it is: step 1
+     explains the game, so it should carry the constellation with the
+     "X: two movies away from Bacon" routes that step 2 shows today; step 2 says
+     "some sort of all-encompassing center of Hollywood", so it should carry the
+     lone-Bacon camera fly-in that step 1 shows today.
+     Not a pure reorder of the `<Step state=…>` attributes: `lone` owns the
+     opening flight off the title card (`ownsArrival`), and `networkIntro` grows
+     the constellation out of `lone`, so the entries have to be rebuilt in the new
+     order — and the whole table stales.
 - [x] 5. done — Pudding wordmark pinned to the top of the title card, byline
      ("By Owen Lacey", linking to the author page) added under the title (55ead98)
      Step: no step given (the title slide)
      He wants The Pudding's masthead (logo) and a byline visible somewhere near the
      top of the piece — standard outlet branding he expects on a published story.
-- [ ] 8. Dot delineation between hop layers — only a gap, not confirmed as circle-size shrink
+- [x] 8. Dot delineation between hop layers — only a gap, not confirmed as circle-size shrink
      Step: no step given (the hop-graph chart, likely step 4 by comparison to his 9/8 feedback on the same chart, but not stated in the 9/21 doc)
      The hop-band rows currently read as one solid rectangle to him. His suggested
      fix was shrinking the circle size a bit so individual dots and the gaps between

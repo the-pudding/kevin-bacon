@@ -1981,7 +1981,7 @@
 		const delays = new Float64Array(DELAY_SIZE);
 		if (playReveal && target.delays != null) {
 			// node slots only: the one layout that authors edge delays is
-			// layoutLone, whose own entry replays them inside its leg writer
+			// layoutNetworkIntro, whose own entry replays them inside its leg writer
 			delays.set(target.delays.subarray(0, nodes.length));
 		}
 		const live = tweener.current;

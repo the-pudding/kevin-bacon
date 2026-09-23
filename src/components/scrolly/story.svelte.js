@@ -253,6 +253,18 @@ export function request(kind) {
 	story.request = { kind, nonce: story.request.nonce + 1 };
 }
 
+/** Put the constellation back to neutral, with the tour live. Called by the
+ * arrival rules on the one arrival that regrows the network — the step off the
+ * title card — because that arrival's frames are the layout at whatever focus
+ * the story is carrying, so a highlight left behind by an earlier visit would
+ * otherwise be what the two layers grow into. `releases` is left alone: it is a
+ * monotonic counter, and resetting it would read to the tour as a fresh
+ * dismissal. */
+export function resetIntroFocus() {
+	story.intro.focus = null;
+	story.intro.pinned = false;
+}
+
 /** Put the cycling hop chart back on Bacon, with the cycle live. Called by the
  * step registry's arrival rules on every arrival at `hopAnchor`, so the step
  * opens on the anchor its neighbours rest on and a pick the reader made on an

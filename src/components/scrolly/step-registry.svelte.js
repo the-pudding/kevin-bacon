@@ -45,7 +45,7 @@ const STEP_PARAM = "step";
  * being the active step — see Step.svelte), so the registry is fully
  * populated by then too, and `current` starting at the restored index (rather
  * than 0, corrected later) is what lets the first paint land directly on the
- * right state instead of flashing `lone` and tweening from it once onMount
+ * right state instead of flashing step 0's and tweening from it once onMount
  * catches up.
  */
 function readStep() {
@@ -73,7 +73,7 @@ export function createStepRegistry({ navigate }) {
 	let value = $state(restored !== null && restored > 0 ? restored : 0);
 	// true only when a saved step from a prior visit exists, so this render
 	// isn't the reader's first-ever view. ScrollyVisual uses this to skip the
-	// `lone`-authored pop-in, which would otherwise replay (and be misread as an
+	// constellation's authored pop-in, which would otherwise replay (and be misread as an
 	// empty chart) on every refresh regardless of which step it lands on
 	let coldStart = $state(restored !== null && restored > 0);
 	/** @type {StepConfig[]} filled by each step as it mounts, in document order */
@@ -90,7 +90,7 @@ export function createStepRegistry({ navigate }) {
 	// safety net for a stale/malformed URL (?step past the end of the story):
 	// `current` already starts at the restored step, so this only ever corrects
 	// it back into range once the step count is known. That correction lands on
-	// `lone`, which coldStart would otherwise still be armed for (it was set
+	// step 0, which coldStart would otherwise still be armed for (it was set
 	// from the same out-of-range step) — clear it so ScrollyVisual's first paint
 	// plays the pop-in instead of settling instantly, as it would for any other
 	// genuine first-ever view.

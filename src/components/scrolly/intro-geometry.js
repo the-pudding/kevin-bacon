@@ -17,7 +17,7 @@ export const INTRO_MAX_STRETCH = 1.6;
  * The intro fit: scales the baked 860×680 intro layout into the top ~72% of
  * the canvas (per-axis, each capped at INTRO_MAX_STRETCH beyond uniform) and
  * returns the anchor's fitted screen position plus the axis scales — the one
- * frame every intro-chapter layout hangs off (lone/networkIntro at full size,
+ * frame every intro-chapter layout hangs off (networkIntro at full size,
  * hopSeed pulled back, see introPosition's `scale`).
  */
 export function introFrame(w, h) {
@@ -34,8 +34,8 @@ export function introFrame(w, h) {
 }
 
 /**
- * Screen position of intro node k in the intro fit — the frame `lone` and
- * `networkIntro` draw the constellation in.
+ * Screen position of intro node k in the intro fit — the frame `networkIntro`
+ * draws the constellation in.
  *
  * `scale` pulls the camera back about the anchor: every other node collapses
  * toward Bacon while Bacon himself stays exactly where he was, so the one dot

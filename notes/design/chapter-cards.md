@@ -330,8 +330,8 @@ by construction — both call the same `writeFieldCrowd` with the same box. The
 box is struck once in `zoomOutFrames`, outside the per-frame closure, so the
 leg's last frame and the static layout it settles onto cannot drift apart; a
 frame built against a different `bleed` would snap the sky inward on settle,
-which is why `EntryAnim.frames` takes `bleed` as well. `networkIntro` and `lone`
-park the same crowd (invisible, at scale 1) through the same box, so stepping
+which is why `EntryAnim.frames` takes `bleed` as well. `networkIntro`
+parks the same crowd (invisible, at scale 1) through the same box, so stepping
 back out of `hopSeed` zooms the camera in over that state's own geometry rather
 than one that merely looks like it from behind alpha 0. The card shows
 12,097 dots: `FIELD_IDS` (12,082 = hop 1–4 less the intro fifteen) plus the
