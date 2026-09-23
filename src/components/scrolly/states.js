@@ -397,6 +397,12 @@ export const STATE_REQUESTS = pick("requests");
  *   t0?: number) =>
  *   (attrs: Float32Array, trails: Float32Array, t: number) => void} frames
  * @property {boolean} [clocked]
+ * @property {boolean} [liveReveal] says the very first paint should start this
+ *   loop immediately (ScrollyVisual's `arrivalKind` "liveIn") rather than
+ *   running the generic zero-to-static `popIn` tween first — for a state
+ *   whose ambient authors its own fade-up (a per-dot alpha gate keyed off the
+ *   loop's own clock), so the reveal is already in motion rather than static
+ *   and then started. Only `titleGalaxy` declares it today.
  * @type {Partial<Record<LayoutState, AmbientAnim>>}
  */
 export const STATE_AMBIENT = pick("ambient");

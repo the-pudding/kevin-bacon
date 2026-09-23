@@ -39,7 +39,9 @@
 		CHAPTER_IN_MS,
 		CHAPTER_IN_DELAY_MS,
 		CHAPTER_OUT_MS,
-		PANEL_OUT_MS
+		PANEL_OUT_MS,
+		SPLASH_REVEAL_MS,
+		SPLASH_REVEAL_STEP_MS
 	} from "./chapterFade.js";
 
 	// Beside, rather than over. Below this width the prose is a card lying across
@@ -228,6 +230,13 @@
 		devTuners = await import("./dev/Tuners.svelte");
 	});
 
+	// Flips one tick after hydration — see SPLASH_REVEAL_MS in chapterFade.js
+	// for why the splash's cold-load reveal rides this rather than `in:fade`.
+	let mounted = $state(false);
+	onMount(() => {
+		mounted = true;
+	});
+
 	const reducedMotion = new MediaQuery(
 		"(prefers-reduced-motion: reduce)",
 		false
@@ -292,7 +301,7 @@
 		class:flipped
 		style="--viewport-height: {dimensions.height
 			? `${dimensions.height}px`
-			: '100svh'}; --title-band: {TITLE_BAND}px"
+			: '100svh'}; --title-band: {TITLE_BAND}px; --splash-reveal-ms: {SPLASH_REVEAL_MS}ms; --splash-reveal-step: {SPLASH_REVEAL_STEP_MS}ms"
 	>
 		<!-- The prose and the step controls come BEFORE the canvas in the
 		     document, though they paint over it (the z ladder below, not source
@@ -421,17 +430,25 @@
 			     stays clear of the sky's busiest patch, where the opening
 			     flight converges behind the centred card. -->
 				{#if activeSplash}
-					<div class="splash-logo" in:fade={chapterIn} out:fade={chapterOut}>
+					<div
+						class="splash-logo"
+						class:reveal={mounted}
+						in:fade={chapterIn}
+						out:fade={chapterOut}
+					>
 						<PuddingLogo />
 					</div>
 					<div class="splash-card" in:fade={chapterIn} out:fade={chapterOut}>
-						<h1>{@render activeSplash.title()}</h1>
+						<h1 class:reveal={mounted}>{@render activeSplash.title()}</h1>
 						{#if activeSplash.byline}
-							<p class="splash-byline">{@render activeSplash.byline()}</p>
+							<p class="splash-byline" class:reveal={mounted}>
+								{@render activeSplash.byline()}
+							</p>
 						{/if}
 					</div>
 					<div
 						class="splash-cue"
+						class:reveal={mounted}
 						aria-hidden="true"
 						in:fade={chapterIn}
 						out:fade={chapterOut}
@@ -882,6 +899,47 @@
 	.splash-keys .key :global(svg) {
 		width: 0.75rem;
 		height: 0.75rem;
+	}
+
+	/* The cold-load reveal (see SPLASH_REVEAL_MS in chapterFade.js for why this
+	   rides a plain CSS transition rather than `in:fade`): each element sits at
+	   opacity 0 until `.reveal` lands, staggered logo → title → byline → cue so
+	   the cascade reads as one composed entrance. `in:fade`/`out:fade` above
+	   still carry every later mount and every exit (a reader stepping back onto
+	   the card, or off it) unaffected by any of this. */
+	.splash-logo,
+	.splash-card h1,
+	.splash-byline,
+	.splash-cue {
+		opacity: 0;
+	}
+
+	.splash-logo.reveal,
+	.splash-card h1.reveal,
+	.splash-byline.reveal,
+	.splash-cue.reveal {
+		opacity: 1;
+	}
+
+	@media (prefers-reduced-motion: no-preference) {
+		.splash-logo {
+			transition: opacity var(--splash-reveal-ms) ease-out;
+		}
+
+		.splash-card h1 {
+			transition: opacity var(--splash-reveal-ms) ease-out;
+			transition-delay: var(--splash-reveal-step);
+		}
+
+		.splash-byline {
+			transition: opacity var(--splash-reveal-ms) ease-out;
+			transition-delay: calc(var(--splash-reveal-step) * 2);
+		}
+
+		.splash-cue {
+			transition: opacity var(--splash-reveal-ms) ease-out;
+			transition-delay: calc(var(--splash-reveal-step) * 3);
+		}
 	}
 
 	/* Which copy the cue and the sr-only instruction give: width decides which

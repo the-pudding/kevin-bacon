@@ -1445,6 +1445,7 @@
 	const ARRIVAL_MS = {
 		cold: 0,
 		snap: 0,
+		liveIn: 0,
 		popIn: ENTER_MS,
 		state: TWEEN_MS,
 		params: PARAM_TWEEN_MS,
@@ -1790,13 +1791,23 @@
 	 * a reader who reloaded mid-story (the step restored from the URL) settles
 	 * straight onto the state, since this is not their first-ever view and the
 	 * pop-in reads as an empty chart on faint states; everyone else gets the
-	 * grow-in. After that a resize or reduced motion snaps, a declared entry
-	 * plays, a state change tweens, a params change retargets, and a run that
-	 * rebuilt the same layout (a dev tuner's edit) holds the frame.
+	 * grow-in — unless the state's own ambient declares `liveReveal` (only
+	 * `titleGalaxy` today), which starts the loop immediately instead: its
+	 * ambient authors its own fade-up, so a dot is already moving by the time
+	 * it is visible rather than static and then set going (see
+	 * `withTitleReveal` in `layouts/intro.js`). After that a resize or reduced
+	 * motion snaps, a declared entry plays, a state change tweens, a params
+	 * change retargets, and a run that rebuilt the same layout (a dev tuner's
+	 * edit) holds the frame.
 	 */
+	function firstPaintKind() {
+		if (coldStart) return "cold";
+		if (reducedMotion) return "snap";
+		if (STATE_AMBIENT[stateName]?.liveReveal) return "liveIn";
+		return "popIn";
+	}
 	function arrivalKind({ firstPaint, resized, stateChange, entryAnim }) {
-		if (firstPaint)
-			return coldStart ? "cold" : reducedMotion ? "snap" : "popIn";
+		if (firstPaint) return firstPaintKind();
 		if (resized || reducedMotion) return "snap";
 		if (entryAnim) return "entry";
 		if (stateChange) return "state";
@@ -2057,6 +2068,14 @@
 		popIn: (target) => {
 			prevLabelIds = labelIds;
 			popIn(target);
+		},
+		// `liveReveal`'s own arrival: the ambient authors its own fade-up (see
+		// `withTitleReveal`), so there is nothing for a tween to carry — settle
+		// immediately and let the loop's own t = 0 frame be what the reader
+		// sees first, exactly as an ambient's contract already promises.
+		liveIn: () => {
+			prevLabelIds = labelIds;
+			settle(stateName);
 		},
 		snap: (target, from) => {
 			resetArrivalGates(from);

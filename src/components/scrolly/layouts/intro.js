@@ -39,7 +39,8 @@ import {
 	depthFade,
 	flightWindow,
 	SKY_FAR,
-	SKY_NEAR
+	SKY_NEAR,
+	titleRevealGate
 } from "../sky.js";
 import { routesTo, routeActors, introDistance } from "../intro-routes.js";
 import {
@@ -596,6 +597,37 @@ function withAnchorInSky(framesFn) {
 		return (attrs, trails, t) => {
 			write(attrs, trails, t);
 			writeAnchorSky(attrs, w, h, bleed, t);
+		};
+	};
+}
+
+// Every id `withTitleReveal` gates: the crowd, Bacon and his cluster — every
+// slot the title card actually draws. Fixed once rather than rebuilt per
+// frame, since the ids never change and this multiplies over them every tick.
+const TITLE_REVEAL_IDS = [...FIELD_IDS, ANCHOR_ID, ...OTHERS];
+
+/**
+ * The title card's cold-load reveal: multiplies every drawn dot's alpha —
+ * the crowd, Bacon and his cluster alike — by its own delay+fade window
+ * (`titleRevealGate`), so a star fading up is already mid-flight rather than
+ * popping in whole and starting to move afterwards. Wraps the OUTERMOST
+ * writer, after the highlight beat, so it touches exactly the slots every
+ * other writer in the stack already wrote rather than re-deriving them.
+ *
+ * At t = 0 every dot's gate is (at most) the hold's own share of the fade,
+ * which is what a cold mount should show — so this keeps the ambient's t = 0
+ * contract exactly the same way `withAnchorInSky` does.
+ * @param {import("../states.js").AmbientAnim["frames"]} framesFn
+ * @returns {import("../states.js").AmbientAnim["frames"]}
+ */
+function withTitleReveal(framesFn) {
+	return (nodes, w, h, edges, params, bleed = NO_BLEED) => {
+		const write = framesFn(nodes, w, h, edges, params, bleed);
+		return (attrs, trails, t) => {
+			write(attrs, trails, t);
+			for (const id of TITLE_REVEAL_IDS) {
+				attrs[id * STRIDE + 6] *= titleRevealGate(id, t);
+			}
 		};
 	};
 }
@@ -1185,9 +1217,16 @@ export const states = {
 		// fifteen by construction, so every actor it can light is one this state
 		// actually draws.
 		ambient: {
-			frames: withGalaxyHighlight(
-				withAnchorInSky(makeFlight(layoutTitleGalaxy, FIELD_IDS))
-			)
+			frames: withTitleReveal(
+				withGalaxyHighlight(
+					withAnchorInSky(makeFlight(layoutTitleGalaxy, FIELD_IDS))
+				)
+			),
+			// The card's own cold-load reveal (see withTitleReveal): the flight
+			// starts at mount rather than after the generic pop-in tween, so a
+			// dot fading up is already mid-flight rather than static and then
+			// started. See ScrollyVisual's "liveIn" arrival kind.
+			liveReveal: true
 		}
 	},
 	// Two steps rest here: the one that grows the constellation and demonstrates

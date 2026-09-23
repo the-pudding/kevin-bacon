@@ -9,3 +9,14 @@ export const CHAPTER_OUT_MS = 300;
  *  furniture leaves on (ScrollyVisual's DECOR_OUT_MS): a panel is furniture,
  *  and what is leaving goes before the dots move. */
 export const PANEL_OUT_MS = 220;
+
+// The splash's COLD-LOAD reveal, in CSS rather than `in:fade`: SvelteKit's
+// client entry never plays a hydrated element's `in:` transition on the very
+// first paint (no `intro: true` passed to `mount()`), so `chapterIn` above
+// never actually fires on a fresh load — only on a later navigation back to
+// step 0. A plain CSS opacity transition, triggered by a class added a tick
+// after mount, has no such exemption. Staggered per element (logo, title,
+// byline, cue) so the cold-load cascade reads as one composed reveal rather
+// than the whole card fading as a block.
+export const SPLASH_REVEAL_MS = 700;
+export const SPLASH_REVEAL_STEP_MS = 200;

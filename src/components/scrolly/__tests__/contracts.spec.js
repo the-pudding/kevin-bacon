@@ -19,6 +19,7 @@ import {
 	RACE_FUTURE_END
 } from "../layouts/race.js";
 import { writeSimFrame, SIM_N_SIMS } from "../layouts/sim-race.js";
+import { titleRevealGate } from "../sky.js";
 import {
 	BOXES,
 	arrivalContext,
@@ -202,6 +203,11 @@ describe("requests: the last frame lands on the layout the finish publishes", ()
 
 describe("ambient loop: t = 0 reproduces the static layout", () => {
 	for (const [state, ambient] of Object.entries(STATE_AMBIENT)) {
+		// `liveReveal` is the one declared exception: its whole point is that the
+		// loop's t = 0 frame is the START of a cold-load reveal (see
+		// `withTitleReveal` in layouts/intro.js), not the resting static layout
+		// — see the `titleRevealGate` contract below instead.
+		if (ambient.liveReveal) continue;
 		for (const box of BOXES) {
 			test(`${state} @${box.name}`, () => {
 				const params = layoutParamsFor(state);
@@ -221,6 +227,29 @@ describe("ambient loop: t = 0 reproduces the static layout", () => {
 			});
 		}
 	}
+});
+
+// titleGalaxy's own exception to the contract above: at t = 0 its reveal gate
+// must be shut (or the cold load pops the crowd in whole, the exact thing this
+// feature exists to avoid), and once every dot's own delay + fade window has
+// passed it must be fully open (or the crowd never actually reaches the
+// alpha the rest of the flight has been drawing it at all along).
+describe("titleGalaxy reveal: shut at t = 0, open once every dot's window has passed", () => {
+	const SAMPLE_IDS = Array.from({ length: 200 }, (_, i) => i * 37);
+	// generous past HOLD (200) + STAGGER (1400) + FADE (500) in sky.js
+	const FULLY_OPEN_MS = 3000;
+
+	test("shut at t = 0", () => {
+		for (const id of SAMPLE_IDS) {
+			expect(titleRevealGate(id, 0)).toBe(0);
+		}
+	});
+
+	test("open once the window has passed", () => {
+		for (const id of SAMPLE_IDS) {
+			expect(titleRevealGate(id, FULLY_OPEN_MS)).toBe(1);
+		}
+	});
 });
 
 // The fault this is here for: a clocked loop that derives its rays from a base

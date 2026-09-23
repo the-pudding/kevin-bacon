@@ -83,6 +83,34 @@ const FIELD_OPEN_SKEW = 0.5;
 // x-hash is ~0.5 parked on his column at every viewport, on every frame); a
 // handful drifting through is not it, and chasing them would mean deflecting
 // dots mid-flight, which is a visible jump to fix an invisible one.
+// The title card's OWN reveal: a fixed schedule in real ms rather than one
+// gated on camera travel, because the card is already landed and there is no
+// travel to gate on (see FIELD_OPEN_* above, which the title card cannot use
+// for exactly that reason — `writeFieldCrowd` is called there at the landed
+// `PULLBACK_ZOOM`, so `travel` is always 1 and every `opening` already fully
+// resolved). Applied by `withTitleReveal` in `layouts/intro.js` as a multiply
+// on top of the flight's own alpha, so a dot's fade-up rides the live flow
+// clock — it is already mid-flight, at whatever depth `t` has carried it to,
+// rather than static and then set moving. A different hash salt (22, against
+// FIELD_OPEN's 14) so the title's own arrival order doesn't just echo the
+// pull-back's.
+const TITLE_REVEAL_HOLD_MS = 200;
+
+const TITLE_REVEAL_STAGGER_MS = 1400;
+
+const TITLE_REVEAL_FADE_MS = 500;
+
+const TITLE_REVEAL_SKEW = 0.5;
+
+/** a dot's own slot in the title card's reveal: when its fade-up begins */
+const titleRevealStart = (id) =>
+	TITLE_REVEAL_HOLD_MS +
+	hash01(id, 22) ** TITLE_REVEAL_SKEW * TITLE_REVEAL_STAGGER_MS;
+
+/** how open a dot's reveal is at t: 0 before its slot, 1 once its fade completes */
+export const titleRevealGate = (id, t) =>
+	Math.min(1, Math.max(0, (t - titleRevealStart(id)) / TITLE_REVEAL_FADE_MS));
+
 const FIELD_KEEPOUT_GAP = 12;
 
 const FIELD_KEEPOUT =
