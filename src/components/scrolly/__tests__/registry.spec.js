@@ -168,10 +168,12 @@ describe("state registry", () => {
 	});
 
 	// A scene is an assertion, not a hint: ScrollyVisual does not swap the
-	// furniture between two states that share one, so if their title or their
-	// overlay actually differed the reader would be left looking at the wrong
-	// chart's text with no transition to explain it.
-	test("states sharing a scene declare the same title and overlay", () => {
+	// furniture between two states that share one, so if their overlay actually
+	// differed the reader would be left looking at the wrong chart's axis text
+	// with no transition to explain it. The title is exempt because it is keyed
+	// to crossfade on its own (ScrollyVisual's chartFurniture) — the hop scene is
+	// one chart under two titles.
+	test("states sharing a scene declare the same overlay", () => {
 		/** @type {Record<string, string[]>} */
 		const byScene = {};
 		for (const [state, scene] of Object.entries(STATE_SCENE)) {
@@ -181,9 +183,6 @@ describe("state registry", () => {
 		for (const [scene, members] of Object.entries(byScene)) {
 			const [first] = members;
 			for (const state of members) {
-				expect(STATE_TITLE[state], `${scene}: ${state} title`).toBe(
-					STATE_TITLE[first]
-				);
 				expect(OVERLAYS[state], `${scene}: ${state} overlay`).toBe(
 					OVERLAYS[first]
 				);

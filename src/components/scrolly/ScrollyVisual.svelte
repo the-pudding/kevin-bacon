@@ -2259,14 +2259,24 @@
 	     its own coordinates. That is "out, travel, in" (motion.md rule 6) for the
 	     HTML layer, in one place instead of a per-state opt-in.
 
-	     Nothing here is `{#key}`ed any more. Those blocks existed to replay a
-	     mount fade when a string changed, and cut the old string in the same
-	     frame; the gate below now unmounts and remounts the whole set on a scene
-	     change, which IS the crossfade they were approximating, and within a
-	     scene the strings do not change (registry.spec.js checks that). -->
+	     The gate below unmounts and remounts the whole set on a scene change,
+	     which is the crossfade across chapters. Within a scene the overlay's
+	     strings do not change (registry.spec.js checks that); the two that can,
+	     the title and a legend item's label, are keyed to crossfade on their
+	     own. The hop scene is one chart under two titles: the old one fades
+	     where it stands while the new one mounts over it on .fade-in — both
+	     absolute on one line. -->
 	{#snippet chartFurniture(set, live = false)}
 		{#if set.title}
-			<p class="chart-title fade-in" aria-hidden="true">{set.title}</p>
+			{#key set.title}
+				<p
+					class="chart-title fade-in"
+					aria-hidden="true"
+					out:fade={furnitureOut}
+				>
+					{set.title}
+				</p>
+			{/key}
 		{/if}
 		{#if set.overlay?.xLabel}
 			<p

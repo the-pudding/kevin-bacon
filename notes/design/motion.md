@@ -62,6 +62,11 @@ travelling is something the reader has to re-find.
    the prose settles last. Two things moving at once compete for the eye, and
    the one that loses is usually the one the step was about. On a sheet the
    Δ column reads as a hump, not a plateau.
+   The out and in beats are for a change of chart. Inside one scene (states
+   declaring the same `scene`) the chart is the same chart, so its furniture
+   stays up through the travel: a legend rides its rows, and a title that
+   differs crossfades as the step changes (the `hops` scene, steps 4 and 5).
+   Blanking it for the length of a tween reads as a flicker.
 
 7. **Nothing pops.** Anything that appears or disappears does so through alpha,
    and nothing on the canvas jumps between two consecutive frames. A snap is

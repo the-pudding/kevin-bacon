@@ -545,6 +545,12 @@ export const states = {
 		// `seed` is hopSeed's alone, and that state calls the layout directly
 		// rather than coming past this entry.
 		layout: layoutHopBands,
+		// One chart with hopAnchor, so the two share one scene: the legend stays
+		// up and glides with its rows across the step change instead of fading
+		// out and in around them, and only the title changes — crossfading on its
+		// own the moment the step does (ScrollyVisual's chartFurniture). As two
+		// scenes, 4 <-> 5 blanked the title and legend for a whole tween.
+		scene: "hops",
 		title: "The four degrees of Kevin Bacon",
 		labels: [ANCHOR_ID],
 		// The cascade is authored for the forward arrival off the title card's
@@ -565,10 +571,11 @@ export const states = {
 		// travelling for any of it. An empty list is the field's own way of saying
 		// the reveal is authored for nobody (see arrivalDelays).
 		revealFrom: [],
-		// Static, because `furnitureSet` freezes a title per state change so a
-		// departing copy keeps its own text while it fades (ScrollyVisual). It does
-		// not need to carry the anchor's name in any case: the anchor's dot is the
-		// only labelled thing on the chart, and it is 60px above this line.
+		scene: "hops",
+		// Static: it does not need to carry the anchor's name, because the
+		// anchor's dot is the only labelled thing on the chart and it is 60px
+		// above this line — and a title that changed on every turn of the cycle
+		// would crossfade on every turn too.
 		title: "Actors with 4 degrees of separation",
 		// Nobody at all while the chip is carrying the anchor here: the name is
 		// still legible on the chip itself, and printing it under the empty seat
