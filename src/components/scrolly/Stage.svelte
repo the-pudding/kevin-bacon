@@ -267,14 +267,6 @@
 	const panelOut = $derived(
 		reducedMotion.current ? { duration: 0 } : { duration: PANEL_OUT_MS }
 	);
-	// centred on the whole visual box, because that is now the field's box too: a
-	// chapter card drops the plot area and spreads its crowd over the entire
-	// canvas (galaxyBox), so there is no empty ground below the universe for a
-	// centred title to sit over. A chapter carries no prose, so nothing competes
-	// for the lower half. Any state that still keeps to plotBottom is a chart, and
-	// charts have no title card.
-	const chapterHeight = $derived(visualHeight);
-
 	/** what the prose is handed (StageLayout): getters, so a read tracks the measurement */
 	const layout = {
 		get overlayHeight() {
@@ -415,7 +407,6 @@
 					<div
 						class="chapter-card"
 						aria-hidden="true"
-						style="height: {chapterHeight}px"
 						in:fade={chapterIn}
 						out:fade={chapterOut}
 					>
@@ -433,12 +424,7 @@
 					<div class="splash-logo" in:fade={chapterIn} out:fade={chapterOut}>
 						<PuddingLogo />
 					</div>
-					<div
-						class="splash-card"
-						style="height: {chapterHeight}px"
-						in:fade={chapterIn}
-						out:fade={chapterOut}
-					>
+					<div class="splash-card" in:fade={chapterIn} out:fade={chapterOut}>
 						<h1>{@render activeSplash.title()}</h1>
 						{#if activeSplash.byline}
 							<p class="splash-byline">{@render activeSplash.byline()}</p>
@@ -692,17 +678,19 @@
 	}
 
 	/* A chapter card's title, centred in the field's own box — which on a card is
-	   the whole visual box, since the crowd spreads over the entire canvas (height
-	   still set inline, see chapterHeight). It sits in the middle of the universe
-	   drifting behind it. Note the title stays in the 700px column while the dots
-	   run past it on both sides: the sky is full-bleed, the words are not.
-	   Nothing here is interactive and the canvas underneath may carry a layout's
-	   `hits`, so the whole layer stays out of the way of taps. */
+	   the whole visual box, since the crowd spreads over the entire canvas (inset
+	   on all four sides of .scrolly-visual, so its height comes from that box's
+	   own CSS rather than a JS measurement — the inline height this used to carry
+	   read 0 for the frame before Svelte measured the canvas, which pushed the
+	   card's vertically-centred content half off the top of the screen). It sits
+	   in the middle of the universe drifting behind it. Note the title stays in
+	   the 700px column while the dots run past it on both sides: the sky is
+	   full-bleed, the words are not. Nothing here is interactive and the canvas
+	   underneath may carry a layout's `hits`, so the whole layer stays out of the
+	   way of taps. */
 	.chapter-card {
 		position: absolute;
-		top: 0;
-		left: 0;
-		right: 0;
+		inset: 0;
 		display: flex;
 		align-items: center;
 		justify-content: center;
@@ -738,9 +726,7 @@
 	   tap halves' ground, and the card's whole instruction is to use them. */
 	.splash-card {
 		position: absolute;
-		top: 0;
-		left: 0;
-		right: 0;
+		inset: 0;
 		display: flex;
 		flex-direction: column;
 		align-items: center;
@@ -819,6 +805,11 @@
 
 	.splash-byline :global(a) {
 		color: inherit;
+		/* padding widens the tap area to 48px; the equal negative margin keeps the
+		   line box at one line, so nothing around it moves */
+		display: inline-block;
+		padding-block: calc((var(--48px) - 1lh) / 2);
+		margin-block: calc((1lh - var(--48px)) / 2);
 		pointer-events: auto;
 	}
 
