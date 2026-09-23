@@ -402,6 +402,19 @@ export const STATE_AMBIENT = pick("ambient");
 export const OVERLAYS = pick("overlay");
 
 /**
+ * States whose chart spans the whole screen, so the prose lies OVER it rather
+ * than in a column beside it — the side-by-side breakpoint centres the prose on
+ * the screen instead (Stage.svelte), and the chart title centres on the screen
+ * with it (ScrollyVisual). Below that breakpoint the prose is over the canvas
+ * on every step, so nothing changes there.
+ * @type {Record<string, boolean>}
+ */
+const STATE_PROSE_OVER = pick("proseOver");
+
+/** @param {string | null | undefined} s */
+export const isProseOver = (s) => !!s && STATE_PROSE_OVER[s] === true;
+
+/**
  * Per-state override of where a node's label sits relative to its dot:
  * `"left"` / `"right"` place it beside the dot (vertically centred) instead of
  * the default below-and-centred. Keyed by node id. Used to de-clutter tight

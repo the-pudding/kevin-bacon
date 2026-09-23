@@ -242,8 +242,8 @@ exports[`layout goldens > degScatter {"searchId":null} @stacked 1`] = `
 
 exports[`layout goldens > hopAnchor {"anchorId":0,"arriving":false} @beside 1`] = `
 {
-  "attrs": "cbe2498c408607a5",
-  "decor": "b908e4e98e2d9f85",
+  "attrs": "6941adc75c23cf76",
+  "decor": "794cfcf8dd4fde14",
   "delays": "81adf7d1bf8819f7",
   "trailDelays": null,
   "trails": null,
@@ -252,8 +252,8 @@ exports[`layout goldens > hopAnchor {"anchorId":0,"arriving":false} @beside 1`] 
 
 exports[`layout goldens > hopAnchor {"anchorId":0,"arriving":false} @phone 1`] = `
 {
-  "attrs": "f4a878125328b53e",
-  "decor": "3ef487fe3ad354f0",
+  "attrs": "e55ba5776c9232e0",
+  "decor": "a25bf3c783cc4cb2",
   "delays": "81adf7d1bf8819f7",
   "trailDelays": null,
   "trails": null,
@@ -262,8 +262,8 @@ exports[`layout goldens > hopAnchor {"anchorId":0,"arriving":false} @phone 1`] =
 
 exports[`layout goldens > hopAnchor {"anchorId":0,"arriving":false} @stacked 1`] = `
 {
-  "attrs": "801c34f32c7f541b",
-  "decor": "7c4ed7f766893a39",
+  "attrs": "a6f51bb5751a08b1",
+  "decor": "af0c2909fb3c1ae5",
   "delays": "81adf7d1bf8819f7",
   "trailDelays": null,
   "trails": null,
@@ -272,8 +272,8 @@ exports[`layout goldens > hopAnchor {"anchorId":0,"arriving":false} @stacked 1`]
 
 exports[`layout goldens > hopAnchor {"anchorId":105,"arriving":false} @beside 1`] = `
 {
-  "attrs": "611a10e24eea2b3e",
-  "decor": "a7633b38d6cc6710",
+  "attrs": "5382e8d6b2bc11a8",
+  "decor": "26320bee37949ab9",
   "delays": "65af6610eb1c3687",
   "trailDelays": null,
   "trails": null,
@@ -282,8 +282,8 @@ exports[`layout goldens > hopAnchor {"anchorId":105,"arriving":false} @beside 1`
 
 exports[`layout goldens > hopAnchor {"anchorId":105,"arriving":false} @phone 1`] = `
 {
-  "attrs": "bd9e1551f5cdd209",
-  "decor": "146a7aa7a36ba3ad",
+  "attrs": "67ba886ca70c4746",
+  "decor": "507734c802bf4fbc",
   "delays": "65af6610eb1c3687",
   "trailDelays": null,
   "trails": null,
@@ -292,8 +292,8 @@ exports[`layout goldens > hopAnchor {"anchorId":105,"arriving":false} @phone 1`]
 
 exports[`layout goldens > hopAnchor {"anchorId":105,"arriving":false} @stacked 1`] = `
 {
-  "attrs": "de0bb5052ef5d113",
-  "decor": "e5a4bb366e030449",
+  "attrs": "8d8282a7e51fcfe1",
+  "decor": "760217dbcfa64dd7",
   "delays": "65af6610eb1c3687",
   "trailDelays": null,
   "trails": null,
@@ -302,8 +302,8 @@ exports[`layout goldens > hopAnchor {"anchorId":105,"arriving":false} @stacked 1
 
 exports[`layout goldens > hopAnchor {"anchorId":105,"arriving":true} @beside 1`] = `
 {
-  "attrs": "878dc860aa2274e2",
-  "decor": "a7633b38d6cc6710",
+  "attrs": "e7207dc028667952",
+  "decor": "26320bee37949ab9",
   "delays": "65af6610eb1c3687",
   "trailDelays": null,
   "trails": null,
@@ -312,8 +312,8 @@ exports[`layout goldens > hopAnchor {"anchorId":105,"arriving":true} @beside 1`]
 
 exports[`layout goldens > hopAnchor {"anchorId":105,"arriving":true} @phone 1`] = `
 {
-  "attrs": "310349ff9b3b33c2",
-  "decor": "146a7aa7a36ba3ad",
+  "attrs": "17a99a432434f35e",
+  "decor": "507734c802bf4fbc",
   "delays": "65af6610eb1c3687",
   "trailDelays": null,
   "trails": null,
@@ -322,8 +322,8 @@ exports[`layout goldens > hopAnchor {"anchorId":105,"arriving":true} @phone 1`] 
 
 exports[`layout goldens > hopAnchor {"anchorId":105,"arriving":true} @stacked 1`] = `
 {
-  "attrs": "59aa3317c9e0dff0",
-  "decor": "e5a4bb366e030449",
+  "attrs": "4af11b5f0a7c516e",
+  "decor": "760217dbcfa64dd7",
   "delays": "65af6610eb1c3687",
   "trailDelays": null,
   "trails": null,
@@ -332,8 +332,8 @@ exports[`layout goldens > hopAnchor {"anchorId":105,"arriving":true} @stacked 1`
 
 exports[`layout goldens > hopBands null @beside 1`] = `
 {
-  "attrs": "cbe2498c408607a5",
-  "decor": "b908e4e98e2d9f85",
+  "attrs": "6941adc75c23cf76",
+  "decor": "794cfcf8dd4fde14",
   "delays": "81adf7d1bf8819f7",
   "trailDelays": null,
   "trails": null,
@@ -342,8 +342,8 @@ exports[`layout goldens > hopBands null @beside 1`] = `
 
 exports[`layout goldens > hopBands null @phone 1`] = `
 {
-  "attrs": "f4a878125328b53e",
-  "decor": "3ef487fe3ad354f0",
+  "attrs": "e55ba5776c9232e0",
+  "decor": "a25bf3c783cc4cb2",
   "delays": "81adf7d1bf8819f7",
   "trailDelays": null,
   "trails": null,
@@ -352,8 +352,8 @@ exports[`layout goldens > hopBands null @phone 1`] = `
 
 exports[`layout goldens > hopBands null @stacked 1`] = `
 {
-  "attrs": "801c34f32c7f541b",
-  "decor": "7c4ed7f766893a39",
+  "attrs": "a6f51bb5751a08b1",
+  "decor": "af0c2909fb3c1ae5",
   "delays": "81adf7d1bf8819f7",
   "trailDelays": null,
   "trails": null,

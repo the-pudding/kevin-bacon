@@ -48,6 +48,7 @@
 		STATE_PARAMS,
 		STATE_REVEAL_FROM,
 		entryFor,
+		isProseOver,
 		STATE_REQUESTS,
 		STATE_AMBIENT,
 		STATE_TRACKED
@@ -75,7 +76,8 @@
 		setPlotBottomFrac,
 		PLOT_BOTTOM_BESIDE,
 		PLOT_BOTTOM_STACKED,
-		NO_BLEED
+		NO_BLEED,
+		screenSpan
 	} from "./plot.js";
 	import { story } from "./story.svelte.js";
 	import { tuning } from "./dev/tuning.svelte.js";
@@ -469,6 +471,11 @@
 		return {
 			decor: d,
 			title: STATE_TITLE[name],
+			// how far the title moves off the column's centre onto the screen's:
+			// a chart the prose lies over spans the whole screen, so its title
+			// belongs to the screen's middle. Zero wherever the bleed is even
+			// (every stacked box), so it only moves beside the prose.
+			titleShift: isProseOver(name) ? (labelBleed.r - labelBleed.l) / 2 : 0,
 			overlay: OVERLAYS[name],
 			xTop,
 			yTop: yLabelTop,
@@ -560,17 +567,19 @@
 	/**
 	 * The pinned legend riding its own rows.
 	 *
-	 * A legend item is parked at the middle of the band it names, and a band's
-	 * height is what a change of anchor moves (layouts/hop-bands.js). Decor swaps
-	 * in one go, so without this the label jumps to its new row's middle while the
+	 * A legend item is hung in the band it names — a fixed inset below its top,
+	 * or through its middle if the band is thinner than twice that — and a band's
+	 * top and height are what a change of anchor moves (layouts/hop-bands.js).
+	 * Decor swaps in one go, so without this the label jumps to its new row while the
 	 * row itself is still 450ms from being there — measured 2026-09-22 on a cycle
 	 * turn, the hop-3 label 24px clear of its own band for the whole tween.
 	 *
 	 * Interpolated rather than transitioned in CSS because it has to stay in
 	 * REGISTER with the dots, not merely move at the same time: a dot's y is
-	 * affine in the band's top and height, so lerping the label's y on the
-	 * tweener's own easing over the tweener's own duration puts it at the exact
-	 * middle of the band on every frame. A CSS curve of its own would drift from
+	 * affine in the band's top and height and so is the label's, so lerping the
+	 * label's y on the tweener's own easing over the tweener's own duration keeps
+	 * it in register with its band on every frame (exactly, unless the band
+	 * crosses the thin/thick line mid-turn). A CSS curve of its own would drift from
 	 * the crowd and land back on it, which is worse than not moving.
 	 *
 	 * Only within a scene, and only for a real tween: across a scene change the
@@ -957,6 +966,17 @@
 	// caller gets null.
 	export function locateTarget(id) {
 		return tweener.target ? spotIn(tweener.target, id) : null;
+	}
+
+	// How far the live chart's right end sits in from this box's right edge, for
+	// the furniture that lines up with it (the anchor search's glyph): MARGIN
+	// for every chart authored in the column, and the end of the screen-wide
+	// span for a chart the prose lies over. Reads `width` and `labelBleed`, both
+	// $state, so a caller's $derived follows a resize.
+	export function plotRightInset() {
+		return isProseOver(stateName)
+			? width - screenSpan(width, labelBleed)[1]
+			: MARGIN;
 	}
 
 	/**
@@ -2272,6 +2292,7 @@
 				<p
 					class="chart-title fade-in"
 					aria-hidden="true"
+					style="--title-shift: {set.titleShift}px"
 					out:fade={furnitureOut}
 				>
 					{set.title}
@@ -2712,7 +2733,8 @@
 		   sits a little further down still (--chart-title-top, Stage.svelte) */
 		top: var(--chart-title-top);
 		left: 50%;
-		transform: translateX(-50%);
+		/* --title-shift: set inline, from the set's titleShift */
+		transform: translateX(calc(-50% + var(--title-shift)));
 		/* max-content, or `left: 50%` caps the shrink-to-fit width at the box's
 		   right half and a mobile title wraps at half the screen. Capped at the
 		   plot's own width. */

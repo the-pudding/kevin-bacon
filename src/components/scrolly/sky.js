@@ -116,8 +116,9 @@ const fieldBox = (w, h) => [MARGIN, w - MARGIN, MARGIN, plotBottom(h)];
  * `bleed` is how far the canvas extends past the 700px reading column on each
  * side, and TITLE_BAND how far it extends above the box (see ScrollyVisual's
  * render transform), so negative x, x past `w` and negative y are all on screen.
- * The charts keep `fieldBox`: widening hopBands' would spread the bands' rain
- * across the whole viewport too.
+ * The charts keep `fieldBox`. The hop bands are the one chart that spans the
+ * bled canvas too (layouts/hop-bands.js), which is what lets the sky rain
+ * straight down into them.
  *
  * The rect is then inflated past the canvas by GALAXY_SPREAD, and the flow
  * carries dots out past that again, so most of the crowd is off screen at any
@@ -297,9 +298,7 @@ function entrySpot(id, cycle, box, bx, by) {
  * drift between them would twitch the whole field on a step change.
  *
  * `box` is the rect the crowd ENTERS across, defaulting to the plot area. The
- * galaxy states pass `galaxyBox` to spread the same dots over the whole screen. Because both boxes are struck about the same centre and the
- * magnification is about that centre too, one is exactly the other contracted —
- * which is what `skyToColumn` trades on.
+ * galaxy states pass `galaxyBox` to spread the same dots over the whole screen.
  *
  * @returns {[number, number]}
  */
@@ -413,27 +412,6 @@ export function writeFieldCrowd(
 			FIELD_ALPHA * depthFade(d) * flightWindow(skyFrac(id, 0)) * opening
 		);
 	}
-}
-
-/**
- * How far a sky pixel travels when the crowd funnels back into the reading
- * column — the ratio between `galaxyBox` and the plot's own `fieldBox`, so the
- * handoff off hopSeed's sky is a uniform contraction.
- *
- * The two boxes share a centre only while the column is centred in the viewport.
- * Side by side with the prose they do not, and the contraction becomes that same
- * scale about the sky's centre followed by a translation onto the column's
- * (`departureColumn` applies both). The commute survives it: the flow's
- * magnification `m` is struck about the sky's centre `c`, so contracting then
- * translating gives `s·m·(p − c) + f`, and flowing a contracted dot about the
- * column's centre `f` gives `m·(s·(p − c) + f − f) + f` — the same point. A
- * dot's live sky position put through this is still exactly where that dot would
- * be if the whole flow had been authored in the column.
- */
-export function skyToColumn(w, h, bleed) {
-	const [x0, x1] = galaxyBox(w, h, bleed);
-	const [cx0, cx1] = fieldBox(w, h);
-	return (cx1 - cx0) / (x1 - x0);
 }
 
 /**

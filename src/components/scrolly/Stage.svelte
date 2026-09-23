@@ -33,7 +33,7 @@
 	import PointerIcon from "./PointerIcon.svelte";
 	import PuddingLogo from "./PuddingLogo.svelte";
 	import { story } from "./story.svelte.js";
-	import { isRankState } from "./states.js";
+	import { isProseOver, isRankState } from "./states.js";
 	import { TITLE_BAND } from "./plot.js";
 	import {
 		CARD_IN_MS,
@@ -71,6 +71,11 @@
 	let visualWidth = $state(0);
 	let visualHeight = $state(0);
 
+	const currentState = $derived(steps.state);
+	// a chart that spans the whole screen (the hop bands) takes the prose over
+	// it rather than beside it — see `.scrolly-steps.over` below
+	const proseOver = $derived(isProseOver(currentState));
+
 	// The card's height, HELD across a step change — the one measurement every
 	// clearance is taken off, so it is held here rather than by each consumer.
 	//
@@ -94,9 +99,15 @@
 	// (the registry never lands on one), and the title card, which renders no
 	// prose at all, so 0 is its true height and the hold hands that
 	// straight over.
+	//
+	// Nor is it taken over a chart the prose lies over (`proseOver`). There the
+	// card fills the box top to bottom so the grid can centre the words, and what
+	// it measures is the canvas, not a card — a height that, held into the next
+	// step, would put every clearance a card-sized distance off the top. The
+	// last real card's height stands instead, exactly as it does across a swap.
 	let cardHeight = $state(0);
 	$effect(() => {
-		if (steps.held) return;
+		if (steps.held || proseOver) return;
 		cardHeight = stepsHeight;
 	});
 
@@ -106,9 +117,9 @@
 	// the prose it covers NONE of it: the card is in a column of its own, so every
 	// one of those clearances gets the whole box back, and a chart that goes on
 	// dodging a card that is not there leaves a band of empty canvas under it.
-	const overlayHeight = $derived(beside ? 0 : cardHeight);
-
-	const currentState = $derived(steps.state);
+	// Over a chart the prose lies over it covers nothing that chart dodges
+	// either: the chart runs under the words on purpose.
+	const overlayHeight = $derived(beside || proseOver ? 0 : cardHeight);
 
 	// The rank panel outlives the rank chapter by one step: raceRecent keeps it
 	// mounted so its bars can collapse into the race chart's own dots (see
@@ -320,6 +331,7 @@
 		{#if !steps.exited}
 			<div
 				class="scrolly-steps"
+				class:over={proseOver}
 				bind:clientHeight={stepsHeight}
 				aria-live="polite"
 			>
@@ -562,6 +574,10 @@
 		   .scrolly-visual.exited), and it can only do that from numbers it can
 		   read. */
 		--visual-l: 0px;
+		/* --prose-w: the prose measure wherever the prose is not simply the
+		   column's width — its own column beside the canvas, and centred over a
+		   chart the prose lies over (`.scrolly-steps.over`) */
+		--prose-w: 25rem;
 		/* --title-band — space for each chart's title, between the progress bar and the
 		   canvas's own MARGIN-based top clearance — is set inline above, from
 		   TITLE_BAND in plot.js: the render path needs the same number,
@@ -1033,11 +1049,42 @@
 		pointer-events: none;
 		/* halo, not a plate — the same reason .splash-card h1 carries one. A
 		   full-bleed state (hopSeed, the outro) puts the crowd behind the
-		   copy all the way to the bottom edge, and a background would be a
-		   rectangle cut out of the sky. It costs
+		   copy all the way to the bottom edge, and the hop bands run under it
+		   on a wide screen; a background would be a rectangle cut out of the
+		   picture. It costs
 		   nothing on the boxed steps, where the field stops at plotBottom and the
 		   text sits on plain white. */
 		text-shadow: var(--text-halo);
+	}
+
+	/* OVER A CHART THAT SPANS THE SCREEN (`proseOver` in the state registry —
+	   the hop bands), at every width: the whole box top to bottom and the words
+	   centred in it, at no more than the prose measure and centred across. The
+	   chart runs under the words (edge to edge and down to the box's foot) and
+	   the halo above is what keeps them legible. The canvas box does not move
+	   for any of it: the chart reaches the screen's edges by drawing into the
+	   bleed, so only the prose changes place.
+
+	   Auto margins and not a translate, for the reason the side-by-side rule
+	   below gives: a transform would capture the departing copy's `position:
+	   fixed`. #scrolly is centred in the viewport, so centred in it is centred
+	   on the screen. Two classes, so it outranks that rule's `right: auto` and
+	   `align-items` without depending on source order. */
+	.scrolly-steps.over {
+		top: 0;
+		right: 0;
+		max-width: var(--prose-w);
+		margin-inline: auto;
+		align-items: center;
+		/* Stacked, the words run the column's full width, so centred in the
+		   WHOLE box they reach up into the chart's head on a phone: step 5's two
+		   paragraphs at 360x640 sat on the 2-movie row's label. So the box they
+		   centre in starts below it — the title band, the anchor's header row,
+		   the 1-movie row and the label hung inside the 2-movie row's top
+		   (layouts/hop-bands.js), about 200px, rounded up. Beside the prose the
+		   labels sit at the screen's left edge, clear of a 25rem measure, and
+		   the rule below takes this back off. */
+		padding-top: 13rem;
 	}
 
 	/* An InfoTerm trigger sits inline and lands wherever the line wraps puts it,
@@ -1077,7 +1124,6 @@
 		}
 
 		.scrolly-layout {
-			--prose-w: 25rem;
 			/* --prose-gutter: clear space BETWEEN the two columns, taken off the
 			   charts rather than out of the measure. Without it the two boxes
 			   shared an edge and the only clearance was whatever a line's wrap
@@ -1115,6 +1161,10 @@
 			/* the column is centred in its own column now, so that is the edge the
 			   two copies of a swap share (see the grid note above) */
 			align-items: center;
+		}
+
+		.scrolly-steps.over {
+			padding-top: 0;
 		}
 
 		/* A full-bleed state's title belongs to the SCREEN, not to the charts'

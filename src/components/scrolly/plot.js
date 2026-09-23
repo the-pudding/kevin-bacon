@@ -102,3 +102,33 @@ export const xLabelTop = (h, cardHeight, xBase) =>
  */
 /** @type {Bleed} */
 export const NO_BLEED = { l: 0, r: 0 };
+
+// The screen-wide chart's cap and its inset from the screen's edges. The inset
+// is the reading column's own gutter (#scrolly's --column-gutter), so on a phone
+// the chart's left edge lines up with the prose's.
+export const SCREEN_CHART_MAX_W = 900;
+export const SCREEN_CHART_EDGE = 16;
+
+/**
+ * The horizontal span of a chart that runs across the SCREEN rather than the
+ * reading column — the hop bands, which the prose lies over (`proseOver` in the
+ * state registry). The bled canvas, capped at SCREEN_CHART_MAX_W about the
+ * screen's centre, less SCREEN_CHART_EDGE each side. In the column coordinates
+ * every layout is authored in, so x0 is negative wherever the screen is wider
+ * than the column.
+ *
+ * One definition because three places line up with it: the layout that plots
+ * into it, the chart title centred over it and the search glyph at its right
+ * end.
+ * @param {number} w
+ * @param {Bleed} bleed
+ * @returns {[number, number]}
+ */
+export function screenSpan(w, bleed) {
+	const left = -bleed.l;
+	const right = w + bleed.r;
+	const cx = (left + right) / 2;
+	const half =
+		Math.min(right - left, SCREEN_CHART_MAX_W) / 2 - SCREEN_CHART_EDGE;
+	return [cx - half, cx + half];
+}

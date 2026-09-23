@@ -17,6 +17,29 @@ reader gets the corpus as something too big for the page exactly where the
 argument pauses. Nothing fades the crowd at the screen edges — a vignette there
 would draw the boundary the full bleed exists to hide.
 
+**The hop chart is the one chart that spans the screen.** `hopBands` and
+`hopAnchor` strike their rows across `screenSpan` (`plot.js`): the bled canvas,
+capped at 900px about the screen's centre, less a 16px inset each side, and
+down to a `MARGIN` off the box's foot rather than `plotBottom`. Four rows of
+dots do not get harder to read with width, and with the prose lying over the
+chart there is no card or axis below it to keep clear. `.scrolly-visual`'s box
+does not move for it: the canvas element already reaches the viewport's edges,
+so the chart widens by authoring into the bleed.
+
+Their `proseOver` flag (`isProseOver` in `states.js`) is what puts the prose
+over the chart at every width (`.scrolly-steps.over`). The prose fills the box
+top to bottom and is centred in it, capped at `--prose-w` and centred across,
+and keeps legible over the rows with the halo `.scrolly-steps` already carries.
+Below 1200px the words run the column's full width, so the box they centre in
+starts below the chart's head (`padding-top`), which keeps them off the 2-movie
+row's label. That label, like each row's, now hangs just inside its row's top
+edge instead of through the middle. The card's height is not measured while the
+prose lies over the chart (the box is then the canvas, not a card), so every
+clearance keeps the last real card's height. The chart title centres on the
+screen (`titleShift`) and the anchor search's glyph ends where the span does
+(`plotRightInset`). A scene's states must agree on the flag
+(registry.spec.js), or the title would walk sideways inside a scene.
+
 **Sparse and faint is the whole reading.** Most of the crowd is authored off the
 canvas, which is the only sparsity lever available: the set cannot lose members,
 because `hopBands` sorts this exact crowd and a dot missing from the sky would
@@ -194,45 +217,40 @@ than scattering into it, which is the visual form of the line the reader has jus
 read. `hopSeed` then carries them on the same flight as everyone else, one
 `makeFlight` over `SKY_IDS`.
 
-**The handoff out is a contraction, and the x ordering survives it.** `hopBands`
-takes each dot's x in the **column** box (`fieldBox`), while `hopSeed` authors
-its sky across `galaxyBox`. So stepping off the sky, a dot moves horizontally as
-well as vertically: the sky funnels back into the measure while the bands sort
-it. Because `galaxyBox` is the column box scaled about the same centre, that
-contraction is uniform — every dot keeps its left-to-right place and its
-neighbours — rather than twelve thousand unrelated diagonals, which is what an
-independently-hashed x would give and what reads as static rather than as
-sorting.
+**The handoff keeps every visible dot's x.** The bands span the same screen the
+sky fills, so a dot's column in the bands is its own screen x on the sky: it
+falls straight down and moves not at all horizontally, which is the most literal
+reading of "sorted" there is. An independently-hashed x would send twelve
+thousand dots off on unrelated diagonals and read as static. (Until 2026-09-23
+the bands stopped at the reading column and the sky was contracted into it, a
+uniform funnel that kept the left-to-right order but moved every dot sideways.)
 
 **And the sky it leaves is flowing, so the column it leaves from is the live
 one.** The crowd streams outward the whole time the reader is on `hopSeed`, so by
 the time they tap, a dot can be most of the way across the screen from where the
 static layout has it — take the resting column and the sort's first frame is
 somewhere other than the crowd the reader is looking at. `departureColumn` in
-`layouts/hop-bands.js` therefore contracts the dot's LIVE sky position. That is
-the same contraction the resting position gets, and because the flow's
-magnification is struck about the same centre the two commute: it is exactly
-where the dot would be if the whole flow had been authored in the column. At the
-flow's t = 0 it IS the resting column, which is what a cold `?step=4`, a backward
-arrival and a reduced-motion read all get.
+`layouts/hop-bands.js` therefore reads the dot's LIVE sky position. At the flow's
+t = 0 it IS the resting column, which is what a cold `?step=4`, a backward arrival
+and a reduced-motion read all get.
 
 **A flowing sky has no outer edge**, which is the one thing that does not carry
 over from the flat field. A dot is carried out by up to `SKY_FAR / SKY_NEAR`, so
-about a third of the crowd sits further out than the plot is wide and no single
-contraction holds all of it. Every one of those is off the canvas — measured, not
-assumed: of the dots visible on the sky, none lands outside the plot — so the
-rule is simple. A dot the reader can SEE falls straight down from where they see
-it; a dot they cannot takes a flat hashed column of its own. The crowd that does
-land in the plot fills it evenly, so the bands come out uniform either way
-(measured at ±5% across twelve columns).
+much of the crowd sits further out than the screen is wide. Every one of those is
+off the canvas, which makes the rule simple. A dot the reader can SEE falls
+straight down from where they see it; a dot they cannot takes a flat hashed
+column of its own. The crowd that does land in the bands fills them evenly, so
+the bands come out uniform either way: within ±5% across twelve columns at every
+test box, which `hop-bands.spec.js` holds.
 
 **Latent, and not visible: the intro fifteen take a stale column off the sky.**
 `departureColumn` branches on `isIntroActor` and hands them their resting
 `landedSpot` column on the grounds that they are outside the flow. They are not:
 `hopSeed` carries them on `SKY_IDS` like everyone else, so the column they get is
-not the contraction of the column they are standing in.
+not the column they are standing in.
 
-Measured against the crowd's own rule applied to their live position — which
+Measured (before the bands spanned the screen, against the contraction the crowd
+then got) with the crowd's own rule applied to their live position — which
 reproduces every crowd dot's column to 0.00px, so the metric is the rule — the
 fourteen (the anchor is placed at `w / 2` by the hop-0 branch and is not
 affected) are off by a median of 12–54px on a phone and 134–220px beside the

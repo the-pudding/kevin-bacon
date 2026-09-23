@@ -11,6 +11,10 @@
 	margin: 0;
 	font: inherit;
 	color: inherit;
+	/* the UA sheet sets `text-shadow: none` on every form control, so without
+	   this the term drops the halo the prose it sits in carries, and over the
+	   dot field it is the one phrase in the sentence that cannot be read */
+	text-shadow: inherit;
 	cursor: pointer;
 	text-decoration-line: underline;
 	text-decoration-style: dotted;

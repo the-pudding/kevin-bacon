@@ -52,7 +52,6 @@
 	import Search from "@lucide/svelte/icons/search";
 	import Combobox from "$components/ui/Combobox.svelte";
 	import { SEARCH_RGB, searchActors } from "./search.js";
-	import { MARGIN } from "./plot.js";
 	import { nodeName } from "./states.js";
 	import {
 		HOLD_MS,
@@ -216,52 +215,58 @@
 	}}
 />
 
-<div class="search" style="--plot-margin: {MARGIN}px">
-	<!-- The way in. A bare glyph with an accessible name and nothing beside it —
-	     a label, a tooltip that behaves like one or a pulse would each make it
-	     the call to action this control is deliberately not. It sits at the right
-	     of the title band, which is empty on every chart that offers this (the
-	     titles are centred) and is the one strip of the box no layout plots
-	     into. -->
-	<button
-		class="search__glyph"
-		class:search__glyph--open={open}
-		aria-expanded={open}
-		aria-label={open ? "Close actor search" : "Search for an actor"}
-		onclick={() => (open = !open)}
-	>
-		<Search />
-	</button>
+<!-- Only once the visual is bound: the glyph lines up with the chart's right
+     end, which the visual reports (`plotRightInset`), and the chip flies to a
+     dot only the visual can locate. On a cold load the panel is created in the
+     same flush as the canvas, before `bind:this` has handed it over. -->
+{#if visual}
+	<div class="search" style="--plot-margin: {visual.plotRightInset()}px">
+		<!-- The way in. A bare glyph with an accessible name and nothing beside it —
+		     a label, a tooltip that behaves like one or a pulse would each make it
+		     the call to action this control is deliberately not. It sits at the right
+		     of the title band, which is empty on every chart that offers this (the
+		     titles are centred) and is the one strip of the box no layout plots
+		     into. -->
+		<button
+			class="search__glyph"
+			class:search__glyph--open={open}
+			aria-expanded={open}
+			aria-label={open ? "Close actor search" : "Search for an actor"}
+			onclick={() => (open = !open)}
+		>
+			<Search />
+		</button>
 
-	{#if open}
-		<div class="search__box">
-			{#if picked != null}
-				<!-- Only offered once there is something to clear. The row names the
-				     current pick in its own colour so the reader can tell which dot on
-				     the chart is about to go. -->
-				<p class="search__current">
-					<span class="search__dot" aria-hidden="true"></span>
-					{nodeName(picked)}
-					<button class="search__clear" onclick={clear}>Clear</button>
-				</p>
-			{/if}
-			<Combobox
-				bind:value
-				{items}
-				placeholder="Search for an actor…"
-				emptyText={query.trim().length < 2 ? "Keep typing…" : "No matches"}
-				onsearch={(text) => (query = text)}
-				onValueChange={pick}
-			/>
-		</div>
-	{/if}
+		{#if open}
+			<div class="search__box">
+				{#if picked != null}
+					<!-- Only offered once there is something to clear. The row names the
+					     current pick in its own colour so the reader can tell which dot on
+					     the chart is about to go. -->
+					<p class="search__current">
+						<span class="search__dot" aria-hidden="true"></span>
+						{nodeName(picked)}
+						<button class="search__clear" onclick={clear}>Clear</button>
+					</p>
+				{/if}
+				<Combobox
+					bind:value
+					{items}
+					placeholder="Search for an actor…"
+					emptyText={query.trim().length < 2 ? "Keep typing…" : "No matches"}
+					onsearch={(text) => (query = text)}
+					onValueChange={pick}
+				/>
+			</div>
+		{/if}
 
-	{#if flying != null}
-		<!-- The flier, in the box's place. Thrown away on landing: it leaves as a
-		     dot, and what the reader is left looking at is the dot's own label. -->
-		<span class="search__chip" bind:this={chipEl}>{nodeName(flying)}</span>
-	{/if}
-</div>
+		{#if flying != null}
+			<!-- The flier, in the box's place. Thrown away on landing: it leaves as a
+			     dot, and what the reader is left looking at is the dot's own label. -->
+			<span class="search__chip" bind:this={chipEl}>{nodeName(flying)}</span>
+		{/if}
+	</div>
+{/if}
 
 <style>
 	/* Fills the canvas box (the panel layer is statically positioned, so this
@@ -299,11 +304,13 @@
 	   titles are centred, and on the two scatters — where the cloud does reach
 	   the top-right of the PLOT — it starts well below this.
 
-	   Inset by the PLOT's own right margin, not the canvas box's edge: every
+	   Inset by the PLOT's own right margin, not the canvas box's edge: a column
 	   layout runs its marks from MARGIN to w - MARGIN (plot.js), so the box has
 	   32px of blank either side that nothing is ever drawn in, and a glyph parked
-	   in it sits visibly outboard of the chart. The number is imported rather
-	   than typed so it cannot drift from the plots it is lining up with. */
+	   in it sits visibly outboard of the chart. The number is read off the
+	   visual (`plotRightInset`) rather than typed, so it cannot drift from the
+	   plot it is lining up with — including the hop chart's, which ends at its
+	   screen-wide span instead. */
 	.search__glyph {
 		position: absolute;
 		top: calc(var(--glyph-top) + (1.75rem - var(--48px)) / 2);

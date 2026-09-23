@@ -10,7 +10,7 @@ import {
 	introPosition
 } from "../intro-geometry.js";
 import { CROWD, HOP_INK, HOP_RGB, HOP_DOT_ALPHA } from "../palette.js";
-import { MARGIN, plotBottom, NO_BLEED } from "../plot.js";
+import { MARGIN, NO_BLEED, screenSpan } from "../plot.js";
 import { hopFractions, hopShareLabels } from "../rank-geometry.js";
 import {
 	writeFieldCrowd,
@@ -19,8 +19,7 @@ import {
 	landedSpot,
 	flowSpot,
 	restingSkyDot,
-	skyFlight,
-	skyToColumn
+	skyFlight
 } from "../sky.js";
 import { writeNetwork } from "./intro.js";
 import { withGalaxyHighlight } from "../galaxy-highlight.js";
@@ -93,7 +92,7 @@ function sampleCounts(nodes) {
  * the title card carries on flowing, so the sort starts off the title.
  *
  * Each dot keeps the COLUMN it stands in on the sky — the band only decides its
- * row. The crowd's columns are a uniform scatter across the plot and the intro
+ * row. The crowd's columns are a uniform scatter across the bands and the intro
  * fifteen's are their places in the pulled-back constellation, so the chart is
  * indistinguishable from any other arrival; what changes is the arrival from the
  * sky, where an independent x would send twelve thousand dots off on twelve
@@ -101,42 +100,41 @@ function sampleCounts(nodes) {
  * the universe rains straight down into rows, which is the only reading of this
  * transition that says "sorted".
  *
+ * The bands span the screen the sky fills (`screenSpan`), so the column is the
+ * dot's own screen x with nothing between: no funnel into the reading column,
+ * and so no horizontal travel at all for a dot the reader can see over the
+ * bands. Past the span's cap (a screen wider than SCREEN_CHART_MAX_W) the strip
+ * either side is sky with no band under it, and a dot there takes a hashed
+ * column like one off the canvas.
+ *
  * The column the dot is standing in NOW, not the one it rests in, because the
  * sky never stops: it streams outward from the vanishing point the whole time
- * the reader is on hopSeed and the title card, so a dot can be most of the way across the screen
- * from where the static layout has it. Taking the resting column would put the
- * sort's whole first frame somewhere other than the crowd the reader is looking
- * at. At the flow's t = 0 this is exactly the resting column — which is what a
- * cold load and a reduced-motion read both get.
- *
- * The live sky position is contracted about the shared centre, the same
- * contraction the resting position gets, and because the flow's magnification is
- * about that centre too the two commute: this is exactly where the dot would be
- * if the whole flow had been authored in the column. The intro fifteen are
- * outside the flow (see `landedSpot`) and simply keep their column.
- * (`fieldSpot`'s keep-out dots, the handful nudged off Bacon, are the one place
- * the contraction is approximate, as it always has been.)
+ * the reader is on hopSeed and the title card, so a dot can be most of the way
+ * across the screen from where the static layout has it. Taking the resting
+ * column would put the sort's whole first frame somewhere other than the crowd
+ * the reader is looking at. At the flow's t = 0 this is exactly the resting
+ * column — which is what a cold load and a reduced-motion read both get. The
+ * intro fifteen are outside the flow (see `landedSpot`) and keep their
+ * constellation's column instead — which stands in the reading column, so
+ * beside the prose it can fall outside a capped span and takes a hashed
+ * column like anyone else there.
  *
  * A flowing sky has no outer edge the way a flat one did — a dot is carried out
- * by up to SKY_FAR / SKY_NEAR as it comes forward, so about a third of the crowd
- * is further out than the plot is wide, and no single contraction can hold all
- * of it. Every one of those is off the canvas, which is what makes the rule
- * simple: a dot the reader can SEE falls straight down from where they see it,
- * and a dot they cannot takes a column of its own. The crowd that does land in
- * the plot fills it evenly, so a flat hash for the rest keeps the bands even —
- * the same reasoning the scatters' own park spot uses for a dot they do not
- * plot.
+ * by up to SKY_FAR / SKY_NEAR as it comes forward, so much of the crowd is
+ * further out than the screen is wide. Every one of those is off the canvas,
+ * which is what makes the rule simple: a dot the reader can see over the bands
+ * falls straight down from where they see it, and any other takes a column of
+ * its own.
+ * The crowd that does land in the bands fills them evenly, so a flat hash for
+ * the rest keeps the bands even — the same reasoning the scatters' own park spot
+ * uses for a dot they do not plot.
  */
-function departureColumn(id, w, h, skyBox, contraction) {
-	if (isIntroActor(id)) return landedSpot(id, w, h)[0];
-	// contract about the SKY's centre, land on the COLUMN's. The two are the same
-	// point while the prose sits over the canvas and differ once it sits beside
-	// it; the flow commutes with either, see skyToColumn.
-	const cx = (skyBox[0] + skyBox[1]) / 2;
-	const col =
-		w / 2 + (flowSpot(id, w, h, skyBox, skyFlight.t)[0] - cx) * contraction;
-	if (Math.abs(col - w / 2) <= w / 2 - MARGIN) return col;
-	return MARGIN + hash01(id, 22) * (w - MARGIN * 2);
+function departureColumn(id, f) {
+	const col = isIntroActor(id)
+		? landedSpot(id, f.w, f.h)[0]
+		: flowSpot(id, f.w, f.h, f.skyBox, skyFlight.t)[0];
+	if (col >= f.x0 && col <= f.x1) return col;
+	return f.x0 + hash01(id, 22) * (f.x1 - f.x0);
 }
 
 // fixed header band for the anchor (Bacon) + its label, so the label clears
@@ -150,12 +148,14 @@ const TOP = MARGIN + 12;
 const BANDS_TOP = TOP + HEADER_H + BAND_GAP;
 
 /** the height the four rows share, once the three gaps between them are
- * reserved */
-const bandsHeight = (h) => plotBottom(h) - BANDS_TOP - BAND_GAP * 3;
+ * reserved. Down to a MARGIN off the box's foot rather than to `plotBottom`:
+ * that line keeps a chart clear of the step card or its own axis furniture, and
+ * this chart has neither to clear — the prose lies over it at every width. */
+const bandsHeight = (h) => h - MARGIN - BANDS_TOP - BAND_GAP * 3;
 
 /** the px² the rows come to between them — the crowd's whole canvas, since a
- * dot's column spans the plot and its row spans the stack */
-const bandArea = (w, bandsH) => (w - MARGIN * 2) * bandsH;
+ * dot's column spans the bands and its row spans the stack */
+const bandArea = (x0, x1, bandsH) => (x1 - x0) * bandsH;
 
 // What the crowd's ink comes to, as a multiple of the band area it is packed
 // into. Held constant instead of the RADIUS, which is what makes the chart read
@@ -164,15 +164,16 @@ const bandArea = (w, bandsH) => (w - MARGIN * 2) * bandsH;
 // Coverage is already uniform across the four ROWS by construction: a row's
 // height is proportional to its dot count, so every one of them carries the
 // same ink per px² and the only thing that distinguishes them is thickness.
-// What is not uniform is the BOX. The phone's bands come to a sixth of the
-// side-by-side column's area and hold the same 22,500 dots, so a fixed radius
-// puts them at 10.4x coverage against 1.8x — far past the point where any alpha
-// survives, and the rows stop reading as a crowd and become four blocks of
-// flat colour.
+// What is not uniform is the BOX. The bands span the whole screen, so a phone's
+// come to a fraction of a desktop's area and hold the same 22,500 dots; a fixed
+// radius would put them at many times the desktop's coverage — far past the
+// point where any alpha survives, and the rows stop reading as a crowd and
+// become four blocks of flat colour.
 //
-// The number is the side-by-side column's own coverage, so the widest box keeps
-// the 3px dot it has always had and every narrower one shrinks to meet it:
-// nothing this scaling touches gets denser than it is today.
+// The number is the coverage the side-by-side column's 3px dot gave, when the
+// bands still stopped at the reading column. A wider box grows the dot to hold
+// it and a narrower one shrinks it, so the rows read at the same density on
+// every screen.
 const CROWD_COVERAGE = 1.772;
 
 /** the radius that puts CROWD_COVERAGE times `area` of ink on the canvas,
@@ -205,7 +206,8 @@ function bandGeometry(shares, bandsH) {
 }
 
 /**
- * The row the anchor stands in: big, centred, and the only red dot.
+ * The row the anchor stands in: big, centred on the screen, and the only red
+ * dot.
  *
  * Invisible while the search's chip is still carrying this anchor to it
  * (`arriving`). The dot is written at the slot all the same — a hidden mark
@@ -216,7 +218,15 @@ function bandGeometry(shares, bandsH) {
  */
 function placeAnchor(attrs, id, f, arriving) {
 	const y = f.bandTop[0] + f.bandH[0] / 2;
-	set(attrs, id, f.w / 2, y, 10, HOP_RGB[0], f.seed || arriving ? 0 : 1);
+	set(
+		attrs,
+		id,
+		(f.x0 + f.x1) / 2,
+		y,
+		10,
+		HOP_RGB[0],
+		f.seed || arriving ? 0 : 1
+	);
 }
 
 /**
@@ -228,7 +238,7 @@ function placeAnchor(attrs, id, f, arriving) {
  * quota instead (see BAND_ORDER).
  *
  * @param {number} band which hop row, 1–4
- * @param {{ w: number, h: number, skyBox: number[], contraction: number,
+ * @param {{ w: number, h: number, x0: number, x1: number, skyBox: number[],
  *   bandTop: number[], bandH: number[], r: number, seed: boolean }} f the frame
  */
 function placeInBand(attrs, id, band, f) {
@@ -236,7 +246,7 @@ function placeInBand(attrs, id, band, f) {
 		attrs,
 		id,
 		// the column the dot leaves hopSeed's sky in, parallax and all
-		departureColumn(id, f.w, f.h, f.skyBox, f.contraction),
+		departureColumn(id, f),
 		f.bandTop[band] + hash01(id, 4) * f.bandH[band],
 		f.r,
 		HOP_RGB[band],
@@ -247,29 +257,43 @@ function placeInBand(attrs, id, band, f) {
 	);
 }
 
-/** the four rows' labels, pinned to the middle of the band each one names */
+// How far below its row's top edge a label hangs, at most. A thin row is
+// labelled through its middle as it always was; a thick one hangs its label
+// just inside its top edge instead, because the prose lies over the chart's
+// middle (`proseOver`) and on a phone runs the full width — so a label at the
+// middle of the 2-movie row, which is most of the chart, sat under the words.
+const LEGEND_TOP_INSET = 12;
+
+/** the four rows' labels, each hung just inside the top of the row it names */
 function hopLegend(labels, f) {
 	return [1, 2, 3, 4].map((hop) => ({
 		color: HOP_RGB[hop],
 		ink: HOP_INK[hop],
 		label: `${hop} movie${hop > 1 ? "s" : ""} away — ${labels[hop - 1]} of actors`,
-		x: MARGIN,
-		y: f.bandTop[hop] + f.bandH[hop] / 2
+		x: f.x0,
+		y: f.bandTop[hop] + Math.min(f.bandH[hop] / 2, LEGEND_TOP_INSET)
 	}));
 }
 
-/** the sky the crowd arrives from, how far one of its pixels travels as it
- * funnels back into the reading column, and the size a dot is at this box.
- * Struck once, outside the dot loop */
+/** the bands' horizontal span, the sky the crowd arrives from, and the size a
+ * dot is at this box. Struck once, outside the dot loop.
+ *
+ * The span is the screen's, not the reading column's (`screenSpan`: edge to
+ * edge up to a cap, centred on the screen), and the prose lies over it
+ * (`proseOver` below). `.scrolly-visual`'s box is untouched — the canvas
+ * element already reaches the viewport's edges, so widening the chart is a
+ * matter of authoring into the bleed. */
 function bandFrame(w, h, bleed, shares, count, seed = false) {
 	const bandsH = bandsHeight(h);
+	const [x0, x1] = screenSpan(w, bleed);
 	return {
 		w,
 		h,
+		x0,
+		x1,
 		skyBox: galaxyBox(w, h, bleed),
-		contraction: skyToColumn(w, h, bleed),
 		seed,
-		r: crowdDotR(bandArea(w, bandsH), count),
+		r: crowdDotR(bandArea(x0, x1, bandsH), count),
 		...bandGeometry(shares, bandsH)
 	};
 }
@@ -551,6 +575,9 @@ export const states = {
 		// own the moment the step does (ScrollyVisual's chartFurniture). As two
 		// scenes, 4 <-> 5 blanked the title and legend for a whole tween.
 		scene: "hops",
+		// The bands span the whole screen (see bandFrame), so the prose lies
+		// over them rather than beside them — Stage.svelte reads this.
+		proseOver: true,
 		title: "The four degrees of Kevin Bacon",
 		labels: [ANCHOR_ID],
 		// The cascade is authored for the forward arrival off the title card's
@@ -572,6 +599,7 @@ export const states = {
 		// the reveal is authored for nobody (see arrivalDelays).
 		revealFrom: [],
 		scene: "hops",
+		proseOver: true,
 		// Static: it does not need to carry the anchor's name, because the
 		// anchor's dot is the only labelled thing on the chart and it is 60px
 		// above this line — and a title that changed on every turn of the cycle

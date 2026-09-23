@@ -178,8 +178,8 @@ export const SKY_IDS = [...FIELD_IDS, ...INTRO_IDS];
 
 /**
  * Is this one of the intro fifteen — the exception `landedSpot` already makes, and
- * the one the contraction above has to make too? They stand at
+ * the one the hop bands' departure column makes too? They stand at
  * `introPosition(PULLBACK_ZOOM)` in both boxes and are outside the flow
- * entirely, so nothing about them funnels when the sky does.
+ * entirely, so they keep their own column when the sky sorts into rows.
  */
 export const isIntroActor = (id) => INTRO_SET.has(id);

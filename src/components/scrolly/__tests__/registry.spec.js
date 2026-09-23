@@ -14,7 +14,8 @@ import {
 	STATE_TITLE,
 	STATE_SCENE,
 	OVERLAYS,
-	entryFor
+	entryFor,
+	isProseOver
 } from "../states.js";
 import { NODE_COUNT } from "../nodes.js";
 import { BOXES, arrivalContext, layoutParamsFor, phasesOf } from "./helpers.js";
@@ -188,5 +189,29 @@ describe("state registry", () => {
 				);
 			}
 		}
+	});
+
+	// The chart title is part of the scene's furniture and holds still across
+	// it, and a proseOver state centres that title on the screen rather than
+	// the column — so a scene split on the flag would walk its title sideways
+	// on a step change that is meant to leave the furniture alone.
+	test("states sharing a scene agree on whether the prose lies over them", () => {
+		/** @type {Record<string, string[]>} */
+		const byScene = {};
+		for (const [state, scene] of Object.entries(STATE_SCENE)) {
+			(byScene[scene] ??= []).push(state);
+		}
+		for (const [scene, members] of Object.entries(byScene)) {
+			const [first] = members;
+			for (const state of members) {
+				expect(isProseOver(state), `${scene}: ${state} proseOver`).toBe(
+					isProseOver(first)
+				);
+			}
+		}
+	});
+
+	test("the prose lies over the hop chart and nothing else", () => {
+		expect(names.filter(isProseOver)).toEqual(["hopBands", "hopAnchor"]);
 	});
 });
