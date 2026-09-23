@@ -1,4 +1,5 @@
 import { describe, expect, test } from "vitest";
+import { prepareArrival } from "../arrivals.js";
 import { createStepRegistry } from "../step-registry.svelte.js";
 import { story } from "../story.svelte.js";
 
@@ -118,6 +119,36 @@ describe("createStepRegistry", () => {
 		story.entryHeld = true;
 		expect(steps.hideBar).toBe(true);
 		story.entryHeld = false;
+	});
+
+	test("a step left before its neighbour landed is held again on return", () => {
+		const steps = createStepRegistry({ navigate: prepareArrival });
+		for (const config of OPENING) steps.register(config);
+		for (const to of [1, 2, 3]) steps.go(to);
+		steps.advance();
+		story.settledStep = 4;
+		expect(steps.held).toBe(false);
+		// back, and forward again before step 2 has landed
+		steps.prev();
+		steps.advance();
+		expect(steps.current).toBe(3);
+		steps.advance();
+		expect(steps.current).toBe(4);
+		expect(steps.held).toBe(true);
+		story.settledStep = -1;
+	});
+
+	test("a change of state disarms `settled`; two steps on one state keep it", () => {
+		const steps = createStepRegistry({ navigate: prepareArrival });
+		for (const state of ["titleGalaxy", "networkIntro", "networkIntro"])
+			steps.register({ state });
+		steps.go(1);
+		story.settled = "networkIntro";
+		steps.go(2);
+		expect(story.settled).toBe("networkIntro");
+		steps.prev();
+		steps.prev();
+		expect(story.settled).toBe(null);
 	});
 
 	test("exit is one-way", () => {

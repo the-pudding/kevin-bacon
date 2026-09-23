@@ -97,6 +97,21 @@ export function prepareArrival(move) {
 	// out not to play one (reduced motion, a resize) ScrollyVisual drops it on
 	// the same flush, so the hold lasts a frame and nothing waits on it.
 	story.entryHeld = forward && entryFor(to, from)?.cardAfter != null;
+	// Un-land the beat. `settledStep` is only ever written by a landing, so a
+	// reader who steps back and returns before the step they stepped back to has
+	// landed would find it still naming the step they came back to: landed from
+	// the frame of the press, and anything latched on the landing (the rank
+	// ladder's fade-in) never sees the change it waits for. Here rather than on
+	// every step change: advance() only moves one step on, so every round trip
+	// includes a go(), and so a pass through here.
+	story.settledStep = -1;
+	// ...and the state-scoped twin, for the same reason: stepping networkIntro on
+	// to hopSeed and back before hopSeed had landed left it reading
+	// "networkIntro", so the tour's dwell started on the frame of the press, over
+	// dots still flying home. Only on a change of STATE, because a move between
+	// two steps sharing one is not a landing at all — nothing travels, so nothing
+	// would settle it again, and the tour across the 1 → 2 join would stop dead.
+	if (to !== from) story.settled = null;
 	// the rank panel only carries over into raceRecent when the reader actually
 	// walks there out of the rank chapter — that is the one arrival whose bars
 	// collapse into the chart's dots. Reloading straight onto raceRecent, or

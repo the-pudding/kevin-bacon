@@ -27,10 +27,11 @@ const SIM_N_SIMS = simStory.genz.nSims;
 
 export const story = $state({
 	/** name of the STATE whose arrival has finished, else null. Set by
-	 * ScrollyVisual's settle(), and set-only: stepping away un-arms every gate
-	 * on it by itself, because the name stops matching. Read by the things that
-	 * genuinely ask a state question — the actor tour and its caption, the rank
-	 * ladder's latch. */
+	 * ScrollyVisual's settle(), and cleared by the arrival rules on a move that
+	 * changes state (see arrivals.js) — otherwise a reader who stepped away and
+	 * back before any other state landed would find it still naming the state
+	 * they return to. Read by the things that genuinely ask a state question —
+	 * the actor tour and its caption. */
 	settled: null,
 	/** index of the STEP whose arrival has finished, -1 before the first paint.
 	 * The step-scoped twin of `settled`, and the signal almost everything that
@@ -146,8 +147,8 @@ export const story = $state({
 		collapsed: false,
 		/** the ladder panel has faded in. A latch: it has to outlive rankFocus —
 		 * the panel spans the step change into raceRecent — and re-checking
-		 * `settled` live would hide it again the moment the reader reaches
-		 * rankReveal. Index raises it; the arrival rules re-arm it when the reader
+		 * the live step would hide it again the moment the reader reaches
+		 * raceRecent. Stage raises it once a rank step has landed; the arrival rules re-arm it when the reader
 		 * steps back out of the chapter (see arrivals.js) */
 		revealed: false,
 		/** the ladder carries over into raceRecent. Set by the arrival rules for

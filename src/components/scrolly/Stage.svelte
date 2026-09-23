@@ -170,16 +170,22 @@
 	// ladder sat at opacity 0 for good, over a canvas carrying nothing but Bacon's
 	// bar — which this panel is placed to cover (see layouts/rank.js).
 	//
-	// Both clauses ask `story.settled`, not the live step. Asking the live step
-	// raised the ladder in the frame of the press, so stepping back out of the
-	// race it faded up at full ink over a chart that had not begun to leave —
-	// furniture arriving before the canvas it belongs to, which is the beat this
-	// whole pass is about (motion.md rule 6). `settled` names the state whose
-	// arrival has landed, so rankReveal still satisfies it on the reload and the
-	// step-back this clause exists for; it just waits for the dots first.
+	// It asks whether the step has LANDED, not which step is live. Asking the
+	// live step raised the ladder in the frame of the press, so stepping back out
+	// of the race it faded up at full ink over a chart that had not begun to
+	// leave — furniture arriving before the canvas it belongs to, which is the
+	// beat this whole pass is about (motion.md rule 6). A rank step that has
+	// landed still satisfies it on the reload and the step-back this clause
+	// exists for; it just waits for the dots first.
+	//
+	// Step-scoped (`steps.held`), not `story.settled`. That one names a state and
+	// is set-only, so stepping rankFocus back to hopAnchor and returning before
+	// hopAnchor had landed left it reading "rankFocus" throughout: the second
+	// landing wrote the same value, this effect never re-ran, and the latch
+	// `leaveRank` had just dropped stayed down — the ladder at opacity 0 for good
+	// over Bacon's bar.
 	$effect(() => {
-		if (story.settled === "rankFocus" || story.settled === "rankReveal")
-			story.rank.revealed = true;
+		if (isRankState(currentState) && !steps.held) story.rank.revealed = true;
 	});
 	// the overlay is up through the rank chapter, and for the collapse that opens
 	// raceRecent — until the nodes are the canvas's (see RankBars' `collapse`)
@@ -622,7 +628,7 @@
 	   hopBands → rankFocus canvas collapse (the bar can only be aimed once
 	   RankBars has measured its focus row), so the fade-in is held back — via
 	   the `.revealed` class, driven by `story.rank.revealed`, which
-	   only flips once `story.settled` confirms that retarget has actually
+	   only flips once the step has landed (`steps.held`) — once that retarget has actually
 	   landed — until the frame it lands on is the one this list then draws,
 	   dot for dot. */
 	.rank-bars-panel {
