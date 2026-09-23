@@ -97,10 +97,7 @@
 		color: var(--color-fg);
 		/* the same halo as .credits-block p: this sits over the drifting dot
 		   field, not over a plain background */
-		text-shadow:
-			0 0 4px var(--color-bg, #fff),
-			0 0 4px var(--color-bg, #fff),
-			0 0 8px var(--color-bg, #fff);
+		text-shadow: var(--text-halo);
 	}
 
 	.key {

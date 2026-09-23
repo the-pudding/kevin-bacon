@@ -729,15 +729,8 @@
 		color: var(--color-fg);
 		/* halo, not a plate: the title lies over the drifting crowd, and a solid
 		   background would punch a rectangle out of the universe it is meant to be
-		   inside. Sized up from .node-label's — display type over a dot field needs
-		   a wider hold-out than an 11px name does. */
-		text-shadow:
-			0 0 8px var(--color-bg, #fff),
-			0 0 8px var(--color-bg, #fff),
-			0 0 16px var(--color-bg, #fff),
-			0 0 16px var(--color-bg, #fff),
-			0 0 28px var(--color-bg, #fff),
-			0 0 28px var(--color-bg, #fff);
+		   inside. */
+		text-shadow: var(--text-halo);
 	}
 
 	/* The title card, in the same centred box as a chapter's — see .chapter-card
@@ -775,14 +768,8 @@
 		text-align: center;
 		text-wrap: balance;
 		color: var(--color-fg);
-		/* the same halo the chapter title carries, opened up for the larger face */
-		text-shadow:
-			0 0 10px var(--color-bg, #fff),
-			0 0 10px var(--color-bg, #fff),
-			0 0 20px var(--color-bg, #fff),
-			0 0 20px var(--color-bg, #fff),
-			0 0 36px var(--color-bg, #fff),
-			0 0 36px var(--color-bg, #fff);
+		/* the same halo the chapter title carries */
+		text-shadow: var(--text-halo);
 	}
 
 	/* The Pudding's wordmark, pinned to the top of the screen rather than
@@ -801,10 +788,9 @@
 		display: flex;
 		justify-content: center;
 		pointer-events: none;
-		/* two layers, same as .splash-cue's halo — not the h1's six: that halo
-		   is tuned for a solid serif block letter, and stacked that far on this
-		   wordmark's thin, close-set script strokes just merges into a visible
-		   white blob instead of a halo. */
+		/* two soft layers, not --text-halo: that halo is tuned for solid letters,
+		   and on this wordmark's thin, close-set script strokes it just merges
+		   into a visible white blob instead of a halo. */
 		filter: drop-shadow(0 0 6px var(--color-bg, #fff))
 			drop-shadow(0 0 6px var(--color-bg, #fff));
 	}
@@ -827,11 +813,7 @@
 		font-size: var(--16px, 1rem);
 		letter-spacing: 0.02em;
 		color: var(--color-fg);
-		text-shadow:
-			0 0 6px var(--color-bg, #fff),
-			0 0 6px var(--color-bg, #fff),
-			0 0 12px var(--color-bg, #fff),
-			0 0 12px var(--color-bg, #fff);
+		text-shadow: var(--text-halo);
 		z-index: var(--z-tap-above);
 	}
 
@@ -865,11 +847,7 @@
 		   for — the button underneath has to get it */
 		pointer-events: none;
 		z-index: var(--z-tap-above);
-		text-shadow:
-			0 0 6px var(--color-bg, #fff),
-			0 0 6px var(--color-bg, #fff),
-			0 0 12px var(--color-bg, #fff),
-			0 0 12px var(--color-bg, #fff);
+		text-shadow: var(--text-halo);
 		animation: splash-nudge 2.6s ease-in-out infinite;
 	}
 
@@ -990,16 +968,10 @@
 		/* halo, not a plate — the same reason .chapter-card h2 carries one. A
 		   full-bleed state (hopSeed, the chapter cards) puts the crowd behind the
 		   copy all the way to the bottom edge, and a background would be a
-		   rectangle cut out of the sky. Sized from .node-label's rather than the
-		   title's: body copy needs a tighter hold-out than display type. It costs
+		   rectangle cut out of the sky. It costs
 		   nothing on the boxed steps, where the field stops at plotBottom and the
 		   text sits on plain white. */
-		text-shadow:
-			0 0 4px var(--color-bg, #fff),
-			0 0 4px var(--color-bg, #fff),
-			0 0 8px var(--color-bg, #fff),
-			0 0 8px var(--color-bg, #fff),
-			0 0 12px var(--color-bg, #fff);
+		text-shadow: var(--text-halo);
 	}
 
 	/* An InfoTerm trigger sits inline and lands wherever the line wraps puts it,

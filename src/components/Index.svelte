@@ -978,24 +978,13 @@
 		letter-spacing: 0.03em;
 		text-transform: uppercase;
 		color: var(--color-fg);
-		text-shadow:
-			0 0 8px var(--color-bg, #fff),
-			0 0 8px var(--color-bg, #fff),
-			0 0 16px var(--color-bg, #fff),
-			0 0 16px var(--color-bg, #fff),
-			0 0 28px var(--color-bg, #fff),
-			0 0 28px var(--color-bg, #fff);
+		text-shadow: var(--text-halo);
 	}
 
 	#credits :global(.credits-block p) {
 		margin: 0;
 		color: var(--color-fg);
-		text-shadow:
-			0 0 4px var(--color-bg, #fff),
-			0 0 4px var(--color-bg, #fff),
-			0 0 8px var(--color-bg, #fff),
-			0 0 8px var(--color-bg, #fff),
-			0 0 12px var(--color-bg, #fff);
+		text-shadow: var(--text-halo);
 	}
 
 	/* a film credit's line: role on the left, name on the right, same halo as

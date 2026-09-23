@@ -2602,12 +2602,7 @@
 		color: var(--color-gray-900, #222);
 		/* halo, not opaque: a name sits over the dot cloud and its own links,
 		   and an opaque tag hides too much of the data underneath it */
-		text-shadow:
-			0 0 4px var(--color-bg, #fff),
-			0 0 4px var(--color-bg, #fff),
-			0 0 8px var(--color-bg, #fff),
-			0 0 8px var(--color-bg, #fff),
-			0 0 12px var(--color-bg, #fff);
+		text-shadow: var(--text-halo);
 		/* two channels multiplied: --dot-alpha is the dot's own alpha, written
 		   inline every frame, and --name-alpha is a text swap crossfading over it
 		   (see nameSwap). The transition rides --dot-alpha as it always did. */
@@ -2751,18 +2746,14 @@
 		left: 50%;
 		transform: translateX(-50%);
 		/* clamps above the step card on long-prose steps — may sit over dots */
-		text-shadow:
-			0 0 3px var(--color-bg, #fff),
-			0 0 6px var(--color-bg, #fff);
+		text-shadow: var(--text-halo);
 	}
 
 	.tick {
 		font-size: 0.75rem;
 		color: var(--color-gray-500, #888);
 		/* tick numbers can sit over the dot cloud (tight left margin) — keep them legible */
-		text-shadow:
-			0 0 3px var(--color-bg, #fff),
-			0 0 6px var(--color-bg, #fff);
+		text-shadow: var(--text-halo);
 	}
 
 	.tick-x {
@@ -2787,9 +2778,7 @@
 		z-index: var(--z-tap-above);
 		font-size: 0.75rem;
 		color: var(--color-gray-500, #888);
-		text-shadow:
-			0 0 3px var(--color-bg, #fff),
-			0 0 6px var(--color-bg, #fff);
+		text-shadow: var(--text-halo);
 		bottom: 1.6rem; /* fallback when the layout provides no xBase */
 		transform: translateX(-50%);
 	}
@@ -2858,9 +2847,7 @@
 		white-space: nowrap;
 		/* it sits in the axis headroom above the plot, and can overhang the box on a
 		   narrow strip, so it needs the same legibility halo the ticks carry */
-		text-shadow:
-			0 0 3px var(--color-bg, #fff),
-			0 0 6px var(--color-bg, #fff);
+		text-shadow: var(--text-halo);
 	}
 
 	/* the ring has no text: it IS the mark, and the note beside it is what carries
@@ -2934,15 +2921,9 @@
 		font-size: var(--12px, 12px);
 		line-height: 1.35;
 		color: var(--color-gray-900, #222);
-		/* the node-label halo, not .note's lighter one: this is three or four lines
-		   sitting over the chasing field, where two shadow layers leave the lines
-		   showing through the counters */
-		text-shadow:
-			0 0 4px var(--color-bg, #fff),
-			0 0 4px var(--color-bg, #fff),
-			0 0 8px var(--color-bg, #fff),
-			0 0 8px var(--color-bg, #fff),
-			0 0 12px var(--color-bg, #fff);
+		/* three or four lines sitting over the chasing field, which would
+		   otherwise show through the counters */
+		text-shadow: var(--text-halo);
 	}
 
 	/* A note ABOVE its ring is positioned by its bottom edge: the payload's `top`
@@ -2973,9 +2954,7 @@
 		font-size: 0.75rem;
 		color: var(--color-gray-700, #444);
 		white-space: nowrap;
-		text-shadow:
-			0 0 3px var(--color-bg, #fff),
-			0 0 6px var(--color-bg, #fff);
+		text-shadow: var(--text-halo);
 	}
 
 	.note.wrap {
@@ -3008,9 +2987,7 @@
 		font-size: 0.75rem;
 		font-style: italic;
 		color: var(--color-gray-500, #888);
-		text-shadow:
-			0 0 3px var(--color-bg, #fff),
-			0 0 6px var(--color-bg, #fff);
+		text-shadow: var(--text-halo);
 		/* same rotated column as .y-label, so "lower"/"Remoteness"/"higher"
 		   read as one vertical line; rotate INSIDE transform (see .y-label) */
 		writing-mode: vertical-rl;
@@ -3070,11 +3047,6 @@
 		display: grid;
 		transform: translateY(-50%);
 		white-space: nowrap;
-		text-shadow:
-			0 0 4px var(--color-bg, #fff),
-			0 0 4px var(--color-bg, #fff),
-			0 0 8px var(--color-bg, #fff),
-			0 0 8px var(--color-bg, #fff),
-			0 0 12px var(--color-bg, #fff);
+		text-shadow: var(--text-halo);
 	}
 </style>
