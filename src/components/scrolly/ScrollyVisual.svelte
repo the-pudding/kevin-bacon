@@ -2236,9 +2236,15 @@
 						aria-hidden="true"
 						style="left: {b.x}px; top: {b.y}px; width: {b.width}px; height: {b.height}px"
 					></span>
-					<p class="band-label" style="left: {b.label.x}px; top: {b.label.y}px">
-						the future
-					</p>
+					{#if b.label}
+						<p
+							class="band-label fade-in"
+							class:band-label-right={b.label.right}
+							style="left: {b.label.x}px; top: {b.label.y}px"
+						>
+							the future
+						</p>
+					{/if}
 				</div>
 			{/if}
 			{#if ring}
@@ -2845,23 +2851,34 @@
 
 	/* Selected as `.overlay p` + a class for the specificity reason spelled out on
 	   .callout-note: a lone class loses to `.overlay p`'s font stack.
-	   The text is NOT yellow — #ccbb44 on white is ~1.75:1, which fails at any
-	   size. A decorative border may be that low-contrast; a label may not. */
+	   The text is a darkened tint of --category-yellow rather than the raw token —
+	   #ccbb44 on white is ~1.75:1, which fails at any size; #6b5f15 clears AA
+	   (~6.4:1) while still reading as yellow, not ink. */
 	/* A plain class, not `.overlay p.band-label`: this lives in the ANNOTATIONS
 	   layer (so the block's wash can sit under the names), where no generic `p`
 	   rule competes with it. `position` and `margin` are stated here because
 	   nothing else supplies them — without them the label detaches from the
-	   payload's coordinates and lands at the top of the layer. */
+	   payload's coordinates and lands at the top of the layer. It mounts only
+	   once the box is fully drawn (raceFutureBand withholds it until then), so
+	   its own `.fade-in` reads as the label arriving, not as it sliding along
+	   with the box's growing edge. */
 	.band-label {
 		position: absolute;
 		margin: 0;
+		font-family: var(--font-mono);
 		font-size: 0.75rem;
 		letter-spacing: 0.04em;
-		color: var(--color-gray-700, #444);
+		color: #6b5f15;
 		white-space: nowrap;
-		/* it sits in the axis headroom above the plot, and can overhang the box on a
-		   narrow strip, so it needs the same legibility halo the ticks carry */
+		/* it sits just inside the box, and can crowd the border on a narrow strip,
+		   so it needs the same legibility halo the ticks carry */
 		text-shadow: var(--text-halo);
+	}
+
+	/* the top-right corner: the anchor `x` is the box's right edge, so the text
+	   is pulled back by its own rendered width to sit inside it */
+	.band-label-right {
+		transform: translateX(-100%);
 	}
 
 	/* the ring has no text: it IS the mark, and the note beside it is what carries

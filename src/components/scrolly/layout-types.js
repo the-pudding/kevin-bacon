@@ -56,10 +56,12 @@
  * @property {number} width px, x → the frontier's position on that scale. Grows
  *   from 0 as the strip opens
  * @property {number} height px, the plot's full height
- * @property {{x: number, y: number}} label px, top-left of the block's label.
- *   ABOVE the box, not inside its corner — the crown's own name renders just
- *   inside the box's left edge, and on a landscape phone the two line boxes
- *   would overlap
+ * @property {{x: number, y: number, right: boolean}|null} label px, the anchor
+ *   of the block's label, inside the box's top corner — `right` says which
+ *   corner, and the markup right-aligns the text to `x` when it's set. Fixed at
+ *   the box's FINAL width, not the currently-drawn one, and null until the box
+ *   has actually reached that width — so the label never tracks the box's
+ *   growing edge and only appears once it is fully drawn
  *
  * @typedef {Object} LegendItem
  * @property {number[]} color rgb triple

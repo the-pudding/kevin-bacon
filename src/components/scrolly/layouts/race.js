@@ -1375,13 +1375,6 @@ function raceFutureTicks(cam, frontier) {
 	return out.reverse();
 }
 
-// The block's label sits ABOVE its top edge rather than inside the corner, and
-// that is a requirement rather than a preference: the crown's own name renders
-// at x(RACE_DATA_END) + 7 (labelDirs "right"), and on a landscape phone the plot
-// is only ~190px tall, which would put that name's line box inside the label's.
-// The ~42px of headroom above the plot is empty at every width.
-const BAND_LABEL_LIFT = 16;
-
 /**
  * The future block's pixel geometry for one frame, or null when the strip is
  * shut (every step but raceFuture, and the whole of its first leg).
@@ -1389,30 +1382,39 @@ const BAND_LABEL_LIFT = 16;
  * No `alpha`, and that is the difference from raceCalloutGeometry: a callout
  * needs one because it TRAVELS and culls at each plot edge, where a block of
  * prose popping off reads as a bug. This exists only on a parked camera, so it
- * never travels and never culls — it is simply absent instead. Its two opacity
- * concerns are both CSS: the mount fade on the wrapper, and the right-edge
- * gradient masked onto the box. A frontier-driven ramp, if one is ever wanted,
- * has to ride the CHILD for the reason spelled out on the callout's markup — an
- * animation with fill-mode `both` outranks an inline opacity for good.
+ * never travels and never culls — it is simply absent instead. Its opacity
+ * concerns are CSS: the mount fade on the wrapper (the box's own draw-on, which
+ * tracks `width` growing frame by frame) and the right-edge gradient masked onto
+ * the box. The label is different — it must NOT track the growing edge, or it
+ * reads as sliding rather than as a box being drawn — so it is placed at the
+ * box's FINAL width (every step that opens this strip rests it at
+ * RACE_FUTURE_END) and withheld from the payload entirely until the box has
+ * actually reached that width. The markup mounts it only then, which gives it
+ * its own separate `.fade-in` rather than the wrapper's.
  */
 function raceFutureBand(cam, frontier, labelInside = false) {
 	if (!(frontier > RACE_DATA_END)) return null;
 	const { x0, right, pitch, xS } = raceFutureScale(cam);
 	if (pitch <= 0 || x0 > right - 1) return null;
+	const width = Math.min(xS(frontier), right) - x0;
+	const fullWidth = Math.min(xS(RACE_FUTURE_END), right) - x0;
+	const open = frontier >= RACE_FUTURE_END - 1e-6;
 	return {
 		x: x0,
 		y: cam.top,
-		width: Math.min(xS(frontier), right) - x0,
+		width,
 		height: cam.bottom - cam.top,
-		// ...unless the step asks for it INSIDE the box's top-left corner. The lift
-		// above is there because the crown's own name renders just inside that
-		// corner on raceFuture; the closing step's names are all out at the strip's
-		// far edge, so the corner is free — and the lift is actively wrong there,
-		// because a year of history in front of the block pushes its left edge into
-		// the middle of the canvas, straight under the centred chart title.
-		label: labelInside
-			? { x: x0 + 6, y: cam.top + 4 }
-			: { x: x0 + 2, y: cam.top - BAND_LABEL_LIFT }
+		// Top-left inside the box for the closing step, whose projected names sit
+		// out at the strip's far (right) edge; top-right inside the box for every
+		// other step, whose crown's own name renders right at the strip's left
+		// edge (x(RACE_DATA_END) + 7) and would otherwise share the corner. `right`
+		// says which corner: the markup right-aligns the text to `x` when it's set,
+		// since the box's width (and so its right edge) varies frame to frame.
+		label: open
+			? labelInside
+				? { x: x0 + 6, y: cam.top + 4, right: false }
+				: { x: x0 + fullWidth - 6, y: cam.top + 4, right: true }
+			: null
 	};
 }
 
