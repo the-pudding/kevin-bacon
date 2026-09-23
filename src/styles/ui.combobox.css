@@ -10,11 +10,12 @@
 	width: 100%;
 	border: 1px solid var(--color-border);
 	border-radius: var(--radius-md);
+	min-height: var(--48px);
 	padding: 0.5rem;
 	background: var(--color-bg);
 	color: var(--color-fg);
 	font-family: var(--font-form);
-	font-size: inherit;
+	font-size: var(--16px);
 }
 
 [data-combobox-input]:disabled {
@@ -47,6 +48,7 @@
 	position: relative;
 	display: flex;
 	align-items: center;
+	min-height: var(--48px);
 	padding: 0.5rem;
 	cursor: pointer;
 	user-select: none;

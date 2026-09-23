@@ -129,7 +129,9 @@
 
 	button {
 		font-family: var(--font-mono);
-		font-size: 0.8rem;
+		font-size: var(--16px);
+		min-width: var(--48px);
+		min-height: var(--48px);
 		padding: 0.4rem 0.7rem;
 		border: 1px solid var(--color-gray-400);
 		border-radius: 2rem;
@@ -140,8 +142,7 @@
 
 	button.give-up {
 		align-self: flex-start;
-		font-size: 0.75rem;
-		color: var(--color-gray-500, #888);
+		color: var(--category-gray-dark);
 		background: none;
 		border-color: var(--color-gray-300, #ccc);
 	}
@@ -155,7 +156,6 @@
 
 	.verdict button.change,
 	.verdict button.give-up {
-		font-size: 0.75rem;
 		padding: 0.2rem 0.6rem;
 		margin-left: 0.5rem;
 	}

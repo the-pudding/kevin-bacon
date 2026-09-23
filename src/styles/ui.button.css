@@ -4,6 +4,8 @@
 	align-items: center;
 	justify-content: center;
 	border: none;
+	min-width: var(--48px);
+	min-height: var(--48px);
 	font-size: inherit;
 	outline: none;
 	text-decoration: none;

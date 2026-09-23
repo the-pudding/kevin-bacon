@@ -278,7 +278,7 @@
 	   so the reserved height below cannot drift from the chips it is reserving
 	   for. */
 	.quiz {
-		--chip-h: 2.75rem; /* comfortable tap target on mobile */
+		--chip-h: var(--48px); /* the minimum tap target on mobile */
 		--chip-gap: 0.75rem;
 		display: flex;
 		flex-direction: column;
@@ -333,7 +333,7 @@
 		align-items: center;
 		justify-content: center;
 		font-family: var(--font-mono);
-		font-size: 0.9rem;
+		font-size: var(--16px);
 		padding: 0.7rem 1.2rem;
 		min-height: var(--chip-h);
 		border: 1px solid var(--verdict, var(--color-gray-400, #999));

@@ -2,7 +2,7 @@
 	// @ts-check
 	/**
 	 * Race-chapter pan control. Two controls over one playhead year: a pointer
-	 * drag surface over the plot and a bits-ui year Slider (keyboard-accessible).
+	 * drag surface over the plot and a native year range input (keyboard-accessible).
 	 * Both write `story.race.scrubYear`/`story.race.scrubbing` only — ScrollyVisual owns the
 	 * buffer writes and the on-release `raceView` hold.
 	 *
@@ -11,24 +11,20 @@
 	 * way a map does. Bounds and the live playhead come from `story.race.cam`, which
 	 * ScrollyVisual publishes because only it knows the canvas width.
 	 */
-	import Slider from "$components/ui/Slider.svelte";
 	import { story } from "./story.svelte.js";
 
 	const cam = $derived(story.race.cam);
 	// playhead the reader is aiming at; falls back to the published camera whenever
 	// they aren't driving it (a step change, a choreography, a resize re-clamp)
 	const value = $derived(story.race.scrubYear ?? cam?.playhead ?? 0);
-	// The Slider's own domain is whole years, and every value it is handed has to
-	// BE one: the camera's bounds and playhead are fractional (a step's resting
-	// camera is its extent start + however many years the viewport shows), and
-	// bits-ui snaps a
-	// value that isn't on its step grid by writing the snapped one back through
-	// onValueChange — indistinguishable here from the reader moving the control, so
-	// the mount of a freshly-arrived step would announce a scrub nobody started
-	// (and never commit it, leaving story.race.scrubbing stuck on). The grid is rounded
-	// OUTWARD so it always spans at least one whole year however wide the viewport
-	// makes the camera; onSlide clamps the year it yields back to the real bounds,
-	// so the two ends of the track still mean exactly panMin and panMax.
+	// The range's own domain is whole years, and every value it is handed is one:
+	// the camera's bounds and playhead are fractional (a step's resting camera is
+	// its extent start + however many years the viewport shows), and a range input
+	// silently sanitises an off-grid value onto its step grid, so the grid is made
+	// explicit here rather than left to the browser. It is rounded OUTWARD so it
+	// always spans at least one whole year however wide the viewport makes the
+	// camera; onSlide clamps the year it yields back to the real bounds, so the two
+	// ends of the track still mean exactly panMin and panMax.
 	const sliderMin = $derived(Math.floor(cam?.panMin ?? 0));
 	const sliderMax = $derived(Math.ceil(cam?.panMax ?? 0));
 	const sliderValue = $derived(Math.round(value));
@@ -62,10 +58,11 @@
 		story.race.scrubbing = false;
 	}
 
-	// slider (keyboard/click): same playhead, same scrubbing/hold protocol
-	function onSlide(v) {
+	// range (keyboard/press): same playhead, same scrubbing/hold protocol.
+	// `input` fires on every move; `change` on release, or on each key press.
+	function onSlide(e) {
 		story.race.scrubbing = true;
-		story.race.scrubYear = clamp(v);
+		story.race.scrubYear = clamp(Number(e.currentTarget.value));
 	}
 	function onCommit() {
 		story.race.scrubbing = false;
@@ -74,8 +71,8 @@
 
 {#if cam?.pannable}
 	<div class="race-scrubber">
-		<!-- pointer-only enhancement over the accessible Slider below; hidden from AT
-		     (the Slider is the operable, keyboard-driven control) -->
+		<!-- pointer-only enhancement over the accessible range below; hidden from AT
+		     (the range is the operable, keyboard-driven control) -->
 		<div
 			class="drag-surface"
 			aria-hidden="true"
@@ -87,14 +84,18 @@
 		></div>
 		<div class="control">
 			<output class="year">{Math.round(value)}</output>
-			<Slider
-				value={sliderValue}
+			<!-- min/max before value: a value set first is clamped to the default
+			     0–100 domain before the real bounds arrive -->
+			<input
+				type="range"
 				class="race-slider"
+				aria-label="Year"
 				min={sliderMin}
 				max={sliderMax}
-				step={1}
-				onValueChange={onSlide}
-				onValueCommit={onCommit}
+				step="1"
+				value={sliderValue}
+				oninput={onSlide}
+				onchange={onCommit}
 			/>
 		</div>
 	</div>
@@ -141,8 +142,14 @@
 	   a press on the year readout or the row's padding still reaches the half
 	   underneath. Same idiom as Index's .route and ScrollyVisual's .hits: a
 	   pointer-events:none container, lifted, whose one child opts in. */
-	.control :global(.bits-slider) {
+	.race-slider {
 		flex: 1 1 auto;
+		min-width: 0;
+		/* the minimum tap target on mobile; the track stays centred in it */
+		height: var(--48px);
+		margin: 0;
+		accent-color: var(--color-button-bg-primary);
+		cursor: pointer;
 		pointer-events: auto;
 	}
 	.year {

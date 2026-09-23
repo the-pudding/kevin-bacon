@@ -302,13 +302,13 @@
 	   than typed so it cannot drift from the plots it is lining up with. */
 	.search__glyph {
 		position: absolute;
-		top: 0;
-		right: var(--plot-margin);
+		top: calc((1.75rem - var(--48px)) / 2);
+		right: calc(var(--plot-margin) - (var(--48px) - 1.75rem) / 2);
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		width: 1.75rem;
-		height: 1.75rem;
+		width: var(--48px);
+		height: var(--48px);
 		padding: 0;
 		border: 0;
 		border-radius: var(--radius-sm);
@@ -379,13 +379,15 @@
 
 	.search__clear {
 		margin-left: auto;
+		min-width: var(--48px);
+		min-height: var(--48px);
 		padding: 0.1rem 0.5rem;
 		border: 1px solid var(--color-gray-300, #ccc);
 		border-radius: 2rem;
 		background: none;
 		color: var(--color-gray-500, #888);
 		font-family: var(--font-mono);
-		font-size: 0.75rem;
+		font-size: var(--16px);
 		cursor: pointer;
 	}
 
