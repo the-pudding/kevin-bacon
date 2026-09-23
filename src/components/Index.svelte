@@ -389,7 +389,13 @@
 		     which is what it describes. Every other arrival here — a cold start,
 		     a step back from `hopSeed` — never raises the gate, so the card
 		     speaks straight away. -->
-			<Step state="networkIntro" panel={routePanel}>
+			<!-- `alt`: what the canvas shows, for a screen reader (see Step.svelte).
+			     PLACEHOLDERS — bare descriptions for Owen to reword. -->
+			<Step
+				state="networkIntro"
+				panel={routePanel}
+				alt="A network diagram with Kevin Bacon in the middle, joined by lines to actors he has made films with, and on to actors they have made films with."
+			>
 				<p>
 					The “Six Degrees of Kevin Bacon” is a game where players try to
 					connect an actor to Kevin Bacon via movies they've starred in with
@@ -404,7 +410,11 @@
 					Hollywood.
 				</p>
 			</Step>
-			<Step state="hopSeed" hideBar>
+			<Step
+				state="hopSeed"
+				hideBar
+				alt="The network shrinks away into a field of dots."
+			>
 				<!-- The copy lands over the constellation pulling back: the network
 				     Bacon is in the middle of shrinks to a small thing as the line
 				     says he isn't the centre of Hollywood (see layouts/hop-bands.js).
@@ -434,7 +444,10 @@
 		     The middle one is the cycling chart (`hopAnchor`); the two either
 		     side of it are about Bacon's own number and rest on him
 		     (`hopBands`) — see layouts/hop-bands.js. -->
-			<Step state="hopBands">
+			<Step
+				state="hopBands"
+				alt="Chart: the four degrees of Kevin Bacon. Kevin Bacon's dot sits above four rows of dots, one for the actors 1, 2, 3 and 4 movies away from him, each labelled with its share of actors. The 2-movie row is by far the largest."
+			>
 				<p>
 					No doubt, he's well connected. With
 					<InfoTerm>
@@ -461,7 +474,11 @@
 					four movies or fewer, a.k.a. the <b>four</b> degrees of Kevin Bacon.
 				</p>
 			</Step>
-			<Step state="hopAnchor" panel={anchorPanel}>
+			<Step
+				state="hopAnchor"
+				panel={anchorPanel}
+				alt="The same chart, redrawn for other actors in turn. Every one of them has a small 4-movie row."
+			>
 				<p>
 					Morgan Freeman, Meryl Streep and Scarlett Johansson are also four
 					degrees from every actor in Hollywood. In fact, 10% of actors in the
@@ -479,7 +496,12 @@
 		     registry's advance() itself, and stepping back off the reveal
 		     skips this step so its search box isn't left sitting under the
 		     answer (see `gate` / `skipback` in Step.svelte) -->
-			<Step state="rankFocus" gate={NEVER} skipback>
+			<Step
+				state="rankFocus"
+				gate={NEVER}
+				skipback
+				alt="A ranked list of the top 250 actors by remoteness. Every name is hidden except Kevin Bacon's, at #175."
+			>
 				<div class="rank-focus-text">
 					<p>
 						For example, Kevin Bacon's remoteness is 2.28: so an actor is, on
@@ -490,7 +512,7 @@
 					<GuessRank />
 				</div>
 			</Step>
-			<Step state="rankReveal">
+			<Step state="rankReveal" alt="The list's names are revealed.">
 				<p>
 					Samuel L. Jackson is the <b>center of Hollywood</b>, with a remoteness
 					of just 2.09. Willem Dafoe is second with 2.13, Robert De Niro third
@@ -505,7 +527,12 @@
 			<!-- Start is the only way on, and it advances as it asks for the pan
 		     (the rewind's StartButton) — the rewind is choreographed to play ACROSS
 		     the step change onto the view the next step describes -->
-			<Step state="raceRecent" gate={NEVER} skipback>
+			<Step
+				state="raceRecent"
+				gate={NEVER}
+				skipback
+				alt="Chart: the center of Hollywood, over time. A line per actor traces their remoteness year by year, lower being better, up to 2025."
+			>
 				<p>
 					We can repeat the process for calculating all actors' remoteness and
 					go backwards to create a time machine of centers. By using completed
@@ -514,7 +541,10 @@
 				<p>Remember, lower remoteness is better. Press 'Start' to begin.</p>
 				<StartButton kind="rewind" label="Start" advance />
 			</Step>
-			<Step state="raceRecent">
+			<Step
+				state="raceRecent"
+				alt="The chart rewinds to 2006, where Samuel L. Jackson's line overtakes Gene Hackman's."
+			>
 				<p>
 					Let's go back to where Samuel L. Jackson took the crown in 2006.
 					Interestingly, this was before the MCU era kicked off, which only made
@@ -525,14 +555,21 @@
 					his role in Sleepers.
 				</p>
 			</Step>
-			<Step state="raceFull" panel={racePanel}>
+			<Step
+				state="raceFull"
+				panel={racePanel}
+				alt="The same chart, now reaching back to 1980. A year slider moves it through time."
+			>
 				<p>
 					We can then view all centers of Hollywood since 1980. Use the slider
 					to take a look around, or go next.
 				</p>
 			</Step>
 
-			<Step state="raceFuture">
+			<Step
+				state="raceFuture"
+				alt="The chart runs on past 2025 into an empty shaded block labelled the future."
+			>
 				<p>
 					Now imagine us taking this into the future. How might we predict who
 					will take the crown from Samuel L. Jackson?
@@ -550,6 +587,7 @@
 				state="scatterCenters"
 				params={{ showFilms: true }}
 				panel={searchPanel}
+				alt="Chart: films vs. remoteness. A dot per actor, with film count across on a log scale and remoteness up. Actors with more films sit lower on remoteness. Samuel L. Jackson and Nicolas Cage are labelled with their film counts."
 			>
 				<p>
 					The obvious one is film count. More films mean closer to the center.
@@ -561,6 +599,7 @@
 				state="scatterCenters"
 				params={{ showPair: true }}
 				panel={searchPanel}
+				alt="Natalie Portman and Anna Kendrick are labelled with their remoteness: similar film counts, far apart on remoteness."
 			>
 				<p>
 					The relationship between film count and remoteness is strong, but it
@@ -585,6 +624,7 @@
 				state="scatterCenters"
 				params={{ showPair: true, showCostars: true }}
 				panel={searchPanel}
+				alt="Natalie Portman's label now reads 97 of the top 250, and Anna Kendrick's 35 of the top 250."
 			>
 				<p>
 					For example, of the 250 most-connected actors from earlier, Natalie
@@ -602,7 +642,11 @@
 					be the ones with the highest price”.
 				</p>
 			</Step>
-			<Step state="degScatter" panel={searchPanel}>
+			<Step
+				state="degScatter"
+				panel={searchPanel}
+				alt="Chart: films vs. costar film count. A dot per actor, with film count across and their costars' average film count up, both on log scales."
+			>
 				<p>
 					Instead we use the costar film count as a sort of proxy. Concretely,
 					this is an actor's 50 most prolific costars by number of films, taken
@@ -645,6 +689,7 @@
 				state="raceGenz"
 				gate={NEVER}
 				skipback
+				alt="The center of Hollywood chart returns, panned down below Samuel L. Jackson to the remoteness where younger actors sit."
 				advanceon={() =>
 					story.race.genzLinesShown && story.running !== "genzLines"}
 			>
@@ -655,7 +700,10 @@
 				</p>
 				<StartButton kind="genzLines" label="Show Gen Z actors" />
 			</Step>
-			<Step state="raceGenz">
+			<Step
+				state="raceGenz"
+				alt="Lines for the Gen Z contenders are drawn onto the chart."
+			>
 				<p>
 					To predict future remoteness we need to model their trajectory by
 					stating what we think their film count and costar data will look like
@@ -663,7 +711,11 @@
 					to actors with similar stats in the past.
 				</p>
 			</Step>
-			<Step state="careerTrio" panel={searchPanel}>
+			<Step
+				state="careerTrio"
+				panel={searchPanel}
+				alt="Chart: film count by career age. Sydney Sweeney's line reaches 16 films at 15 years, where Robert De Niro's and Chevy Chase's lines meet it; De Niro's goes on to 87 films and Chase's to 27."
+			>
 				<p>
 					Films first. Take Sydney Sweeney: she's been in 16 films since her
 					debut 15 years ago. At the same point in their career, Robert De Niro
@@ -672,7 +724,11 @@
 					the same point, but only ever appeared in 27.
 				</p>
 			</Step>
-			<Step state="careerBacon" panel={searchPanel}>
+			<Step
+				state="careerBacon"
+				panel={searchPanel}
+				alt="Kevin Bacon's line, alongside Helen Mirren's and Gene Hackman's."
+			>
 				<p>
 					Conversely, after 47 years making Hollywood films, he has a similar
 					output to Helen Mirren and Gene Hackman at this stage.
@@ -683,7 +739,11 @@
 					earlier.
 				</p>
 			</Step>
-			<Step state="careerMany" panel={searchPanel}>
+			<Step
+				state="careerMany"
+				panel={searchPanel}
+				alt="Back on Sydney Sweeney's line, with many other careers fanning out from the same point."
+			>
 				<p>
 					Back to Sydney Sweeney. We can now see that whatever actor we use to
 					model a Gen Z actor's film trajectory can massively impact the
@@ -702,6 +762,7 @@
 				state="simRace"
 				gate={NEVER}
 				skipback
+				alt="Chart: wins after 10,000 simulations, counting each Gen Z actor's wins as the simulations run."
 				advanceon={() => story.sim.runs > 0 && story.running !== "run"}
 			>
 				<p>
@@ -730,7 +791,10 @@
 		     their simulated medians above him. His 2030 landing is AUTHORED,
 		     not modelled — the simulation projects the 99 contenders and
 		     nobody else. See RACE_CLOSE_SLJ_END in layouts/race.js. -->
-			<Step state="raceClose">
+			<Step
+				state="raceClose"
+				alt="The future view of the center of Hollywood chart returns. Samuel L. Jackson's line falls away and the contenders land on their simulated medians above him."
+			>
 				<p>
 					From our time machine you'll recall lines dropping off as actors stop
 					appearing in so many films. From a purely biological standpoint, we
@@ -760,7 +824,7 @@
 			id="credits"
 			in:fly={{
 				y: (dimensions.height || 800) + 100,
-				duration: 4000,
+				duration: reducedMotion.current ? 0 : 4000,
 				easing: linear
 			}}
 		>
@@ -855,7 +919,7 @@
 		color: var(--color-fg);
 		font-family: var(--font-mono);
 		/* matches .node-label in ScrollyVisual */
-		font-size: 11px;
+		font-size: var(--12px, 12px);
 		line-height: 1.2;
 		/* the caption lies over the layout's tap halves; only the term inside it
 		   is meant to catch a click */

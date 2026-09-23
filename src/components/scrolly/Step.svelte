@@ -39,6 +39,11 @@
 	 * (the outro) that wants the full-bleed canvas to itself, the way a chapter
 	 * card already does.
 	 *
+	 * `alt` is what the canvas is showing, said to a screen reader. The drawn
+	 * chart is hidden from assistive tech (ScrollyVisual), so this is its only
+	 * account of the visual: it goes first in the prose, visually hidden, and
+	 * the column's live region reads it out with the step's words.
+	 *
 	 * The prose is held off screen while the arrival it describes is still
 	 * playing — every step, not a declared few. It is read off the registry
 	 * (`steps.held`, i.e. story.settledStep) rather than passed in, because the
@@ -52,7 +57,7 @@
 	 * empty, then the words appear with no motion of their own.
 	 *
 	 * @see notes/scrolly-framework.md
-	 * @type {{ state: import("./states.js").VisualState, params?: unknown, panel?: import("svelte").Snippet, gate?: () => boolean, skipback?: boolean, advanceon?: () => boolean, hideBar?: boolean, children: import("svelte").Snippet }}
+	 * @type {{ state: import("./states.js").VisualState, params?: unknown, panel?: import("svelte").Snippet, gate?: () => boolean, skipback?: boolean, advanceon?: () => boolean, hideBar?: boolean, alt?: string, children: import("svelte").Snippet }}
 	 */
 	let {
 		state: layoutState,
@@ -62,6 +67,7 @@
 		skipback,
 		advanceon,
 		hideBar,
+		alt,
 		children
 	} = $props();
 
@@ -165,6 +171,9 @@
 		in:fly={proseIn}
 		out:proseLeave={proseOut}
 	>
+		{#if alt}
+			<p class="sr-only">{alt}</p>
+		{/if}
 		{@render children()}
 	</div>
 {/if}

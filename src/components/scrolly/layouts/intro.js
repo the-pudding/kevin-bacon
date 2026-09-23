@@ -123,8 +123,8 @@ const HIT_MAX = 44;
 const HIT_SHARE = 0.85;
 
 // A name hanging under a dot: the 4px gap ScrollyVisual leaves plus .node-label's
-// own line box (11px at 1.2).
-const NODE_LABEL_PX = 4 + Math.round(11 * 1.2);
+// own line box (12px at 1.2).
+const NODE_LABEL_PX = 4 + Math.round(12 * 1.2);
 
 /**
  * The y the constellation's drawing ends at in a `w × h` canvas — the lowest

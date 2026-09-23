@@ -1713,8 +1713,15 @@
 	// loop (which then self-drives off story.race.scrubYear until it settles and hands
 	// off to raceView). Declared before the render effect so it wins the flush;
 	// the loop-start is untracked.
+	//
+	// Keyed on the target year as well as `scrubbing`: an arrow key on the slider
+	// raises and drops `scrubbing` inside one keydown (bits-ui commits on every
+	// key), so by the time this runs the flag is already down and only the year
+	// says the reader moved. camera.reset() clears the year on a state change, so
+	// a new step never inherits a glide.
 	$effect(() => {
-		if (story.race.scrubbing) untrack(() => camPanning || startScrub());
+		if (story.race.scrubbing || story.race.scrubYear !== null)
+			untrack(() => camPanning || startScrub());
 	});
 
 	// A reader's ask: a StartButton bumps `story.request` (see request() in
@@ -2177,12 +2184,20 @@
 	bind:clientWidth={width}
 	bind:clientHeight={height}
 >
-	<canvas bind:this={canvas} bind:clientWidth={canvasWidth}></canvas>
+	<!-- The drawn chart — canvas, names and axis furniture — is hidden from
+	     assistive tech: read in DOM order it is a heap of axis ticks and a
+	     hundred names with no relations between them. Each step says what its
+	     chart shows instead, in the prose column (Step's `alt`). What stays
+	     reachable is what is not just the chart restated: the race callout's
+	     note, the actor targets (.hits) and the step's panel. -->
+	<canvas bind:this={canvas} bind:clientWidth={canvasWidth} aria-hidden="true"
+	></canvas>
 	<!-- The clip spans the CANVAS (see labelBleed); the box inside it puts the
 	     origin every label transform is written against back on the COLUMN's top
 	     left corner, which is where the layouts author. -->
 	<div
 		class="annotations"
+		aria-hidden="true"
 		style="left: {-labelBleed.l}px; right: {-labelBleed.r}px"
 	>
 		<div
@@ -2286,26 +2301,38 @@
 	     scene the strings do not change (registry.spec.js checks that). -->
 	{#snippet chartFurniture(set, live = false)}
 		{#if set.title}
-			<p class="chart-title fade-in">{set.title}</p>
+			<p class="chart-title fade-in" aria-hidden="true">{set.title}</p>
 		{/if}
 		{#if set.overlay?.xLabel}
-			<p class="x-label fade-in" style="top: {set.xTop}px; bottom: auto">
+			<p
+				class="x-label fade-in"
+				aria-hidden="true"
+				style="top: {set.xTop}px; bottom: auto"
+			>
 				{set.overlay.xLabel}
 			</p>
 		{/if}
 		{#if set.overlay?.yLabel}
 			<!-- centre the axis title on the graph's y-axis extent, not the tall canvas -->
-			<p class="y-label fade-in" style="top: {set.yTop}px">
+			<p class="y-label fade-in" aria-hidden="true" style="top: {set.yTop}px">
 				{set.overlay.yLabel}
 			</p>
 		{/if}
 		{#if set.overlay?.yTopLabel}
-			<p class="y-hint y-hint-top fade-in" style="top: {set.hintTop}px">
+			<p
+				class="y-hint y-hint-top fade-in"
+				aria-hidden="true"
+				style="top: {set.hintTop}px"
+			>
 				{set.overlay.yTopLabel}
 			</p>
 		{/if}
 		{#if set.overlay?.yBottomLabel}
-			<p class="y-hint y-hint-bottom fade-in" style="top: {set.hintBottom}px">
+			<p
+				class="y-hint y-hint-bottom fade-in"
+				aria-hidden="true"
+				style="top: {set.hintBottom}px"
+			>
 				{set.overlay.yBottomLabel}
 			</p>
 		{/if}
@@ -2322,6 +2349,7 @@
 		{#each set.decor?.axes?.x ?? [] as tick}
 			<p
 				class="tick tick-x fade-in"
+				aria-hidden="true"
 				style="left: {tick.pos}px; {set.decor.axes.xBase != null
 					? `top: ${set.decor.axes.xBase}px`
 					: ''}"
@@ -2337,7 +2365,11 @@
 			</p>
 		{/each}
 		{#each set.decor?.axes?.y ?? [] as tick}
-			<p class="tick tick-y fade-in" style="top: {tick.pos}px">
+			<p
+				class="tick tick-y fade-in"
+				aria-hidden="true"
+				style="top: {tick.pos}px"
+			>
 				{tick.label}
 			</p>
 		{/each}
@@ -2409,6 +2441,7 @@
 		{#each set.decor?.notes ?? [] as note}
 			<p
 				class="note fade-in {note.align ?? 'left'}"
+				aria-hidden="true"
 				class:strong={note.strong}
 				class:wrap={note.wrap}
 				style="left: {note.x}px; top: {note.y}px{note.wrapWidth
@@ -2421,6 +2454,7 @@
 		{#each set.decor?.legend?.filter((item) => item.x != null) ?? [] as item, i}
 			<p
 				class="legend-item pinned fade-in"
+				aria-hidden="true"
 				style="left: {item.x}px; top: {(live ? legendY?.[i] : null) ??
 					item.y}px"
 			>
@@ -2440,6 +2474,7 @@
 		{#if set.decor?.legend?.some((item) => item.x == null)}
 			<ul
 				class="legend fade-in"
+				aria-hidden="true"
 				style={set.decor.legendY != null
 					? `top: ${set.decor.legendY}px; bottom: auto`
 					: ""}
@@ -2560,7 +2595,8 @@
 		will-change: transform, opacity;
 		padding: 0 3px;
 		font-family: var(--font-mono);
-		font-size: 11px;
+		/* NODE_LABEL_PX in layouts/intro.js is this line box */
+		font-size: var(--12px, 12px);
 		line-height: 1.2;
 		white-space: nowrap;
 		color: var(--color-gray-900, #222);
@@ -2721,7 +2757,7 @@
 	}
 
 	.tick {
-		font-size: 0.65rem;
+		font-size: 0.75rem;
 		color: var(--color-gray-500, #888);
 		/* tick numbers can sit over the dot cloud (tight left margin) — keep them legible */
 		text-shadow:
@@ -2749,7 +2785,7 @@
 		   would the right-hand tap half, which is why this is now on the
 		   halves' own layer rather than a bare 1 */
 		z-index: var(--z-tap-above);
-		font-size: 0.65rem;
+		font-size: 0.75rem;
 		color: var(--color-gray-500, #888);
 		text-shadow:
 			0 0 3px var(--color-bg, #fff),
@@ -2816,7 +2852,7 @@
 	.band-label {
 		position: absolute;
 		margin: 0;
-		font-size: 0.65rem;
+		font-size: 0.75rem;
 		letter-spacing: 0.04em;
 		color: var(--color-gray-700, #444);
 		white-space: nowrap;
@@ -2934,7 +2970,7 @@
 	}
 
 	.note {
-		font-size: 0.7rem;
+		font-size: 0.75rem;
 		color: var(--color-gray-700, #444);
 		white-space: nowrap;
 		text-shadow:
@@ -2969,7 +3005,7 @@
 
 	.y-hint {
 		left: 0;
-		font-size: 0.65rem;
+		font-size: 0.75rem;
 		font-style: italic;
 		color: var(--color-gray-500, #888);
 		text-shadow:
@@ -3007,7 +3043,7 @@
 		display: flex;
 		align-items: center;
 		gap: 0.3rem;
-		font-size: 0.6rem;
+		font-size: 0.75rem;
 		color: var(--color-gray-700, #444);
 		white-space: nowrap;
 	}

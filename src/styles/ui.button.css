@@ -14,6 +14,14 @@
 		background 0.25s ease;
 }
 
+/* the root's `outline: none` above takes reset.css's focus ring away, so a
+   keyboard reader needs it back — outside the button, where it reads against
+   the page rather than against the button's own fill */
+.bits-button[data-button-root]:focus-visible {
+	outline: 2px solid var(--color-focus);
+	outline-offset: 2px;
+}
+
 .bits-button[data-button-root]:disabled {
 	opacity: 0.5;
 	cursor: not-allowed;

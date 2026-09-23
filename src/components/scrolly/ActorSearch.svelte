@@ -385,7 +385,7 @@
 		background: none;
 		color: var(--color-gray-500, #888);
 		font-family: var(--font-mono);
-		font-size: 0.7rem;
+		font-size: 0.75rem;
 		cursor: pointer;
 	}
 

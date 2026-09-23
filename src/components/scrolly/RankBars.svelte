@@ -462,8 +462,13 @@
 	class:collapsing={collapse}
 	style="--collapse-ms: {RANK_COLLAPSE_MS}ms; --row-in-delay: {ROW_IN_DELAY_MS}ms; --row-in-ms: {ROW_IN_MS}ms"
 >
+	<!-- focusable so a keyboard can scroll it: its rows hold nothing that
+	     takes focus of their own -->
+	<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 	<ul
 		class="rows"
+		tabindex="0"
+		aria-label="Top {RANK_TOP_N} actors by remoteness"
 		class:at-top={atTop}
 		class:entered
 		bind:this={list}
@@ -487,7 +492,7 @@
 						>#{row.rank}
 						{isKnown(row.id, row.rank) ? row.name : "???"}</span
 					>
-					<span class="avg">{row.avgDistance.toFixed(2)}</span>
+					<span class="avg">- {row.avgDistance.toFixed(2)} remoteness</span>
 				</span>
 				<!-- the svg lives inside an HTML span: the focus-row handoff below
 				     reads offsetTop/offsetHeight off `.bar`, which SVG elements
@@ -580,6 +585,12 @@
 			black calc(100% - 1.5rem),
 			transparent
 		);
+	}
+
+	/* inset: the list's edge mask would fade an outline drawn outside it */
+	.rows:focus-visible {
+		outline: 2px solid var(--color-focus);
+		outline-offset: -2px;
 	}
 
 	.rows.at-top {
@@ -697,7 +708,7 @@
 		flex: 0 1 auto;
 		min-width: max-content;
 		font-family: var(--font-mono);
-		font-size: 0.6rem;
+		font-size: var(--12px, 12px);
 		text-align: center;
 		white-space: nowrap;
 	}
@@ -774,17 +785,17 @@
 		text-overflow: ellipsis;
 	}
 
+	/* the row's own ink rather than a lighter grey: a grey that read as
+	   secondary failed contrast, and the word "remoteness" says what the number is */
 	.avg {
 		flex-shrink: 0;
-		font-style: italic;
-		color: var(--color-gray-500, #888);
 	}
 
 	.footnote {
 		margin: 0;
 		padding: 0.4rem 1rem;
 		font-family: var(--font-mono);
-		font-size: 0.7rem;
+		font-size: var(--12px, 12px);
 		font-style: italic;
 		color: var(--color-gray-500, #888);
 		text-align: center;

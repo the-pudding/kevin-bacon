@@ -288,6 +288,29 @@
 			? `${dimensions.height}px`
 			: '100svh'}; --title-band: {TITLE_BAND}px"
 	>
+		<!-- The prose and the step controls come BEFORE the canvas in the
+		     document, though they paint over it (the z ladder below, not source
+		     order, decides that): a keyboard or screen-reader reader meets the
+		     step's words, then Previous/Next, and only then the chart's own
+		     controls — rather than tabbing through every actor target on the
+		     constellation to reach the next step. The dot bar stays last so it
+		     keeps painting over the panels it shares --z-tap-above with. -->
+		{#if !steps.exited}
+			<div
+				class="scrolly-steps"
+				bind:clientHeight={stepsHeight}
+				aria-live="polite"
+			>
+				<!-- a chapter card's title is drawn over the canvas (below), outside
+				     this live region, so a screen reader stepping onto one heard
+				     nothing: it is said here instead, and the drawn one is hidden -->
+				{#if activeChapter}
+					<h2 class="sr-only">{activeChapter.title}</h2>
+				{/if}
+				{@render children(layout)}
+			</div>
+			<TapNav />
+		{/if}
 		<div
 			class="scrolly-visual"
 			class:exited={steps.exited}
@@ -373,6 +396,7 @@
 				{#if activeChapter}
 					<div
 						class="chapter-card"
+						aria-hidden="true"
 						style="height: {chapterHeight}px"
 						in:fade={chapterIn}
 						out:fade={chapterOut}
@@ -442,15 +466,7 @@
 			{/if}
 		</div>
 		{#if !steps.exited}
-			<div
-				class="scrolly-steps"
-				bind:clientHeight={stepsHeight}
-				aria-live="polite"
-			>
-				{@render children(layout)}
-			</div>
 			<StepProgress />
-			<TapNav />
 		{/if}
 	</div>
 </section>
