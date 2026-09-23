@@ -27,6 +27,7 @@
 	import RankBars from "./RankBars.svelte";
 	import StepProgress from "./StepProgress.svelte";
 	import TapNav from "./TapNav.svelte";
+	import { createTap } from "./tap.js";
 	import ChevronLeft from "@lucide/svelte/icons/chevron-left";
 	import ChevronRight from "@lucide/svelte/icons/chevron-right";
 	import PointerIcon from "./PointerIcon.svelte";
@@ -202,6 +203,18 @@
 				story.rank.handoff &&
 				!story.rank.collapsed)
 	);
+	// The ladder lies over the tap halves rather than under them, or it could
+	// not be scrolled: a scroll reaches only what is under the pointer and its
+	// ancestors, and the halves are neither. A tap on it still steps the story,
+	// by whichever half it landed over — the halves meet at the layout's middle.
+	/** @type {HTMLDivElement | undefined} */
+	let layoutBox;
+	const rankTap = createTap(() => steps);
+	/** @param {MouseEvent} e */
+	function onRankTap(e) {
+		const box = layoutBox.getBoundingClientRect();
+		rankTap.tap(e, e.clientX < box.left + box.width / 2 ? "prev" : "next");
+	}
 
 	// The race chart's dev tuners (scrolly/dev). Pulled in dynamically rather
 	// than imported at the top so a production build drops them entirely:
@@ -282,6 +295,7 @@
 <section id="scrolly">
 	<div
 		class="scrolly-layout"
+		bind:this={layoutBox}
 		class:exited={steps.exited}
 		class:flipped
 		style="--viewport-height: {dimensions.height
@@ -357,10 +371,14 @@
 			     the reader's guess and re-hide every other name at the exact moment
 			     the bars collapse. -->
 				{#if showRankPanel}
+					<!-- the keyboard's own way on is the window's arrow keys (TapNav) -->
+					<!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
 					<div
 						class="rank-bars-panel"
 						class:revealed={story.rank.revealed}
 						style="bottom: {rankPanelBottom}px"
+						onpointerdown={rankTap.down}
+						onclick={onRankTap}
 					>
 						<RankBars
 							reveal={currentState === "rankReveal" ||
@@ -513,7 +531,7 @@
 	   never a jump target.
 
 	   The z ladder over this box, lowest first:
-	     auto  canvas, rank/scrubber panels, chapter card
+	     auto  canvas, scrubber panel, chapter card
 	     5     the dev-only race tuners
 	     20    --z-tap: the two tap halves
 	     21    --z-card: the step card, which lies over them for its whole width.
@@ -521,7 +539,8 @@
 	           the controls it hosts (.guess, .quiz, .start-button, the inline
 	           InfoTerm triggers) opt back in.
 	     22    --z-tap-above: what must beat BOTH — .hits, .route, the search,
-	           the scrubber's .control, .tick-1980, the dot bar
+	           the scrubber's .control, .tick-1980, the dot bar, the rank
+	           ladder (which forwards its taps; see onRankTap)
 	     100+  InfoTerm's scrim and panel, untouched */
 	.scrolly-layout {
 		position: relative;
@@ -641,6 +660,7 @@
 	   dot for dot. */
 	.rank-bars-panel {
 		position: absolute;
+		z-index: var(--z-tap-above);
 		top: 84px;
 		left: 0;
 		right: 0;

@@ -36,6 +36,7 @@
 	 * to scrub.
 	 */
 	import { getContext } from "svelte";
+	import { createTap } from "./tap.js";
 
 	const steps = getContext("scrolly-steps");
 
@@ -44,7 +45,7 @@
 	// $derived, not read inline: the gate closures read `story`, and those reads
 	// have to land in a tracked scope for the half to re-enable the moment the
 	// reader answers. atEnd no longer holds the half shut — it opens the
-	// credits instead (see onTap) — so only the active step's own gate can
+	// credits instead (see tap.js) — so only the active step's own gate can
 	// still hold it.
 	const held = $derived(steps.nextBlocked);
 
@@ -66,26 +67,12 @@
 		}
 	}
 
-	// A half lies over a scrollable list (the rank ladder). A touch-drag that
-	// starts on the half is the reader trying to scroll the list under it, but
-	// the browser still fires `click` on release — which would step the story
-	// out from under them. Measure the travel and swallow those.
-	const SLOP = 10;
-	/** @type {{ x: number, y: number } | null} */
-	let downAt = null;
-
-	function onPointerDown(e) {
-		downAt = { x: e.clientX, y: e.clientY };
-	}
+	// the tap itself — the drag test and where it steps — is shared with the
+	// rank ladder, which lies over the halves (see tap.js)
+	const tap = createTap(() => steps);
 
 	function onTap(e, direction) {
-		// a keyboard-synthesised click reports (0, 0) and never sees a
-		// pointerdown, so gate the whole test on having one
-		const dragged =
-			downAt !== null &&
-			Math.hypot(e.clientX - downAt.x, e.clientY - downAt.y) > SLOP;
-		downAt = null;
-		if (dragged) return;
+		if (!tap.tap(e, direction)) return;
 		// A pointer click leaves the half focused, and :focus-visible starts
 		// matching it the moment the reader touches the keyboard — so a tap
 		// followed by arrow keys paints a full-height ring the reader has no way
@@ -93,11 +80,6 @@
 		// Hand focus back to the body. A keyboard-driven click (detail 0) keeps
 		// its focus, which is the only way that reader can reach the half at all.
 		if (e.detail > 0) e.currentTarget.blur();
-		if (direction === "prev" && !atStart) steps.prev();
-		// forward off the last step leaves the wizard for the credits, one-way —
-		// there is nothing beyond it in the registry for next()/go() to land on
-		else if (atEnd) steps.exit();
-		else steps.next();
 	}
 </script>
 
@@ -107,7 +89,7 @@
 	type="button"
 	class="tap-half prev"
 	aria-label={atStart ? "Continue" : "Previous step"}
-	onpointerdown={onPointerDown}
+	onpointerdown={tap.down}
 	onclick={(e) => onTap(e, "prev")}
 ></button>
 
@@ -116,7 +98,7 @@
 	class="tap-half next"
 	aria-label="Next step"
 	disabled={held}
-	onpointerdown={onPointerDown}
+	onpointerdown={tap.down}
 	onclick={(e) => onTap(e, "next")}
 ></button>
 
