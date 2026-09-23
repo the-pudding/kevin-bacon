@@ -69,6 +69,13 @@ describe("raceCallout", () => {
 		expect(callout.text).toMatch(/Dafoe/);
 	});
 
+	test("...and Starr's 1994 crown, the year the game was invented", () => {
+		// eleven years before the crossing, so a camera on 1995 has only his ring
+		const { callout } = frameAt(PHONE, 1995);
+		expect(callout).not.toBeNull();
+		expect(callout.text).toMatch(/Mike Starr/);
+	});
+
 	test("...and the takeover where THAT is", () => {
 		expect(frameAt(PHONE).callout.text).toMatch(/Jackson/);
 	});

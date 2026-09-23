@@ -6,6 +6,7 @@ import {
 	HACKMAN,
 	SARANDON,
 	DAFOE,
+	STARR,
 	RACE_IDS,
 	SIM_SERIES,
 	SIM_LABEL_IDS,
@@ -389,6 +390,22 @@ const RACE_DAFOE_STEP = rankAt(DAFOE, RACE_DAFOE_YEAR);
 if (RACE_DAFOE_STEP.rank !== 5) {
 	throw new Error(
 		`scrolly race: Dafoe is #${RACE_DAFOE_STEP.rank} in ${RACE_DAFOE_YEAR}, not #5`
+	);
+}
+
+// ---------------------------------------------------------------------------
+// Mike Starr, 1994: the year the Six Degrees of Kevin Bacon game was invented,
+// and the one whole year he holds the crown (Walsh leads in 1993, Hackman in
+// 1995). The year is DECLARED, as Dafoe's is — it is the game's year, not a
+// fact about the field — so only the rank is derived, and the note's claim that
+// he was the centre is what the throw below holds.
+// ---------------------------------------------------------------------------
+const RACE_STARR_YEAR = 1994;
+const RACE_STARR_STEP = rankAt(STARR, RACE_STARR_YEAR);
+
+if (RACE_STARR_STEP.rank !== 1) {
+	throw new Error(
+		`scrolly race: Starr is #${RACE_STARR_STEP.rank} in ${RACE_STARR_YEAR}, not #1`
 	);
 }
 
@@ -1166,6 +1183,12 @@ const RACE_DAFOE_NOTE =
 /** the recent chart's one change of lane, and where it leads */
 const RACE_DAFOE_CALLOUT = { ...RACE_DAFOE_STEP, text: RACE_DAFOE_NOTE };
 
+/** the game's own year, and who it would have been named after */
+const RACE_STARR_CALLOUT = {
+	...RACE_STARR_STEP,
+	text: "The Six Degrees of Kevin Bacon game was invented in 1994 by college students. At that point, Mike Starr was the center of Hollywood"
+};
+
 /**
  * What a step marks when it names nothing: the takeover alone. It is the
  * chapter's own claim and belongs to every view of the chart, which is what it
@@ -1174,14 +1197,15 @@ const RACE_DAFOE_CALLOUT = { ...RACE_DAFOE_STEP, text: RACE_DAFOE_NOTE };
 const RACE_PAN_CALLOUTS = raceCalloutList(RACE_TAKEOVER_CALLOUT);
 
 /**
- * raceFull's three, present-first. It is the step the reader can pan, so it is
+ * raceFull's four, present-first. It is the step the reader can pan, so it is
  * the only one that can reach any of these moments — and the one step whose
  * prose is about looking around rather than about a single year.
  */
 const RACE_FULL_CALLOUTS = raceCalloutList(
 	RACE_DAFOE_CALLOUT,
 	RACE_WOMAN_CALLOUT,
-	RACE_TAKEOVER_CALLOUT
+	RACE_TAKEOVER_CALLOUT,
+	RACE_STARR_CALLOUT
 );
 
 /**

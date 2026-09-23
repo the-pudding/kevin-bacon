@@ -37,6 +37,8 @@ export const SARANDON = idOf(4038);
 
 export const DAFOE = idOf(5293);
 
+export const STARR = idOf(5170);
+
 export const CGM = story.genz.candidates[0].id;
 
 export const SWEENEY = idOf(115440);
