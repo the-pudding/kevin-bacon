@@ -2492,7 +2492,7 @@
 			</ul>
 		{/if}
 	{/snippet}
-	<div class="overlay">
+	<div class="overlay" style="--plot-margin: {MARGIN}px">
 		<!-- The arriving layer carries no transition of its own: its children
 		     already fade in with .fade-in, and an opacity transition on this
 		     wrapper would form a stacking context that the 1980 tick's own z-lift
@@ -2738,8 +2738,21 @@
 		top: 4px;
 		left: 50%;
 		transform: translateX(-50%);
+		/* max-content, or `left: 50%` caps the shrink-to-fit width at the box's
+		   right half and a mobile title wraps at half the screen. Capped at the
+		   plot's own width. */
+		width: max-content;
+		max-width: calc(100% - 2 * var(--plot-margin));
+		text-align: center;
 		font-weight: 600;
 		color: var(--color-gray-800, #222);
+	}
+
+	/* A searchable step puts ActorSearch's glyph (1.75rem, at the plot's right
+	   margin) on this line: pulled in either side by it, so the title stays
+	   centred and wraps before it reaches the glyph. */
+	:global(.scrolly-visual:has(.search__glyph)) .chart-title {
+		max-width: calc(100% - 2 * (var(--plot-margin) + 1.75rem));
 	}
 
 	.x-label {

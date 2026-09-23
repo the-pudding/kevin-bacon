@@ -84,7 +84,10 @@ function placeInBar(attrs, n, slots, x0, baconY) {
 
 const params = (s) => ({ bar: s.rank.focusBar });
 
+const title = "Ranking Actors by Remoteness Score";
+
 export const states = {
-	rankFocus: { layout: layoutRank, params },
-	rankReveal: { layout: layoutRank, params }
+	// one scene, so the title holds across the reveal rather than fading out and in
+	rankFocus: { layout: layoutRank, params, scene: "rank", title },
+	rankReveal: { layout: layoutRank, params, scene: "rank", title }
 };
