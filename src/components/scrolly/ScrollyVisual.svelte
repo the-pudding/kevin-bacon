@@ -2457,6 +2457,7 @@
 				aria-hidden="true"
 				style="left: {item.x}px; top: {(live ? legendY?.[i] : null) ??
 					item.y}px"
+				style:color={item.ink}
 			>
 				<!-- The row's share changes with the anchor (step 6 cycles through
 				     actors), so the text crossfades with its own new string rather

@@ -20,6 +20,18 @@
 		},
 		"gray": {
 			"value": "#BBBBBB"
+		},
+		"red-dark": {
+			"value": "#610C18"
+		},
+		"blue-dark": {
+			"value": "#153554"
+		},
+		"cyan-dark": {
+			"value": "#003A4E"
+		},
+		"gray-dark": {
+			"value": "#333333"
 		}
 	}
 }

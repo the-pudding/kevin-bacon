@@ -6,7 +6,11 @@
 		"yellow": "#CCBB44",
 		"cyan": "#66CCEE",
 		"purple": "#AA3377",
-		"gray": "#BBBBBB"
+		"gray": "#BBBBBB",
+		"red-dark": "#610C18",
+		"blue-dark": "#153554",
+		"cyan-dark": "#003A4E",
+		"gray-dark": "#333333"
 	},
 	"color": {
 		"black": "oklch(0 0 0)",

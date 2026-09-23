@@ -19,6 +19,17 @@ export const HOP_RGB = [
 	[187, 187, 187] // hop 4 — --category-gray
 ];
 
+// A hop row's label: its dots' hue, darkened to text weight. The labels are
+// DOM, so these are the tokens themselves rather than rgb copies. Hop 0 is
+// the anchor, whose name is a node label and not a row's.
+export const HOP_INK = [
+	null,
+	"var(--category-red-dark)",
+	"var(--category-blue-dark)",
+	"var(--category-cyan-dark)",
+	"var(--category-gray-dark)"
+];
+
 export const INK = [34, 34, 34];
 
 // --color-gray-900

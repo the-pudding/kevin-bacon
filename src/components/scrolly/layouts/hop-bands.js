@@ -9,7 +9,7 @@ import {
 	PULLBACK_ZOOM,
 	introPosition
 } from "../intro-geometry.js";
-import { CROWD, HOP_RGB, HOP_DOT_ALPHA } from "../palette.js";
+import { CROWD, HOP_INK, HOP_RGB, HOP_DOT_ALPHA } from "../palette.js";
 import { MARGIN, plotBottom, NO_BLEED } from "../plot.js";
 import { hopFractions, hopShareLabels } from "../rank-geometry.js";
 import {
@@ -142,9 +142,11 @@ function departureColumn(id, w, h, skyBox, contraction) {
 // the top edge and the first hop band
 const HEADER_H = 60;
 
-// the top of the header row, and of the four bands under it
+// the top of the header row, and of the four bands under it. The anchor's name
+// hangs below its dot to within 2px of the header's foot, so the bands start a
+// BAND_GAP further down — the same whitespace that separates the bands.
 const TOP = MARGIN + 12;
-const BANDS_TOP = TOP + HEADER_H;
+const BANDS_TOP = TOP + HEADER_H + BAND_GAP;
 
 /** the height the four rows share, once the three gaps between them are
  * reserved */
@@ -248,6 +250,7 @@ function placeInBand(attrs, id, band, f) {
 function hopLegend(labels, f) {
 	return [1, 2, 3, 4].map((hop) => ({
 		color: HOP_RGB[hop],
+		ink: HOP_INK[hop],
 		label: `${hop} movie${hop > 1 ? "s" : ""} away — ${labels[hop - 1]} of actors`,
 		x: MARGIN,
 		y: f.bandTop[hop] + f.bandH[hop] / 2

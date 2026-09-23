@@ -10,6 +10,10 @@
 	--category-cyan: #66ccee;
 	--category-purple: #aa3377;
 	--category-gray: #bbbbbb;
+	--category-red-dark: #610c18;
+	--category-blue-dark: #153554;
+	--category-cyan-dark: #003a4e;
+	--category-gray-dark: #333333;
 	--color-black: oklch(0 0 0);
 	--color-white: oklch(100% 0 0);
 	--color-gray-50: oklch(98.5% 0 0);

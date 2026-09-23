@@ -64,6 +64,8 @@
  * @typedef {Object} LegendItem
  * @property {number[]} color rgb triple
  * @property {string} label
+ * @property {string} [ink] CSS colour of the label text; omitted = the
+ *   legend's default grey
  * @property {number} [x] px, left edge — when set (with `y`), this item renders as
  *   its own pinned label at that position instead of joining the shared bottom row
  * @property {number} [y] px, vertical centre of the pinned label (see `x`)
