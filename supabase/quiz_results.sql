@@ -22,10 +22,11 @@
 --   the count; note that created_at is INSERT order, not click order, since
 --   analytics.js's writes are fire-and-forget over independent requests.
 --
---   Solved beats gave-up. A session with both is a solver.
---
---   A session with neither a correct row nor a give-up row never finished, so
---   it is not a data point and must not dilute the denominator.
+--   Only solvers are data points. A give-up is recorded (rank_guesses.gave_up)
+--   but never counted: the chart and every percentage describe the readers
+--   who finished, so a crowd of quitters can't swamp the histogram. A session
+--   with a correct row is a solver even if it also gave up. A session that
+--   gave up, or never finished, gets a null `you`, which hides its chart.
 --
 --   Legacy rank_guesses.correct IS NULL is recoverable: "correct" there means
 --   exactly "this actor is SLJ", so p_slj_actor_id reconstructs it. Called with
@@ -39,16 +40,16 @@
 --   Legacy pair_quiz_picks.correct IS NULL is NOT recoverable — scoring needs
 --   the rank comparison, which lives in src/data/scrolly-nodes.json and not
 --   here. Those sessions drop out whole. Counting null as wrong would
---   manufacture a spike at the low scores.
+--   manufacture a spike at the low scores. A session that did not answer every
+--   pair is not a data point either, and gets a null `you`.
 --
 -- Two different statistics come back, and the difference is deliberate:
 --   better_than_pct — strictly better, self-EXCLUDED (denominator takers - 1).
 --     "Better than Y% of readers" is a claim about other people, and ties are
 --     excluded so everyone on a score gets the same honest number.
---   company_pct — same-outcome share, self-INCLUDED (denominator takers).
---     "So did Z% of readers" is a descriptive share the reader is part of.
--- Give-ups count as worse than any finite guess count, which is what makes the
--- give-up bar the right-hand end of an ordered axis rather than an "other".
+--   company_pct (pairs only, at score 0) — same-outcome share, self-INCLUDED
+--     (denominator takers). "So did Z% of readers" is a descriptive share the
+--     reader is part of.
 
 create or replace function public.quiz_results(
 	p_session_id uuid default null,
@@ -74,7 +75,6 @@ scored as (
 	select
 		g.session_id,
 		g.actor_id,
-		g.gave_up,
 		g.created_at,
 		(
 			g.correct is true
@@ -86,42 +86,37 @@ scored as (
 		) as is_slj
 	from public.rank_guesses g
 ),
-outcome as (
+solved as (
 	select
 		s.session_id,
-		min(s.created_at) filter (where s.is_slj) as solved_at,
-		bool_or(s.gave_up) as gave_up
+		min(s.created_at) filter (where s.is_slj) as solved_at
 	from scored s
 	group by s.session_id
+	having bool_or(s.is_slj)
 ),
 rank_session as (
 	select
 		o.session_id,
-		case when o.solved_at is not null then 'solved' else 'gave_up' end as outcome,
 		greatest(
 			count(distinct s.actor_id) filter (
 				where s.actor_id is not null
-					and o.solved_at is not null
 					and s.created_at <= o.solved_at
 			),
 			1
 		) as guesses
-	from outcome o
+	from solved o
 	join scored s on s.session_id = o.session_id
-	where o.solved_at is not null or o.gave_up
-	group by o.session_id, o.solved_at, o.gave_up
+	group by o.session_id
 ),
 rank_labels as (
 	select i::text as bucket, i as ord
 	from generate_series(1, p_max_guess_bucket - 1) as i
 	union all select p_max_guess_bucket::text || '+', p_max_guess_bucket
-	union all select 'gave_up', p_max_guess_bucket + 1
 ),
 rank_bucketed as (
 	select
 		r.session_id,
 		case
-			when r.outcome = 'gave_up' then 'gave_up'
 			when r.guesses >= p_max_guess_bucket then p_max_guess_bucket::text || '+'
 			else r.guesses::text
 		end as bucket
@@ -137,20 +132,12 @@ rank_total as (select count(*)::int as takers from rank_session),
 rank_me as (select * from rank_session where session_id = p_session_id),
 rank_you as (
 	select
-		m.outcome,
-		case when m.outcome = 'solved' then m.guesses end as guesses,
-		case when m.outcome = 'solved' then
-			100.0 * (
-				select count(*)
-				from rank_session r
-				where r.session_id <> m.session_id
-					and (r.outcome = 'gave_up' or r.guesses > m.guesses)
-			) / nullif((select takers from rank_total) - 1, 0)
-		end as better_than_pct,
-		case when m.outcome = 'gave_up' then
-			100.0 * (select count(*) from rank_session r where r.outcome = 'gave_up')
-			/ nullif((select takers from rank_total), 0)
-		end as company_pct
+		m.guesses,
+		100.0 * (
+			select count(*)
+			from rank_session r
+			where r.session_id <> m.session_id and r.guesses > m.guesses
+		) / nullif((select takers from rank_total) - 1, 0) as better_than_pct
 	from rank_me m
 ),
 -- -- B: the pair quiz --------------------------------------------------------
@@ -208,10 +195,8 @@ select jsonb_build_object(
 		),
 		'you', (
 			select jsonb_build_object(
-				'outcome', outcome,
 				'guesses', guesses,
-				'better_than_pct', better_than_pct,
-				'company_pct', company_pct
+				'better_than_pct', better_than_pct
 			) from rank_you
 		)
 	),

@@ -18,7 +18,6 @@
 	import ResultBars from "./ResultBars.svelte";
 
 	const PAIR_COUNT = INTERACTIVE_IDS.quiz.length;
-	const GAVE_UP = "gave_up";
 	// long enough for an insert that was in flight as the reader tapped into the
 	// credits to have landed
 	const RETRY_MS = 1500;
@@ -61,49 +60,34 @@
 		};
 	});
 
-	// Both histograms or neither: "Your results" reads as one unit, and half of
-	// one looks broken. The pair quiz is the binding constraint in practice —
-	// it sits later in the story than the rank guess — but taking the smaller
-	// count says that without depending on it.
-	const enoughTakers = $derived(
-		data != null &&
-			Math.min(data.rank?.takers ?? 0, data.pairs?.takers ?? 0) >=
-				MIN_QUIZ_TAKERS
+	// Each chart is the reader's own or not shown: one only appears for a
+	// reader who finished that quiz (the database counts only finishers, and
+	// hands back a null `you` to anyone who gave up or left pairs unanswered),
+	// and only once enough finishers exist for the shares to mean something.
+	// The block itself shows when at least one chart does.
+	const showRank = $derived(
+		data?.rank?.you != null && data.rank.takers >= MIN_QUIZ_TAKERS
 	);
-	// No personal result, no block. A reader with one on only one side still
-	// gets it — the other histogram is simply the crowd's.
-	const hasResult = $derived(
-		data != null && (data.rank?.you != null || data.pairs?.you != null)
+	const showPairs = $derived(
+		data?.pairs?.you != null && data.pairs.takers >= MIN_QUIZ_TAKERS
 	);
-	const show = $derived(analyticsEnabled && enoughTakers && hasResult);
+	const show = $derived(analyticsEnabled && (showRank || showPairs));
 
 	/** The "5+" bucket's key, read off the data rather than retyped, so the
 	 * histogram and the "which bar is mine" test can never disagree about where
 	 * the tail starts. */
-	const tailKey = $derived(
-		data?.rank?.buckets?.findLast?.((b) => b.key !== GAVE_UP)?.key ?? "5+"
-	);
-
-	/** Bucket keys are the database's; the words are the story's, so they are
-	 * built here and not in SQL. Kept to a couple of characters: the chart's
-	 * title already says these are guesses, and a longer label wraps the key
-	 * column onto two lines and throws every row out of line with the next. */
-	function rankLabel(key) {
-		return key === GAVE_UP ? "gave up" : key;
-	}
+	const tailKey = $derived(data?.rank?.buckets?.at(-1)?.key ?? "5+");
 
 	const rankBars = $derived(
 		(data?.rank?.buckets ?? []).map((bucket) => ({
 			key: bucket.key,
-			label: rankLabel(bucket.key),
+			label: bucket.key,
 			count: bucket.count,
 			mine: data.rank.you
-				? data.rank.you.outcome === GAVE_UP
-					? bucket.key === GAVE_UP
-					: bucket.key ===
-						(data.rank.you.guesses >= parseInt(tailKey, 10)
-							? tailKey
-							: String(data.rank.you.guesses))
+				? bucket.key ===
+					(data.rank.you.guesses >= parseInt(tailKey, 10)
+						? tailKey
+						: String(data.rank.you.guesses))
 				: false
 		}))
 	);
@@ -141,13 +125,6 @@
 	const rankLine = $derived.by(() => {
 		const you = data?.rank?.you;
 		if (!you) return null;
-		if (you.outcome === GAVE_UP) {
-			const share = pct(you.company_pct);
-			return (
-				`You gave up on naming ${nodeName(SLJ)}.` +
-				(share ? ` So did ${share}% of readers.` : "")
-			);
-		}
 		const guesses = you.guesses === 1 ? "one guess" : `${you.guesses} guesses`;
 		const better = pct(you.better_than_pct);
 		return (
@@ -178,21 +155,21 @@
 	<div class="credits-block">
 		<h2>Your results</h2>
 
-		<ResultBars
-			bars={rankBars}
-			total={data.rank.takers}
-			title="Guesses to name {nodeName(SLJ)}"
-		/>
-		{#if rankLine}
+		{#if showRank}
+			<ResultBars
+				bars={rankBars}
+				total={data.rank.takers}
+				title="Guesses to name {nodeName(SLJ)}"
+			/>
 			<p>{rankLine}</p>
 		{/if}
 
-		<ResultBars
-			bars={pairBars}
-			total={data.pairs.takers}
-			title="Pairs answered correctly"
-		/>
-		{#if pairLine}
+		{#if showPairs}
+			<ResultBars
+				bars={pairBars}
+				total={data.pairs.takers}
+				title="Pairs answered correctly"
+			/>
 			<p>{pairLine}</p>
 		{/if}
 	</div>

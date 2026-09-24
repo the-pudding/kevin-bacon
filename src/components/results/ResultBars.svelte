@@ -6,8 +6,7 @@
 
 	/**
 	 * `bars` is already in axis order — the caller owns that, since only it
-	 * knows that "gave up" belongs at the right-hand end rather than sorted
-	 * among the numbers.
+	 * knows which way each chart reads (the pair quiz runs best-first).
 	 * @type {{
 	 *   bars: { key: string, label: string, count: number, mine?: boolean }[],
 	 *   total: number,
@@ -81,7 +80,7 @@
 	}
 
 	/* grid rather than flex: every track has to start and end on the same two x
-	   positions whatever the label beside it says ("gave up" against "1"), and a
+	   positions whatever the label beside it says ("5 / 5" against "1"), and a
 	   flex row with a 1fr middle drifts as the labels change width */
 	li {
 		display: grid;

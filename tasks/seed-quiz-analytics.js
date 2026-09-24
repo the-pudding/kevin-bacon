@@ -70,7 +70,8 @@ const SOLVE_RATE = 0.85;
 const BASE_SESSIONS = 118;
 
 /** Sessions planted with a known id and a known outcome, one per copy variant,
- * so all four sentences can be read in the browser. */
+ * so every sentence can be read in the browser. The give-up session shows the
+ * rank chart hidden: a give-up is not counted, so it has no rank result. */
 const PLANTED = [
 	{ id: 1, label: "fast solver", rank: { solved: 1 }, pairScore: 5 },
 	{ id: 2, label: "gave up", rank: { gaveUp: true, wrong: 2 }, pairScore: 3 },
@@ -222,7 +223,7 @@ const EDGE_CASES = [
 	{ n: 5, seed: () => seedPairs(sessionId(), { duplicate: true }) },
 	// unscorable legacy pick — whole session drops out
 	{ n: 3, seed: () => seedPairs(sessionId(), { legacyNull: true }) },
-	// guessed, then gave up — belongs in the gave-up bucket, not a guess one
+	// guessed, then gave up — not a data point, so excluded from rank.takers
 	{ n: 3, seed: (i) => seedRank(sessionId(), { gaveUp: true, wrong: 2 + i }) },
 	// same wrong actor twice before solving — counts once
 	{ n: 3, seed: () => seedRank(sessionId(), { solved: 3, repeat: true }) },
