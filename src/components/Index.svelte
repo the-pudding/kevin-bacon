@@ -837,7 +837,11 @@
 					<h2>Credits</h2>
 					<p class="credits-row">
 						<span class="role">Author</span>
-						<span class="name">Owen Lacey</span>
+						<span class="name"
+							><a href="https://pudding.cool/author/owen-lacey/" target="_blank"
+								>Owen Lacey</a
+							></span
+						>
 					</p>
 				</div>
 				<!-- renders nothing at all without a Supabase project, without
