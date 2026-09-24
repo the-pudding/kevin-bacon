@@ -248,14 +248,30 @@ Because the scale is fitted it cannot make the fixed scale's "every year gets a
 label, no thinning" guarantee: the pitch is ~63px on a desktop, ~19px at a 375px
 viewport, ~12px at 320px. Three things follow, all in `raceFutureTicks`.
 
-**Every year on the race chart is written in two digits** (`26`, not `2026`),
-through the one formatter `raceTickLabel` — the fixed-scale historical axis and
-the strip's fitted one both go through it, so the axis reads the same either side
-of the break and the strip's years are not a special case. Measured against a
-real `.tick` — Atlas Typewriter at 0.65rem, monospaced at 7.68px a character —
-four digits is 30.7px wide against 15.4px for two, and that is what buys the
-strip its density: five 4-digit labels need ~170px in a strip only ~97px wide at
-a 375px viewport with the old geometry.
+**Every year on the race chart is written in two digits behind a curly
+apostrophe** (`’26`, not `2026`) below `RACE_FULL_YEAR_MIN_W`, and in full at or
+above it, through the one formatter `raceTickLabel` — the fixed-scale
+historical axis and the strip's fitted one both go through it, so the axis
+reads the same either side of the break and the strip's years are not a
+special case. Measured against a real `.tick` — Atlas Typewriter at 0.65rem,
+monospaced at 7.68px a character — four digits is 30.7px wide against 15.4px
+for two (plus the apostrophe), and that is what buys the strip its density:
+five 4-digit labels need ~170px in a strip only ~97px wide at a 375px viewport
+with the old geometry.
+
+The full-year threshold is keyed on `w`, the reading-column width already
+threaded through every race.js layout function (`racePlot(w, h)` and down),
+not the app's `BESIDE_MIN_W` — that constant (`Stage.svelte`) is compared
+against the raw viewport, and `w` never reaches it: it tops out at ~700px in
+stacked layout and ~940-990px in beside layout, capped by the reading
+column's own max-width regardless of monitor size. `RACE_FULL_YEAR_MIN_W =
+900` fires once beside layout is reached, which in practice is what "enough
+room" means for this chart. The historical axis is safe to switch at any `w`
+past that — its fixed `PX_PER_YEAR` pitch is far wider than a 4-digit label
+needs — but the future strip's fitted pitch rarely if ever reaches 900px of
+`w` while it has room to show, so it stays abbreviated in practice regardless
+of the threshold; `raceTickLabel` doesn't special-case that, it just never
+gets asked for the full form there.
 
 The label is therefore **lossy**, so every tick also carries a numeric `year`
 and anything keying off a particular one reads that. The 1980 `InfoTerm` is the

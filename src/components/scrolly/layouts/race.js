@@ -1280,18 +1280,30 @@ function raceFutureScale(cam) {
 }
 
 /**
- * Every year label on the race chart, in two digits.
+ * Every year label on the race chart: two digits behind a curly apostrophe
+ * (`’99`) below `RACE_FULL_YEAR_MIN_W`, four digits (`1999`) at or above it.
  *
  * One formatter for the whole chapter — the fixed-scale historical axis and the
  * future strip's fitted one both go through it, so the axis reads the same
- * either side of the break and the strip's years are not a special case. It also
- * buys the strip its density: a 4-digit label is 30.7px wide against 15.4px for
- * two, and the strip is only ~97px across on a phone at the narrow end.
+ * either side of the break and the strip's years are not a special case. The
+ * abbreviated form buys density on a narrow canvas: a 4-digit label is 30.7px
+ * wide against 15.4px for two (plus the apostrophe glyph, still well under
+ * four digits), and the strip is only ~97px across on a phone at the narrow
+ * end.
  *
- * Lossy on purpose, so nothing may key off the text: ticks carry a numeric
+ * Lossy either way, so nothing may key off the text: ticks carry a numeric
  * `year` alongside.
  */
-const raceTickLabel = (yr) => String(yr).slice(2);
+const raceTickLabel = (yr, full) =>
+	full ? String(yr) : `’${String(yr).slice(2)}`;
+
+// The `w` (reading-column width, not viewport width — see racePlot) at and
+// above which years render in full. Not the app's BESIDE_MIN_W: that's a
+// viewport-width breakpoint, and `w` never reaches it (it tops out ~700px
+// stacked, ~940-990px beside, capped by the reading column's own max-width
+// regardless of monitor size). This threshold fires once beside layout is
+// reached, which is what "enough room" means in practice for this chart.
+const RACE_FULL_YEAR_MIN_W = 900;
 
 // Tick label box width, measured against a real `.tick` element rather than
 // estimated: the face is Atlas Typewriter at 0.65rem, so it is monospaced at
@@ -1320,20 +1332,26 @@ const FUTURE_TICK_HORIZON_ALPHA = 0.45;
 
 /**
  * The strip's ticks: the years the frontier has reached, on the strip's own
- * scale, in TWO DIGITS.
+ * scale, in abbreviated (`’99`) or full (`1999`) form per `full` — same rule
+ * `raceAxes` applies to the historical axis, passed down so the two scales
+ * never disagree about which form is showing.
  *
- * Two digits rather than four is a legibility trade, not a style: the strip is
- * ~97px wide at a 375px viewport, and five 4-digit labels need ~170px there. It
- * also marks the years apart from the present's full 2025, which is the one
- * measured year on the axis.
+ * The abbreviated form is a legibility trade, not a style: the strip is ~97px
+ * wide at a 375px viewport, and five 4-digit labels need ~170px there. It also
+ * marks the years apart from the present's full 2025, which is the one
+ * measured year on the axis. In practice `w` rarely if ever reaches
+ * `RACE_FULL_YEAR_MIN_W` while the strip has room to show — see `racePlot` —
+ * so the strip mostly stays abbreviated regardless; `full` is threaded through
+ * anyway so `raceTickLabel` never needs a special case for this caller.
  *
- * This is the one place in the chapter that BRANCHES ON WIDTH, and the branch is
- * honest rather than a lapse. The historical axis below needs no thinning
- * because pxPerYear guarantees the gap — but that guarantee is a property of a
- * FIXED scale and a fitted one cannot make it: the pitch here is ~63px on a
- * desktop, ~19px at a 375px viewport, ~12px at 320px. So the rule is keyed off
- * the COMPUTED pitch, never off the viewport, which keeps it a pure function of
- * the same geometry every other number on the frame comes from.
+ * The THINNING below is the one place in the chapter that BRANCHES ON WIDTH,
+ * and the branch is honest rather than a lapse. The historical axis below
+ * needs no thinning because pxPerYear guarantees the gap — but that guarantee
+ * is a property of a FIXED scale and a fitted one cannot make it: the pitch
+ * here is ~63px on a desktop, ~19px at a 375px viewport, ~12px at 320px. So
+ * the rule is keyed off the COMPUTED pitch, never off the viewport, which
+ * keeps it a pure function of the same geometry every other number on the
+ * frame comes from.
  *
  * Counted DOWN from RACE_FUTURE_END so the far end — the year the block's label
  * is about — is the one tick that survives every thinning, and so a stride of 2
@@ -1346,7 +1364,7 @@ const FUTURE_TICK_HORIZON_ALPHA = 0.45;
  * that label is dropped outright — the present owns that space, and the block's
  * own label already says what the ground to its right is.
  */
-function raceFutureTicks(cam, frontier) {
+function raceFutureTicks(cam, frontier, full) {
 	if (!(frontier > RACE_DATA_END)) return [];
 	const { x0, right, pitch, xS } = raceFutureScale(cam);
 	// no strip at all: no room to the right of the data's column
@@ -1367,7 +1385,7 @@ function raceFutureTicks(cam, frontier) {
 		if (pos - x0 < FUTURE_TICK_BOUNDARY) continue;
 		out.push({
 			pos,
-			label: raceTickLabel(yr),
+			label: raceTickLabel(yr, full),
 			year: yr,
 			alpha: 1 - (1 - FUTURE_TICK_HORIZON_ALPHA) * ((yr - RACE_DATA_END) / span)
 		});
@@ -1455,12 +1473,16 @@ function raceAxes(
 	vMin,
 	vMax,
 	frontier,
+	w,
 	futureTicks = true,
 	xTicks = true
 ) {
-	// every visible year gets its own horizontal 4-digit label — no thinning, no
-	// width branch: PX_PER_YEAR guarantees the gap. Ticks travel with their years
-	// during a pan, which is the whole point of a fixed scale.
+	// every visible year gets its own horizontal label — no thinning, no width
+	// branch on the historical axis's own spacing: PX_PER_YEAR guarantees the
+	// gap even for a 4-digit label. Ticks travel with their years during a pan,
+	// which is the whole point of a fixed scale. Whether the label itself is two
+	// digits or four is `raceTickLabel`'s call, keyed on `w` below.
+	const full = w >= RACE_FULL_YEAR_MIN_W;
 	const x = [];
 	// ...on every step but the closing one, which has no x axis at all. Not the
 	// same switch as `futureTicks`, which drops the STRIP's years and keeps the
@@ -1482,11 +1504,12 @@ function raceAxes(
 		// cull a label whose centre has left the plot (can happen for one frame
 		// after a resize changes visibleSpan) so it never lands on the y ticks
 		if (pos < cam.left - 0.5 || pos > cam.right + 0.5) continue;
-		// TWO DIGITS on every race step, so the axis reads the same everywhere and
-		// the strip's fitted years are not a special case (see raceFutureTicks).
-		// `year` rides along because a label is now lossy — anything keying off a
-		// particular year reads this, never the text.
-		x.push({ pos, label: raceTickLabel(yr), year: yr });
+		// abbreviated or full per `full`, but the SAME either way on every race
+		// step, so the axis reads consistently and the strip's fitted years are
+		// not a special case (see raceFutureTicks). `year` rides along because a
+		// label is lossy — anything keying off a particular year reads this,
+		// never the text.
+		x.push({ pos, label: raceTickLabel(yr, full), year: yr });
 	}
 	const y = raceYTicks(yS, vMin, vMax);
 	// the strip's years join the historical ones in one array, so they inherit
@@ -1501,7 +1524,7 @@ function raceAxes(
 	// block keeps its own "the future" label either way, so nothing that is turned
 	// off here was carrying meaning.
 	return {
-		x: [...x, ...(futureTicks ? raceFutureTicks(cam, frontier) : [])],
+		x: [...x, ...(futureTicks ? raceFutureTicks(cam, frontier, full) : [])],
 		xBase: cam.bottom + 10,
 		y
 	};
@@ -2388,6 +2411,7 @@ export function writeRaceSweepFrame(
 			vMin,
 			vMax,
 			frontier,
+			w,
 			frame.futureTicks !== false,
 			frame.xTicks !== false
 		),

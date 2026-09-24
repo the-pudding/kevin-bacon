@@ -6,9 +6,11 @@
  *
  * @typedef {Object} Tick
  * @property {number} pos px along the axis
- * @property {string} label the text drawn. On the race chart this is a year in
- *   TWO digits (see raceTickLabel), so it is lossy — anything keying off a
- *   particular year must read `year`, never this
+ * @property {string} label the text drawn. On the race chart this is a year,
+ *   abbreviated behind a curly apostrophe (`’99`) below `RACE_FULL_YEAR_MIN_W`
+ *   and written in full (`1999`) at or above it (see raceTickLabel), so it is
+ *   lossy either way — anything keying off a particular year must read
+ *   `year`, never this
  * @property {number} [year] the year a race tick stands for
  * @property {number} [alpha] 0-1 opacity; omitted = fully opaque. Only the
  *   future strip's years use it, fading toward the horizon with the block they
