@@ -252,6 +252,7 @@
 				<Combobox
 					bind:value
 					{items}
+					autofocus
 					placeholder="Search for an actor…"
 					emptyText={query.trim().length < 2 ? "Keep typing…" : "No matches"}
 					onsearch={(text) => (query = text)}

@@ -27,11 +27,22 @@
 		emptyText = "No matches",
 		disabled = false,
 		onsearch = undefined,
+		autofocus = false,
 		class: className = "",
 		...restProps
 	} = $props();
 
 	let open = $state(false);
+	/** @type {HTMLInputElement | null} */
+	let inputRef = $state(null);
+
+	// Opt-in: ActorSearch's box is a reader-initiated click on the search
+	// glyph, so focusing it is following the click. GuessRank's box appears on
+	// its own as each quiz question loads, where the same focus would steal
+	// keyboard/scroll from a reader who never asked for the input.
+	$effect(() => {
+		if (autofocus) inputRef?.focus();
+	});
 </script>
 
 <Combobox.Root
@@ -44,6 +55,7 @@
 >
 	<Combobox.Input
 		{id}
+		bind:ref={inputRef}
 		{placeholder}
 		aria-label={placeholder}
 		class={`bits-combobox ${className}`.trim()}
