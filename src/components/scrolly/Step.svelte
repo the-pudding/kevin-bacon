@@ -188,8 +188,9 @@
 	/* halo, not a plate, over a sky that runs under the prose (isProseHalo): a
 	   background would be a rectangle cut out of the picture. On this copy
 	   rather than the column, so a departing copy keeps its own state's halo
-	   as it fades over the sky it is leaving. */
+	   as it fades over the sky it is leaving. A filter (+layout.svelte), not
+	   --text-halo: a text-shadow run covers the end of the run before it. */
 	.step-prose.halo {
-		text-shadow: var(--text-halo);
+		filter: url(#prose-halo);
 	}
 </style>
