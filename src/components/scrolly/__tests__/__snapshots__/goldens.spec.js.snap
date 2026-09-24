@@ -243,7 +243,7 @@ exports[`layout goldens > degScatter {"searchId":null} @stacked 1`] = `
 exports[`layout goldens > hopAnchor {"anchorId":0,"arriving":false} @beside 1`] = `
 {
   "attrs": "642989fcdbf9def8",
-  "decor": "a4dc59efbb606245",
+  "decor": "e6d8412e00a64407",
   "delays": "81adf7d1bf8819f7",
   "trailDelays": null,
   "trails": null,
@@ -253,7 +253,7 @@ exports[`layout goldens > hopAnchor {"anchorId":0,"arriving":false} @beside 1`] 
 exports[`layout goldens > hopAnchor {"anchorId":0,"arriving":false} @phone 1`] = `
 {
   "attrs": "0393e253003ad26b",
-  "decor": "deb43b788190dea4",
+  "decor": "2a27d120132687d0",
   "delays": "81adf7d1bf8819f7",
   "trailDelays": null,
   "trails": null,
@@ -263,7 +263,7 @@ exports[`layout goldens > hopAnchor {"anchorId":0,"arriving":false} @phone 1`] =
 exports[`layout goldens > hopAnchor {"anchorId":0,"arriving":false} @stacked 1`] = `
 {
   "attrs": "12f7725beac24da5",
-  "decor": "24626671b0d47536",
+  "decor": "f20d5e7891f7012b",
   "delays": "81adf7d1bf8819f7",
   "trailDelays": null,
   "trails": null,
@@ -273,7 +273,7 @@ exports[`layout goldens > hopAnchor {"anchorId":0,"arriving":false} @stacked 1`]
 exports[`layout goldens > hopAnchor {"anchorId":105,"arriving":false} @beside 1`] = `
 {
   "attrs": "45554647f07f9413",
-  "decor": "01bfde89eb333783",
+  "decor": "489e57921ba2afbc",
   "delays": "b264d2e5e824e1ab",
   "trailDelays": null,
   "trails": null,
@@ -283,7 +283,7 @@ exports[`layout goldens > hopAnchor {"anchorId":105,"arriving":false} @beside 1`
 exports[`layout goldens > hopAnchor {"anchorId":105,"arriving":false} @phone 1`] = `
 {
   "attrs": "8db3ee7b5beb5e19",
-  "decor": "6197ea993b11567e",
+  "decor": "429064ca4c96cba6",
   "delays": "c925dab4aa0d4502",
   "trailDelays": null,
   "trails": null,
@@ -293,7 +293,7 @@ exports[`layout goldens > hopAnchor {"anchorId":105,"arriving":false} @phone 1`]
 exports[`layout goldens > hopAnchor {"anchorId":105,"arriving":false} @stacked 1`] = `
 {
   "attrs": "fa8dbcfee6771325",
-  "decor": "4b9c2a067e517578",
+  "decor": "f6e0c23f65beca63",
   "delays": "0770dabad5a1a9ae",
   "trailDelays": null,
   "trails": null,
@@ -303,7 +303,7 @@ exports[`layout goldens > hopAnchor {"anchorId":105,"arriving":false} @stacked 1
 exports[`layout goldens > hopAnchor {"anchorId":105,"arriving":true} @beside 1`] = `
 {
   "attrs": "17074594023b991b",
-  "decor": "01bfde89eb333783",
+  "decor": "489e57921ba2afbc",
   "delays": "b264d2e5e824e1ab",
   "trailDelays": null,
   "trails": null,
@@ -313,7 +313,7 @@ exports[`layout goldens > hopAnchor {"anchorId":105,"arriving":true} @beside 1`]
 exports[`layout goldens > hopAnchor {"anchorId":105,"arriving":true} @phone 1`] = `
 {
   "attrs": "30e12ce81dce6ff0",
-  "decor": "6197ea993b11567e",
+  "decor": "429064ca4c96cba6",
   "delays": "c925dab4aa0d4502",
   "trailDelays": null,
   "trails": null,
@@ -323,7 +323,7 @@ exports[`layout goldens > hopAnchor {"anchorId":105,"arriving":true} @phone 1`] 
 exports[`layout goldens > hopAnchor {"anchorId":105,"arriving":true} @stacked 1`] = `
 {
   "attrs": "4e79f151c213bbbe",
-  "decor": "4b9c2a067e517578",
+  "decor": "f6e0c23f65beca63",
   "delays": "0770dabad5a1a9ae",
   "trailDelays": null,
   "trails": null,
@@ -333,7 +333,7 @@ exports[`layout goldens > hopAnchor {"anchorId":105,"arriving":true} @stacked 1`
 exports[`layout goldens > hopBands null @beside 1`] = `
 {
   "attrs": "642989fcdbf9def8",
-  "decor": "a4dc59efbb606245",
+  "decor": "e6d8412e00a64407",
   "delays": "81adf7d1bf8819f7",
   "trailDelays": null,
   "trails": null,
@@ -343,7 +343,7 @@ exports[`layout goldens > hopBands null @beside 1`] = `
 exports[`layout goldens > hopBands null @phone 1`] = `
 {
   "attrs": "0393e253003ad26b",
-  "decor": "deb43b788190dea4",
+  "decor": "2a27d120132687d0",
   "delays": "81adf7d1bf8819f7",
   "trailDelays": null,
   "trails": null,
@@ -353,7 +353,7 @@ exports[`layout goldens > hopBands null @phone 1`] = `
 exports[`layout goldens > hopBands null @stacked 1`] = `
 {
   "attrs": "12f7725beac24da5",
-  "decor": "24626671b0d47536",
+  "decor": "f20d5e7891f7012b",
   "delays": "81adf7d1bf8819f7",
   "trailDelays": null,
   "trails": null,

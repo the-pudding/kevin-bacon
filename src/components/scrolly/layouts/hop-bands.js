@@ -379,7 +379,11 @@ function placeHidden(attrs, delays, id, band, f) {
 // just inside its top edge instead, because the prose lies over the chart's
 // middle (`proseOver`) and on a phone runs the full width — so a label at the
 // middle of the 2-movie row, which is most of the chart, sat under the words.
-const LEGEND_TOP_INSET = 12;
+// The inset is to the label's middle (it is centred on its y), so it clears the
+// row's edge by about as much as LEGEND_LEFT_INSET clears the span's.
+const LEGEND_TOP_INSET = 24;
+// How far in from the span's left edge a label starts.
+const LEGEND_LEFT_INSET = 16;
 
 /** the four rows' labels, each hung just inside the top of the row it names */
 function hopLegend(labels, f) {
@@ -387,7 +391,7 @@ function hopLegend(labels, f) {
 		color: HOP_RGB[hop],
 		ink: HOP_INK[hop],
 		label: `${hop} movie${hop > 1 ? "s" : ""} away — ${labels[hop - 1]} of actors`,
-		x: f.x0,
+		x: f.x0 + LEGEND_LEFT_INSET,
 		y: f.bandTop[hop] + Math.min(f.bandH[hop] / 2, LEGEND_TOP_INSET)
 	}));
 }
