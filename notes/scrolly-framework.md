@@ -55,9 +55,40 @@ and the measurements that were taken — lives in `notes/design/`.
 | `scrolly/GuessRank.svelte`, `StartButton`, `PairQuiz`, `ActorSearch` | The step controls: they live in the step card, in the prose flow, under the sentence that asks for the press (see "Interactive steps"). `PairQuiz` and `ActorSearch` also fly an element out of the card onto the canvas, off `layout.visual`'s `locate()`.                                                                                                                                                                                                                                                                  |
 | `scrolly/fly-to-dot.js`                                              | That flight, shared: `flyToDot({ el, rect, target, fill })` plus its beats (`MARK_MS`, `FLIGHT_MS`, `HOLD_MS`) and `prefersReducedMotion()`. WAAPI over a transform off the element's own box, so nothing leaves flow and the card's height never moves.                                                                                                                                                                                                                                                                     |
 | `scrolly/search.js`                                                  | The actor search's index: `SEARCH_POOL` (the recognisable actors plus the story's own cast, narrowed at build time to whoever also has a `rankHopBands` breakdown — the one pool all four searchable steps, including the hop chart's anchors, share), `RANK_POOL` (the ranked 250 — the rank guess's own, narrower pool, since that's all `RankBars` renders a row for), `searchActors`, and the one highlight rule the three searchable layouts share (`SEARCH_RGB`, `searchedId`, `withSearchLabel`, `withSearchParams`). |
-| `scrolly/dev/`                                                       | DEV only, dynamically imported by `Stage`: the race tuners (`RaceYBandDev`, `RacePxPerYearDev`, `RaceSpeedDev`) behind `Tuners.svelte`, writing `raceTuning` in `layouts/race.js` and bumping `tuning.rev` (`tuning.svelte.js`) so the visual drops its layout cache.                                                                                                                                                                                                                                                        |
+| `scrolly/dev/`                                                       | DEV only, dynamically imported by `Stage`: the race tuners (`RaceYBandDev`, `RacePxPerYearDev`, `RaceSpeedDev`) behind `Tuners.svelte`, writing `raceTuning` in `layouts/race.js` and bumping `tuning.rev` (`tuning.svelte.js`) so the visual drops its layout cache; and `TapZonesDev.svelte`, a HUD button fixed to the viewport that tints `TapNav`'s prev/next halves (see "Tap-zone debug tint" below).                                                                                                                 |
 | `scrolly/__tests__/`                                                 | The vitest suite (see "Verify").                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
 | `scripts/stale-checklist.js`                                         | Marks the tween checklist's rows stale from a diff (`npm run stale`), and checks them in the pre-commit gate.                                                                                                                                                                                                                                                                                                                                                                                                                |
+
+### Tap-zone debug tint
+
+`TapNav`'s prev/next halves carry no marking by design (see the component's
+own doc comment) — this is a DEV-only way to see their extent anyway, e.g.
+while checking they still cover the whole viewport at an odd width. It caught
+exactly that: the halves used to be sized off `#scrolly`'s own box (`50% +
+--column-gutter`), which is capped by `--column`, so any viewport wider than
+the active cap left the excess dead on both sides — fixed by sizing them
+against the viewport directly (`50vw`, `position: fixed`) instead.
+
+- `scrolly/dev/tapZones.svelte.js` holds the one signal: `tapZonesDev`
+  (`$state({ visible })`, restored from and persisted to `localStorage` under
+  `kb-tap-zones-visible`) and `toggleTapZones()`.
+- `scrolly/dev/TapZonesDev.svelte` is the HUD control: a small button fixed to
+  the viewport bottom-left, `position: fixed` (not anchored to
+  `.scrolly-visual` like the race tuners) so it stays reachable on every step,
+  not just one chapter. Dynamically imported by `Stage.svelte` under
+  `import.meta.env.DEV`, next to `devTuners` — same tree-shaking reasoning:
+  the import is conditional so a production build never references the chunk.
+- `TapNav.svelte` imports `tapZonesDev` directly (a static import, unlike the
+  dynamically-imported dev components — it just reads a boolean, so there's no
+  chunk to shake out) and toggles a `debug-visible` class on each half, tinting
+  `prev` and `next` two different low-opacity colours so they read apart.
+
+To replicate this pattern for another debug toggle that has to reach across
+the whole post rather than one chapter: a `*.svelte.js` module for the shared
+`$state` signal (read by whatever component needs to react to it), a
+`position: fixed` HUD control dynamically imported by `Stage` under
+`import.meta.env.DEV`, and a static import of the signal (not the control)
+wherever the effect actually renders.
 
 ## Core contracts
 

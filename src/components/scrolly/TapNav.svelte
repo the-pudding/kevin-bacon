@@ -21,14 +21,15 @@
 	 * "click to continue" or "tap to continue", not "tap the right side", so
 	 * the whole screen has to answer a tap, left half included.
 	 *
-	 * A full left/right split, edge to edge: the halves reach out past the
-	 * reading column's own padding (--column-gutter) so the outermost pixels of
-	 * a phone screen — exactly where a thumb lands — are live rather than dead.
-	 * There is no third region: everything the reader has to hit lies OVER a
-	 * half rather than beside it, lifted to --z-tap-above (the actor targets,
-	 * the search, the year slider, the InfoTerm triggers) or hosted in the step
-	 * card, which is pointer-transparent at --z-card and opts its own controls
-	 * back in. See the z ladder in Stage.svelte.
+	 * A full left/right split, edge to edge: each half is fixed to the
+	 * viewport at 50vw, not sized off the reading column, so the outermost
+	 * pixels of the screen — exactly where a thumb lands, and wherever the
+	 * column's own max-width leaves margin either side of it — are live
+	 * rather than dead. There is no third region: everything the reader has
+	 * to hit lies OVER a half rather than beside it, lifted to --z-tap-above
+	 * (the actor targets, the search, the year slider, the InfoTerm triggers)
+	 * or hosted in the step card, which is pointer-transparent at --z-card and
+	 * opts its own controls back in. See the z ladder in Stage.svelte.
 	 *
 	 * The one thing the split took: the race chart used to be pannable by
 	 * dragging its middle (RaceScrubber's .drag-surface, which loses to the
@@ -37,6 +38,13 @@
 	 */
 	import { getContext } from "svelte";
 	import { createTap } from "./tap.js";
+	// DEV-ONLY: paints the halves with a light, very-low-opacity tint while
+	// scrolly/dev/TapZonesDev.svelte's HUD toggle is on, so their extent —
+	// full viewport width, edge to edge — can be checked visually.
+	// tapZonesDev.visible is always false in a production build (the toggle
+	// that could flip it never mounts there), so this import costs a dead
+	// read, not a dead component.
+	import { tapZonesDev } from "./dev/tapZones.svelte.js";
 
 	const steps = getContext("scrolly-steps");
 
@@ -88,6 +96,7 @@
 <button
 	type="button"
 	class="tap-half prev"
+	class:debug-visible={tapZonesDev.visible}
 	aria-label={atStart ? "Continue" : "Previous step"}
 	onpointerdown={tap.down}
 	onclick={(e) => onTap(e, "prev")}
@@ -96,6 +105,7 @@
 <button
 	type="button"
 	class="tap-half next"
+	class:debug-visible={tapZonesDev.visible}
 	aria-label="Next step"
 	disabled={held}
 	onpointerdown={tap.down}
@@ -103,24 +113,30 @@
 ></button>
 
 <style>
-	/* Full height of the layout, top to bottom — the reader's thumb rests at the
-	   foot of the screen, so a half that stopped at the step card would put the
-	   target where the hand isn't. What the card holds that must still be
-	   reachable opts back into pointer events up at --z-card (GuessRank's
-	   controls, the pair quiz, the Start buttons, the inline InfoTerm
-	   triggers); the progress bar is higher still and takes no pointer events, so a
-	   tap over it steps the story like any other.
+	/* Full height of the SCREEN, top to bottom — the reader's thumb rests at
+	   the foot of the screen, so a half that stopped at the step card would
+	   put the target where the hand isn't. What the card holds that must
+	   still be reachable opts back into pointer events up at --z-card
+	   (GuessRank's controls, the pair quiz, the Start buttons, the inline
+	   InfoTerm triggers); the progress bar is higher still and takes no
+	   pointer events, so a tap over it steps the story like any other.
 
-	   Half the SCREEN, not half the layout: #scrolly pads the column by
-	   --column-gutter, and a half that stopped at the column's edge would leave
-	   that padding dead on a phone — the strip the thumb reaches first. Each
-	   half reaches back out over it, so the two meet in the middle and together
-	   cover the whole box. */
+	   Half the SCREEN, not half the layout: fixed against the viewport
+	   (50vw a side, left/right: 0) rather than sized off #scrolly's own box,
+	   which the reading column caps at --column below the `beside` breakpoint
+	   and again above --column's wide-mode value — a half sized off that box
+	   would leave the excess viewport width dead on either side once the
+	   column stops growing with it (confirmed empty on every step at 900,
+	   1024, 1600 and 1920px; see notes/scrolly-framework.md). `position:
+	   fixed` needs no ancestor to create its containing block — none of
+	   #scrolly's ancestors use transform/filter/will-change, which would
+	   otherwise trap it — so this always resolves against the real
+	   viewport. */
 	.tap-half {
-		position: absolute;
+		position: fixed;
 		top: 0;
 		bottom: 0;
-		width: calc(50% + var(--column-gutter));
+		width: 50vw;
 		z-index: var(--z-tap);
 		/* reset.css styles every bare button as filled-primary; a tap region is
 		   the opposite of that. Restated on :hover below for the same reason
@@ -139,15 +155,26 @@
 	}
 
 	.prev {
-		left: calc(-1 * var(--column-gutter));
+		left: 0;
 	}
 
 	.next {
-		right: calc(-1 * var(--column-gutter));
+		right: 0;
 	}
 
 	.tap-half:disabled {
 		cursor: default;
+	}
+
+	/* DEV-ONLY debug tint (see tapZones.svelte.js / TapZonesDev.svelte). Light
+	   and very low opacity, so it marks the region without hiding the canvas
+	   or prose underneath; the two halves get different hues so "prev" and
+	   "next" read apart at a glance. */
+	.tap-half.debug-visible.prev {
+		background: rgb(59 130 246 / 0.08);
+	}
+	.tap-half.debug-visible.next {
+		background: rgb(239 68 68 / 0.08);
 	}
 
 	/* reset.css's outline-offset: 2px would draw a full-height rectangle bleeding

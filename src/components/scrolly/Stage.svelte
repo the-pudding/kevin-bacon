@@ -230,9 +230,15 @@
 	// (the compiled block and its CSS still land in the bundle), which is why
 	// this isn't just an {#if} in the markup.
 	let devTuners = $state(null);
+	// The tap-zones debug toggle (scrolly/dev/TapZonesDev.svelte): a light,
+	// low-opacity tint over TapNav's halves, on/off from a HUD button fixed to
+	// the viewport. Same dynamic-import-under-DEV treatment as devTuners, and
+	// mounted alongside it so a production build drops both the same way.
+	let devTapZones = $state(null);
 	onMount(async () => {
 		if (!import.meta.env.DEV) return;
 		devTuners = await import("./dev/Tuners.svelte");
+		devTapZones = await import("./dev/TapZonesDev.svelte");
 	});
 
 	// Flips one tick after hydration — see SPLASH_REVEAL_MS in cardFade.js
@@ -499,6 +505,9 @@
 			     the race chapter. -->
 				{#if devTuners}
 					<devTuners.default />
+				{/if}
+				{#if devTapZones}
+					<devTapZones.default />
 				{/if}
 			{/if}
 		</div>
