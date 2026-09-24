@@ -53,35 +53,51 @@
 	--color-input-bg: var(--color-gray-50);
 	--color-input-fg: var(--color-gray-900);
 	--color-placeholder: var(--color-gray-500);
-	--color-text-halo: color-mix(in srgb, var(--color-bg) 40%, transparent);
+	--color-text-halo: color-mix(in srgb, var(--color-bg) 70%, transparent);
 
-	/* the legibility halo for text over the dot field: a 7x7 grid of offset
+	/* the legibility halo for text over the dot field: a 9x9 grid of offset
 	   copies, so it holds out as a solid band rather than a soft glow */
 	--text-halo:
+		-4px -4px 1px var(--color-text-halo), -4px -3px 1px var(--color-text-halo),
+		-4px -2px 1px var(--color-text-halo), -4px -1px 1px var(--color-text-halo),
+		-4px 0px 1px var(--color-text-halo), -4px 1px 1px var(--color-text-halo),
+		-4px 2px 1px var(--color-text-halo), -4px 3px 1px var(--color-text-halo),
+		-4px 4px 1px var(--color-text-halo), -3px -4px 1px var(--color-text-halo),
 		-3px -3px 1px var(--color-text-halo), -3px -2px 1px var(--color-text-halo),
 		-3px -1px 1px var(--color-text-halo), -3px 0px 1px var(--color-text-halo),
 		-3px 1px 1px var(--color-text-halo), -3px 2px 1px var(--color-text-halo),
-		-3px 3px 1px var(--color-text-halo), -2px -3px 1px var(--color-text-halo),
+		-3px 3px 1px var(--color-text-halo), -3px 4px 1px var(--color-text-halo),
+		-2px -4px 1px var(--color-text-halo), -2px -3px 1px var(--color-text-halo),
 		-2px -2px 1px var(--color-text-halo), -2px -1px 1px var(--color-text-halo),
 		-2px 0px 1px var(--color-text-halo), -2px 1px 1px var(--color-text-halo),
 		-2px 2px 1px var(--color-text-halo), -2px 3px 1px var(--color-text-halo),
+		-2px 4px 1px var(--color-text-halo), -1px -4px 1px var(--color-text-halo),
 		-1px -3px 1px var(--color-text-halo), -1px -2px 1px var(--color-text-halo),
 		-1px -1px 1px var(--color-text-halo), -1px 0px 1px var(--color-text-halo),
 		-1px 1px 1px var(--color-text-halo), -1px 2px 1px var(--color-text-halo),
-		-1px 3px 1px var(--color-text-halo), 0px -3px 1px var(--color-text-halo),
+		-1px 3px 1px var(--color-text-halo), -1px 4px 1px var(--color-text-halo),
+		0px -4px 1px var(--color-text-halo), 0px -3px 1px var(--color-text-halo),
 		0px -2px 1px var(--color-text-halo), 0px -1px 1px var(--color-text-halo),
 		0px 1px 1px var(--color-text-halo), 0px 2px 1px var(--color-text-halo),
-		0px 3px 1px var(--color-text-halo), 1px -3px 1px var(--color-text-halo),
+		0px 3px 1px var(--color-text-halo), 0px 4px 1px var(--color-text-halo),
+		1px -4px 1px var(--color-text-halo), 1px -3px 1px var(--color-text-halo),
 		1px -2px 1px var(--color-text-halo), 1px -1px 1px var(--color-text-halo),
 		1px 0px 1px var(--color-text-halo), 1px 1px 1px var(--color-text-halo),
 		1px 2px 1px var(--color-text-halo), 1px 3px 1px var(--color-text-halo),
+		1px 4px 1px var(--color-text-halo), 2px -4px 1px var(--color-text-halo),
 		2px -3px 1px var(--color-text-halo), 2px -2px 1px var(--color-text-halo),
 		2px -1px 1px var(--color-text-halo), 2px 0px 1px var(--color-text-halo),
 		2px 1px 1px var(--color-text-halo), 2px 2px 1px var(--color-text-halo),
-		2px 3px 1px var(--color-text-halo), 3px -3px 1px var(--color-text-halo),
+		2px 3px 1px var(--color-text-halo), 2px 4px 1px var(--color-text-halo),
+		3px -4px 1px var(--color-text-halo), 3px -3px 1px var(--color-text-halo),
 		3px -2px 1px var(--color-text-halo), 3px -1px 1px var(--color-text-halo),
 		3px 0px 1px var(--color-text-halo), 3px 1px 1px var(--color-text-halo),
-		3px 2px 1px var(--color-text-halo), 3px 3px 1px var(--color-text-halo);
+		3px 2px 1px var(--color-text-halo), 3px 3px 1px var(--color-text-halo),
+		3px 4px 1px var(--color-text-halo), 4px -4px 1px var(--color-text-halo),
+		4px -3px 1px var(--color-text-halo), 4px -2px 1px var(--color-text-halo),
+		4px -1px 1px var(--color-text-halo), 4px 0px 1px var(--color-text-halo),
+		4px 1px 1px var(--color-text-halo), 4px 2px 1px var(--color-text-halo),
+		4px 3px 1px var(--color-text-halo), 4px 4px 1px var(--color-text-halo);
 
 	/* "1" second duration */
 	--1s: 1ms;
