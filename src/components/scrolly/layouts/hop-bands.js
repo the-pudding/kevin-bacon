@@ -13,6 +13,7 @@ import {
 import { CROWD, HOP_INK, HOP_RGB, HOP_DOT_ALPHA } from "../palette.js";
 import { MARGIN, NO_BLEED, screenSpan } from "../plot.js";
 import { hopFractions, hopShareLabels } from "../rank-geometry.js";
+import { SEARCH_DOT_R } from "../search.js";
 import {
 	writeFieldCrowd,
 	makeFlight,
@@ -139,6 +140,8 @@ function departureColumn(id, f) {
 // fixed header band for the anchor (Bacon) + its label, so the label clears
 // the top edge and the first hop band
 const HEADER_H = 60;
+// the anchor's dot in the header row
+const ANCHOR_DOT_R = 10;
 
 // the top of the header row, and of the four bands under it. The anchor's name
 // hangs below its dot to within 2px of the header's foot, so the bands start a
@@ -257,6 +260,10 @@ function bandGeometry(seats, cuts) {
  * what stops it climbing out of the crowd to meet its own name. What the reader
  * watches instead is the seat being vacated: the anchor who was here leaves for
  * a band, and the new one is delivered by the chip rather than travelling.
+ *
+ * It is held at the chip's landing size, so when the chip lands and the flag
+ * drops the dot swells out from under it to the anchor's size as it fades in,
+ * rather than appearing at twice the chip's width.
  */
 function placeAnchor(attrs, id, f, arriving) {
 	const y = f.bandTop[0] + f.bandH[0] / 2;
@@ -265,7 +272,7 @@ function placeAnchor(attrs, id, f, arriving) {
 		id,
 		(f.x0 + f.x1) / 2,
 		y,
-		10,
+		arriving ? SEARCH_DOT_R : ANCHOR_DOT_R,
 		HOP_RGB[0],
 		f.seed || arriving ? 0 : 1
 	);

@@ -302,7 +302,7 @@ exports[`layout goldens > hopAnchor {"anchorId":105,"arriving":false} @stacked 1
 
 exports[`layout goldens > hopAnchor {"anchorId":105,"arriving":true} @beside 1`] = `
 {
-  "attrs": "17074594023b991b",
+  "attrs": "a9098b5634ba7bfd",
   "decor": "489e57921ba2afbc",
   "delays": "b264d2e5e824e1ab",
   "trailDelays": null,
@@ -312,7 +312,7 @@ exports[`layout goldens > hopAnchor {"anchorId":105,"arriving":true} @beside 1`]
 
 exports[`layout goldens > hopAnchor {"anchorId":105,"arriving":true} @phone 1`] = `
 {
-  "attrs": "30e12ce81dce6ff0",
+  "attrs": "21e8def75cd7a283",
   "decor": "429064ca4c96cba6",
   "delays": "c925dab4aa0d4502",
   "trailDelays": null,
@@ -322,7 +322,7 @@ exports[`layout goldens > hopAnchor {"anchorId":105,"arriving":true} @phone 1`] 
 
 exports[`layout goldens > hopAnchor {"anchorId":105,"arriving":true} @stacked 1`] = `
 {
-  "attrs": "4e79f151c213bbbe",
+  "attrs": "eff4c17b96fb1831",
   "decor": "f6e0c23f65beca63",
   "delays": "0770dabad5a1a9ae",
   "trailDelays": null,
