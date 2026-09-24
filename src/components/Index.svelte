@@ -397,7 +397,7 @@
 				<p>
 					The intuition is that Kevin Bacon is so prolific and well-known that
 					the game is a lot easier than if it were called the “Six Degrees of
-					John Doe”, implying he's some sort of all-encompassing center of
+					John Doe,” implying he's some sort of all-encompassing center of
 					Hollywood.
 				</p>
 			</Step>
@@ -535,8 +535,7 @@
 						go backwards to create a time machine of centers. By using completed
 						calendar years, our time machine starts at the end of 2025.
 					</p>
-					<p>Remember, lower remoteness is better. Press 'Start' to begin.</p>
-					<StartButton kind="rewind" label="Start" onpress={rewind} />
+					<StartButton kind="rewind" label="Go back in time" onpress={rewind} />
 				</Step>
 				<Step
 					state="raceRecent"
@@ -544,8 +543,8 @@
 				>
 					<p>
 						Let's go back to where Samuel L. Jackson took the crown in 2006.
-						Interestingly, this was before the MCU era kicked off, which only
-						made strengthened his position.
+						Interestingly, this was before the Marvel Cinematic Universe era
+						kicked off, which only made strengthened his position.
 					</p>
 					<p>
 						Conversely, Kevin Bacon's highest ever ranking was #108 in 1996 with
@@ -598,20 +597,9 @@
 					<p>
 						The relationship between film count and remoteness is strong, but it
 						doesn't explain it fully. Two actors can have the same film counts
-						but very different remoteness. For example, Natalie Portman and Anna
-						Kendrick are shown here at the two extremes of the data.
-					</p>
-				</Step>
-				<Step
-					state="scatterCenters"
-					params={{ showPair: true }}
-					panel={searchPanel}
-				>
-					<p>
-						So what's different about them? Put simply: better costars. Natalie
-						Portman stars with more “big dogs” than Anna Kendrick. They say in
-						Hollywood “It's not what you know, it's who you know”, and it seems
-						this is also true when explaining an actor's remoteness.
+						but very different remoteness. Natalie Portman and Anna Kendrick are
+						shown here with different remoteness scores, despite starring in the
+						same number of films.
 					</p>
 				</Step>
 				<Step
@@ -621,8 +609,11 @@
 					alt="Natalie Portman's label now reads 97 of the top 250, and Anna Kendrick's 35 of the top 250."
 				>
 					<p>
-						For example, of the 250 most-connected actors from earlier, Natalie
-						Portman has worked with almost three times as many.
+						Natalie Portman, however, has better costars, cast in films with
+						more "big dogs" than Anna Kendrick. Of the 250 most-connected actors
+						from earlier, Natalie Portman has worked with almost three times as
+						many. They say in Hollywood "It's not what you know, it's who you
+						know," and it seems this is also true here.
 					</p>
 				</Step>
 				<Step
@@ -633,7 +624,7 @@
 					<p>
 						It would be too circular to use costars with low remoteness as our
 						measure. That's like saying “We think the most expensive houses will
-						be the ones with the highest price”.
+						be the ones with the highest price.”
 					</p>
 				</Step>
 				<Step
@@ -729,8 +720,8 @@
 					alt="Kevin Bacon's line, alongside Helen Mirren's and Gene Hackman's."
 				>
 					<p>
-						Conversely, after 47 years making Hollywood films, he has a similar
-						output to Helen Mirren and Gene Hackman at this stage.
+						Conversely, after 47 years making Hollywood films, Kevin Bacon has a
+						similar output to Helen Mirren and Gene Hackman at this stage.
 					</p>
 					<p>
 						You'll remember Gene Hackman from the time machine; turns out Kevin

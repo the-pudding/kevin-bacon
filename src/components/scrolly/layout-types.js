@@ -57,6 +57,13 @@
  *   allocating nothing per frame
  * @property {number} alpha 0-1, ramped down over the last px of travel at each
  *   plot edge so the callout fades out instead of popping on the cull
+ * @property {RaceMark[]} marks the rings of the step's other moments on plot,
+ *   drawn without a note (see raceCallout)
+ *
+ * @typedef {Object} RaceMark
+ * @property {number} x px, centre of the ring on the moment
+ * @property {number} y px
+ * @property {number} alpha 0-1, the same edge ramp as RaceCallout.alpha
  *
  * @typedef {Object} FutureBand
  * @property {number} x px, left edge — the RACE_DATA_END column, where the data

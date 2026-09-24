@@ -22,6 +22,8 @@ import { BOXES } from "./helpers.js";
 const REST = 2006;
 /** the shipped phone box, whose plot is the narrowest the chapter draws */
 const PHONE = { w: 375, h: 667 };
+/** a desktop box, whose plot is wide enough to hold the takeover and Iron Man */
+const DESKTOP = { w: 700, h: 820 };
 
 /** one race frame at one box and playhead, with only its furniture read back */
 function frameAt({ w, h }, playhead = REST, step = RACE_FULL_STEP) {
@@ -55,16 +57,18 @@ describe("raceCallout", () => {
 
 	test("raceFull marks the woman's peak too, and it wins where it is on plot", () => {
 		// her ring is 2012 and the crossing is 2005.11: seven years apart, which is
-		// more than any plot holds, so the camera that shows one has culled the other
-		const { callout } = frameAt(PHONE, 2012);
+		// more than any plot holds, so the camera that shows one has culled the other.
+		// Half a year past it: a camera ON 2012 has her ring on its right edge,
+		// faded to nothing and culled
+		const { callout } = frameAt(PHONE, 2012.5);
 		expect(callout).not.toBeNull();
 		expect(callout.text).toMatch(/Sarandon/);
 	});
 
 	test("...and Dafoe's 2021 step up, nine years on from her ring", () => {
-		// the most present of the three, so it is the one a camera on 2021 draws
-		// even though the other two are declared after it
-		const { callout } = frameAt(PHONE, 2021);
+		// the most present of the three, so it is the one a camera just past 2021
+		// draws even though the other two are declared after it
+		const { callout } = frameAt(PHONE, 2021.5);
 		expect(callout).not.toBeNull();
 		expect(callout.text).toMatch(/Dafoe/);
 	});
@@ -77,23 +81,48 @@ describe("raceCallout", () => {
 	});
 
 	test("...and the takeover where THAT is", () => {
-		expect(frameAt(PHONE).callout.text).toMatch(/Jackson/);
+		expect(frameAt(PHONE).callout.text).toMatch(/Freedomland/);
 	});
 
-	test("no camera can put two marked moments on one plot", () => {
-		// what makes "most present wins" unobservable at the shipped pxPerYear: the
-		// order guarantees the pick, but the cull is what decides it. Asserted over
-		// every playhead the reader can reach, at every box, rather than at the two
-		// the other tests happen to use — a moment added inside a plot's width of
-		// another has to fail here rather than flicker between the two on a drag.
+	test("...and Iron Man's 2008, which takes the note once on plot", () => {
+		// under three years past the crossing, so a desktop camera on 2009 has
+		// both moments on plot and the order hands the reader the later one's
+		// note — while the takeover keeps its ring on the crossing
+		const { callout, cam } = frameAt(DESKTOP, 2009);
+		expect(callout.text).toMatch(/Iron Man/);
+		expect(callout.marks).toHaveLength(1);
+		// the takeover's ring: behind Iron Man's, and still on the plot
+		expect(callout.marks[0].x).toBeLessThan(callout.ring.x);
+		expect(callout.marks[0].x).toBeGreaterThan(cam.left);
+		expect(callout.marks[0].alpha).toBeGreaterThan(0);
+	});
+
+	test("...but not on 2008 itself, where its ring has faded to nothing", () => {
+		// the camera's right edge is ON the moment, so its edge fade is zero: the
+		// note stays with the takeover rather than going to a ring nobody can see
+		const { callout } = frameAt(DESKTOP, 2008);
+		expect(callout.text).toMatch(/Freedomland/);
+		expect(callout.marks).toHaveLength(0);
+	});
+
+	test("where moments share a plot, the most present one takes the note", () => {
+		// Iron Man sits under three years from the takeover and under four from
+		// Sarandon's peak, inside some plots' span, so the order is observable.
+		// Asserted over every playhead the reader can reach, at every box, rather
+		// than at the few the other tests happen to use.
 		for (const box of BOXES) {
 			setPlotBottomFrac(box.plotFrac);
 			const span = raceVisibleSpan(box.w, box.h);
 			for (let p = RACE_BAND_FIRST; p <= RACE_DATA_END; p += 0.25) {
+				// exclusive: a ring ON either edge has faded to nothing, and is not
+				// drawn at all
 				const on = RACE_FULL_STEP.callouts.filter(
 					(c) => c.year > p - span && c.year < p
 				);
-				expect(on.length, `${box.name} @${p}`).toBeLessThanOrEqual(1);
+				if (on.length < 2) continue;
+				const { callout } = frameAt(box, p);
+				expect(callout.text, `${box.name} @${p}`).toBe(on[0].text);
+				expect(callout.marks, `${box.name} @${p}`).toHaveLength(on.length - 1);
 			}
 		}
 	});

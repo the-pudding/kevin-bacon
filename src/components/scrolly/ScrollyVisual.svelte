@@ -2508,6 +2508,16 @@
 					{@attach live && calloutTarget}
 					style="left: {t.ring.x}px; top: {t.ring.y}px; opacity: {t.alpha}"
 				></span>
+				<!-- the step's other moments on plot: rings only, their notes held
+				     back for the one above (raceCallout). Not hover targets — the
+				     hover lights the actor the NOTE is about. -->
+				{#each t.marks as mark}
+					<span
+						class="callout-mark"
+						aria-hidden="true"
+						style="left: {mark.x}px; top: {mark.y}px; opacity: {mark.alpha}"
+					></span>
+				{/each}
 				<!-- `above` anchors the box by its own BOTTOM edge, which is what
 				     keeps the frame writer's assumed note height out of where a
 				     flipped note lands: translateY(-100%) is the rendered height,

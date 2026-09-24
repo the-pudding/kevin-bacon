@@ -409,6 +409,21 @@ if (RACE_STARR_STEP.rank !== 1) {
 	);
 }
 
+// ---------------------------------------------------------------------------
+// Iron Man, 2008: the Marvel Cinematic Universe begins, two years into SLJ's
+// reign. The year is DECLARED, as Dafoe's and Starr's are — it is the film's
+// year, not a fact about the field — so only the rank is derived, and the
+// note's claim that he already holds the crown is what the throw below holds.
+// ---------------------------------------------------------------------------
+const RACE_MCU_YEAR = 2008;
+const RACE_MCU_STEP = rankAt(SLJ, RACE_MCU_YEAR);
+
+if (RACE_MCU_STEP.rank !== 1) {
+	throw new Error(
+		`scrolly race: Jackson is #${RACE_MCU_STEP.rank} in ${RACE_MCU_YEAR}, not #1`
+	);
+}
+
 // The record's own sub-year wobble, which the top of the plot has to absorb:
 // raceAnchorAt interpolates between whole years, and an actor's monotone cubic
 // can sag under that chord — measured at most 0.0019 over the playheads a camera
@@ -1042,10 +1057,15 @@ const CALLOUT_FADE = 24;
 const clamp = (v, lo, hi) => Math.min(Math.max(v, lo), hi);
 
 /**
- * One callout's pixel geometry for one frame, or null when its moment is off
- * camera (the reader has panned past it, or raceRecent is still resting on 2025
- * before the Start rewind brings it in). Culled on the same rule as the x ticks
- * below, so it leaves the plot rather than sliding over the y axis.
+ * One moment's ring for one frame, or null when it is off camera (the reader
+ * has panned past it, or raceRecent is still resting on 2025 before the Start
+ * rewind brings it in).
+ *
+ * Culled half a px INSIDE each edge, where its fade is already under 1/48: a
+ * ring there is invisible, and counting it as on plot would let it take the
+ * note from one the reader can see (see raceCallout). Measured in px rather
+ * than tested for alpha === 0 because a camera parked on the moment's own year
+ * puts it at the edge only to within float error.
  *
  * Everything comes off `cam` (which carries the plot rect) and `yS`, so it
  * tracks both the camera and the per-camera y fit without being told about
@@ -1054,12 +1074,29 @@ const clamp = (v, lo, hi) => Math.min(Math.max(v, lo), hi);
  * @param {ReturnType<typeof raceCamera>} cam
  * @param {(v: number) => number} yS
  * @param {import("../layout-types.js").RaceMoment} at the moment it marks
- * @returns {import("../layout-types.js").RaceCallout|null}
+ * @returns {import("../layout-types.js").RaceMark|null}
  */
-function raceCalloutGeometry(cam, yS, at) {
-	const rx = cam.xS(at.year);
-	if (rx < cam.left - 0.5 || rx > cam.right + 0.5) return null;
-	const ry = yS(at.value);
+function raceRing(cam, yS, at) {
+	const x = cam.xS(at.year);
+	if (x < cam.left + 0.5 || x > cam.right - 0.5) return null;
+	return {
+		x,
+		y: yS(at.value),
+		alpha: clamp(Math.min(x - cam.left, cam.right - x) / CALLOUT_FADE, 0, 1)
+	};
+}
+
+/**
+ * One callout's pixel geometry for one frame: its ring (see raceRing), and the
+ * note and leader placed off it. `marks` is left empty for raceCallout to fill.
+ *
+ * @param {ReturnType<typeof raceCamera>} cam
+ * @param {import("../layout-types.js").RaceMark} ring
+ * @param {import("../layout-types.js").RaceMoment} at the moment it marks
+ * @returns {import("../layout-types.js").RaceCallout}
+ */
+function raceCalloutGeometry(cam, ring, at) {
+	const { x: rx, y: ry } = ring;
 
 	const width = Math.min(
 		NOTE_MAX_W,
@@ -1127,7 +1164,8 @@ function raceCalloutGeometry(cam, yS, at) {
 			h2x: bx - ux * ARROW_HEAD + uy * ARROW_HEAD_W,
 			h2y: by - uy * ARROW_HEAD - ux * ARROW_HEAD_W
 		},
-		alpha: clamp(Math.min(rx - cam.left, cam.right - rx) / CALLOUT_FADE, 0, 1)
+		alpha: ring.alpha,
+		marks: []
 	};
 }
 
@@ -1197,6 +1235,13 @@ const RACE_DAFOE_CALLOUT = {
 	focus: [DAFOE]
 };
 
+/** the MCU's first film, two years after the takeover */
+const RACE_MCU_CALLOUT = {
+	...RACE_MCU_STEP,
+	text: "Iron Man (2008) - The Marvel Cinematic Universe begins with Samuel L. Jackson playing a key character, making him practically uncatchable for the next 20 years.",
+	focus: [SLJ]
+};
+
 /** the game's own year, and who it would have been named after */
 const RACE_STARR_CALLOUT = {
 	...RACE_STARR_STEP,
@@ -1212,30 +1257,39 @@ const RACE_STARR_CALLOUT = {
 const RACE_PAN_CALLOUTS = raceCalloutList(RACE_TAKEOVER_CALLOUT);
 
 /**
- * raceFull's four, present-first. It is the step the reader can pan, so it is
+ * raceFull's five, present-first. It is the step the reader can pan, so it is
  * the only one that can reach any of these moments — and the one step whose
  * prose is about looking around rather than about a single year.
  */
 const RACE_FULL_CALLOUTS = raceCalloutList(
 	RACE_DAFOE_CALLOUT,
 	RACE_WOMAN_CALLOUT,
+	RACE_MCU_CALLOUT,
 	RACE_TAKEOVER_CALLOUT,
 	RACE_STARR_CALLOUT
 );
 
 /**
- * The ONE callout this frame draws: the most present of the step's, of those the
- * camera has on plot. Null when it has none of them.
+ * The ONE callout whose note this frame draws: the most present of the step's,
+ * of those the camera shows at all. Null when it shows none of them. Every other
+ * moment on plot keeps its ring, as the picked one's `marks`, so the reader can
+ * still see where they are.
  *
- * One at a time because two blocks of prose on one plot compete for the eye and
- * the one that loses is usually the one the step was about (motion.md rule 6).
- * Most present wins because the chart is read left to right as time, so the
- * later moment is the one the reader has just arrived at.
+ * One note at a time because two blocks of prose on one plot compete for the
+ * eye and the one that loses is usually the one the step was about (motion.md
+ * rule 6). Most present wins because the chart is read left to right as time,
+ * so the later moment is the one the reader has just arrived at.
  *
- * At the shipped `pxPerYear` no two declared moments are close enough in years
- * to fit on one plot together, so the pick is decided by the cull and never by
- * the order. It is still the order that guarantees it: the dev tuner can widen
- * the visible span (raceTuning.pxPerYear) until two of them overlap.
+ * "Shows at all" is raceRing's cull, which drops a moment sitting on the plot's
+ * edge: it has faded to nothing there, and would otherwise take the note from
+ * the one behind it and draw nothing in its place — a camera resting on 2008
+ * would show the takeover's ring and no note at all.
+ *
+ * The order is observable at the shipped `pxPerYear`: Iron Man (2008) is under
+ * three years on from the takeover (2005.11) and under four before Sarandon's
+ * peak (2012), inside the span of any plot wider than a phone's. A reader
+ * panning raceFull forward sees the note hand over to Iron Man's as 2008 fades
+ * in, while the takeover's ring stays on the crossing.
  *
  * @param {ReturnType<typeof raceCamera>} cam
  * @param {(v: number) => number} yS
@@ -1243,11 +1297,16 @@ const RACE_FULL_CALLOUTS = raceCalloutList(
  * @returns {import("../layout-types.js").RaceCallout|null}
  */
 function raceCallout(cam, yS, list) {
+	let callout = null;
+	const marks = [];
 	for (const at of list) {
-		const c = raceCalloutGeometry(cam, yS, at);
-		if (c) return c;
+		const ring = raceRing(cam, yS, at);
+		if (!ring) continue;
+		if (callout) marks.push(ring);
+		else callout = raceCalloutGeometry(cam, ring, at);
 	}
-	return null;
+	if (callout) callout.marks = marks;
+	return callout;
 }
 
 // ---------------------------------------------------------------------------
