@@ -585,7 +585,8 @@
 					<p>
 						The obvious one is film count. A higher count moves an actor closer
 						to the center. Indeed, Samuel L. Jackson has been in far more films
-						than anyone else, 20 more than Nicolas Cage, who's the next closest.
+						than anyone else among our 169,000 actors, 20 more than Nicolas
+						Cage, who's the next closest.
 					</p>
 				</Step>
 				<Step
@@ -681,8 +682,8 @@
 				>
 					<p>
 						We now have everything we need to predict Gen Z's Kevin Bacon using
-						film count and costar data. Our contenders are actors born since
-						1997 who have been in at least 5 films.
+						film count and costar data. Our contenders are the 99 of our 169,000
+						actors born since 1997 who have been in at least 5 films.
 					</p>
 					<StartButton
 						kind="genzLines"
