@@ -421,7 +421,7 @@
 			     actors out of it. hopBands sorts its crowd out of this sky. -->
 			<Splash state="titleGalaxy">
 				{#snippet title()}
-					Gen Z's Kevin Bacon
+					The real Kevin Bacon
 				{/snippet}
 				{#snippet subtitle()}
 					A journey through the past, present and future centers of Hollywood.
@@ -795,11 +795,14 @@
 					alt="The future view of the center of Hollywood chart returns. Samuel L. Jackson's line falls away and the contenders land on their simulated medians above him."
 				>
 					<p>
-						From our time machine you'll recall lines dropping off as actors
-						stop appearing in so many films. From a purely biological
-						standpoint, we know this will eventually happen to Samuel L.
-						Jackson, it's just a matter of how long that takes for someone else
-						to take the crown.
+						As time goes on, Samuel L. Jackson will eventually stop appearing in
+						movies. As a result, he'll be connected to an increasingly smaller
+						proportion of actors and he'll fall away from the center.
+					</p>
+					<p>
+						Meanwhile, these Gen Z actors are the most likely to continue
+						starring in films and overtake him. What we don't know is exactly
+						how long that will take.
 					</p>
 				</Step>
 				<Step state="outro" hideBar>
