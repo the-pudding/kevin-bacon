@@ -3,7 +3,7 @@
 	let {
 		children,
 		class: className = "", // "circle"
-		variant = "default", // "default" | "primary" | "secondary" | "ghost" | "link" | "outline"
+		variant = "default", // "default" | "story" | "primary" | "secondary" | "ghost" | "link" | "outline"
 		size = "default", // "default" | "sm" | "lg" | "icon"
 		href = undefined,
 		disabled = false,

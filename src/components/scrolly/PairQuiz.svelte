@@ -230,8 +230,7 @@
 		</p>
 		<Button
 			class="quiz__skip"
-			variant="outline"
-			size="sm"
+			variant="story"
 			disabled={!pair}
 			onclick={steps.skip}
 		>

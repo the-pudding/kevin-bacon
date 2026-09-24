@@ -52,7 +52,7 @@
 	height: 2rem;
 }
 
-/* variant (default, outline, secondary, ghost, link, round) */
+/* variant (default, story, outline, secondary, ghost, link, round) */
 /* Every :hover below is guarded against disabled, for the reason reset.css
    gives at its own hover block: a disabled button takes no hover treatment.
    These rules are specific enough to beat the reset outright, so without the
@@ -69,6 +69,25 @@
 }
 
 .bits-button[data-button-root][data-variant="default"]:where(
+		:not(:disabled)
+	):hover {
+	background: oklch(from var(--bg) calc(l + 0.2) c h);
+}
+
+/* The story's card controls — Start, Show Gen Z actors and both Skips — are
+   one variant so they read as one control. The halo .scrolly-steps hangs on
+   its prose is inherited, and on a filled button it is a white glow around
+   white glyphs on a dark plate; a button carries its own background, so it
+   needs no hold-out. */
+.bits-button[data-button-root][data-variant="story"] {
+	--bg: var(--color-button-bg-primary);
+	--fg: var(--color-button-fg-primary);
+	background: var(--bg);
+	color: var(--fg);
+	text-shadow: none;
+}
+
+.bits-button[data-button-root][data-variant="story"]:where(
 		:not(:disabled)
 	):hover {
 	background: oklch(from var(--bg) calc(l + 0.2) c h);

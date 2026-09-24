@@ -82,8 +82,8 @@
 		     remounts it (`picks`), which is what hands the reader an empty box
 		     for the next name.
 
-		     Skip shares the input's line, as the same outline Button as the pair
-		     quiz's Skip, so the story's two Skips read as one control. -->
+		     Skip shares the input's line, as the same `story` Button as the pair
+		     quiz's Skip and the StartButtons. -->
 		<div class="ask">
 			<div class="search">
 				{#key picks}
@@ -99,7 +99,7 @@
 					/>
 				{/key}
 			</div>
-			<Button variant="outline" size="sm" onclick={skip}>Skip</Button>
+			<Button variant="story" onclick={skip}>Skip</Button>
 		</div>
 	{/if}
 	{#if story.rank.skipped}

@@ -35,7 +35,7 @@
 </script>
 
 <div class="start-button">
-	<Button variant="default" disabled={story.running === kind} onclick={onpress}>
+	<Button variant="story" disabled={story.running === kind} onclick={onpress}>
 		{label}
 	</Button>
 </div>
@@ -65,10 +65,5 @@
 		   the very presses it exists to keep clear. */
 		margin-inline: var(--control-inset);
 		pointer-events: auto;
-		/* .scrolly-steps hangs a white halo on its text to hold the prose off
-		   the sky behind it; it is inherited, and on a filled button it is a
-		   white glow around white glyphs on a dark plate. A button carries its
-		   own background, so it needs no hold-out. */
-		text-shadow: none;
 	}
 </style>
