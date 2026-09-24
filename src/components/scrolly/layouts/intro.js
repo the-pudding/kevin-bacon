@@ -384,7 +384,6 @@ export const states = {
 		// A function, so the fifteen are not discoverable from the declaration —
 		// they are declared in states.js's STATE_TRACKED instead.
 		labels: (p) => (p?.focus == null ? INTRO_IDS : [...routeActors(p.focus)]),
-		pulse: ANCHOR_ID,
 		params: (s) => ({ focus: s.intro.focus }),
 		// The walk is this state's pop-in: the story opens here, and a first
 		// load seeds every node at zero radius/alpha and tweens it in on the
