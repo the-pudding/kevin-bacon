@@ -87,6 +87,76 @@ export function trackLabels(attrs, ids, { names, shown, gate, held }) {
 }
 
 /**
+ * How long a name's CSS opacity transition runs (`.node-label` in
+ * ScrollyVisual reads it as `--label-fade`), and so how long a name that has
+ * gone invisible keeps riding its dot before it is frozen.
+ */
+export const LABEL_FADE_MS = 300;
+
+/**
+ * Holds every settled-invisible name on last frame's object, so the keyed
+ * `{#each}` the names render from skips its row.
+ *
+ * Every id any state can label is mounted on every step — hundreds of them, one
+ * or two showing — and `trackLabels` builds a fresh entry for each every frame.
+ * Handed fresh objects, every row re-rendered and rewrote its style each frame,
+ * and every one of those restyles re-resolved the eighty-shadow halo:
+ * notes/perf/mobile-perf-review.md, finding 1. A name that cannot be seen has
+ * nothing to update, so it is handed back the entry it last rendered.
+ *
+ * A name stays live — a fresh entry every frame, exactly as before — while it
+ * is showing, while it is fading out (`fadeMs` from the frame it went to
+ * alpha 0, so the fade still rides its dot), while its text has changed (a new
+ * key, a new row), and for `liveId`: the pulse ring reads that dot's own alpha
+ * and position out of the entry whether or not its name shows.
+ *
+ * @param {number} fadeMs
+ */
+export function createLabelFreezer(fadeMs) {
+	/** @type {Map<number, { entry: TrackedLabel, hiddenAt: number | null }>} */
+	const last = new Map();
+	/**
+	 * @param {TrackedLabel[]} labels this frame's entries
+	 * @param {number} now ms
+	 * @param {number | null} liveId
+	 * @returns {TrackedLabel[]}
+	 */
+	return (labels, now, liveId) =>
+		labels.map((t) => {
+			const was = last.get(t.id);
+			if (!was) {
+				// first seen invisible: nothing on screen to fade, frozen from here
+				last.set(t.id, {
+					entry: t,
+					hiddenAt: t.labelAlpha > 0 ? null : -Infinity
+				});
+				return t;
+			}
+			if (t.labelAlpha > 0 || t.id === liveId || was.entry.name !== t.name) {
+				was.entry = t;
+				was.hiddenAt = null;
+				return t;
+			}
+			was.hiddenAt ??= now;
+			if (now - was.hiddenAt >= fadeMs) return was.entry;
+			was.entry = t;
+			return t;
+		});
+}
+
+/**
+ * Whether two frames put every name on the same side, so a frame that changes
+ * no side hands the template the map it already has.
+ * @param {Record<number, "left" | "right">} a
+ * @param {Record<number, "left" | "right">} b
+ */
+export function sameSides(a, b) {
+	const keys = Object.keys(a);
+	if (keys.length !== Object.keys(b).length) return false;
+	return keys.every((k) => a[k] === b[k]);
+}
+
+/**
  * This frame's side for every name on screen: the state's own `labelDirs` for
  * the names it shows, and the side it last had for a name that is on its way
  * out.

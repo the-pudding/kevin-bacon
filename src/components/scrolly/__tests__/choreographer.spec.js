@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { createChoreographer } from "../choreographer.js";
+import { createFrameLoop } from "../tween.js";
 
 // A hand-driven animation frame: `tick(t)` runs every queued callback at time t.
 let now = 0;
@@ -30,7 +31,7 @@ const make = () => {
 	const onStop = vi.fn();
 	const choreo = createChoreographer({
 		ease: (p) => p,
-		draw: () => draws.push(now),
+		loop: createFrameLoop(() => draws.push(now)),
 		onStop
 	});
 	return { choreo, draws, onStop };

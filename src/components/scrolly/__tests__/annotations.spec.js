@@ -1,8 +1,10 @@
 import { describe, expect, test } from "vitest";
 import { ATTR_SIZE, set } from "../attr-buffer.js";
 import {
+	createLabelFreezer,
 	createLabelStacker,
 	raceLabelCut,
+	sameSides,
 	trackLabels
 } from "../annotations.js";
 
@@ -138,5 +140,76 @@ describe("createLabelStacker", () => {
 		});
 		// and a state that labels it with no override puts it back under its dot
 		expect(stacker.stack(labels, {}, null).dirs).toEqual({});
+	});
+});
+
+describe("createLabelFreezer", () => {
+	const label = (id, labelAlpha, x = 0, name = `n${id}`) => ({
+		id,
+		name,
+		x,
+		y: 0,
+		r: 3,
+		alpha: labelAlpha,
+		labelAlpha,
+		labelOffset: 0
+	});
+
+	test("a showing name gets this frame's entry every frame", () => {
+		const freeze = createLabelFreezer(300);
+		const a = label(1, 1, 10);
+		const b = label(1, 1, 20);
+		expect(freeze([a], 0, null)[0]).toBe(a);
+		expect(freeze([b], 16, null)[0]).toBe(b);
+	});
+
+	test("a name that goes out keeps riding its dot for the fade, then freezes", () => {
+		const freeze = createLabelFreezer(300);
+		freeze([label(1, 1)], 0, null);
+		const out = label(1, 0, 5);
+		expect(freeze([out], 100, null)[0]).toBe(out);
+		const fading = label(1, 0, 6);
+		expect(freeze([fading], 399, null)[0]).toBe(fading);
+		expect(freeze([label(1, 0, 7)], 400, null)[0]).toBe(fading);
+		expect(freeze([label(1, 0, 8)], 900, null)[0]).toBe(fading);
+	});
+
+	test("a name first seen invisible is frozen from the next frame", () => {
+		const freeze = createLabelFreezer(300);
+		const first = label(1, 0);
+		expect(freeze([first], 0, null)[0]).toBe(first);
+		expect(freeze([label(1, 0, 9)], 16, null)[0]).toBe(first);
+	});
+
+	test("a frozen name thaws when it shows again, or its text changes", () => {
+		const freeze = createLabelFreezer(300);
+		const first = label(1, 0);
+		freeze([first], 0, null);
+		const renamed = label(1, 0, 0, "renamed");
+		expect(freeze([renamed], 16, null)[0]).toBe(renamed);
+		const back = label(1, 1);
+		expect(freeze([back], 32, null)[0]).toBe(back);
+	});
+
+	test("the pulse ring's id stays live while its name is hidden", () => {
+		const freeze = createLabelFreezer(300);
+		freeze([label(1, 0)], 0, 1);
+		const later = label(1, 0, 40);
+		expect(freeze([later], 1000, 1)[0]).toBe(later);
+	});
+});
+
+describe("sameSides", () => {
+	test("equal maps match, whatever object they are", () => {
+		expect(
+			sameSides({ 1: "left", 2: "right" }, { 2: "right", 1: "left" })
+		).toBe(true);
+		expect(sameSides({}, {})).toBe(true);
+	});
+
+	test("a changed, added or dropped side does not", () => {
+		expect(sameSides({ 1: "left" }, { 1: "right" })).toBe(false);
+		expect(sameSides({ 1: "left" }, { 1: "left", 2: "right" })).toBe(false);
+		expect(sameSides({ 1: "left", 2: "right" }, { 1: "left" })).toBe(false);
 	});
 });

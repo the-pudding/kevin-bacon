@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
-import { createTweener, easeCubicInOut } from "../tween.js";
+import { createFrameLoop, createTweener, easeCubicInOut } from "../tween.js";
 
 // A hand-driven animation frame: `tick(t)` runs every queued callback at time t.
 let now = 0;
@@ -27,8 +27,9 @@ afterEach(() => vi.restoreAllMocks());
 
 const make = () => {
 	const frames = [];
-	const tw = createTweener(2, (buf) => frames.push(Array.from(buf)), 1);
-	return { tw, frames };
+	const loop = createFrameLoop(() => frames.push(Array.from(tw.current)));
+	const tw = createTweener(2, loop, 1);
+	return { tw, frames, loop };
 };
 
 describe("createTweener", () => {
@@ -143,5 +144,82 @@ describe("createTweener", () => {
 			shiftedStart + (10 - shiftedStart) * easeCubicInOut(0.75),
 			5
 		);
+	});
+});
+
+describe("createFrameLoop", () => {
+	test("two tweeners on one loop draw once a frame, after both have ticked", () => {
+		const draws = [];
+		const loop = createFrameLoop(() =>
+			draws.push([a.current[0], b.current[0]])
+		);
+		const a = createTweener(1, loop);
+		const b = createTweener(1, loop);
+		a.to(Float64Array.of(10), 100);
+		b.to(Float64Array.of(20), 100);
+		expect(queue.size).toBe(1);
+		tick(50);
+		expect(draws).toEqual([
+			[10 * easeCubicInOut(0.5), 20 * easeCubicInOut(0.5)].map(Math.fround)
+		]);
+		tick(100);
+		expect(draws.at(-1)).toEqual([10, 20]);
+		expect(draws).toHaveLength(2);
+		expect(queue.size).toBe(0);
+	});
+
+	test("a tween's onDone runs before its frame's draw", () => {
+		const order = [];
+		const loop = createFrameLoop(() => order.push("draw"));
+		const tw = createTweener(1, loop);
+		tw.to(Float64Array.of(1), 100, 0, null, () => order.push("done"));
+		tick(100);
+		expect(order).toEqual(["done", "draw"]);
+	});
+
+	test("a tick started during a frame first runs on the next one", () => {
+		const loop = createFrameLoop(() => {});
+		const seen = [];
+		const late = (t) => seen.push(["late", t]);
+		loop.start(() => {
+			if (seen.length === 0) loop.start(late);
+			seen.push(["early", now]);
+		});
+		tick(16);
+		expect(seen).toEqual([["early", 16]]);
+		tick(32);
+		expect(seen).toEqual([
+			["early", 16],
+			["early", 32],
+			["late", 32]
+		]);
+	});
+
+	test("a tick stopped by an earlier tick in the same frame does not run", () => {
+		const loop = createFrameLoop(() => {});
+		const later = vi.fn();
+		loop.start(() => loop.stop(later));
+		loop.start(later);
+		tick(16);
+		expect(later).not.toHaveBeenCalled();
+	});
+
+	test("request owes one drawn frame, then the loop goes quiet", () => {
+		const draw = vi.fn();
+		const loop = createFrameLoop(draw);
+		loop.request();
+		loop.request();
+		expect(queue.size).toBe(1);
+		tick(16);
+		expect(draw).toHaveBeenCalledTimes(1);
+		expect(queue.size).toBe(0);
+	});
+
+	test("stopping the last tick cancels the frame it had asked for", () => {
+		const loop = createFrameLoop(vi.fn());
+		const t = vi.fn();
+		loop.start(t);
+		loop.stop(t);
+		expect(queue.size).toBe(0);
 	});
 });

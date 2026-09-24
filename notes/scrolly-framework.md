@@ -1,6 +1,6 @@
 # Scrolly visual framework
 
-The story's visual is one canvas of ~12,000 dots with stable identities that
+The story's visual is one canvas of 22,530 dots with stable identities that
 tween between per-step layout **states** (object constancy: dots travel, they do
 not fade out and in wholesale), plus a second tweener doing the same for
 **trails** (polylines). This is the architecture map for
@@ -39,10 +39,10 @@ and the measurements that were taken — lives in `notes/design/`.
 | `scrolly/TapNav.svelte`, `StepProgress.svelte`                       | The step driver (tap halves stacked, edge notches beside the prose, arrow keys always; all through `go()`) and the chapter progress bar (indicator only).                                                                                                                                                                                                                                                                                                                                                                    |
 | `scrolly/ScrollyVisual.svelte`                                       | The canvas host: the two tweeners, the render effect (below), dpr scaling, resize and bleed, reduced motion, the HTML overlay and annotation layer, the scrub loop and the request player.                                                                                                                                                                                                                                                                                                                                   |
 | `scrolly/render.js`                                                  | One frame of the buffers onto a 2D context: `clearCanvas`, `drawTrails`, `drawEdges`, `drawDots`, `drawLabelLeaders`. Pure over (ctx, buffers).                                                                                                                                                                                                                                                                                                                                                                              |
-| `scrolly/annotations.js`                                             | The annotation layer's per-frame decisions: `raceLabelCut`, `trackLabels`, `createLabelStacker`.                                                                                                                                                                                                                                                                                                                                                                                                                             |
-| `scrolly/choreographer.js`                                           | `createChoreographer({ ease, draw, onStop })`: the one owner of the choreography rAF — `phase`, `loop`, `legs`, `stop`, `active`. Knows nothing about states.                                                                                                                                                                                                                                                                                                                                                                |
+| `scrolly/annotations.js`                                             | The annotation layer's per-frame decisions: `raceLabelCut`, `trackLabels`, `createLabelFreezer` (below), `createLabelStacker`, `sameSides`.                                                                                                                                                                                                                                                                                                                                                                                  |
+| `scrolly/choreographer.js`                                           | `createChoreographer({ ease, loop, onStop })`: the one owner of the choreography, ticking on the shared frame loop — `phase`, `loop`, `legs`, `stop`, `active`. Knows nothing about states.                                                                                                                                                                                                                                                                                                                                  |
 | `scrolly/race-camera.js`                                             | `createRaceCamera(story)`: the race chapter's live camera, its `reset` on a state change, `publish` of the pan bounds (`story.race.cam`), the `hold` a settled chart rests at (`story.race.view`) and the reader's `glide`.                                                                                                                                                                                                                                                                                                  |
-| `scrolly/tween.js`                                                   | `createTweener(size, draw, stride)` → `{ current, target, to, stop, reframe }`: one rAF lerping a flat buffer from the currently rendered values to a target, with per-slot delays.                                                                                                                                                                                                                                                                                                                                          |
+| `scrolly/tween.js`                                                   | `createFrameLoop(draw)`: the one rAF every writer shares — both tweeners, the choreographer and the label relax — running each frame's ticks, then drawing once (a tween's `onDone` runs before that draw). `createTweener(size, loop, stride)` → `{ current, target, to, stop, reframe }`: a tick on that loop lerping a flat buffer from the currently rendered values to a target, with per-slot delays.                                                                                                                  |
 | `scrolly/attr-buffer.js`                                             | The dot buffer's layout (`STRIDE`, `EDGE_BASE`, `ATTR_SIZE`, `DELAY_SIZE`), the writers `set`/`setEdge`, and `dissolve`.                                                                                                                                                                                                                                                                                                                                                                                                     |
 | `scrolly/trails.js`                                                  | Trail slots (`TRAIL_META`, `RACE_SLOT`, `SIM_SLOT`, …) and writers over a monotone-cubic curve (`monotoneSegments`, `curveYAt`, `clipSeries`, `sampleTrail`, `setTrail`, `setTrailPoints`, `collapseTrail`, `setTrailHighlight`).                                                                                                                                                                                                                                                                                            |
 | `scrolly/plot.js`, `palette.js`, `cast.js`                           | Plot geometry (`MARGIN`, `TITLE_BAND`, `plotBottom`, `lin`, `Bleed`); the canvas palette as rgb of the CSS tokens; who is who (named actors, `BY_RANK`, every chart's cast list).                                                                                                                                                                                                                                                                                                                                            |
@@ -140,7 +140,7 @@ Four ways a state's frame comes to be on screen, all landing on the same
   lag (`heldLabels`). `ms <= 0` is a jump (resize, reduced motion). `to()`
   snapshots the live buffer, so mashing Next retargets from mid-flight.
 - **An entry choreography** (`EntryAnim`, `STATE_ENTRIES`, `entryFor`). Legs
-  played on the choreographer's rAF, each writing straight into the live buffers
+  played by the choreographer, each writing straight into the live buffers
   and publishing a `FrameOutput` (decor, camera, story fields by group). Contracts:
   frame 0 of leg 0 is what the arrival lands on; the last leg's frame 1
   reproduces the layout it hands off to (the static layout, or the layout at the
@@ -148,7 +148,7 @@ Four ways a state's frame comes to be on screen, all landing on the same
   the arrival, so the legs never start. `labelsAfter` gates the
   names to a leg; `hold` waits for a story flag before the legs
   start (the rank handoff); `seed` shapes what the first frame shows;
-  `ownsArrival` takes the rAF from the press with no arrival tween in front;
+  `ownsArrival` takes the frame from the press with no arrival tween in front;
   `ownsFurniture` says the legs publish their own `axes`/`callout`/`band`, so
   within one scene those three keep what is on screen until the first leg tick
   rather than jumping to the arriving step's resting ones (`swapFurniture`).
@@ -157,7 +157,7 @@ Four ways a state's frame comes to be on screen, all landing on the same
   `requests[kind]` from the live camera and names it in `story.running`. The
   rewind, the Gen Z draw-on and the simulation replay.
 - **An ambient loop** (`AmbientAnim`, `STATE_AMBIENT`). After the arrival
-  settles, an unbounded writer on the same rAF. At t = 0 it must reproduce the
+  settles, an unbounded writer on the same frame loop. At t = 0 it must reproduce the
   static layout call for call, so the loop's first tick moves nothing; it must
   measure motion from a stored base, never from the buffer it writes; and a
   resize must interrupt it. Only the galaxy states use one (`makeFlight`).
@@ -176,7 +176,7 @@ cold start), then `arrivalKind` picks one of `ARRIVE`'s handlers: `cold`,
 handed between two states on the same flight (`AmbientAnim.carryFrom`: hopSeed
 and the title card): no tween, the step lands at once, and the arriving loop
 starts at the departing flight's clock (`skyT0`), with whatever the departing
-loop drew on top of the flight faded out as a residual (`carryResidual`). Who owns the rAF
+loop drew on top of the flight faded out as a residual (`carryResidual`). Who owns the frame
 (`choreo.active`) is deliberately not `$state`: the effect reacts to state,
 params and canvas size only.
 
@@ -268,7 +268,11 @@ time: see below.
 
 Labels and the pulse ring are HTML, glued to their dots each frame from the live
 buffer (`trackLabels`); a name rides its dot's alpha and is stacked off its
-neighbours by `createLabelStacker`. Every id a dynamic `labels` function can
+neighbours by `createLabelStacker`. `createLabelFreezer` hands a
+settled-invisible name last frame's object, so its keyed row skips the
+re-render; a name stays live while it shows, for `LABEL_FADE_MS` after it goes
+invisible (the CSS fade still rides its dot), on a text change, and for the
+pulse ring's id. Every id a dynamic `labels` function can
 return must be in `STATE_TRACKED`, or it has no element to render into — with two
 exceptions, which is why `ScrollyVisual`'s `TRACKED_IDS` is `$derived` rather than
 a constant: the searched actor and the hop chart's anchor are ~1,400 possible ids
@@ -444,7 +448,9 @@ rank order, never by raw rank against `nodes.length`.
 - `prefers-reduced-motion: reduce` forces every arrival to a jump, skips
   choreographies and ambients, and disables the overlay fades.
 - `drawDots` buckets dots into one `Path2D` per quantised (rgb, alpha) pair, so
-  ~12k dots are a handful of fills a frame; the sky's flight adds ~0.04ms.
+  the whole crowd is a handful of fills a frame, and a dot wholly outside the
+  cleared rectangle (`view`) is never added to a path. Measurements:
+  `notes/perf/mobile-perf-review.md`.
 - Beside the prose (≥ 1200px, `Stage`'s `beside`) the plot takes
   `PLOT_BOTTOM_BESIDE` of the column instead of `PLOT_BOTTOM_STACKED`, and the
   prose holds a column of its own on the left for the whole story

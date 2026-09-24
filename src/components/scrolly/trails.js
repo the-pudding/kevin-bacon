@@ -223,13 +223,16 @@ export function curveYAt(segs, x) {
 	const xa = segs[0][0][0];
 	const xb = segs.at(-1)[3][0];
 	const cx = Math.max(xa, Math.min(xb, x));
-	let seg = segs[0];
-	for (const s of segs) {
-		if (cx <= s[3][0]) {
-			seg = s;
-			break;
-		}
+	// the first segment ending at or past cx, by bisection: segment ends never
+	// decrease, and this is called per vertex per trail per frame
+	let lo = 0;
+	let hi = segs.length - 1;
+	while (lo < hi) {
+		const mid = (lo + hi) >> 1;
+		if (cx <= segs[mid][3][0]) hi = mid;
+		else lo = mid + 1;
 	}
+	const seg = segs[lo];
 	const x0 = seg[0][0];
 	const x3 = seg[3][0];
 	const t = x3 === x0 ? 0 : (cx - x0) / (x3 - x0);

@@ -4,7 +4,7 @@
 	import { MediaQuery } from "svelte/reactivity";
 	import { fade } from "svelte/transition";
 	import { makeNodes } from "./nodes.js";
-	import { createTweener, easeCubicInOut } from "./tween.js";
+	import { createFrameLoop, createTweener, easeCubicInOut } from "./tween.js";
 	import { skyFlight } from "./sky.js";
 	import { createChoreographer } from "./choreographer.js";
 	import { createRaceCamera } from "./race-camera.js";
@@ -17,9 +17,12 @@
 		drawLabelLeaders
 	} from "./render.js";
 	import {
+		LABEL_FADE_MS,
 		raceLabelCut,
 		trackLabels,
-		createLabelStacker
+		createLabelFreezer,
+		createLabelStacker,
+		sameSides
 	} from "./annotations.js";
 	import {
 		galaxyHighlight,
@@ -193,12 +196,14 @@
 	// -- The writers ------------------------------------------------------------
 	// Two tweeners (dots and edges in one Float32 frame, trails in another) and
 	// one choreographer. The tweeners lerp between two frames; the choreographer
-	// runs a writer per tick straight into the tweeners' live buffers. Only one
-	// of them owns the rAF at a time — see choreographer.js.
-	const tweener = createTweener(ATTR_SIZE, drawScene, STRIDE, ALPHA_OFFSET);
+	// runs a writer per tick straight into the tweeners' live buffers. All three
+	// tick on one frame loop, which draws the scene once a frame after every
+	// tick has run — see createFrameLoop in tween.js.
+	const frameLoop = createFrameLoop(() => drawScene());
+	const tweener = createTweener(ATTR_SIZE, frameLoop, STRIDE, ALPHA_OFFSET);
 	// trails (race/career lines) tween on their own array so polylines morph
 	// with the same interruption-safe semantics as dots
-	const trailTweener = createTweener(TRAIL_SIZE, drawScene, TRAIL_STRIDE);
+	const trailTweener = createTweener(TRAIL_SIZE, frameLoop, TRAIL_STRIDE);
 
 	/**
 	 * The attrs half of the out beat: every link the arriving state does not draw
@@ -387,7 +392,7 @@
 	let skyCarry = /** @type {number | null} */ (null);
 	const choreo = createChoreographer({
 		ease: sweepEase,
-		draw: drawScene,
+		loop: frameLoop,
 		onStop: () => {
 			camPanning = false;
 			// The sky has stopped where it stopped, and `skyFlight.t` now holds the
@@ -755,8 +760,11 @@
 	});
 
 	// -- What the template reads ------------------------------------------------
+	// Raw, and reassigned whole once a frame: a name that is settled out of
+	// sight keeps last frame's object (see createLabelFreezer), which is what
+	// lets the keyed each below skip its row
 	/** @type {import("./annotations.js").TrackedLabel[]} */
-	let tracked = $state([]);
+	let tracked = $state.raw([]);
 	// static per-state chart furniture (ticks/callouts/legend) from the layout result
 	/** @type {{ axes?: { x?: import("./layout-types.js").Tick[], y?: import("./layout-types.js").Tick[], xBase?: number, yBase?: number }, notes?: import("./states.js").Note[], callout?: import("./layout-types.js").RaceCallout|null, band?: import("./layout-types.js").FutureBand|null, legend?: import("./layout-types.js").LegendItem[], legendY?: number, hits?: import("./layout-types.js").Hit[] } | null} */
 	let decor = $state(null);
@@ -991,10 +999,11 @@
 	 * arriving state no longer labels: it is still on screen for the length of
 	 * its fade-out, and the stacker keeps it on the side it left from rather
 	 * than letting the new state drop it back under its dot (see frameSides in
-	 * annotations.js). Written by drawScene, once per drawn frame.
+	 * annotations.js). Written by drawScene only when a side changes: every row
+	 * of the names reads it, so a fresh map each frame re-rendered all of them.
 	 * @type {Record<number, "left" | "right">}
 	 */
-	let frameDirs = $state({});
+	let frameDirs = $state.raw({});
 	/**
 	 * ...and the bleed that frame was drawn against, which the label layer needs
 	 * for two things the reading column cannot give it: the box it clips to, and
@@ -1110,7 +1119,7 @@
 	// While an entry choreography is playing, the set of ids whose names have
 	// been introduced so far (see EntryAnim.labelsAfter); null = no gate, every
 	// labelled id shows. Deliberately NOT $state: drawScene folds it into
-	// `tracked` (which is reassigned every frame and is what the template reads),
+	// `tracked` (which is rebuilt every drawn frame and is what the template reads),
 	// so the labels stay reactive without the render effect depending on state it
 	// also writes. The CSS opacity transition on .node-label does the fade.
 	/** @type {Set<number> | null} */
@@ -1680,13 +1689,7 @@
 		return galaxyHighlight.ids.length > 0 ? galaxyLabelCut() : labelIds;
 	}
 	const stacker = createLabelStacker(LABEL_LINE_GAP_PX);
-	// The label de-collider relaxes toward its target a little per DRAWN frame,
-	// and the things that drive frames stop once the dots are in place — so the
-	// labels need a few frames of their own after that to finish arriving. One
-	// pending rAF at a time, cancelled by whoever draws next; it stops on its own
-	// as soon as the stack has settled. Not $state: it is only ever read and
-	// written inside drawScene.
-	let labelRelaxRaf = null;
+	const freezeLabels = createLabelFreezer(LABEL_FADE_MS);
 
 	/** the race cast's cull mid-chapter (see onRacePlot), or nothing to cull */
 	function dotCull(attrs) {
@@ -1705,15 +1708,16 @@
 			? plotBottom(height) - 4
 			: null;
 	}
-	/** owe the labels another frame while their stack is still relaxing */
+	/**
+	 * Owe the labels another frame while their stack is still relaxing. The
+	 * de-collider relaxes toward its target a little per DRAWN frame, and the
+	 * things that drive frames stop once the dots are in place — so the labels
+	 * need a few frames of their own after that to finish arriving. It asks the
+	 * shared frame loop, so a frame a tween or choreography is drawing anyway is
+	 * the same frame, and it stops asking as soon as the stack has settled.
+	 */
 	function relaxLabels(settled) {
-		if (labelRelaxRaf != null) cancelAnimationFrame(labelRelaxRaf);
-		labelRelaxRaf = settled
-			? null
-			: requestAnimationFrame(() => {
-					labelRelaxRaf = null;
-					drawScene();
-				});
+		if (!settled) frameLoop.request();
 	}
 
 	function drawScene() {
@@ -1729,7 +1733,12 @@
 			edgeEnds,
 			choreo.active
 		);
-		drawDots(ctx, attrs, dotCull(attrs), focusDots);
+		drawDots(ctx, attrs, dotCull(attrs), focusDots, [
+			-bleed.l,
+			-TITLE_BAND,
+			width + bleed.r,
+			height
+		]);
 		// held names (see labelHolds) are still waiting out their lag; drawScene
 		// runs every frame of the arrival tween, which always outlasts the hold, so
 		// this flips over mid-tween with no timer of its own
@@ -1757,9 +1766,15 @@
 			relaxLabels(settled);
 			drawLabelLeaders(ctx, attrs, moved, dirs);
 		}
-		frameDirs = dirs;
+		if (!sameSides(frameDirs, dirs)) frameDirs = dirs;
 		labelBleed = bleed;
-		tracked = nextTracked;
+		// untracked: an instant tween paints from inside the render effect, which
+		// must not come to depend on the ring's id
+		tracked = freezeLabels(
+			nextTracked,
+			performance.now(),
+			untrack(() => lastPulseId)
+		);
 	}
 
 	// -- Effects ----------------------------------------------------------------
@@ -2273,7 +2288,7 @@
 	<div
 		class="annotations"
 		aria-hidden="true"
-		style="left: {-labelBleed.l}px; right: {-labelBleed.r}px"
+		style="left: {-labelBleed.l}px; right: {-labelBleed.r}px; --label-fade: {LABEL_FADE_MS}ms"
 	>
 		<div
 			class="annotation-origin"
@@ -2721,7 +2736,7 @@
 		   inline every frame, and --name-alpha is a text swap crossfading over it
 		   (see nameSwap). The transition rides --dot-alpha as it always did. */
 		opacity: calc(var(--dot-alpha, 1) * var(--name-alpha, 1));
-		transition: opacity 0.3s ease;
+		transition: opacity var(--label-fade) ease;
 	}
 
 	.pulse-wrap {

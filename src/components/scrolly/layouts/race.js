@@ -2945,6 +2945,9 @@ const RACE_CLOSE_YCAP = 2.1;
 	}
 }
 
+// raceStepVisible's answers, keyed `${year0}:${year1}:${yCap}`
+const STEP_VISIBLE = new Map();
+
 /**
  * The ids one state SHOWS: everyone whose line dips to its yCap somewhere in its
  * extent, i.e. everyone who comes onto its axis. Every reader goes through here,
@@ -2955,9 +2958,18 @@ const RACE_CLOSE_YCAP = 2.1;
  * step, and an actor this set leaves out still rides its own curve at alpha 0
  * (see writeRaceSweepFrame). That is what lets the reader step between race
  * steps without a hidden dot travelling across the canvas to arrive.
+ *
+ * Memoised, because writeRaceSweepFrame asks every frame and the answer is a
+ * pure function of three numbers. Every caller only reads the Set it gets back.
  */
 export function raceStepVisible(step, yCap) {
-	return raceContenders(step.extent[0], step.extent[1], yCap);
+	const key = `${step.extent[0]}:${step.extent[1]}:${yCap}`;
+	let ids = STEP_VISIBLE.get(key);
+	if (!ids) {
+		ids = raceContenders(step.extent[0], step.extent[1], yCap);
+		STEP_VISIBLE.set(key, ids);
+	}
+	return ids;
 }
 
 // ---------------------------------------------------------------------------

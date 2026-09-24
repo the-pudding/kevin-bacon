@@ -73,6 +73,78 @@ function windowProgress(windows, g, share) {
  */
 
 /**
+ * @typedef {Object} FrameLoop
+ * @property {(tick: (now: number) => void) => void} start run `tick` on every
+ *   frame from the next one until `stop(tick)`
+ * @property {(tick: (now: number) => void) => void} stop
+ * @property {() => void} request owe one more drawn frame, with nothing to tick
+ * @property {() => void} draw paint now, outside the frame — the synchronous
+ *   paint of an instant `to`
+ */
+
+/**
+ * The one animation frame every writer shares: both tweeners, the
+ * choreographer's phases and loops, and the label stack's relax frames. Each
+ * frame runs every registered tick, then draws the scene ONCE — where a
+ * requestAnimationFrame per writer drew it once per writer, twice a frame on
+ * every state tween and race choreography (notes/perf/mobile-perf-review.md,
+ * finding 2), the first of the two with the other writer's last-frame values.
+ *
+ * A tick started during a frame first runs on the next one, as its own rAF
+ * would have; one stopped during a frame — by an earlier tick's `onDone` —
+ * does not run in it. That is what the per-start registration buys: a tick
+ * stopped and started again inside one frame is a new registration, and the
+ * frame's list still holds the old one.
+ *
+ * One ordering differs from a rAF per writer: a tween's `onDone` now runs
+ * before its frame's draw rather than after it.
+ *
+ * @param {() => void} draw
+ * @returns {FrameLoop}
+ */
+export function createFrameLoop(draw) {
+	/** @type {Map<(now: number) => void, object>} tick -> its registration */
+	const ticks = new Map();
+	let raf = 0;
+	let inFrame = false;
+	let wanted = false;
+
+	function schedule() {
+		if (!raf && !inFrame) raf = requestAnimationFrame(frame);
+	}
+
+	function frame(now) {
+		raf = 0;
+		inFrame = true;
+		wanted = false;
+		for (const [tick, reg] of [...ticks]) {
+			if (ticks.get(tick) === reg) tick(now);
+		}
+		inFrame = false;
+		draw();
+		if (ticks.size > 0 || wanted) schedule();
+	}
+
+	return {
+		start(tick) {
+			ticks.set(tick, {});
+			schedule();
+		},
+		stop(tick) {
+			ticks.delete(tick);
+			if (ticks.size > 0 || wanted || !raf) return;
+			cancelAnimationFrame(raf);
+			raf = 0;
+		},
+		request() {
+			wanted = true;
+			schedule();
+		},
+		draw
+	};
+}
+
+/**
  * Tweens groups of `stride` consecutive values; each group gets its own
  * start delay so nodes begin/finish at different times. Delays come from
  * `nodeDelays` (ms per group, layout-choreographed) when provided, otherwise
@@ -86,14 +158,15 @@ function windowProgress(windows, g, share) {
  * there is no lead to take inside a stretch that short.
  *
  * @param {number} size total number of values
- * @param {(attrs: Float64Array) => void} draw called every frame
+ * @param {FrameLoop} loop the shared frame: ticks on it while a tween runs,
+ *   and paints through its `draw` for an instant `to`
  * @param {number} stride values per group (one group per node)
  * @param {number} fadeOffset the offset within a group holding the mark's
  *   alpha, which eases on `FADE_LEAD`'s shorter window instead of the tween's
  *   own. -1 for a buffer whose groups carry no alpha to lead.
  * @returns {Tweener}
  */
-export function createTweener(size, draw, stride = 1, fadeOffset = -1) {
+export function createTweener(size, loop, stride = 1, fadeOffset = -1) {
 	const groups = Math.ceil(size / stride);
 	// Float32 for the per-frame hot arrays; layout `target` stays Float64
 	const current = new Float32Array(size);
@@ -102,7 +175,6 @@ export function createTweener(size, draw, stride = 1, fadeOffset = -1) {
 	let target = null;
 	let startTime = 0;
 	let duration = 0;
-	let frame = 0;
 	let running = false;
 	// fired once when the current tween settles; cleared if a new `to` supersedes
 	let onDone = null;
@@ -131,11 +203,8 @@ export function createTweener(size, draw, stride = 1, fadeOffset = -1) {
 				}
 			}
 		}
-		draw(current);
-		if (!done) {
-			frame = requestAnimationFrame(tick);
-			return;
-		}
+		if (!done) return;
+		loop.stop(tick);
 		running = false;
 		if (onDone) {
 			const cb = onDone;
@@ -152,14 +221,14 @@ export function createTweener(size, draw, stride = 1, fadeOffset = -1) {
 		done = null,
 		groupWindows = null
 	) {
-		cancelAnimationFrame(frame);
+		loop.stop(tick);
 		onDone = done;
 		target = next;
 		windows = groupWindows;
 		if (ms <= 0) {
 			running = false;
 			current.set(next);
-			draw(current);
+			loop.draw();
 			if (done) {
 				onDone = null;
 				done();
@@ -173,7 +242,7 @@ export function createTweener(size, draw, stride = 1, fadeOffset = -1) {
 		}
 		startTime = performance.now();
 		running = true;
-		frame = requestAnimationFrame(tick);
+		loop.start(tick);
 	}
 
 	/**
@@ -201,7 +270,7 @@ export function createTweener(size, draw, stride = 1, fadeOffset = -1) {
 	}
 
 	function stop() {
-		cancelAnimationFrame(frame);
+		loop.stop(tick);
 		running = false;
 		onDone = null;
 	}

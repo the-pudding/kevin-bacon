@@ -257,17 +257,35 @@ function dotBucket(attrs, i, alpha) {
 }
 
 /**
+ * Whether a circle reaches into the rect at all, edge-straddlers included.
+ * @param {number} x
+ * @param {number} y
+ * @param {number} r
+ * @param {readonly [number, number, number, number]} view [left, top, right, bottom]
+ */
+function circleMeetsView(x, y, r, view) {
+	return (
+		x + r >= view[0] && x - r <= view[2] && y + r >= view[1] && y - r <= view[3]
+	);
+}
+
+/**
  * The dots, bucketed by quantised colour and alpha into a handful of fills.
  * `skip(i)` culls a dot by its base index (the race cast off its plot
  * mid-chapter); null draws everything with alpha. A FOCUSED dot (the actor a
  * hovered callout is about — see drawTrails) is drawn last, over the rest, in
  * FOCUS at full strength; like the trail's, the focus is the renderer's alone.
+ * Any other dot whose circle lies wholly outside `view` is never added to a path: the
+ * context would clip it, but only after paying for its arc (the sky puts most
+ * of its crowd off the canvas — see GALAXY_SPREAD in sky.js).
  * @param {CanvasRenderingContext2D} ctx
  * @param {Float32Array} attrs
  * @param {((i: number) => boolean) | null} skip
- * @param {ReadonlySet<number>} [focus] base indices of the dots drawn in FOCUS
+ * @param {ReadonlySet<number>} focus base indices of the dots drawn in FOCUS
+ * @param {readonly [number, number, number, number]} view the drawable rect,
+ *   [left, top, right, bottom] — the one clearCanvas clears
  */
-export function drawDots(ctx, attrs, skip, focus = NO_FOCUS) {
+export function drawDots(ctx, attrs, skip, focus, view) {
 	dotBuckets.clear();
 	focusedDots.length = 0;
 	for (let i = 0; i < EDGE_BASE; i += STRIDE) {
@@ -278,10 +296,11 @@ export function drawDots(ctx, attrs, skip, focus = NO_FOCUS) {
 			focusedDots.push(i);
 			continue;
 		}
-		const bucket = dotBucket(attrs, i, alpha);
 		const x = attrs[i];
 		const y = attrs[i + 1];
 		const r = attrs[i + 2];
+		if (!circleMeetsView(x, y, r, view)) continue;
+		const bucket = dotBucket(attrs, i, alpha);
 		// moveTo before arc so consecutive circles aren't joined by a chord
 		bucket.path.moveTo(x + r, y);
 		bucket.path.arc(x, y, r, 0, TAU);

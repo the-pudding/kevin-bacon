@@ -35,6 +35,15 @@ function fakeContext() {
 	return { ctx, calls };
 }
 
+const NO_FOCUS = new Set();
+// [left, top, right, bottom]
+const VIEW = [0, 0, 100, 100];
+const pathedXs = (calls) =>
+	calls
+		.filter(([op]) => op === "fill")
+		.flatMap(([, , arcs]) => arcs.map(([x]) => x))
+		.sort((a, b) => a - b);
+
 describe("drawDots", () => {
 	test("skips hidden and culled dots and batches the rest by colour", () => {
 		const attrs = new Float64Array(ATTR_SIZE);
@@ -44,11 +53,37 @@ describe("drawDots", () => {
 		set(attrs, 3, 40, 40, 3, [0, 0, 255], 0); // hidden
 		set(attrs, 4, 50, 50, 3, [0, 0, 255], 1); // culled below
 		const { ctx, calls } = fakeContext();
-		drawDots(ctx, attrs, (i) => i / STRIDE === 4);
+		drawDots(ctx, attrs, (i) => i / STRIDE === 4, NO_FOCUS, VIEW);
 		const fills = calls.filter(([op]) => op === "fill");
 		expect(fills.length).toBe(2);
 		const drawn = fills.flatMap(([, , arcs]) => arcs.map(([x]) => x)).sort();
 		expect(drawn).toEqual([10, 20, 30]);
+	});
+
+	test("culls a dot wholly outside the view, keeps one straddling its edge", () => {
+		const attrs = new Float64Array(ATTR_SIZE);
+		set(attrs, 0, -4, 50, 3, [255, 0, 0], 1); // wholly left
+		set(attrs, 1, -2, 50, 3, [255, 0, 0], 1); // straddles the left edge
+		set(attrs, 2, 50, 104, 3, [255, 0, 0], 1); // wholly below
+		set(attrs, 3, 102, 50, 3, [255, 0, 0], 1); // straddles the right edge
+		set(attrs, 4, 50, 50, 3, [255, 0, 0], 1); // inside
+		const { ctx, calls } = fakeContext();
+		drawDots(ctx, attrs, null, NO_FOCUS, VIEW);
+		expect(pathedXs(calls)).toEqual([-2, 50, 102]);
+	});
+
+	test("draws a focused dot even wholly outside the view", () => {
+		const attrs = new Float64Array(ATTR_SIZE);
+		set(attrs, 0, -40, 50, 3, [255, 0, 0], 1);
+		const { ctx, calls } = fakeContext();
+		// the focused dot fills the context's own path, not a bucket's
+		ctx.arc = (x, y) => calls.push(["arc", x, y]);
+		ctx.fill = (path) => calls.push(["fill", path]);
+		drawDots(ctx, attrs, null, new Set([0]), VIEW);
+		expect(calls.filter(([op]) => op !== "beginPath")).toEqual([
+			["arc", -40, 50],
+			["fill", undefined]
+		]);
 	});
 });
 

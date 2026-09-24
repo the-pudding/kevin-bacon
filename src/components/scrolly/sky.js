@@ -125,8 +125,9 @@ const fieldBox = (w, h) => [MARGIN, w - MARGIN, MARGIN, plotBottom(h)];
  * moment and what remains on it is a thin scatter rather than a solid ground of
  * dots. Spread is the only sparsity lever available: the crowd cannot lose
  * members, because hopBands sorts this exact set and a dot missing from the sky
- * would have no row to fall into. Dots off the canvas cost a fill the context
- * clips and nothing else.
+ * would have no row to fall into. Dots wholly off the canvas are not added to a path at
+ * all (drawDots culls them against the cleared rect), so they cost a bounds
+ * test and nothing else.
  */
 // How much bigger than the canvas dots ENTER the sky across, each way from its
 // centre. Lower than it reads, because entry is the far plane and the flow then
