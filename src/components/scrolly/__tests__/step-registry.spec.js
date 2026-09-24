@@ -75,6 +75,53 @@ describe("createStepRegistry", () => {
 		expect(moves).toHaveLength(3);
 	});
 
+	test("on a shut gate, Next presses the step's control once it could be pressed", () => {
+		const presses = [];
+		const { steps, moves } = registry([
+			{ state: "hopBands" },
+			{ state: "raceRecent", gate: NEVER, onnext: () => presses.push(1) },
+			{ state: "raceRecent" }
+		]);
+		steps.go(1);
+		// still arriving: the control has not mounted, so Next has nothing to do
+		expect(steps.nextBlocked).toBe(true);
+		steps.next();
+		expect(presses).toHaveLength(0);
+		story.settledStep = 1;
+		expect(steps.nextBlocked).toBe(false);
+		steps.next();
+		expect(presses).toHaveLength(1);
+		expect(steps.current).toBe(1);
+		expect(moves).toHaveLength(1);
+		// playing: the control has gone quiet, and so does Next
+		story.running = "rewind";
+		expect(steps.nextBlocked).toBe(true);
+		steps.next();
+		expect(presses).toHaveLength(1);
+		story.running = null;
+		story.settledStep = -1;
+	});
+
+	test("skip leaves past a shut gate through the arrival rules", () => {
+		const { steps, moves } = registry([
+			{ state: "degScatter" },
+			{ state: "scatterQuiz", gate: NEVER },
+			{ state: "raceGenz" }
+		]);
+		steps.go(1);
+		steps.skip();
+		expect(steps.current).toBe(2);
+		expect(moves.at(-1)).toEqual({
+			to: "raceGenz",
+			from: "scatterQuiz",
+			forward: true,
+			back: false
+		});
+		steps.skip();
+		expect(steps.current).toBe(2);
+		expect(moves).toHaveLength(2);
+	});
+
 	test("a backward move passes through a skipback step", () => {
 		const { steps, moves } = registry();
 		for (const to of [1, 2, 3]) steps.go(to);

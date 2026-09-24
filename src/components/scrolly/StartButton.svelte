@@ -4,17 +4,17 @@
 	 * The one control every reader-triggered animation has: a button that asks
 	 * the active state for one of its `requests` by name (see RequestAnim in
 	 * states.js) and goes quiet while it plays. ScrollyVisual owns the animation
-	 * and the canvas buffers; this only asks, through `request()`, and reads
-	 * back `story.running`.
+	 * and the canvas buffers; this only asks (its `onpress` calls `request()`)
+	 * and reads back `story.running`.
 	 *
-	 * Mounted only on the step whose way forward the ask is: the reader's Next is
-	 * refused there (the step's `gate`, see Step.svelte), so the animation can
-	 * never be skipped past. `advance` moves the reader on AS it asks — the
+	 * Mounted only on the step whose way forward the ask is. The reader's Next
+	 * does not leave that step (its `gate`); it makes this same press instead
+	 * (its `onnext`, see Step.svelte), so `onpress` is written once in Index and
+	 * handed to both. The rewind's press moves the reader on AS it asks — the
 	 * rewind removes information from the reader, so it waits for consent, and
-	 * the step that reads out the answer comes forward with the press; advance()
-	 * goes straight to the step index and bypasses the gate. The other asks are
-	 * the step's whole payoff and carry the reader on when they land (the step's
-	 * `advanceon`), so they leave the step alone.
+	 * the step that reads out the answer comes forward with the press. The other
+	 * asks are the step's whole payoff and carry the reader on when they land
+	 * (the step's `advanceon`), so their press leaves the step alone.
 	 *
 	 * It lives in the step card, under the sentence that names it, rather than
 	 * over the canvas — the copy asking for the press and the press itself
@@ -25,23 +25,17 @@
 	 * the narrow layout, so the panels that ride the card's top edge (the race
 	 * scrubber) sit that much higher here than they did.
 	 */
-	import { getContext } from "svelte";
 	import Button from "$components/ui/Button.svelte";
-	import { story, request } from "./story.svelte.js";
+	import { story } from "./story.svelte.js";
 
-	/** @type {{ kind: string, label: string, advance?: boolean }} */
-	let { kind, label, advance = false } = $props();
-
-	const steps = getContext("scrolly-steps");
-
-	function ask() {
-		request(kind);
-		if (advance) steps.advance();
-	}
+	/** `kind` is the request `onpress` makes, which this goes quiet for while it
+	 * plays
+	 * @type {{ kind: string, label: string, onpress: () => void }} */
+	let { kind, label, onpress } = $props();
 </script>
 
 <div class="start-button">
-	<Button variant="default" disabled={story.running === kind} onclick={ask}>
+	<Button variant="default" disabled={story.running === kind} onclick={onpress}>
 		{label}
 	</Button>
 </div>

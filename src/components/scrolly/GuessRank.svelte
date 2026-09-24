@@ -1,6 +1,7 @@
 <script>
 	// @ts-check
 	import { getContext } from "svelte";
+	import Button from "$components/ui/Button.svelte";
 	import Combobox from "$components/ui/Combobox.svelte";
 	import { story } from "./story.svelte.js";
 	import { nodeName, nodeRank } from "./states.js";
@@ -11,9 +12,9 @@
 	const steps = getContext("scrolly-steps");
 
 	// Guessing pans the rank ladder to the picked actor (a param update, not a
-	// step change). Naming #1 or giving up is the only way off this step — the
+	// step change). Naming #1 or skipping is the only way off this step — the
 	// reader's Next is refused there (the step's `gate`, see Step.svelte), and
-	// the advance() below bypasses it, so "Give up" is always the way out.
+	// the advance() below bypasses it, so "Skip" is always the way out.
 	// Search is scoped to the same top-N actors RankBars renders, so every
 	// result here has a visible row to scroll to and highlight.
 	let query = $state("");
@@ -28,7 +29,9 @@
 	const guess = $derived(story.rank.guesses.at(-1) ?? null);
 	// "Guess again" only reopens search — it doesn't drop the prior guess,
 	// so RankBars keeps focus on it until a new one is picked
-	const showSearch = $derived(!story.rank.gaveUp && (guess == null || editing));
+	const showSearch = $derived(
+		!story.rank.skipped && (guess == null || editing)
+	);
 	const solved = $derived(guess != null && nodeRank(guess) === 1);
 
 	// Both handlers below record the guess LAST, after the state write and the
@@ -53,8 +56,11 @@
 		recordRankGuess({ actorId: id, correct });
 	}
 
-	function giveUp() {
-		story.rank.gaveUp = true;
+	// the reader declining the question: the answer is read out and the step
+	// moves on, as a correct guess does. Recorded as the `gave_up` the
+	// analytics schema has always called it.
+	function skip() {
+		story.rank.skipped = true;
 		editing = false;
 		query = "";
 		value = "";
@@ -64,19 +70,24 @@
 </script>
 
 <div class="guess">
-	{#if story.rank.gaveUp}
+	{#if story.rank.skipped}
 		<p class="verdict">{nodeName(SLJ)} ranks #1.</p>
 	{:else if guess != null}
 		<p class="verdict">
 			{nodeName(guess)} ranks #{nodeRank(guess)}.
 			{solved ? "Spot on!" : "Keep going…"}
-			{#if !editing && !solved}
-				<button class="change" onclick={() => (editing = true)}>
-					Guess again
-				</button>
-				<button class="give-up" onclick={giveUp}>Give up</button>
-			{/if}
 		</p>
+		{#if !editing && !solved}
+			<!-- The same outline Button as the pair quiz's Skip, so the story's
+			     two Skips read as one control. Out of the verdict's line rather
+			     than inline in it, so they do not take on its italic small type. -->
+			<div class="actions">
+				<Button variant="outline" size="sm" onclick={() => (editing = true)}>
+					Guess again
+				</Button>
+				<Button variant="outline" size="sm" onclick={skip}>Skip</Button>
+			</div>
+		{/if}
 	{/if}
 	{#if showSearch}
 		<!-- The list is portalled out of the card (see ui/Combobox.svelte), which
@@ -96,7 +107,9 @@
 			onValueChange={pick}
 		/>
 		{#if guess == null || editing}
-			<button class="give-up" onclick={giveUp}>Give up</button>
+			<div class="actions">
+				<Button variant="outline" size="sm" onclick={skip}>Skip</Button>
+			</div>
 		{/if}
 	{/if}
 </div>
@@ -111,7 +124,7 @@
 
 	   Still inset by --control-inset, which is now about the thumb rather than
 	   about the layers: the search box's left third, the wrapped match buttons
-	   and the Give-up button (align-self: flex-start puts it flush left) all sat
+	   and the Skip button (the actions row starts flush left) all sat
 	   exactly where a reader reaching for the next step presses. The prose above
 	   stays full width and keeps giving its outer edge up — a tap there is meant
 	   to be a step. */
@@ -127,24 +140,9 @@
 		pointer-events: auto;
 	}
 
-	button {
-		font-family: var(--font-mono);
-		font-size: var(--16px);
-		min-width: var(--48px);
-		min-height: var(--48px);
-		padding: 0.4rem 0.7rem;
-		border: 1px solid var(--color-gray-400);
-		border-radius: 2rem;
-		background: var(--color-bg);
-		color: var(--color-fg, #282828);
-		cursor: pointer;
-	}
-
-	button.give-up {
-		align-self: flex-start;
-		color: var(--category-gray-dark);
-		background: none;
-		border-color: var(--color-gray-300, #ccc);
+	.actions {
+		display: flex;
+		gap: 0.5rem;
 	}
 
 	.verdict {
@@ -152,11 +150,5 @@
 		margin: 0.25rem 0 0;
 		font-size: 0.85rem;
 		font-style: italic;
-	}
-
-	.verdict button.change,
-	.verdict button.give-up {
-		padding: 0.2rem 0.6rem;
-		margin-left: 0.5rem;
 	}
 </style>

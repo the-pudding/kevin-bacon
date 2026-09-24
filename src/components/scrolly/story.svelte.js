@@ -111,8 +111,8 @@ export const story = $state({
 		 * ones stay named and un-faded, since the reader already knows who they
 		 * are */
 		guesses: [],
-		/** reader gave up instead of guessing #1 */
-		gaveUp: false,
+		/** reader skipped the question instead of guessing #1 */
+		skipped: false,
 		/** `{ x, y, w }` in canvas coordinate space of the hop bar on RankBars'
 		 * centered focus row, measured live by RankBars itself — null until it has
 		 * mounted and reported a position. The canvas bar tweens to meet that

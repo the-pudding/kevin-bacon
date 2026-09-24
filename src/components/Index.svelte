@@ -12,7 +12,7 @@
 	import ActorSearch from "$components/scrolly/ActorSearch.svelte";
 	import QuizResults from "$components/results/QuizResults.svelte";
 	import useWindowDimensions from "$runes/useWindowDimensions.svelte.js";
-	import { story } from "$components/scrolly/story.svelte.js";
+	import { story, request } from "$components/scrolly/story.svelte.js";
 	import { quizDone } from "$components/scrolly/states.js";
 	import { createStepRegistry } from "$components/scrolly/step-registry.svelte.js";
 	import { prepareArrival } from "$components/scrolly/arrivals.js";
@@ -30,8 +30,9 @@
 	import { fly } from "svelte/transition";
 	import { linear } from "svelte/easing";
 
-	// A gate that never opens: the step's own control is the only way forward,
-	// so the reader's Next has nothing to do but wait for them to press it.
+	// A gate that never opens: the step's own control is the way forward, so
+	// the reader's Next either presses it for them (the step's `onnext`) or has
+	// nothing to do but wait for them to press it.
 	const NEVER = () => false;
 
 	// Which chart the reader's named actor is being asked about, for the search's
@@ -77,6 +78,17 @@
 	// every <Step>, TapNav and StepProgress reads from the context.
 	const steps = createStepRegistry({ navigate: prepareArrival });
 	setContext("scrolly-steps", steps);
+
+	// What each Start press does — the button's, and the reader's Next on the
+	// same step (its `onnext`), which is the same press made for them. The
+	// rewind brings the step that reads it out forward with it; the other two
+	// carry the reader on when they land (`advanceon`).
+	const rewind = () => {
+		request("rewind");
+		steps.advance();
+	};
+	const drawGenz = () => request("genzLines");
+	const runSim = () => request("run");
 	let dimensions = new useWindowDimensions();
 
 	// --- the constellation's tour of the network ---
@@ -476,7 +488,7 @@
 						Hollywood. In mathematics, this is referred to as <b>remoteness</b>.
 					</p>
 				</Step>
-				<!-- guessing #1 or giving up is the only way on: GuessRank calls the
+				<!-- guessing #1 or skipping is the only way on: GuessRank calls the
 		     registry's advance() itself, and stepping back off the reveal
 		     skips this step so its search box isn't left sitting under the
 		     answer (see `gate` / `skipback` in Step.svelte) -->
@@ -508,12 +520,13 @@
 					</p>
 				</Step>
 
-				<!-- Start is the only way on, and it advances as it asks for the pan
-		     (the rewind's StartButton) — the rewind is choreographed to play ACROSS
-		     the step change onto the view the next step describes -->
+				<!-- Start is the way on — pressed, or made by the reader's Next — and it
+		     advances as it asks for the pan: the rewind is choreographed to play
+		     ACROSS the step change onto the view the next step describes -->
 				<Step
 					state="raceRecent"
 					gate={NEVER}
+					onnext={rewind}
 					skipback
 					alt="Chart: the center of Hollywood, over time. A line per actor traces their remoteness year by year, lower being better, up to 2025."
 				>
@@ -523,7 +536,7 @@
 						calendar years, our time machine starts at the end of 2025.
 					</p>
 					<p>Remember, lower remoteness is better. Press 'Start' to begin.</p>
-					<StartButton kind="rewind" label="Start" advance />
+					<StartButton kind="rewind" label="Start" onpress={rewind} />
 				</Step>
 				<Step
 					state="raceRecent"
@@ -638,8 +651,10 @@
 				</Step>
 				<!-- the one gate the reader's own Next walks through once it opens:
 		     the quiz has no single completing press, so finishing the last
-		     pair is what unblocks it. Stepping back to 20 stays open, and
-		     `quizDone` is the same predicate PairQuiz seeds itself from, so
+		     pair is what unblocks it — or the quiz's Skip, which leaves it
+		     through the registry's skip() at any pair. Stepping back to 20
+		     stays open, and `quizDone` is the same predicate PairQuiz seeds
+		     itself from, so
 		     the gate can never hold the reader on a quiz with nothing left
 		     to ask. PairQuiz sits in the card, under the sentence putting the
 		     question — see its own file for why it stopped being a panel -->
@@ -661,12 +676,13 @@
 		     off the crown onto the stretch of remoteness the contenders
 		     actually live on — Samuel L. Jackson leaves through the top of the
 		     plot, which is the distance the rest of the chapter is about.
-		     "Show Gen Z actors" is the only way on (the reader's Next is
-		     refused) and the draw-on carries them to the next step when it
-		     lands, so the step and its payoff read as one move. -->
+		     "Show Gen Z actors" is the way on (the reader's Next presses it for
+		     them) and the draw-on carries them to the next step when it lands,
+		     so the step and its payoff read as one move. -->
 				<Step
 					state="raceGenz"
 					gate={NEVER}
+					onnext={drawGenz}
 					skipback
 					alt="The center of Hollywood chart returns, panned down below Samuel L. Jackson to the remoteness where younger actors sit."
 					advanceon={() =>
@@ -677,7 +693,11 @@
 						film count and costar data. Our contenders are actors born since
 						1997 who have been in at least 5 films.
 					</p>
-					<StartButton kind="genzLines" label="Show Gen Z actors" />
+					<StartButton
+						kind="genzLines"
+						label="Show Gen Z actors"
+						onpress={drawGenz}
+					/>
 				</Step>
 				<Step
 					state="raceGenz"
@@ -735,12 +755,13 @@
 						predicting.
 					</p>
 				</Step>
-				<!-- Start is the only way on, and the run itself carries the reader
-		     over once it lands: the 10,000 runs are the payoff and the next
-		     step names the winner -->
+				<!-- Start is the way on — pressed, or made by the reader's Next — and
+		     the run itself carries the reader over once it lands: the 10,000
+		     runs are the payoff and the next step names the winner -->
 				<Step
 					state="simRace"
 					gate={NEVER}
+					onnext={runSim}
 					skipback
 					alt="Chart: wins after 10,000 simulations, counting each Gen Z actor's wins as the simulations run."
 					advanceon={() => story.sim.runs > 0 && story.running !== "run"}
@@ -749,7 +770,7 @@
 						To achieve a stable result, we'll run the simulation 10,000 times
 						and see who comes out on top. Press start to find out who wins.
 					</p>
-					<StartButton kind="run" label="Start" />
+					<StartButton kind="run" label="Start" onpress={runSim} />
 				</Step>
 				<!-- 
           1. GCM is the winner

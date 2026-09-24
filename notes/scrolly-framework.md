@@ -31,7 +31,7 @@ and the measurements that were taken — lives in `notes/design/`.
 | -------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `src/components/Index.svelte`                                        | The story: the `<Splash>` and the `<Step>` list with its prose (Owen's), grouped into `<Chapter>`s, the panel snippets each step names, the intro tour and the credits. Creates the step registry and hands the steps to `Stage`.                                                                                                                                                                                                                                                                                            |
 | `scrolly/Stage.svelte`                                               | The layout shell: the canvas box, the rank ladder's placement and fade-in latch, the active step's panel, the title card with its fade, the nav cue on step 0, the dev tuners' mount, the prose column, `StepProgress` and `TapNav`. Renders the steps as `children(layout)`.                                                                                                                                                                                                                                                |
-| `scrolly/step-registry.svelte.js`                                    | `createStepRegistry({ navigate })`: the wizard. Registrations in document order, the step index (kept in `?step=N`, dev only), `go`/`advance`/`next`/`prev`/`exit`, gate and `skipback` resolution, the bar's `chapters`/`currentChapter`/`dotSteps`/`dotStep`, and the `advanceon` watcher.                                                                                                                                                                                                                                 |
+| `scrolly/step-registry.svelte.js`                                    | `createStepRegistry({ navigate })`: the wizard. Registrations in document order, the step index (kept in `?step=N`, dev only), `go`/`advance`/`skip`/`next`/`prev`/`exit`, gate (with `onnext`) and `skipback` resolution, the bar's `chapters`/`currentChapter`/`dotSteps`/`dotStep`, and the `advanceon` watcher.                                                                                                                                                                                                          |
 | `scrolly/arrivals.js`                                                | `prepareArrival(move)`: what a move does to the story before the destination renders — un-landing the beat, the rank panel's handoff, the reset on leaving the rank chapter backwards, and per-state arrival rules (the hop chart's anchor, quiz, simulation, Gen Z draw-on).                                                                                                                                                                                                                                                |
 | `scrolly/story.svelte.js`                                            | The shared interaction state, grouped by interaction (`intro`, `hops`, `rank`, `race`, `quiz`, `search`, `sim`) under four framework fields (`settled`, `settledStep`, `request`, `running`); `request(kind)`, `resetSimRace()`, `resetGenzLines()`, `resetHopAnchor()`.                                                                                                                                                                                                                                                     |
 | `scrolly/Step.svelte`, `Chapter.svelte`, `Splash.svelte`             | `Step` and `Splash` register one step each with the `"scrolly-steps"` context in document order. `Step` renders its prose while active; `Splash` renders nothing — `Stage` draws the title card from the registry so it can transition out. `Chapter` takes no step: it wraps a run of `<Step>`s and puts its `title` in the `"scrolly-chapter"` context, which each `Step` registers as `chapter`.                                                                                                                          |
@@ -150,12 +150,14 @@ params and canvas size only.
 ### Steps, the registry and the arrival rules
 
 Every `<Step>` and `<Splash>` registers `{ state, params?, panel?, gate?,
-skipback?, advanceon?, hideBar?, chapter?, splash? }` in document order.
+onnext?, skipback?, advanceon?, hideBar?, chapter?, splash? }` in document order.
 The registry resolves a move — `skipback` first, then the departing step's
-`gate` on a forward move — and calls `prepareArrival({ to, from, forward, back })`
+`gate` on a forward move, whose refusal runs the step's `onnext` instead when it
+has one — and calls `prepareArrival({ to, from, forward, back })`
 with the destination's state _before_ the step changes, so a component that
 mounts with the step reads the right story at mount. `advance()` bypasses the
-gate: it is how a gated step's own control lets the reader out.
+gate: it is how a gated step's own control lets the reader out. `skip()` waives
+it too but keeps the arrival rules: it is the pair quiz's Skip.
 `step-registry.spec.js` covers the moves and the bar's derivations below.
 
 ### Chapters and the progress bar
@@ -187,8 +189,8 @@ declaring `hideBar` (the outro) — behind a
 latch that keeps it up across ordinary step changes and brings it back off a
 `hideBar` step only once the arriving prose has landed (`steps.held`), on its
 own 300ms fade. It takes no pointer events: a tap over it steps the story like
-anywhere else, and it is never a jump target, which would skip the gated
-steps.
+anywhere else, and it is never a jump target, which would carry the reader
+past the gated steps without their question ever being put.
 
 ### The story store
 
@@ -299,10 +301,12 @@ Five steps ask the reader to do something and are followed by a step that reads
 the answer out, and each owns the way out of its step: the reader's Next is
 refused (`gate`), a backward move passes through the step (`skipback`), and the
 step's own control — or the animation it starts (`advanceon`) — moves the reader
-on. The rank guess (`GuessRank` → `advance()`), the race rewind (`StartButton
-advance`), the pair quiz (the one gate the reader's own Next walks through, on
-`quizDone`), the Gen Z draw-on and the simulation replay (both `advanceon` on the
-field the run publishes). The progress bar merges a gated step and its payoff
+on. None of them holds a reader who would rather not take part: on the Start
+steps the reader's Next presses Start (`onnext`), and each quiz has a Skip. The
+rank guess (`GuessRank` → `advance()`, Skip included), the race rewind (its
+press advances), the pair quiz (the one gate the reader's own Next walks
+through, on `quizDone`; Skip → `skip()`), the Gen Z draw-on and the simulation
+replay (both `advanceon` on the field the run publishes). The progress bar merges a gated step and its payoff
 into one line. The arrival rules re-arm each of them on the way back in
 (`arrivals.js`). The full agreement, with its history: `notes/design/interactions.md`.
 

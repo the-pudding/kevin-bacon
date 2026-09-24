@@ -71,7 +71,7 @@ const ARRIVALS = {
  */
 function leaveRank() {
 	story.rank.guesses = [];
-	story.rank.gaveUp = false;
+	story.rank.skipped = false;
 	story.rank.revealed = false;
 }
 

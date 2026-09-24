@@ -129,7 +129,7 @@
 	// than opening on #1 and spoiling the guess
 	const guess = $derived(story.rank.guesses.at(-1) ?? null);
 	const focusId = $derived(
-		reveal || story.rank.gaveUp ? SLJ : (guess ?? ANCHOR_ID)
+		reveal || story.rank.skipped ? SLJ : (guess ?? ANCHOR_ID)
 	);
 
 	// rows the reader already knows the identity of: Bacon (named by the step
@@ -157,8 +157,8 @@
 	// the rank the cascade below has revealed up to (0 = nothing beyond
 	// `known`). `rows` is already in rank order, so "revealed up to rank N" and
 	// "the first N rows" are the same thing — no per-id bookkeeping needed.
-	// Giving up advances into rankReveal exactly like a correct guess does
-	// (see GuessRank's giveUp), so it drives the very same cascade below —
+	// Skipping advances into rankReveal exactly like a correct guess does
+	// (see GuessRank's skip), so it drives the very same cascade below —
 	// there's no separate instant path for it.
 	let revealUpTo = $state(resumed ? rows.length : 0);
 	const isKnown = (id, rank) => known.has(id) || rank <= revealUpTo;

@@ -24,14 +24,21 @@
 	 * one visual should pass the same snippet reference so it survives the step
 	 * change without remounting (RankBars keeps its scroll position this way).
 	 *
-	 * The three gating props below make a step and the one after it read as a
-	 * single beat: the reader cannot be carried to the payoff without doing the
-	 * thing, and cannot land back on the controls once they have.
+	 * The four gating props below make a step and the one after it read as a
+	 * single beat: the reader is carried to the payoff through the thing (or
+	 * past it, by their own choice), and cannot land back on the controls once
+	 * they have.
 	 *
 	 * `gate` is asked before the reader's own Next (tap half or ArrowRight)
-	 * leaves this step; while it returns false the move is refused outright and
-	 * the right-hand gutter goes disabled. A step whose only way forward is its
-	 * own control passes a gate that never opens.
+	 * leaves this step; while it returns false the move is refused and, unless
+	 * `onnext` answers it, the right-hand gutter goes disabled. A step whose way
+	 * forward is its own control passes a gate that never opens.
+	 *
+	 * `onnext` is what the reader's Next does on a shut gate instead of leaving:
+	 * the Start steps hand it the same press their button makes, so Next starts
+	 * the animation rather than doing nothing. It answers only once the step has
+	 * landed and while nothing is playing — exactly when the button itself could
+	 * be pressed.
 	 *
 	 * `skipback` marks this step as one the reader passes *through* on the way
 	 * back — a backward move that would land here continues to the step before,
@@ -65,13 +72,14 @@
 	 * empty, then the words appear with no motion of their own.
 	 *
 	 * @see notes/scrolly-framework.md
-	 * @type {{ state: import("./states.js").VisualState, params?: unknown, panel?: import("svelte").Snippet, gate?: () => boolean, skipback?: boolean, advanceon?: () => boolean, hideBar?: boolean, alt?: string, children: import("svelte").Snippet }}
+	 * @type {{ state: import("./states.js").VisualState, params?: unknown, panel?: import("svelte").Snippet, gate?: () => boolean, onnext?: () => void, skipback?: boolean, advanceon?: () => boolean, hideBar?: boolean, alt?: string, children: import("svelte").Snippet }}
 	 */
 	let {
 		state: layoutState,
 		params,
 		panel,
 		gate,
+		onnext,
 		skipback,
 		advanceon,
 		hideBar,
@@ -85,6 +93,7 @@
 		params,
 		panel,
 		gate,
+		onnext,
 		skipback,
 		advanceon,
 		hideBar,

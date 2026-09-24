@@ -29,7 +29,7 @@ const STEP_PARAMS = {
 // against every state and kept only where it changes what the layout is handed.
 const INTERACTIONS = [
 	{ rank: { guesses: [SLJ], focusBar: { x: 120, y: 300, w: 400 } } },
-	{ rank: { gaveUp: true } },
+	{ rank: { skipped: true } },
 	{ quiz: { picks: { 0: 1 }, revealed: true } },
 	{ sim: { runs: SIM_N_SIMS, names: 5 } },
 	{ race: { genzLinesShown: true } },

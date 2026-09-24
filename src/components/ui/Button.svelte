@@ -6,7 +6,7 @@
 		variant = "default", // "default" | "primary" | "secondary" | "ghost" | "link" | "outline"
 		size = "default", // "default" | "sm" | "lg" | "icon"
 		href = undefined,
-		disabled,
+		disabled = false,
 		...restProps
 	} = $props();
 </script>

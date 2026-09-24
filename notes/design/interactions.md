@@ -149,8 +149,8 @@ for the same reason its position is dynamic: a caption inside the crowd has dots
 behind every letter, where a name at the edge of a cloud mostly does not.
 
 2. **A gated question owns the way out of its step** (revised 2026-09-11;
-   this replaces "every question is skippable / Next must always be
-   clickable"). Five steps ask the reader to do something and are followed by a
+   this replaced "every question is skippable / Next must always be
+   clickable"; revised again 2026-09-24, see the end of this rule). Five steps ask the reader to do something and are followed by a
    step that reads out the answer. Carrying the reader across that boundary
    untouched leaves them reading an answer to a question they never saw put —
    and with the control behind them, no way back to it but Prev. So the
@@ -158,16 +158,31 @@ behind every letter, where a name at the edge of a cloud mostly does not.
    ArrowRight) is **refused**, and the right-hand gutter goes disabled so the
    step reads as held rather than as a dead tap.
 
+   Refused as a way _around_ the step, never as a way _through_ it (2026-09-24:
+   no step may hold a reader who would rather not take part). On the three
+   Start steps the reader's Next makes the Start press itself (`onnext`), so
+   Next and the button are one press. Each quiz carries a **Skip**, which
+   leaves the question unanswered and moves on. The gutter is disabled only
+   while a tap there could not do anything: a quiz step, a Start step still
+   arriving, or a Start step whose animation is playing.
+
    The step after an interaction still reveals its answer unconditionally (SLJ
    is revealed however the reader got there; a quiz pair the reader never
    picked is still highlighted) — what changed is that they cannot arrive there
    without answering or conceding, not what they are shown when they do.
 
-   Three props on `<Step>` carry this (`Step.svelte` → `stepConfigs` →
+   Four props on `<Step>` carry this (`Step.svelte` → `stepConfigs` →
    `Index.svelte`'s registry `go()`):
    - **`gate: () => boolean`** — asked before a reader-driven FORWARD move
-     leaves the step; while it returns false the press does nothing at all.
-     Exposed as the registry's `nextBlocked` for TapNav's disabled gutter.
+     leaves the step; while it returns false the press does not leave.
+     Exposed, with `onnext`, as the registry's `nextBlocked` for TapNav's
+     disabled gutter.
+   - **`onnext: () => void`** — what that refused press does instead: the
+     Start steps pass the same function their `StartButton` presses. It
+     answers only once the step has landed (`steps.held` is false — the
+     button mounts with the prose) and while `story.running` is null (the
+     button is disabled while its animation plays), so Next can never press
+     a button the reader could not have pressed.
    - **`skipback: boolean`** — a reader-driven BACKWARD move that would land on
      this step passes through it to the step before. Without this, stepping
      back off the answer drops the reader onto the controls that produced it,
@@ -181,17 +196,21 @@ behind every letter, where a name at the edge of a cloud mostly does not.
 
    `advance()` on the `"scrolly-steps"` context deliberately bypasses `go()`,
    which is exactly what lets a gated step's own control out through its own
-   gate.
+   gate. `skip()` is the pair quiz's Skip: a forward move through the arrival
+   rules like `go()`'s (the quiz's successor opens a chapter and has an arrival
+   of its own, which `advance()` would miss), with the gate waived.
 
 3. **Which five, and what opens each.**
    - **Step 6, the rank guess** (`gate` never opens; `skipback`). Naming #1 or
-     pressing Give up calls `advance()` (`GuessRank`). Give up is always on
-     screen, so the step can never strand a reader. Stepping back off the
-     reveal lands on step 5, and the existing effect in `Index.svelte` clears
-     `rank.guesses`/`rank.gaveUp` on the way out of the chapter, so walking in
+     pressing Skip calls `advance()` (`GuessRank`). Skip is always on
+     screen, so the step can never strand a reader; it still reads out the
+     answer, and is recorded as the analytics schema's `gave_up`. Stepping back
+     off the reveal lands on step 5, and `leaveRank` in `arrivals.js` clears
+     `rank.guesses`/`rank.skipped` on the way out of the chapter, so walking in
      again re-asks the question with the gate shut.
-   - **Step 8, the race rewind** (`gate` never opens; `skipback`). Start asks
-     for the pan and advances with it — the rewind is choreographed to play
+   - **Step 8, the race rewind** (`gate` never opens; `onnext`; `skipback`).
+     Start — pressed, or made by the reader's Next — asks for the pan and
+     advances with it — the rewind is choreographed to play
      _across_ the step change onto the view the next step describes. If the
      camera has no travel left ScrollyVisual drops the ask, but the button
      advances regardless, so a dropped ask is never a dead end. Stepping back
@@ -200,7 +219,10 @@ behind every letter, where a name at the edge of a cloud mostly does not.
      travel again.
    - **Step 20, the pair quiz** (`gate` opens on completion; **no** `skipback`).
      The one gate the reader's own Next walks through: the quiz has no single
-     completing press, so answering the last pair is what unblocks it. Prev
+     completing press, so answering the last pair is what unblocks it. Skip,
+     beside the pair counter, leaves at any pair through `skip()`; the pairs
+     already answered stay answered, and it is hidden (not removed, so the
+     card keeps its height) once there is nothing left to ask. Prev
      stays open throughout, and `states.js`'s `quizDone` is the single
      predicate both the gate and `PairQuiz`'s own starting cursor read — a quiz
      with nothing left to ask must be a step the gate lets the reader
@@ -208,8 +230,9 @@ behind every letter, where a name at the edge of a cloud mostly does not.
      stuck. Because the gate opens silently — the right-hand gutter simply
      stops being disabled — the block stays on screen past the last pair to say
      so; it is the only signal the reader gets.
-   - **Step 25, the simulation** (`gate` never opens; `skipback`; `advanceon`).
-     Start asks for the run; the run _is_ the payoff and the next step names
+   - **Step 25, the simulation** (`gate` never opens; `onnext`; `skipback`;
+     `advanceon`). Start — pressed, or made by the reader's Next — asks for
+     the run; the run _is_ the payoff and the next step names
      the winner, so the story waits and then moves on by itself once
      `story.sim.runs` is published (the run's single end-of-run write, and the
      reduced-motion path's only one). Walking back into the chapter calls
@@ -217,9 +240,9 @@ behind every letter, where a name at the edge of a cloud mostly does not.
      together, because the label selectors fall back to `sim.names` below the
      run threshold and zeroing the playhead alone would draw all five winners
      on a chart collapsed to the origin.
-   - **The Gen Z race step** (`gate` never opens; `skipback`; `advanceon`). The
-     same shape as the simulation, one chapter earlier: "Show Gen Z actors" asks
-     for the draw-on, the draw _is_ the payoff, and the story moves on by itself
+   - **The Gen Z race step** (`gate` never opens; `onnext`; `skipback`;
+     `advanceon`). The same shape as the simulation, one chapter earlier: "Show
+     Gen Z actors" (or the reader's Next) asks for the draw-on, the draw _is_ the payoff, and the story moves on by itself
      once `story.race.genzLinesShown` is published (the run's single end-of-run
      write, and the reduced-motion path's only one). Walking into it calls
      `resetGenzLines()` from `navigate()`, so a reader who came back gets the

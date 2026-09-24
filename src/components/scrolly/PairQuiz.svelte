@@ -28,6 +28,8 @@
 	// prose wrapper carries an in:fly transform for its first ~560ms, and a
 	// transform makes its element the containing block for fixed descendants, so
 	// a pick in that window used to be resolvable against the wrong box.
+	import { getContext } from "svelte";
+	import Button from "$components/ui/Button.svelte";
 	import { story } from "./story.svelte.js";
 	import { INTERACTIVE_IDS, nodeName, quizDone } from "./states.js";
 	import { quizWinner } from "./layouts/scatters.js";
@@ -43,6 +45,12 @@
 
 	/** @type {{ visual: any }} */
 	let { visual } = $props();
+
+	// Skip leaves the quiz at any pair, through the registry's skip(): the gate
+	// below waits on every pair being answered, and a reader who would rather
+	// not take part must not be held to that. Pairs already answered stay
+	// answered.
+	const steps = getContext("scrolly-steps");
 
 	// MARK_MS is the beat the ✓/✗ is held before the chips leave. The mark stays
 	// legible well past it either way — it rides the chip through the first third
@@ -212,7 +220,24 @@
 	     box is already reserved at two chips' worth, so a line of any sensible
 	     length lands inside a reservation that is already paid for, where a
 	     longer line HERE would wrap and grow the card. -->
-	<p class="quiz__status">{pair ? `Pair ${i + 1} of ${pairs.length}` : ""}</p>
+	<!-- Skip rides the counter's row, and is hidden rather than removed once
+	     there is nothing left to skip, for the same reason the counter keeps
+	     its line: the row's height is part of the card's, and the card must not
+	     shrink as the quiz runs (see the chips' box below). -->
+	<div class="quiz__status-row">
+		<p class="quiz__status">
+			{pair ? `Pair ${i + 1} of ${pairs.length}` : ""}
+		</p>
+		<Button
+			class="quiz__skip"
+			variant="outline"
+			size="sm"
+			disabled={!pair}
+			onclick={steps.skip}
+		>
+			Skip
+		</Button>
+	</div>
 	<!-- The chips' box stays put whether or not it holds chips, and its height is
 	     struck from the chip metrics rather than typed out: this is a card-hosted
 	     control, and the card's measured height is what half the canvas's bottom
@@ -318,6 +343,19 @@
 
 	.quiz__status {
 		min-height: 1.4em;
+	}
+
+	.quiz__status-row {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 0.75rem;
+	}
+
+	/* :global because the class lands on ui/Button's own root, past this
+	   component's scope */
+	.quiz__status-row :global(.quiz__skip:disabled) {
+		visibility: hidden;
 	}
 
 	.quiz__cards {

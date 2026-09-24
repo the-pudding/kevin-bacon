@@ -1,9 +1,10 @@
 // The step registry: the story's wizard. Every <Step> and <Splash> registers
 // itself here in document order as it mounts, and the reader's
 // navigation — the tap halves and the arrow keys (TapNav), a step's own
-// control (StartButton, GuessRank) and a gated step carrying the reader on
-// itself (`advanceon`, watched by Index) — all move `current` through it. The
-// active step is kept in the URL (?step=N) so each tab keeps its own place
+// control (StartButton, GuessRank, the quizzes' Skip) and a gated step carrying
+// the reader on itself (`advanceon`, watched by Index) — all move `current`
+// through it. The active step is kept in the URL (?step=N) so each tab keeps
+// its own place
 // across refreshes, independently of every other tab on the origin — in dev
 // only, the same `import.meta.env.DEV` gate as the race tuners: a production
 // build neither reads the param nor writes it, so every reader starts at the
@@ -23,13 +24,14 @@ const STEP_PARAM = "step";
 /**
  * What a <Step> / <Splash> registers: the visual state it shows
  * (+ per-step params), an optional `panel` snippet rendered over the canvas
- * while it is active, the three gating fields documented on Step.svelte —
- * `gate` (the reader's Next is refused while it returns false), `skipback` (a
- * backward move passes through this step) and `advanceon` (the step carries
- * the reader on itself) — `hideBar` (drops the progress bar for this step
- * alone), `chapter` for the title of the <Chapter> it sits in, or `splash`
- * for the title card's name and byline.
- * @typedef {{ state: import("./states.js").VisualState, params?: Object, panel?: import("svelte").Snippet, gate?: () => boolean, skipback?: boolean, advanceon?: () => boolean, hideBar?: boolean, chapter?: string, splash?: { title: import("svelte").Snippet, byline?: import("svelte").Snippet } }} StepConfig
+ * while it is active, the four gating fields documented on Step.svelte —
+ * `gate` (the reader's Next does not leave while it returns false), `onnext`
+ * (what that Next does instead), `skipback` (a backward move passes through
+ * this step) and `advanceon` (the step carries the reader on itself) —
+ * `hideBar` (drops the progress bar for this step alone), `chapter` for the
+ * title of the <Chapter> it sits in, or `splash` for the title card's name
+ * and byline.
+ * @typedef {{ state: import("./states.js").VisualState, params?: Object, panel?: import("svelte").Snippet, gate?: () => boolean, onnext?: () => void, skipback?: boolean, advanceon?: () => boolean, hideBar?: boolean, chapter?: string, splash?: { title: import("svelte").Snippet, byline?: import("svelte").Snippet } }} StepConfig
  */
 
 /**
@@ -82,6 +84,37 @@ function chaptersOf(configs, dotSteps) {
 }
 
 /**
+ * The step's gate is shut, so the reader's Next cannot leave it.
+ * @param {StepConfig | undefined} config
+ */
+const gateShut = (config) => !!config?.gate && !config.gate();
+
+/**
+ * A shut step's `onnext` answers the reader's Next only while the press it
+ * stands in for could be made: once the step has landed (the step's control
+ * mounts with its prose, which waits on the arrival — see `held`) and while
+ * nothing is playing (the control goes quiet while its animation runs).
+ * @param {StepConfig | undefined} config
+ * @param {number} index the step's index
+ */
+const nextPressable = (config, index) =>
+	!!config?.onnext && story.settledStep === index && story.running == null;
+
+/**
+ * The move from step `from` to step `dest`, as the arrival rules see it.
+ * @param {StepConfig[]} configs
+ * @param {number} from
+ * @param {number} dest
+ * @returns {Move}
+ */
+const moveOf = (configs, from, dest) => ({
+	to: configs[dest]?.state,
+	from: configs[from]?.state,
+	forward: dest > from,
+	back: dest < from
+});
+
+/**
  * @param {{ navigate: (move: Move) => void }} hooks `navigate` runs with the
  *   resolved destination BEFORE `current` changes (see `go`), so it can
  *   prepare state the destination step reads on its first render — a
@@ -122,7 +155,6 @@ export function createStepRegistry({ navigate }) {
 	});
 
 	const active = () => configs[value ?? 0];
-	const stateAt = (i) => configs[i]?.state;
 
 	/**
 	 * A backward move that would land on a `skipback` step passes through it
@@ -133,6 +165,15 @@ export function createStepRegistry({ navigate }) {
 		let dest = to;
 		while (dest > 0 && configs[dest].skipback) dest -= 1;
 		return dest;
+	}
+
+	/**
+	 * A move to `dest`, reported to `navigate` before `current` changes.
+	 * @param {number} dest
+	 */
+	function move(dest) {
+		navigate(moveOf(configs, value, dest));
+		value = dest;
 	}
 
 	const steps = {
@@ -189,12 +230,12 @@ export function createStepRegistry({ navigate }) {
 		get held() {
 			return story.settledStep !== value;
 		},
-		// the active step's gate is shut, so the reader's Next has nothing to do —
-		// TapNav reads this to disable the right-hand gutter, so a held step reads
-		// as held rather than as a dead tap
+		// the active step's gate is shut and its `onnext` (if any) cannot be
+		// pressed yet, so the reader's Next has nothing to do — TapNav reads this
+		// to disable the right-hand gutter, so a held step reads as held rather
+		// than as a dead tap
 		get nextBlocked() {
-			const gate = active()?.gate;
-			return !!gate && !gate();
+			return gateShut(active()) && !nextPressable(active(), value);
 		},
 		// Which steps own a line on the progress bar. A step outside every
 		// <Chapter> claims none — the opening and the title card are the story's
@@ -214,13 +255,21 @@ export function createStepRegistry({ navigate }) {
 		},
 		// Deliberately NOT routed through go() below: this is the in-chapter
 		// nudge a step's own control gives itself once its interaction is done
-		// (GuessRank on a correct guess or a give-up, the rewind's StartButton,
-		// and the effect watching a gated step's `advanceon`). Every one of them
-		// moves within a chapter, so none crosses a transition the arrival rules
-		// care about — and sending them through go() would put them straight
-		// into the gate their own press exists to answer.
+		// (GuessRank on a correct guess or a skip, the rewind's Start, and the
+		// effect watching a gated step's `advanceon`). Every one of them moves
+		// within a chapter, so none crosses a transition the arrival rules care
+		// about — and sending them through go() would put them straight into the
+		// gate their own press exists to answer.
 		advance: () => {
 			if (value < configs.length - 1) value += 1;
+		},
+		// The pair quiz's Skip: the reader declining the question rather than
+		// answering it. A forward move like go()'s, through the arrival rules —
+		// the quiz is the last step of its chapter, and the step after it has an
+		// arrival of its own — with the departing gate waived, because the press
+		// is the reader saying they would rather not.
+		skip: () => {
+			if (value < configs.length - 1) move(value + 1);
 		},
 		/**
 		 * The reader's own navigation — the tap halves and the arrow keys both
@@ -231,8 +280,9 @@ export function createStepRegistry({ navigate }) {
 		 *
 		 * - `skipback` resolves the real destination first (resolveBack).
 		 * - the departing step's `gate` then gets the last word on a FORWARD
-		 *   move. While it is shut the press does nothing at all: the step's own
-		 *   control is the only way on, and it goes through advance() above.
+		 *   move. While it is shut the press does not leave the step: it presses
+		 *   the step's own control instead (`onnext`) once that control could be
+		 *   pressed, and does nothing on a step that has none.
 		 *
 		 * `navigate` runs with the resolved destination *before* `current`
 		 * changes, so the arrival rules can prepare state the destination step
@@ -242,16 +292,11 @@ export function createStepRegistry({ navigate }) {
 		go(to) {
 			if (to < 0 || to > configs.length - 1) return;
 			const back = to < value;
-			const dest = back ? resolveBack(to) : to;
-			const gate = configs[value]?.gate;
-			if (!back && gate && !gate()) return;
-			navigate({
-				to: stateAt(dest),
-				from: stateAt(value),
-				forward: dest > value,
-				back: dest < value
-			});
-			value = dest;
+			if (!back && gateShut(active())) {
+				if (nextPressable(active(), value)) active().onnext();
+				return;
+			}
+			move(back ? resolveBack(to) : to);
 		},
 		next: () => steps.go(value + 1),
 		prev: () => steps.go(value - 1),
@@ -266,8 +311,9 @@ export function createStepRegistry({ navigate }) {
 	};
 
 	// --- a step that carries the reader on itself ---
-	// A gated step's own control is the only way past it, and one of them isn't
-	// a button press but the thing the press starts: the simulation's 10,000
+	// A gated step's own control (or the reader's Next pressing it for them) is
+	// the way past it, and one of them isn't a button press but the thing the
+	// press starts: the simulation's 10,000
 	// runs ARE the payoff, and the next step names the winner, so the story
 	// waits for the race and then moves on by itself. The step declares when
 	// that has happened as `advanceon`, and this watches whichever step is
