@@ -205,7 +205,7 @@ const GALAXY_FOCUS_MIN_SEP = 220;
  * turns it into a black web. What the beat picks out is the NODES: the actor at
  * the centre, and the crowd dots the spokes reach (see the target constants).
  */
-const GALAXY_LINK_ALPHA = 0.16;
+const GALAXY_LINK_ALPHA = 0.1;
 
 // The far end of a spoke: a crowd dot brought forward so it reads as something
 // the actor is connected TO, rather than as a line that happens to stop there.
@@ -217,11 +217,24 @@ const GALAXY_LINK_ALPHA = 0.16;
 // swollen for being connected is a dot lying about where it stands, and a whole
 // fan of them pulls the volume flat exactly where the beat is trying to show it
 // off. Weight and colour can say "this one" without touching that.
-const GALAXY_TARGET_ALPHA = 0.75;
+const GALAXY_TARGET_ALPHA = 0.5;
 /** how far a target's grey blends toward INK at full envelope */
-const GALAXY_TARGET_INK = 0.2;
+const GALAXY_TARGET_INK = 0.12;
 /** The focused actor's radius against the one the flight gives it. */
 const GALAXY_FOCUS_R_MULT = 3;
+/**
+ * Ceiling on the focused actor's own alpha and how far its colour blends toward
+ * `INK`, both at full envelope. Kept below 1 so the beat still reads as sitting
+ * IN the sky rather than snapping fully opaque and full black over it — the
+ * title card's job is the galaxy, not the name.
+ */
+const GALAXY_FOCUS_ALPHA_MAX = 0.75;
+const GALAXY_FOCUS_INK_FRAC = 0.6;
+const GALAXY_FOCUS_INK_RGB = [
+	CROWD[0] + GALAXY_FOCUS_INK_FRAC * (INK[0] - CROWD[0]),
+	CROWD[1] + GALAXY_FOCUS_INK_FRAC * (INK[1] - CROWD[1]),
+	CROWD[2] + GALAXY_FOCUS_INK_FRAC * (INK[2] - CROWD[2])
+];
 /**
  * px of the reading column the focused actor keeps clear of its edges, so the
  * NAME centred under the dot has somewhere to sit (see focusHolds). Targets take
@@ -843,10 +856,10 @@ function inkBeat(attrs, beat, es) {
 		}
 		const i = /** @type {number} */ (s.focus) * STRIDE;
 		attrs[i + 2] *= 1 + e * (GALAXY_FOCUS_R_MULT - 1);
-		attrs[i + 6] += e * (1 - attrs[i + 6]);
-		attrs[i + 3] += e * (INK[0] - attrs[i + 3]);
-		attrs[i + 4] += e * (INK[1] - attrs[i + 4]);
-		attrs[i + 5] += e * (INK[2] - attrs[i + 5]);
+		attrs[i + 6] += e * (GALAXY_FOCUS_ALPHA_MAX - attrs[i + 6]);
+		attrs[i + 3] += e * (GALAXY_FOCUS_INK_RGB[0] - attrs[i + 3]);
+		attrs[i + 4] += e * (GALAXY_FOCUS_INK_RGB[1] - attrs[i + 4]);
+		attrs[i + 5] += e * (GALAXY_FOCUS_INK_RGB[2] - attrs[i + 5]);
 	}
 }
 
