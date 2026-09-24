@@ -57,6 +57,9 @@
 		display: flex;
 		justify-content: center;
 		margin-top: 0.75rem;
+		/* the same 16px every prose step leaves under its last line, which sat
+		   flush on the screen's edge without it — see PairQuiz's .quiz */
+		margin-bottom: 1rem;
 		/* Margin, not padding: this row takes pointer events back (below), and
 		   padding is inside the element's own hit box — the inset would swallow
 		   the very presses it exists to keep clear. */
