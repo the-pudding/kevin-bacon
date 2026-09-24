@@ -65,7 +65,7 @@
 		font-family: var(--font-mono);
 		font-size: var(--12px, 0.75rem);
 		text-transform: uppercase;
-		letter-spacing: 0.06em;
+		letter-spacing: var(--tracking-mono);
 		color: var(--color-fg-light);
 		margin-bottom: 0.6rem;
 		text-align: left;
@@ -93,6 +93,7 @@
 	.key,
 	.val {
 		font-family: var(--font-mono);
+		letter-spacing: var(--tracking-mono);
 		font-size: var(--12px, 0.75rem);
 		color: var(--color-fg);
 		/* the same halo as .credits-block p: this sits over the drifting dot

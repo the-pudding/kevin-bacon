@@ -335,6 +335,7 @@
 	.quiz__done {
 		margin: 0;
 		font-family: var(--font-mono);
+		letter-spacing: var(--tracking-mono);
 		font-size: 0.75rem;
 		line-height: 1.4;
 		color: var(--color-gray-500, #888);
@@ -370,6 +371,7 @@
 		align-items: center;
 		justify-content: center;
 		font-family: var(--font-mono);
+		letter-spacing: var(--tracking-mono);
 		font-size: var(--16px);
 		padding: 0.7rem 1.2rem;
 		min-height: var(--chip-h);

@@ -12,6 +12,8 @@
 		sans-serif;
 	--font-serif: "Tiempos Text", Iowan Old Style, Times New Roman, Times, serif;
 	--font-mono: "Atlas Typewriter", Menlo, Consolas, Monaco, monospace;
+	/* the chart annotations' tracking: every chart rule that sets --font-mono */
+	--tracking-mono: -0.3px;
 
 	/* z-index */
 	--z-bottom: -1;

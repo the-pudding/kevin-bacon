@@ -921,6 +921,7 @@
 		text-align: center;
 		color: var(--color-fg);
 		font-family: var(--font-mono);
+		letter-spacing: var(--tracking-mono);
 		/* matches .node-label in ScrollyVisual */
 		font-size: var(--12px, 12px);
 		line-height: 1.2;

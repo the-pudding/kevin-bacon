@@ -156,6 +156,7 @@
 		flex: none;
 		white-space: nowrap;
 		font-family: var(--font-mono);
+		letter-spacing: var(--tracking-mono);
 		font-variant-numeric: tabular-nums;
 		font-size: 0.9rem;
 		color: var(--color-fg, #222);

@@ -2618,6 +2618,7 @@
 		will-change: transform, opacity;
 		padding: 0 3px;
 		font-family: var(--font-mono);
+		letter-spacing: var(--tracking-mono);
 		/* NODE_LABEL_PX in layouts/intro.js is this line box */
 		font-size: var(--12px, 12px);
 		line-height: 1.2;
@@ -2749,6 +2750,7 @@
 		position: absolute;
 		margin: 0;
 		font-family: var(--font-mono);
+		letter-spacing: var(--tracking-mono);
 		font-size: 0.75rem;
 		color: var(--color-gray-600, #666);
 	}
@@ -2884,7 +2886,7 @@
 		margin: 0;
 		font-family: var(--font-mono);
 		font-size: 0.75rem;
-		letter-spacing: 0.04em;
+		letter-spacing: var(--tracking-mono);
 		color: #6b5f15;
 		white-space: nowrap;
 		/* it sits just inside the box, and can crowd the border on a narrow strip,
@@ -3062,6 +3064,7 @@
 		list-style: none;
 		white-space: nowrap;
 		font-family: var(--font-mono);
+		letter-spacing: var(--tracking-mono);
 	}
 
 	.legend-item {

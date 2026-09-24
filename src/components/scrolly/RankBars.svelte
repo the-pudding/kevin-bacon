@@ -608,6 +608,7 @@
 		   pitch, so rows of two different heights would scatter them. */
 		padding: 0.3rem 0 1rem;
 		font-family: var(--font-mono);
+		letter-spacing: var(--tracking-mono);
 		font-size: 0.75rem;
 		color: var(--color-gray-700, #444);
 		opacity: 0.35;
@@ -708,6 +709,7 @@
 		flex: 0 1 auto;
 		min-width: max-content;
 		font-family: var(--font-mono);
+		letter-spacing: var(--tracking-mono);
 		font-size: var(--12px, 12px);
 		text-align: center;
 		white-space: nowrap;
@@ -795,6 +797,7 @@
 		margin: 0;
 		padding: 0.4rem 1rem;
 		font-family: var(--font-mono);
+		letter-spacing: var(--tracking-mono);
 		font-size: var(--12px, 12px);
 		font-style: italic;
 		color: var(--color-gray-500, #888);
