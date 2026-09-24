@@ -35,10 +35,11 @@ function layoutRank(nodes, w, h, _edges, params) {
 		w: maxBarW
 	} = params?.bar ?? { x: MARGIN, y: BACON_Y, w: w - MARGIN * 2 };
 
-	// Bacon's own corpus hop shares and dot lattice — the exact points his
-	// RankBars row draws (rank-geometry.js), not an approximation of them, so
-	// the frame this tween settles on is the frame the panel then fades over.
-	const slots = hopDotSlots(hopFractions(ANCHOR_ID), maxBarW, ANCHOR_ID);
+	// Bacon's own corpus hop shares, cut through the strip's shared scatter —
+	// the exact points his RankBars row draws (rank-geometry.js), not an
+	// approximation of them, so the frame this tween settles on is the frame the
+	// panel then fades over.
+	const slots = hopDotSlots(hopFractions(ANCHOR_ID), maxBarW);
 	for (const n of nodes) {
 		if (inBar(n)) placeInBar(attrs, n, slots, x0, baconY);
 		else if (n.id !== ANCHOR_ID) parkHidden(attrs, n, w, h);

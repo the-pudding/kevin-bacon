@@ -93,23 +93,23 @@
 		};
 	});
 
-	// One <path> per hop over the band's shared dot lattice (hopDotSlots), each a
-	// run of near-zero-length subpaths that stroke-linecap: round renders as dots
-	// — four elements per row instead of one per dot, which is what makes 250
-	// dotted rows affordable in the DOM. Coordinates go out at 0.1px: there are
-	// a couple of thousand of these per row, and the dots are RANK_DOT_D across,
-	// so the extra digit is path string nobody can see.
+	// One <path> per hop over the band's cut of the strip's shared scatter
+	// (hopDotSlots), each a run of near-zero-length subpaths that
+	// stroke-linecap: round renders as dots — four elements per row instead of
+	// one per dot, which is what makes 250 dotted rows affordable in the DOM.
+	// Coordinates go out at 0.1px: there are a few thousand of these per row, and
+	// the dots are RANK_DOT_D across, so the extra digit is path string nobody
+	// can see.
 	/**
-	 * @param {number} id node id, so the jitter is stable per actor
 	 * @param {number[]} fractions hop 1–4 shares
 	 * @param {number} width px
 	 */
-	function barPaths(id, fractions, width) {
+	function barPaths(fractions, width) {
 		// the band's own width comes back with its path: the share label under it
 		// is laid out against it (see `.share`), so both sides of the row are
-		// struck from one lattice rather than two that could drift apart
+		// struck from one set of boxes rather than two that could drift apart
 		const boxes = hopBandBoxes(fractions, width);
-		return hopDotSlots(fractions, width, id).map((dots, band) => ({
+		return hopDotSlots(fractions, width).map((dots, band) => ({
 			color: HOP_RGB[band + 1],
 			w: boxes[band].w,
 			d: dots.map((p) => `M${p.x.toFixed(1)} ${p.y.toFixed(1)}h0.01`).join("")
@@ -120,9 +120,7 @@
 	// recomputed on resize) rather than per row
 	let barWidth = $state(0);
 	const bars = $derived(
-		barWidth > 0
-			? rows.map((row) => barPaths(row.id, row.fractions, barWidth))
-			: null
+		barWidth > 0 ? rows.map((row) => barPaths(row.fractions, barWidth)) : null
 	);
 
 	// pre-guess the list centers on Bacon (#175, the step copy's anchor) rather

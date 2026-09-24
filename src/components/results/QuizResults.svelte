@@ -108,8 +108,10 @@
 		}))
 	);
 
+	// The database orders the buckets by ascending score; the chart reads
+	// best-first, so a perfect score sits at the top.
 	const pairBars = $derived(
-		(data?.pairs?.buckets ?? []).map((bucket) => ({
+		(data?.pairs?.buckets ?? []).toReversed().map((bucket) => ({
 			key: bucket.key,
 			label: `${bucket.score} / ${PAIR_COUNT}`,
 			count: bucket.count,

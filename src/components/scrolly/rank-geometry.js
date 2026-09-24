@@ -3,11 +3,11 @@
 // the canvas handoff (layouts/rank.js) and the HTML list it dissolves into
 // (RankBars.svelte) so the two land dot-for-dot on the same geometry.
 import story from "$data/scrolly-story.json";
-import { dotHash } from "./nodes.js";
-
-export const RANK_BAR_H = 10;
+import { blueNoiseSeats } from "./blue-noise.js";
 
 // px, the dotted strip's height
+export const RANK_BAR_H = 20;
+
 // px floor per band. Also the minimum-nodes guarantee: dots are units of width,
 // so the floor that keeps a sparse hop (hop 4 is ~0.1% of a row) visible is
 // what keeps a handful of its dots on screen.
@@ -20,21 +20,13 @@ export const RANK_SEG_MIN = 10;
 // hole in it reads as four missing dot columns rather than a seam.
 export const RANK_BAND_GAP = 5;
 
+// px dot diameter
 export const RANK_DOT_D = 2.4;
 
-// px dot diameter
-export const RANK_DOT_ROWS = 5;
-
-// dot rows stacked within RANK_BAR_H
-export const RANK_DOT_PITCH = 3;
-
-// px between dot columns
-// How much of its own lattice cell a dot may wander over — 1 is the whole cell,
-// so past about half of one neighbours start to overlap and the strip reads as
-// a crowd rather than a stamped grid. Deliberately NOT a fraction of the slack
-// left around the dot: at this pitch that slack is half a pixel, so a
-// slack-based nudge is no nudge at all and the lattice shows straight through.
-export const RANK_DOT_JITTER = 0.9;
+// px, the least clear space between neighbours, edge to edge — hop-bands.js's
+// DOT_GAP in proportion to this strip's much smaller dot (0.5px on a 6px dot
+// there), so the two crowds pack alike
+export const RANK_DOT_GAP = 0.2;
 
 // How long the list's bars take to collapse into single nodes when the story
 // steps on into the race chapter (RankBars' `collapse`). Shared vocabulary: the
@@ -104,58 +96,52 @@ export function hopShareLabels(fractions) {
 	return [...whole.map((n) => `${n}%`), `<${hop4.toFixed(1)}%`];
 }
 
-const clamp = (v, lo, hi) => Math.min(Math.max(v, lo), hi);
-
-// Keeps one band's jitter keys clear of the next band's. Must exceed the widest
-// band's own key range, `cols * RANK_DOT_ROWS` — about 3300 at the widest
-// viewport this list is read at.
-const DOT_KEY_STRIDE = 4096;
+/**
+ * The seats every row's strip is cut from: one blue-noise scatter (see
+ * blue-noise.js) across the strip with its three band gaps taken out, sorted
+ * left to right — hop-bands' crowdSeats turned on its side. One scatter for
+ * all 250 rows, the way hop bands keeps one for every anchor: an actor's row
+ * is where the cuts fall, not a deal of its own.
+ * @param {number} width px, the whole strip's, gaps included
+ * @returns {number[][]} [x, y] per seat, x measured along the gapless strip
+ */
+function stripSeats(width) {
+	const r = RANK_DOT_D / 2;
+	return blueNoiseSeats(
+		{
+			x: r,
+			y: r,
+			w: width - RANK_BAND_GAP * 3 - RANK_DOT_D,
+			h: RANK_BAR_H - RANK_DOT_D
+		},
+		RANK_DOT_D + RANK_DOT_GAP,
+		8,
+		0
+	);
+}
 
 /**
- * The dot positions of one actor's bar: per band, a lattice of columns × rows
- * across the band's own width, each dot nudged off the lattice so the strip
- * reads as a crowd. `id` keys that nudge, so a row's dots are stable.
+ * The dot positions of one actor's bar, per band: the strip's seats cut at the
+ * band boundaries, each band moved right a RANK_BAND_GAP further than the one
+ * before it — hop-bands' rows and bandOffset, on the other axis. The seats are
+ * sorted by x, so the gaps only pull the bands apart and no two dots overlap
+ * across a cut. The boxes are hopBandBoxes' own, so the share labels laid out
+ * against them sit under the dots they name.
  *
  * Both sides of the rank handoff draw these exact points — the HTML row as one
  * path per band, the canvas as the spot each converging actor lands on — so
  * the frame the canvas settles into is the frame the panel then covers.
  * @param {number[]} fractions four hop shares (see hopFractions)
  * @param {number} width px
- * @param {number} id node id keying the jitter
  * @returns {{x: number, y: number}[][]} one array of dots per hop band
  */
-export function hopDotSlots(fractions, width, id) {
-	const rowH = RANK_BAR_H / RANK_DOT_ROWS;
-	const r = RANK_DOT_D / 2;
-	const jitterY = rowH * RANK_DOT_JITTER;
-	return hopBandBoxes(fractions, width).map(({ x: x0, w: segW }, band) => {
-		// at least one column: a band this narrow is one the min-width floor is
-		// carrying, and it still owes the reader its colour
-		const cols = Math.max(1, Math.round(segW / RANK_DOT_PITCH));
-		const pitch = segW / cols;
-		const jitterX = pitch * RANK_DOT_JITTER;
-		const dots = [];
-		for (let col = 0; col < cols; col++) {
-			for (let row = 0; row < RANK_DOT_ROWS; row++) {
-				const key =
-					(id * 4 + band) * DOT_KEY_STRIDE + col * RANK_DOT_ROWS + row;
-				// clamped to the band's own box: a jitter this wide is meant to spill
-				// across cells, but spilling past the band would eat the gap that
-				// separates the colours and clip against the strip's top and bottom
-				dots.push({
-					x: clamp(
-						x0 + (col + 0.5) * pitch + (dotHash(key, 8) - 0.5) * jitterX,
-						x0 + r,
-						x0 + segW - r
-					),
-					y: clamp(
-						(row + 0.5) * rowH + (dotHash(key, 9) - 0.5) * jitterY,
-						r,
-						RANK_BAR_H - r
-					)
-				});
-			}
-		}
-		return dots;
+export function hopDotSlots(fractions, width) {
+	const seats = stripSeats(width);
+	return hopBandBoxes(fractions, width).map(({ x, w }, band) => {
+		const shift = band * RANK_BAND_GAP;
+		const lo = x - shift;
+		return seats
+			.filter(([sx]) => sx >= lo && sx < lo + w)
+			.map(([sx, sy]) => ({ x: sx + shift, y: sy }));
 	});
 }

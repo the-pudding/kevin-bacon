@@ -271,8 +271,9 @@ exception — its chips are a control, not a visual, and rule 1 above is what
 actually governs them. `RankBars.svelte` (the rank chapter's scrollable
 "everyone else" bar list, shown during `rankFocus`/`rankReveal`) is the built
 example. Its rows are hop-bands charts turned on their side, drawn as
-individual dots: `rank-geometry.js`'s `hopDotSlots` generates the dot lattice
-both sides draw — the panel as one path per hop band, the canvas as the spot
+individual dots: `rank-geometry.js`'s `hopDotSlots` cuts the dots both sides
+draw out of one blue-noise scatter shared by every row (`blue-noise.js`, the
+same dealing hop bands' rows use, sorted along x instead of y) — the panel as one path per hop band, the canvas as the spot
 each converging actor lands on — so the frame the arrival tween settles into is
 the frame the panel then fades over. The panel owns the geometry and the canvas
 follows it: RankBars measures its focused row live and publishes the box to

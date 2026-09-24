@@ -1,8 +1,8 @@
 import rawNodes from "$data/scrolly-nodes.json";
 import story from "$data/scrolly-story.json";
-import PoissonDiskSampling from "poisson-disk-sampling";
-import { ANCHOR_ID, INTRO_IDS, dotHash, hash01 } from "../nodes.js";
+import { ANCHOR_ID, INTRO_IDS, hash01 } from "../nodes.js";
 import { ATTR_SIZE, DELAY_SIZE, set } from "../attr-buffer.js";
+import { blueNoiseSeats } from "../blue-noise.js";
 import { HOP_CYCLE_IDS, SKY_IDS, isIntroActor } from "../cast.js";
 import {
 	NETWORK_HOP_DELAY_MS,
@@ -172,49 +172,29 @@ export const DOT_GAP = 0.5;
 // the least distance between two seats, centre to centre
 const SEAT_SPACING = CROWD_DOT_R * 2 + DOT_GAP;
 
-// a few boxes' seats, most recent last: a drag-resize strikes a new box on
-// every frame, and there is no reason to keep them all
-const SEAT_CACHE_SIZE = 8;
-const seatCache = new Map();
-
 /**
- * Every seat the four bands have at this box, top to bottom: one fixed scatter
- * across the bands' whole area, struck once per box and never re-dealt.
+ * Every seat the four bands have at this box, top to bottom: one fixed
+ * blue-noise scatter across the bands' whole area (see blue-noise.js).
  *
  * The rows are cuts through it, in this order (see layoutHopBands): the first
  * row takes the top so many seats, the next the so many after them, and each
- * row below is moved down a BAND_GAP further than the one above. Seats are
- * sorted by height, so everything above a cut is above everything below it, and
- * moving the lower part down only pulls the two apart; no two dots can come to
- * overlap across a cut. An anchor turn moves the cuts and not the seats, so
- * only the dots near a moving cut change rows, and every other dot stays put.
- *
- * Seeded off `dotHash` (a sine hash stepped by one repeats; see its note), so
- * the same box always gets the same seats: goldens hash this layout, and the
- * render layer caches it.
+ * row below is moved down a BAND_GAP further than the one above. An anchor turn
+ * moves the cuts and not the seats, so only the dots near a moving cut change
+ * rows, and every other dot stays put.
  * @returns {number[][]} [x, y] per seat, y measured from the top of the bands
  */
-function crowdSeats(x0, x1, h) {
-	const key = `${x0},${x1},${h}`;
-	if (!seatCache.has(key)) {
-		let draw = 0;
-		const sampler = new PoissonDiskSampling(
-			{
-				shape: [x1 - x0 - CROWD_DOT_R * 2, bandsHeight(h) - CROWD_DOT_R * 2],
-				minDistance: SEAT_SPACING
-			},
-			() => dotHash(draw++, 24)
-		);
-		const seats = sampler
-			.fill()
-			.map(([x, y]) => [x0 + CROWD_DOT_R + x, CROWD_DOT_R + y])
-			.sort((a, b) => a[1] - b[1] || a[0] - b[0]);
-		seatCache.set(key, seats);
-		if (seatCache.size > SEAT_CACHE_SIZE)
-			seatCache.delete(seatCache.keys().next().value);
-	}
-	return seatCache.get(key);
-}
+const crowdSeats = (x0, x1, h) =>
+	blueNoiseSeats(
+		{
+			x: x0 + CROWD_DOT_R,
+			y: CROWD_DOT_R,
+			w: x1 - x0 - CROWD_DOT_R * 2,
+			h: bandsHeight(h) - CROWD_DOT_R * 2
+		},
+		SEAT_SPACING,
+		24,
+		1
+	);
 
 /** how far down a row's seats are moved: a BAND_GAP per row above it */
 const bandOffset = (band) => BANDS_TOP + (band - 1) * BAND_GAP;
