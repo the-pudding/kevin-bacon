@@ -603,10 +603,11 @@
 		gap: 0.2rem;
 		/* the deeper bottom padding is the lane the focused row's share labels sit
 		   in (see `.shares`), with enough left under them to keep the numbers off
-		   the next actor's name. Every row carries it, not just the focused one:
-		   the race arrival places all 250 canvas copies off a single measured row
-		   pitch, so rows of two different heights would scatter them. */
-		padding: 0.3rem 0 1rem;
+		   the next actor's name, plus a bit more to visually separate one bar from
+		   the next. Every row carries it, not just the focused one: the race
+		   arrival places all 250 canvas copies off a single measured row pitch, so
+		   rows of two different heights would scatter them. */
+		padding: 0.3rem 0 2rem;
 		font-family: var(--font-mono);
 		letter-spacing: var(--tracking-mono);
 		font-size: 0.75rem;
