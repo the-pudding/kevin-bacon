@@ -701,6 +701,8 @@ export const states = {
 		// stepping back in from hopBands is one plain tween
 		revealFrom: ["networkIntro"],
 		entry: { phases: [PULLBACK_ZOOM_MS], frames: zoomOutFrames },
+		// the sky fills the screen, under the prose too (see isProseHalo)
+		proseHalo: true,
 		// once the pull-back stops, the sky it stopped in front of keeps moving, so
 		// the beat rests on something alive rather than on a still photograph.
 		// The fifteen move with it: by the time the camera lands they have been
@@ -753,8 +755,10 @@ export const states = {
 		// two scenes, 4 <-> 5 blanked the legend for a whole tween.
 		scene: "hops",
 		// The bands span the whole screen (see bandFrame), so the prose lies
-		// over them rather than beside them — Stage.svelte reads this.
+		// over them rather than beside them — Stage.svelte reads this — and the
+		// prose carries the halo to stay legible over the rows (see isProseHalo).
 		proseOver: true,
+		proseHalo: true,
 		title: "The four degrees of Kevin Bacon",
 		labels: [ANCHOR_ID],
 		// The cascade is authored for the forward arrival off the title card's
@@ -777,6 +781,7 @@ export const states = {
 		revealFrom: [],
 		scene: "hops",
 		proseOver: true,
+		proseHalo: true,
 		// Static: it does not need to carry the anchor's name, because the
 		// anchor's dot is the only labelled thing on the chart and it is 60px
 		// above this line — and a title that changed on every turn of the cycle

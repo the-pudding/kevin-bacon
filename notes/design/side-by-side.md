@@ -29,7 +29,7 @@ so the chart widens by authoring into the bleed.
 Their `proseOver` flag (`isProseOver` in `states.js`) is what puts the prose
 over the chart at every width (`.scrolly-steps.over`). The prose fills the box
 top to bottom and is centred in it, capped at `--prose-w` and centred across,
-and keeps legible over the rows with the halo `.scrolly-steps` already carries.
+and keeps legible over the rows with the halo their `proseHalo` flag gives it.
 Below 1200px the words run the column's full width, so the box they centre in
 starts below the chart's head (`padding-top`), which keeps them off the 2-movie
 row's label. That label, like each row's, now hangs just inside its row's top
@@ -72,11 +72,14 @@ in closed form rather than written down, so retuning the gamma, the depth range
 or the window cannot leave a stale number behind.
 
 Anything drawn OVER a full-bleed state gets a halo rather than a plate: the
-title card's name (`.splash-card h1`), the step prose (`.scrolly-steps`) and the
-progress bar's labels and lines (`--bar-halo` in `StepProgress.svelte`) all hold
-out the background colour with a stack of shadows. A solid background would be
-the only rectangle punched out of the universe, and the halos cost nothing on a
-boxed step, where the field stops at `plotBottom` and the marks sit on white.
+title card's name (`.splash-card h1`), the step prose and the progress bar's
+labels and lines (`--bar-halo` in `StepProgress.svelte`) all hold out the
+background colour with a stack of shadows. A solid background would be the only
+rectangle punched out of the universe. The prose's halo is per state
+(`proseHalo`, `isProseHalo` in `states.js`: hopSeed, the hop bands, the outro),
+because it is not free on a boxed step, where the field stops at `plotBottom`
+and the words sit on plain background: a later inline box's shadows paint over
+the glyphs before it, so a comma eats the end of the bold word it follows.
 
 The mechanism is `bleed`, threaded from `ScrollyVisual` as the last argument to
 every `LayoutFn` (and to `AmbientAnim.frames`): how far the canvas extends past

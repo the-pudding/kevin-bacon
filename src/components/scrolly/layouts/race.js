@@ -3802,6 +3802,8 @@ export const states = {
 		// scopes itself explicitly rather than leaving it implicit
 		revealFrom: ["raceClose"],
 		entry: { phases: [PULLBACK_ZOOM_MS], frames: outroGalaxyFrames },
+		// the sky fills the screen, under the prose too (see isProseHalo)
+		proseHalo: true,
 		// the story ends on a sky that is still moving. FIELD_IDS covers the
 		// closing chart's cast too — they are actors with hops like anyone else,
 		// and the base each dot flies from is read back out of the layout, so it

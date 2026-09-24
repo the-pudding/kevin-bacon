@@ -415,6 +415,19 @@ const STATE_PROSE_OVER = pick("proseOver");
 export const isProseOver = (s) => !!s && STATE_PROSE_OVER[s] === true;
 
 /**
+ * States whose full-bleed sky runs under the step prose at every width, so the
+ * prose carries `--text-halo` to stay legible over the dots (Step.svelte).
+ * Everywhere else the field stops at `plotBottom` and the prose sits on plain
+ * background, where the halo only does harm: a later inline box's shadows
+ * paint over the glyphs before it (a comma eating the bold word it follows).
+ * @type {Record<string, boolean>}
+ */
+const STATE_PROSE_HALO = pick("proseHalo");
+
+/** @param {string | null | undefined} s */
+export const isProseHalo = (s) => !!s && STATE_PROSE_HALO[s] === true;
+
+/**
  * Per-state override of where a node's label sits relative to its dot:
  * `"left"` / `"right"` place it beside the dot (vertically centred) instead of
  * the default below-and-centred. Keyed by node id. Used to de-clutter tight

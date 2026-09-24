@@ -1056,21 +1056,13 @@
 		   own files: .guess, .quiz, .start-button, .bits-infoterm below. */
 		z-index: var(--z-card);
 		pointer-events: none;
-		/* halo, not a plate — the same reason .splash-card h1 carries one. A
-		   full-bleed state (hopSeed, the outro) puts the crowd behind the
-		   copy all the way to the bottom edge, and the hop bands run under it
-		   on a wide screen; a background would be a rectangle cut out of the
-		   picture. It costs
-		   nothing on the boxed steps, where the field stops at plotBottom and the
-		   text sits on plain white. */
-		text-shadow: var(--text-halo);
 	}
 
 	/* OVER A CHART THAT SPANS THE SCREEN (`proseOver` in the state registry —
 	   the hop bands), at every width: the whole box top to bottom and the words
 	   centred in it, at no more than the prose measure and centred across. The
 	   chart runs under the words (edge to edge and down to the box's foot) and
-	   the halo above is what keeps them legible. The canvas box does not move
+	   the prose's halo (`proseHalo`, Step.svelte) is what keeps them legible. The canvas box does not move
 	   for any of it: the chart reaches the screen's edges by drawing into the
 	   bleed, so only the prose changes place.
 

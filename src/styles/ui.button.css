@@ -75,8 +75,8 @@
 }
 
 /* The story's card controls — Start, Show Gen Z actors and both Skips — are
-   one variant so they read as one control. The halo .scrolly-steps hangs on
-   its prose is inherited, and on a filled button it is a white glow around
+   one variant so they read as one control. The halo a step's prose carries
+   over a sky (.step-prose.halo) is inherited, and on a filled button it is a white glow around
    white glyphs on a dark plate; a button carries its own background, so it
    needs no hold-out. */
 .bits-button[data-button-root][data-variant="story"] {

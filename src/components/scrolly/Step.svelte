@@ -10,6 +10,7 @@
 		PROSE_IN_MS,
 		PROSE_RISE_PX
 	} from "./cardFade.js";
+	import { isProseHalo } from "./states.js";
 
 	/**
 	 * One story step: prose in the slot, visual state declared alongside it.
@@ -167,6 +168,7 @@
 {#if active && !steps.held}
 	<div
 		class="step-prose"
+		class:halo={isProseHalo(layoutState)}
 		bind:this={el}
 		in:fly={proseIn}
 		out:proseLeave={proseOut}
@@ -181,5 +183,13 @@
 <style>
 	.step-prose {
 		grid-area: 1 / 1;
+	}
+
+	/* halo, not a plate, over a sky that runs under the prose (isProseHalo): a
+	   background would be a rectangle cut out of the picture. On this copy
+	   rather than the column, so a departing copy keeps its own state's halo
+	   as it fades over the sky it is leaving. */
+	.step-prose.halo {
+		text-shadow: var(--text-halo);
 	}
 </style>
