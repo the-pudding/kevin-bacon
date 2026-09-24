@@ -13,21 +13,34 @@ export const NETWORK_HOP_DELAY_MS = 250;
 // graph to ~200px tall with the name labels colliding
 export const INTRO_MAX_STRETCH = 1.6;
 
+// px kept between the outermost dots and the canvas's side edges: half the
+// widest edge label ("Anya Taylor-Joy" at the labels' 0.75rem), since each name
+// is centred under its dot and it is the label, not the dot, that meets the edge
+export const INTRO_LABEL_INSET = 60;
+
+// the dots' own x-extent in the baked layout, which sits well inside its 860
+// box (and off-centre in it), so fitting the box wasted width on a phone
+const INTRO_XS = Object.values(INTRO_LAYOUT.xy).map(([x]) => x);
+const INTRO_X0 = Math.min(...INTRO_XS);
+const INTRO_X1 = Math.max(...INTRO_XS);
+
 /**
- * The intro fit: scales the baked 860×680 intro layout into the top ~72% of
- * the canvas (per-axis, each capped at INTRO_MAX_STRETCH beyond uniform) and
- * returns the anchor's fitted screen position plus the axis scales — the one
- * frame every intro-chapter layout hangs off (networkIntro at full size,
- * hopSeed pulled back, see introPosition's `scale`).
+ * The intro fit: scales the baked intro layout into the top ~72% of the canvas
+ * (per-axis, each capped at INTRO_MAX_STRETCH beyond uniform) and returns the
+ * anchor's fitted screen position plus the axis scales — the one frame every
+ * intro-chapter layout hangs off (networkIntro at full size, hopSeed pulled
+ * back, see introPosition's `scale`). Across, it fits and centres the dots'
+ * extent inside INTRO_LABEL_INSET; down, the layout's full 680 height, whose
+ * padding below the lowest dot is what keeps that dot's label off the card.
  */
 export function introFrame(w, h) {
-	const availW = w - MARGIN * 2;
+	const availW = w - INTRO_LABEL_INSET * 2;
 	const availH = h * 0.72 - MARGIN;
-	const sxRaw = availW / INTRO_LAYOUT.w;
+	const sxRaw = availW / (INTRO_X1 - INTRO_X0);
 	const syRaw = availH / INTRO_LAYOUT.h;
 	const sx = Math.min(sxRaw, syRaw * INTRO_MAX_STRETCH);
 	const sy = Math.min(syRaw, sxRaw * INTRO_MAX_STRETCH);
-	const ox = (w - INTRO_LAYOUT.w * sx) / 2;
+	const ox = (w - (INTRO_X0 + INTRO_X1) * sx) / 2;
 	const oy = MARGIN + (availH - INTRO_LAYOUT.h * sy) / 2;
 	const [ax, ay] = INTRO_LAYOUT.xy[ANCHOR_ID];
 	return { cx: ox + ax * sx, cy: oy + ay * sy, sx, sy };
