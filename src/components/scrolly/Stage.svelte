@@ -1077,15 +1077,6 @@
 		max-width: var(--prose-w);
 		margin-inline: auto;
 		align-items: center;
-		/* Stacked, the words run the column's full width, so centred in the
-		   WHOLE box they reach up into the chart's head on a phone: step 5's two
-		   paragraphs at 360x640 sat on the 2-movie row's label. So the box they
-		   centre in starts below it — the title band, the anchor's header row,
-		   the 1-movie row and the label hung inside the 2-movie row's top
-		   (layouts/hop-bands.js), about 200px, rounded up. Beside the prose the
-		   labels sit at the screen's left edge, clear of a 25rem measure, and
-		   the rule below takes this back off. */
-		padding-top: 13rem;
 	}
 
 	/* An InfoTerm trigger sits inline and lands wherever the line wraps puts it,
@@ -1162,10 +1153,6 @@
 			/* the column is centred in its own column now, so that is the edge the
 			   two copies of a swap share (see the grid note above) */
 			align-items: center;
-		}
-
-		.scrolly-steps.over {
-			padding-top: 0;
 		}
 
 		/* A full-bleed state's title belongs to the SCREEN, not to the charts'
