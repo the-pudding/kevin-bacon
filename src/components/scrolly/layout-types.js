@@ -28,6 +28,13 @@
  *   shrink-to-fit within `containing block - left`, so a centred note at x = w/2
  *   would otherwise never wrap wider than half the canvas.
  *
+ * @typedef {Object} RaceMoment
+ * @property {number} year
+ * @property {number} value the avg distance the ring sits at
+ * @property {string} text the note's prose
+ * @property {number[]} focus the actors whose lines hovering the callout
+ *   lights (see ScrollyVisual's calloutFocus)
+ *
  * @typedef {Object} RaceCallout
  * @property {{x: number, y: number}} ring px, centre of the ring on the moment
  * @property {{x: number, y: number, width: number}} note px, the note box's
@@ -42,6 +49,7 @@
  * @property {string} text the note's prose. Rides the payload rather than
  *   sitting in the component, because the chart has more than one of these and
  *   only one of them is on screen at a time (see raceCallout)
+ * @property {number[]} focus the moment's own (see RaceMoment.focus)
  * @property {{ax: number, ay: number, bx: number, by: number, h1x: number,
  *   h1y: number, h2x: number, h2y: number}} arrow the leader — a straight
  *   segment: start, tip, and the head's two trailing corners. Numbers, not path

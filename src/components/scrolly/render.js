@@ -2,9 +2,9 @@
 // context, in four passes — trails under everything, then the network's edges,
 // then the dots, then the leader lines that tie a nudged name back to its dot.
 // Pure over (ctx, buffers): it reads nothing reactive and owns no state beyond
-// the two scratch collections it reuses so a frame allocates nothing.
+// the scratch collections it reuses so a frame allocates nothing.
 import { STRIDE, EDGE_BASE } from "./attr-buffer.js";
-import { EDGE_GREY, EDGE_HIGHLIGHT, INK } from "./palette.js";
+import { EDGE_GREY, EDGE_HIGHLIGHT, FOCUS, INK } from "./palette.js";
 import { TITLE_BAND } from "./plot.js";
 import { TRAIL_STRIDE, TRAIL_POINTS, TRAIL_META } from "./trails.js";
 
@@ -21,9 +21,20 @@ const TAU = Math.PI * 2;
 // one Path2D per (quantised rgb, alpha bucket): batches ~1k dots into a
 // handful of fills instead of a fillStyle + fill per dot
 const dotBuckets = new Map();
-// slots drawn in the second trail pass, reused rather than allocated per frame
+// slots drawn in the second and third trail passes, reused rather than
+// allocated per frame
 /** @type {number[]} */
 const inkedTrails = [];
+/** @type {number[]} */
+const focusedTrails = [];
+// ...and the dots drawn over the rest, likewise
+/** @type {number[]} */
+const focusedDots = [];
+// A focused dot's least radius: the race leader's (raceDotSpec), so the actor a
+// hovered callout is about reads as the leader does.
+const FOCUS_DOT_R = 4;
+/** @type {ReadonlySet<number>} */
+const NO_FOCUS = new Set();
 
 /** a plain network link's stroke at `alpha` */
 const edgeStroke = (alpha) => `rgba(${EDGE_GREY.join(", ")}, ${alpha})`;
@@ -68,15 +79,15 @@ export function clearCanvas(ctx, w, h, bleed) {
 }
 
 /**
- * One trail polyline. `hi` (0-1) blends its TRAIL_META colour toward INK and
- * thickens it — the whole of how the race chart marks whoever is leading at
- * its camera.
+ * One trail polyline. `hi` (0-1) blends its TRAIL_META colour toward `toward`
+ * and thickens it — INK is the whole of how the race chart marks whoever is
+ * leading at its camera, FOCUS the line a hovered callout is about.
  */
-function strokeTrail(ctx, trailAttrs, t, alpha, hi) {
+function strokeTrail(ctx, trailAttrs, t, alpha, hi, toward = INK) {
 	const base = t * TRAIL_STRIDE;
 	const { rgb, width: lw } = TRAIL_META[t];
 	ctx.strokeStyle = hi
-		? `rgba(${rgb.map((c, k) => Math.round(c + (INK[k] - c) * hi)).join(", ")}, ${alpha})`
+		? `rgba(${rgb.map((c, k) => Math.round(c + (toward[k] - c) * hi)).join(", ")}, ${alpha})`
 		: `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, ${alpha})`;
 	ctx.lineWidth = lw + hi * 0.5;
 	ctx.beginPath();
@@ -91,18 +102,25 @@ function strokeTrail(ctx, trailAttrs, t, alpha, hi) {
  * Trails under everything: race/career lines, the prediction diagonal. An
  * INKED line (the race chart's leader — see setTrailHighlight) is held back to
  * a second pass so the crown is drawn over the field rather than buried under
- * whichever grey neighbour happens to own a later slot.
+ * whichever grey neighbour happens to own a later slot, and a FOCUSED one (the
+ * actor a hovered callout is about) to a third, over the crown as well.
+ *
+ * Focus is the renderer's alone, not the buffer's: it is a hover, so it goes on
+ * and off with the pointer rather than tweening with the step.
  * @param {CanvasRenderingContext2D} ctx
  * @param {Float32Array} trailAttrs
+ * @param {ReadonlySet<number>} [focus] trail slots drawn in FOCUS
  */
-export function drawTrails(ctx, trailAttrs) {
+export function drawTrails(ctx, trailAttrs, focus = NO_FOCUS) {
 	inkedTrails.length = 0;
+	focusedTrails.length = 0;
 	for (let t = 0; t < TRAIL_META.length; t++) {
 		const base = t * TRAIL_STRIDE;
 		const alpha = trailAttrs[base + TRAIL_POINTS * 2];
 		if (alpha <= 0.008) continue;
 		const hi = trailAttrs[base + TRAIL_POINTS * 2 + 1];
-		if (hi > ALPHA_SEEN) inkedTrails.push(t);
+		if (focus.has(t)) focusedTrails.push(t);
+		else if (hi > ALPHA_SEEN) inkedTrails.push(t);
 		else strokeTrail(ctx, trailAttrs, t, alpha, 0);
 	}
 	for (const t of inkedTrails) {
@@ -113,6 +131,16 @@ export function drawTrails(ctx, trailAttrs) {
 			t,
 			trailAttrs[base + TRAIL_POINTS * 2],
 			trailAttrs[base + TRAIL_POINTS * 2 + 1]
+		);
+	}
+	for (const t of focusedTrails) {
+		strokeTrail(
+			ctx,
+			trailAttrs,
+			t,
+			trailAttrs[t * TRAIL_STRIDE + TRAIL_POINTS * 2],
+			1,
+			FOCUS
 		);
 	}
 	ctx.lineWidth = 1;
@@ -206,32 +234,51 @@ function edgeLine(attrs, target, start, [from, to], i, liveEnds) {
 }
 
 /**
+ * The fill a dot joins: one per quantised (rgb, alpha), made on first use.
+ * @param {Float32Array} attrs
+ * @param {number} i the dot's base index
+ * @param {number} alpha
+ */
+function dotBucket(attrs, i, alpha) {
+	const rB = attrs[i + 3] >> 4;
+	const gB = attrs[i + 4] >> 4;
+	const bB = attrs[i + 5] >> 4;
+	const aB = alpha >= 1 ? 15 : (alpha * 16) | 0;
+	const key = (rB << 12) | (gB << 8) | (bB << 4) | aB;
+	let bucket = dotBuckets.get(key);
+	if (!bucket) {
+		bucket = {
+			path: new Path2D(),
+			style: `rgba(${(rB << 4) | 8}, ${(gB << 4) | 8}, ${(bB << 4) | 8}, ${(aB + 0.5) / 16})`
+		};
+		dotBuckets.set(key, bucket);
+	}
+	return bucket;
+}
+
+/**
  * The dots, bucketed by quantised colour and alpha into a handful of fills.
  * `skip(i)` culls a dot by its base index (the race cast off its plot
- * mid-chapter); null draws everything with alpha.
+ * mid-chapter); null draws everything with alpha. A FOCUSED dot (the actor a
+ * hovered callout is about — see drawTrails) is drawn last, over the rest, in
+ * FOCUS at full strength; like the trail's, the focus is the renderer's alone.
  * @param {CanvasRenderingContext2D} ctx
  * @param {Float32Array} attrs
  * @param {((i: number) => boolean) | null} skip
+ * @param {ReadonlySet<number>} [focus] base indices of the dots drawn in FOCUS
  */
-export function drawDots(ctx, attrs, skip) {
+export function drawDots(ctx, attrs, skip, focus = NO_FOCUS) {
 	dotBuckets.clear();
+	focusedDots.length = 0;
 	for (let i = 0; i < EDGE_BASE; i += STRIDE) {
 		const alpha = attrs[i + 6];
 		if (alpha <= ALPHA_SEEN) continue;
 		if (skip && skip(i)) continue;
-		const rB = attrs[i + 3] >> 4;
-		const gB = attrs[i + 4] >> 4;
-		const bB = attrs[i + 5] >> 4;
-		const aB = alpha >= 1 ? 15 : (alpha * 16) | 0;
-		const key = (rB << 12) | (gB << 8) | (bB << 4) | aB;
-		let bucket = dotBuckets.get(key);
-		if (!bucket) {
-			bucket = {
-				path: new Path2D(),
-				style: `rgba(${(rB << 4) | 8}, ${(gB << 4) | 8}, ${(bB << 4) | 8}, ${(aB + 0.5) / 16})`
-			};
-			dotBuckets.set(key, bucket);
+		if (focus.has(i)) {
+			focusedDots.push(i);
+			continue;
 		}
+		const bucket = dotBucket(attrs, i, alpha);
 		const x = attrs[i];
 		const y = attrs[i + 1];
 		const r = attrs[i + 2];
@@ -242,6 +289,18 @@ export function drawDots(ctx, attrs, skip) {
 	for (const { path, style } of dotBuckets.values()) {
 		ctx.fillStyle = style;
 		ctx.fill(path);
+	}
+	ctx.fillStyle = `rgb(${FOCUS.join(", ")})`;
+	for (const i of focusedDots) {
+		ctx.beginPath();
+		ctx.arc(
+			attrs[i],
+			attrs[i + 1],
+			Math.max(attrs[i + 2], FOCUS_DOT_R),
+			0,
+			TAU
+		);
+		ctx.fill();
 	}
 }
 

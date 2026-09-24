@@ -64,3 +64,8 @@ export const EDGE_GREY = [120, 120, 120];
 // picks out already reads against the crowd's grey through weight and
 // darkness alone — a hue there would be the story's only decorative colour.
 export const EDGE_HIGHLIGHT = INK;
+
+// The race line a hovered callout refers to (see drawTrails' `focus`). The
+// same value as INK for now, kept its own so it can take a colour of its own
+// without touching the leader's ink.
+export const FOCUS = [34, 34, 34];

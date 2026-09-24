@@ -1053,7 +1053,7 @@ const clamp = (v, lo, hi) => Math.min(Math.max(v, lo), hi);
  *
  * @param {ReturnType<typeof raceCamera>} cam
  * @param {(v: number) => number} yS
- * @param {{year: number, value: number, text: string}} at the moment it marks
+ * @param {import("../layout-types.js").RaceMoment} at the moment it marks
  * @returns {import("../layout-types.js").RaceCallout|null}
  */
 function raceCalloutGeometry(cam, yS, at) {
@@ -1115,6 +1115,7 @@ function raceCalloutGeometry(cam, yS, at) {
 		note: { x: nx, y: ny, width },
 		above,
 		text: at.text,
+		focus: at.focus,
 		arrow: {
 			ax,
 			ay,
@@ -1130,10 +1131,15 @@ function raceCalloutGeometry(cam, yS, at) {
 	};
 }
 
-/** the takeover: the moment the crown changed hands, and what happened there */
+/**
+ * The takeover: the moment the crown changed hands, and what happened there.
+ * Its focus is Hackman alone: the ring is only on the plot once the camera's
+ * right edge is past the crossing, where SLJ already carries the leader's ink.
+ */
 const RACE_TAKEOVER_CALLOUT = {
 	...RACE_TAKEOVER,
-	text: "Freedomland (2006) - Samuel L. Jackson stars in this crime drama mystery with Julianne Moore. This gives him an average distance of 2.14, overtaking Gene Hackman who's last film was in 2004"
+	text: "Freedomland (2006) - Samuel L. Jackson stars in this crime drama mystery with Julianne Moore. This gives him an average distance of 2.14, overtaking Gene Hackman who's last film was in 2004",
+	focus: [HACKMAN]
 };
 
 /**
@@ -1167,7 +1173,11 @@ const RACE_WOMAN_NOTE =
 	"With 6 film credits in 2012, Susan Sarandon reaches #9; the highest position for any woman actor since 1980.";
 
 /** the nearest a woman has come to the centre on the years this step can reach */
-const RACE_WOMAN_CALLOUT = { ...RACE_WOMAN_PEAK, text: RACE_WOMAN_NOTE };
+const RACE_WOMAN_CALLOUT = {
+	...RACE_WOMAN_PEAK,
+	text: RACE_WOMAN_NOTE,
+	focus: [SARANDON]
+};
 
 // OWEN'S LINE TO WRITE. Every figure in it is derived and guarded — the rank by
 // the throw on RACE_DAFOE_STEP, the value by the ring it is drawn at — so a
@@ -1178,15 +1188,20 @@ const RACE_WOMAN_CALLOUT = { ...RACE_WOMAN_PEAK, text: RACE_WOMAN_NOTE };
 // this repo carries a career total per actor and never a per-year credit list,
 // which is exactly the caveat RACE_WOMAN_NOTE carries above.
 const RACE_DAFOE_NOTE =
-	"Since 2021, Willem Dafoe has been credited in 16 films including roles in both MCU and DC superhero genres, cementing him firmly in #2.";
+	"Since 2021, Willem Dafoe has been credited in 16 films including roles in both MCU and DC superhero franchises, cementing him firmly in #2.";
 
 /** the recent chart's one change of lane, and where it leads */
-const RACE_DAFOE_CALLOUT = { ...RACE_DAFOE_STEP, text: RACE_DAFOE_NOTE };
+const RACE_DAFOE_CALLOUT = {
+	...RACE_DAFOE_STEP,
+	text: RACE_DAFOE_NOTE,
+	focus: [DAFOE]
+};
 
 /** the game's own year, and who it would have been named after */
 const RACE_STARR_CALLOUT = {
 	...RACE_STARR_STEP,
-	text: "The Six Degrees of Kevin Bacon game was invented in 1994 by college students. At that point, Mike Starr was the center of Hollywood"
+	text: "The Six Degrees of Kevin Bacon game was invented in 1994 by college students. At that point, Mike Starr was the center of Hollywood",
+	focus: [STARR]
 };
 
 /**
@@ -1224,7 +1239,7 @@ const RACE_FULL_CALLOUTS = raceCalloutList(
  *
  * @param {ReturnType<typeof raceCamera>} cam
  * @param {(v: number) => number} yS
- * @param {{year: number, value: number, text: string}[]} list present-first
+ * @param {import("../layout-types.js").RaceMoment[]} list present-first
  * @returns {import("../layout-types.js").RaceCallout|null}
  */
 function raceCallout(cam, yS, list) {
@@ -1567,7 +1582,7 @@ function raceAxes(
  * @property {boolean} [lead] ink the crown holder at this camera (default true).
  * false on a step whose camera has travelled off the race entirely. No progress value: the
  * camera decides whether it is seen (see writeBackdropLines).
- * @property {{year: number, value: number, text: string}[]} [callouts] the
+ * @property {import("../layout-types.js").RaceMoment[]} [callouts] the
  * moments this frame may mark, PRESENT-FIRST (see raceCalloutList); the camera
  * picks the first it has on plot. Absent = RACE_PAN_CALLOUTS, the takeover
  * alone, which is what every step and every leg had before there were two.

@@ -65,6 +65,7 @@
 		TRAIL_STRIDE,
 		TRAIL_POINTS,
 		TRAIL_META,
+		RACE_SLOT,
 		sameLine
 	} from "./trails.js";
 	import {
@@ -840,6 +841,76 @@
 	const racePlotRect = $derived(
 		raceStep && width && height ? racePlot(width, height) : null
 	);
+
+	// -- The callout hover ------------------------------------------------------
+	// Hovering the race callout lights the line, the dot and the name of the
+	// actor it is about (RaceCallout.focus). The callout stays
+	// pointer-transparent — a press on it still reaches the tap halves under it —
+	// so the hover is a hit test against its note and ring on every mouse move,
+	// not a :hover. A touch has no hover, and a tap there is the story's own.
+	/** @type {number[]} */
+	const NO_FOCUS = [];
+	/** the live callout's note and ring, while it has one (see calloutTarget) */
+	/** @type {HTMLElement[]} */
+	let calloutEls = [];
+	/** the text of the callout under the mouse, or null */
+	let calloutHover = $state(null);
+	/**
+	 * Registers one of the ARRIVING callout's elements for the hit test. Not the
+	 * departing copy's: that one is fading out where it stood.
+	 * @param {HTMLElement} el
+	 */
+	function calloutTarget(el) {
+		calloutEls.push(el);
+		return () => {
+			calloutEls = calloutEls.filter((other) => other !== el);
+			if (calloutEls.length === 0) calloutHover = null;
+		};
+	}
+	/** @param {PointerEvent} e */
+	function onCalloutPointer(e) {
+		if (e.pointerType !== "mouse" || calloutEls.length === 0) return;
+		const over = calloutEls.some((el) => {
+			const r = el.getBoundingClientRect();
+			return (
+				e.clientX >= r.left &&
+				e.clientX <= r.right &&
+				e.clientY >= r.top &&
+				e.clientY <= r.bottom
+			);
+		});
+		calloutHover = over ? (decor?.callout?.text ?? null) : null;
+	}
+	// Keyed on the text so a hover holds only for the callout it began on: a pan
+	// that swaps one moment for another under a still mouse drops it rather than
+	// handing it to the newcomer.
+	const calloutFocus = $derived(
+		calloutHover !== null && decor?.callout?.text === calloutHover
+			? decor.callout.focus
+			: NO_FOCUS
+	);
+	// The race label cut's exempt list: the step's own subject, and the focused
+	// actor, whose name has to show even on a camera that ranks it out of the ten.
+	const labelKeep = $derived(
+		calloutFocus.length > 0
+			? [...(raceStep?.highlight ?? []), ...calloutFocus]
+			: raceStep?.highlight
+	);
+	// The trail slots drawTrails strokes in FOCUS, and the dots drawDots fills in
+	// it. Not $state: drawScene reads them, and the effect below is what redraws
+	// when they change.
+	/** @type {ReadonlySet<number>} */
+	let focusSlots = new Set();
+	/** @type {ReadonlySet<number>} */
+	let focusDots = new Set();
+	$effect(() => {
+		const ids = calloutFocus;
+		untrack(() => {
+			focusSlots = new Set(ids.map((id) => RACE_SLOT.get(id)));
+			focusDots = new Set(ids.map((id) => id * STRIDE));
+			drawScene();
+		});
+	});
 	// ...and how far right that cull reaches. The data plot's right edge on every
 	// step but the closing one, whose marks sit out on the future strip — which
 	// runs to `fullRight`, past the name gutter. Without this the projection dots
@@ -1600,7 +1671,7 @@
 	function shownLabels(attrs) {
 		if (raceStep) {
 			return raceLabelCut(attrs, {
-				highlight: raceStep.highlight,
+				highlight: labelKeep,
 				labelIds,
 				onPlot: (id) => onRacePlot(attrs, id * STRIDE),
 				top: RACE_LABEL_TOP
@@ -1649,7 +1720,7 @@
 		if (!ctx) return;
 		const attrs = tweener.current;
 		clearCanvas(ctx, width, height, bleed);
-		drawTrails(ctx, trailTweener.current);
+		drawTrails(ctx, trailTweener.current, focusSlots);
 		drawEdges(
 			ctx,
 			attrs,
@@ -1658,7 +1729,7 @@
 			edgeEnds,
 			choreo.active
 		);
-		drawDots(ctx, attrs, dotCull(attrs));
+		drawDots(ctx, attrs, dotCull(attrs), focusDots);
 		// held names (see labelHolds) are still waiting out their lag; drawScene
 		// runs every frame of the arrival tween, which always outlasts the hold, so
 		// this flips over mid-tween with no timer of its own
@@ -2180,6 +2251,8 @@
 	});
 </script>
 
+<svelte:window onpointermove={onCalloutPointer} />
+
 <div
 	class="visual"
 	bind:this={container}
@@ -2286,9 +2359,14 @@
 						: dir === "left"
 							? `translate(clamp(${gap}px, calc(${t.x - t.r - 4}px - 100%), ${edge}), calc(${t.y + t.labelOffset}px - 50%))`
 							: `translate(clamp(${gap}px, calc(${t.x}px - 50%), ${edge}), ${t.y + t.r + 4}px)`}
+				<!-- a hovered callout's actor is named at full strength, as the inked
+				     leader is, rather than at their dot's field alpha — but only while
+				     the name is showing at all, so a culled or held name stays out -->
+				{@const alpha =
+					t.labelAlpha > 0 && calloutFocus.includes(t.id) ? 1 : t.labelAlpha}
 				<p
 					class="node-label"
-					style="transform: {transform}; --dot-alpha: {t.labelAlpha}"
+					style="transform: {transform}; --dot-alpha: {alpha}"
 					in:nameSwap
 					out:nameSwap
 				>
@@ -2427,6 +2505,7 @@
 				<span
 					class="callout-mark"
 					aria-hidden="true"
+					{@attach live && calloutTarget}
 					style="left: {t.ring.x}px; top: {t.ring.y}px; opacity: {t.alpha}"
 				></span>
 				<!-- `above` anchors the box by its own BOTTOM edge, which is what
@@ -2436,6 +2515,7 @@
 				<p
 					class="callout-note"
 					class:above={t.above}
+					{@attach live && calloutTarget}
 					style="left: {t.note.x}px; top: {t.note.y}px; width: {t.note
 						.width}px; opacity: {t.alpha}"
 				>

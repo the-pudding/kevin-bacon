@@ -534,7 +534,7 @@ exports[`layout goldens > outro null @stacked 1`] = `
 exports[`layout goldens > raceClose {"playhead":2006} @beside 1`] = `
 {
   "attrs": "6055d6a96f6107e1",
-  "decor": "2c20a329f2d1e918",
+  "decor": "baa49a6c598ac340",
   "delays": null,
   "trailDelays": "b349a3eb452c8f93",
   "trails": "f07e8886d69f44b8",
@@ -544,7 +544,7 @@ exports[`layout goldens > raceClose {"playhead":2006} @beside 1`] = `
 exports[`layout goldens > raceClose {"playhead":2006} @phone 1`] = `
 {
   "attrs": "55423734c099d1de",
-  "decor": "ea7496a03ee12ae6",
+  "decor": "854d9d61db0c12d7",
   "delays": null,
   "trailDelays": "b349a3eb452c8f93",
   "trails": "3137933911a92fa8",
@@ -554,7 +554,7 @@ exports[`layout goldens > raceClose {"playhead":2006} @phone 1`] = `
 exports[`layout goldens > raceClose {"playhead":2006} @stacked 1`] = `
 {
   "attrs": "238070deee60ac59",
-  "decor": "44c7a63c8d39accf",
+  "decor": "c522a436a50724af",
   "delays": null,
   "trailDelays": "b349a3eb452c8f93",
   "trails": "68523910c7e3056c",
@@ -594,7 +594,7 @@ exports[`layout goldens > raceClose null @stacked 1`] = `
 exports[`layout goldens > raceFull {"playhead":2006} @beside 1`] = `
 {
   "attrs": "d02b5ee0e7bbef58",
-  "decor": "58a3a2b0e7d85653",
+  "decor": "c3d8206dea465471",
   "delays": null,
   "trailDelays": "02becff878e6d0f2",
   "trails": "251ee6fdbdd7b793",
@@ -604,7 +604,7 @@ exports[`layout goldens > raceFull {"playhead":2006} @beside 1`] = `
 exports[`layout goldens > raceFull {"playhead":2006} @phone 1`] = `
 {
   "attrs": "99e855c7dd2bfda0",
-  "decor": "2bce0594fd01d99f",
+  "decor": "5955fbdbc8b01dbf",
   "delays": null,
   "trailDelays": "02becff878e6d0f2",
   "trails": "a799faf71e1a2e2a",
@@ -614,7 +614,7 @@ exports[`layout goldens > raceFull {"playhead":2006} @phone 1`] = `
 exports[`layout goldens > raceFull {"playhead":2006} @stacked 1`] = `
 {
   "attrs": "58cb3280323e3c8a",
-  "decor": "4b4f1c33619d272c",
+  "decor": "79ba95ab49bbc3d9",
   "delays": null,
   "trailDelays": "02becff878e6d0f2",
   "trails": "5610995ccfccb48d",
@@ -624,7 +624,7 @@ exports[`layout goldens > raceFull {"playhead":2006} @stacked 1`] = `
 exports[`layout goldens > raceFull null @beside 1`] = `
 {
   "attrs": "d02b5ee0e7bbef58",
-  "decor": "58a3a2b0e7d85653",
+  "decor": "c3d8206dea465471",
   "delays": null,
   "trailDelays": "02becff878e6d0f2",
   "trails": "251ee6fdbdd7b793",
@@ -634,7 +634,7 @@ exports[`layout goldens > raceFull null @beside 1`] = `
 exports[`layout goldens > raceFull null @phone 1`] = `
 {
   "attrs": "99e855c7dd2bfda0",
-  "decor": "2bce0594fd01d99f",
+  "decor": "5955fbdbc8b01dbf",
   "delays": null,
   "trailDelays": "02becff878e6d0f2",
   "trails": "a799faf71e1a2e2a",
@@ -644,7 +644,7 @@ exports[`layout goldens > raceFull null @phone 1`] = `
 exports[`layout goldens > raceFull null @stacked 1`] = `
 {
   "attrs": "58cb3280323e3c8a",
-  "decor": "4b4f1c33619d272c",
+  "decor": "79ba95ab49bbc3d9",
   "delays": null,
   "trailDelays": "02becff878e6d0f2",
   "trails": "5610995ccfccb48d",
@@ -654,7 +654,7 @@ exports[`layout goldens > raceFull null @stacked 1`] = `
 exports[`layout goldens > raceFuture {"playhead":2006} @beside 1`] = `
 {
   "attrs": "d02b5ee0e7bbef58",
-  "decor": "58a3a2b0e7d85653",
+  "decor": "c3d8206dea465471",
   "delays": null,
   "trailDelays": "02becff878e6d0f2",
   "trails": "251ee6fdbdd7b793",
@@ -664,7 +664,7 @@ exports[`layout goldens > raceFuture {"playhead":2006} @beside 1`] = `
 exports[`layout goldens > raceFuture {"playhead":2006} @phone 1`] = `
 {
   "attrs": "99e855c7dd2bfda0",
-  "decor": "2bce0594fd01d99f",
+  "decor": "5955fbdbc8b01dbf",
   "delays": null,
   "trailDelays": "02becff878e6d0f2",
   "trails": "a799faf71e1a2e2a",
@@ -674,7 +674,7 @@ exports[`layout goldens > raceFuture {"playhead":2006} @phone 1`] = `
 exports[`layout goldens > raceFuture {"playhead":2006} @stacked 1`] = `
 {
   "attrs": "58cb3280323e3c8a",
-  "decor": "4b4f1c33619d272c",
+  "decor": "79ba95ab49bbc3d9",
   "delays": null,
   "trailDelays": "02becff878e6d0f2",
   "trails": "5610995ccfccb48d",
@@ -774,7 +774,7 @@ exports[`layout goldens > raceGenz {"genzShown":true} @stacked 1`] = `
 exports[`layout goldens > raceGenz {"playhead":2006,"genzShown":false} @beside 1`] = `
 {
   "attrs": "c74c59ace0536ea3",
-  "decor": "1be4389498474202",
+  "decor": "1d98e735053aeaf7",
   "delays": null,
   "trailDelays": "02becff878e6d0f2",
   "trails": "2560ef22c8b64d11",
@@ -784,7 +784,7 @@ exports[`layout goldens > raceGenz {"playhead":2006,"genzShown":false} @beside 1
 exports[`layout goldens > raceGenz {"playhead":2006,"genzShown":false} @phone 1`] = `
 {
   "attrs": "a7d91d6fa6aa14ee",
-  "decor": "ae6c35cba9a3ff9e",
+  "decor": "f11e2862151f040e",
   "delays": null,
   "trailDelays": "02becff878e6d0f2",
   "trails": "dea7faaffed54966",
@@ -794,7 +794,7 @@ exports[`layout goldens > raceGenz {"playhead":2006,"genzShown":false} @phone 1`
 exports[`layout goldens > raceGenz {"playhead":2006,"genzShown":false} @stacked 1`] = `
 {
   "attrs": "55c0991ff815e7ec",
-  "decor": "1577108c0378e6a9",
+  "decor": "08ef1b91f30bd8c3",
   "delays": null,
   "trailDelays": "02becff878e6d0f2",
   "trails": "5b19ddb8fabff428",
@@ -804,7 +804,7 @@ exports[`layout goldens > raceGenz {"playhead":2006,"genzShown":false} @stacked 
 exports[`layout goldens > raceRecent {"playhead":2006} @beside 1`] = `
 {
   "attrs": "d02b5ee0e7bbef58",
-  "decor": "58a3a2b0e7d85653",
+  "decor": "c3d8206dea465471",
   "delays": null,
   "trailDelays": "57327e672d6d2d0d",
   "trails": "251ee6fdbdd7b793",
@@ -814,7 +814,7 @@ exports[`layout goldens > raceRecent {"playhead":2006} @beside 1`] = `
 exports[`layout goldens > raceRecent {"playhead":2006} @phone 1`] = `
 {
   "attrs": "99e855c7dd2bfda0",
-  "decor": "2bce0594fd01d99f",
+  "decor": "5955fbdbc8b01dbf",
   "delays": null,
   "trailDelays": "57327e672d6d2d0d",
   "trails": "a799faf71e1a2e2a",
@@ -824,7 +824,7 @@ exports[`layout goldens > raceRecent {"playhead":2006} @phone 1`] = `
 exports[`layout goldens > raceRecent {"playhead":2006} @stacked 1`] = `
 {
   "attrs": "58cb3280323e3c8a",
-  "decor": "4b4f1c33619d272c",
+  "decor": "79ba95ab49bbc3d9",
   "delays": null,
   "trailDelays": "57327e672d6d2d0d",
   "trails": "5610995ccfccb48d",
