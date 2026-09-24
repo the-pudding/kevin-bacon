@@ -29,9 +29,9 @@ const STEP_PARAM = "step";
  * (what that Next does instead), `skipback` (a backward move passes through
  * this step) and `advanceon` (the step carries the reader on itself) —
  * `hideBar` (drops the progress bar for this step alone), `chapter` for the
- * title of the <Chapter> it sits in, or `splash` for the title card's name
- * and byline.
- * @typedef {{ state: import("./states.js").VisualState, params?: Object, panel?: import("svelte").Snippet, gate?: () => boolean, onnext?: () => void, skipback?: boolean, advanceon?: () => boolean, hideBar?: boolean, chapter?: string, splash?: { title: import("svelte").Snippet, byline?: import("svelte").Snippet } }} StepConfig
+ * title of the <Chapter> it sits in, or `splash` for the title card's name,
+ * subtitle and byline.
+ * @typedef {{ state: import("./states.js").VisualState, params?: Object, panel?: import("svelte").Snippet, gate?: () => boolean, onnext?: () => void, skipback?: boolean, advanceon?: () => boolean, hideBar?: boolean, chapter?: string, splash?: { title: import("svelte").Snippet, subtitle?: import("svelte").Snippet, byline?: import("svelte").Snippet } }} StepConfig
  */
 
 /**

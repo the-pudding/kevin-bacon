@@ -34,7 +34,7 @@ export const PANEL_OUT_MS = 220;
 // first paint (no `intro: true` passed to `mount()`), so Stage's `cardIn`
 // never actually fires on a fresh load — only on a later navigation onto the
 // card. A plain CSS opacity transition, triggered by a class added a tick after
-// mount, has no such exemption. Staggered per element (logo, title, byline) so
+// mount, has no such exemption. Staggered per element (logo, title, subtitle, byline) so
 // a cold `?step=3` reads as one composed reveal rather than the whole card
 // fading as a block.
 export const SPLASH_REVEAL_MS = 700;

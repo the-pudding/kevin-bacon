@@ -467,6 +467,11 @@
 					</div>
 					<div class="splash-card" in:fade={cardIn} out:fade={cardOut}>
 						<h1 class:reveal={mounted}>{@render activeSplash.title()}</h1>
+						{#if activeSplash.subtitle}
+							<p class="splash-subtitle" class:reveal={mounted}>
+								{@render activeSplash.subtitle()}
+							</p>
+						{/if}
 						{#if activeSplash.byline}
 							<p class="splash-byline" class:reveal={mounted}>
 								{@render activeSplash.byline()}
@@ -798,6 +803,23 @@
 		height: auto;
 	}
 
+	/* The standfirst, between the title and the byline: the serif again, so it
+	   reads as part of the title rather than as the byline's small print, but
+	   upright case and body size so the display type above keeps the card.
+	   Capped to a measure so a long line wraps to a block rather than running
+	   the width of a wide screen. */
+	.splash-subtitle {
+		max-width: 32rem;
+		margin: 1rem 0 0;
+		font-family: var(--font-serif);
+		font-size: var(--20px, 1.25rem);
+		line-height: 1.35;
+		text-align: center;
+		text-wrap: balance;
+		color: var(--color-fg);
+		text-shadow: var(--text-halo);
+	}
+
 	/* "By Owen Lacey", under the title — sans, small and let breathe from the
 	   display serif above it, same halo idiom as the h1 so it stays legible
 	   over the moving sky. The link is the one live control this otherwise
@@ -944,18 +966,20 @@
 
 	/* The cold-load reveal (see SPLASH_REVEAL_MS in cardFade.js for why this
 	   rides a plain CSS transition rather than `in:fade`): each element sits at
-	   opacity 0 until `.reveal` lands, staggered logo → title → byline so the
+	   opacity 0 until `.reveal` lands, staggered logo → title → subtitle → byline so the
 	   cascade reads as one composed entrance (a cold load of `?step=3`).
 	   `in:fade`/`out:fade` above still carry every later mount and every exit
 	   unaffected by any of this. */
 	.splash-logo,
 	.splash-card h1,
+	.splash-subtitle,
 	.splash-byline {
 		opacity: 0;
 	}
 
 	.splash-logo.reveal,
 	.splash-card h1.reveal,
+	.splash-subtitle.reveal,
 	.splash-byline.reveal {
 		opacity: 1;
 	}
@@ -970,9 +994,14 @@
 			transition-delay: var(--splash-reveal-step);
 		}
 
-		.splash-byline {
+		.splash-subtitle {
 			transition: opacity var(--splash-reveal-ms) ease-out;
 			transition-delay: calc(var(--splash-reveal-step) * 2);
+		}
+
+		.splash-byline {
+			transition: opacity var(--splash-reveal-ms) ease-out;
+			transition-delay: calc(var(--splash-reveal-step) * 3);
 		}
 	}
 

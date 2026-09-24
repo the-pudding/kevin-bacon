@@ -423,6 +423,9 @@
 				{#snippet title()}
 					Gen Z's Kevin Bacon
 				{/snippet}
+				{#snippet subtitle()}
+					A journey through the past, present and future centers of Hollywood.
+				{/snippet}
 				{#snippet byline()}
 					By <a href="https://pudding.cool/author/owen-lacey/" target="_blank"
 						>Owen Lacey</a

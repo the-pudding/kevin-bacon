@@ -21,7 +21,7 @@
 	 * step's prose. The drawn card sits after Previous/Next in the document and
 	 * outside that region, so on its own it is only met by reading on past Next.
 	 *
-	 * The title and byline come in as snippets rather than strings so the words
+	 * The title, subtitle and byline come in as snippets rather than strings so the words
 	 * live in Index.svelte beside the story's other prose.
 	 *
 	 * It sits outside every <Chapter>, as the opening does: the progress bar
@@ -35,19 +35,23 @@
 	 *
 	 * @see notes/scrolly-framework.md
 	 * @type {{ state: import("./states.js").VisualState, params?: Object,
-	 *   title: import("svelte").Snippet, byline?: import("svelte").Snippet }}
+	 *   title: import("svelte").Snippet, subtitle?: import("svelte").Snippet,
+	 *   byline?: import("svelte").Snippet }}
 	 */
-	let { state: layoutState, params, title, byline } = $props();
+	let { state: layoutState, params, title, subtitle, byline } = $props();
 
 	const steps = getContext("scrolly-steps");
 	const index = steps.register({
 		state: layoutState,
 		params,
-		splash: { title, byline }
+		splash: { title, subtitle, byline }
 	});
 	const active = $derived(steps.current === index);
 </script>
 
 {#if active && !steps.held}
 	<p class="sr-only">{@render title()}</p>
+	{#if subtitle}
+		<p class="sr-only">{@render subtitle()}</p>
+	{/if}
 {/if}
