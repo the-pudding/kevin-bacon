@@ -20,19 +20,19 @@
 	let query = $state("");
 	/** bits-ui carries a string value; the pool is node ids */
 	let value = $state("");
-	let editing = $state(false);
+	// bumped by every pick, to remount the search empty (see the markup)
+	let picks = $state(0);
 	const matches = $derived(searchActors(query, { pool: RANK_POOL }));
 	const items = $derived(
 		matches.map(({ id, name }) => ({ value: String(id), label: name }))
 	);
 	// the reader's current guess: the most recent pick (see story.svelte.js)
 	const guess = $derived(story.rank.guesses.at(-1) ?? null);
-	// "Guess again" only reopens search — it doesn't drop the prior guess,
-	// so RankBars keeps focus on it until a new one is picked
-	const showSearch = $derived(
-		!story.rank.skipped && (guess == null || editing)
-	);
 	const solved = $derived(guess != null && nodeRank(guess) === 1);
+	// The search stays up until the question is answered or skipped: a wrong
+	// guess is read out under it and the reader types the next one straight
+	// away. RankBars keeps focus on the last guess until a new one is picked.
+	const asking = $derived(!story.rank.skipped && !solved);
 
 	// Both handlers below record the guess LAST, after the state write and the
 	// step move. It is background instrumentation called straight from a click:
@@ -48,7 +48,7 @@
 		const seen = story.rank.guesses.indexOf(id);
 		if (seen !== -1) story.rank.guesses.splice(seen, 1);
 		story.rank.guesses.push(id);
-		editing = false;
+		picks += 1;
 		query = "";
 		value = "";
 		const correct = nodeRank(id) === 1;
@@ -61,7 +61,6 @@
 	// analytics schema has always called it.
 	function skip() {
 		story.rank.skipped = true;
-		editing = false;
 		query = "";
 		value = "";
 		steps.advance();
@@ -70,6 +69,39 @@
 </script>
 
 <div class="guess">
+	{#if asking}
+		<!-- The list is portalled out of the card (see ui/Combobox.svelte), which
+		     is why there is no reserved box around it here: it opens over the
+		     prose rather than pushing it, so the card's measured height — what
+		     half the canvas's bottom clearances come off — never moves as the
+		     reader types. The hand-rolled input this replaced grew the card on
+		     every keystroke.
+
+		     It stays up across wrong guesses, and bits-ui writes the picked
+		     name into the input after onValueChange returns — so each pick
+		     remounts it (`picks`), which is what hands the reader an empty box
+		     for the next name.
+
+		     Skip shares the input's line, as the same outline Button as the pair
+		     quiz's Skip, so the story's two Skips read as one control. -->
+		<div class="ask">
+			<div class="search">
+				{#key picks}
+					<Combobox
+						bind:value
+						{items}
+						placeholder="Search for an actor…"
+						emptyText={query.trim().length < 2
+							? "Keep typing…"
+							: `No matches in the top ${RANK_TOP_N}`}
+						onsearch={(text) => (query = text)}
+						onValueChange={pick}
+					/>
+				{/key}
+			</div>
+			<Button variant="outline" size="sm" onclick={skip}>Skip</Button>
+		</div>
+	{/if}
 	{#if story.rank.skipped}
 		<p class="verdict">{nodeName(SLJ)} ranks #1.</p>
 	{:else if guess != null}
@@ -77,40 +109,6 @@
 			{nodeName(guess)} ranks #{nodeRank(guess)}.
 			{solved ? "Spot on!" : "Keep going…"}
 		</p>
-		{#if !editing && !solved}
-			<!-- The same outline Button as the pair quiz's Skip, so the story's
-			     two Skips read as one control. Out of the verdict's line rather
-			     than inline in it, so they do not take on its italic small type. -->
-			<div class="actions">
-				<Button variant="outline" size="sm" onclick={() => (editing = true)}>
-					Guess again
-				</Button>
-				<Button variant="outline" size="sm" onclick={skip}>Skip</Button>
-			</div>
-		{/if}
-	{/if}
-	{#if showSearch}
-		<!-- The list is portalled out of the card (see ui/Combobox.svelte), which
-		     is why there is no reserved box around it here: it opens over the
-		     prose rather than pushing it, so the card's measured height — what
-		     half the canvas's bottom clearances come off — never moves as the
-		     reader types. The hand-rolled input this replaced grew the card on
-		     every keystroke. -->
-		<Combobox
-			bind:value
-			{items}
-			placeholder="Search for an actor…"
-			emptyText={query.trim().length < 2
-				? "Keep typing…"
-				: `No matches in the top ${RANK_TOP_N}`}
-			onsearch={(text) => (query = text)}
-			onValueChange={pick}
-		/>
-		{#if guess == null || editing}
-			<div class="actions">
-				<Button variant="outline" size="sm" onclick={skip}>Skip</Button>
-			</div>
-		{/if}
 	{/if}
 </div>
 
@@ -122,27 +120,34 @@
 	   a lift on this element cannot escape it at any value; the lift lives up on
 	   .scrolly-steps instead (Stage.svelte).
 
-	   Still inset by --control-inset, which is now about the thumb rather than
-	   about the layers: the search box's left third, the wrapped match buttons
-	   and the Skip button (the actions row starts flush left) all sat
-	   exactly where a reader reaching for the next step presses. The prose above
-	   stays full width and keeps giving its outer edge up — a tap there is meant
-	   to be a step. */
+	   The full width of the prose above it, NOT inset by --control-inset as
+	   the other card controls are (2026-09-24, Owen's call): the search and
+	   its Skip read as the end of the paragraph, and an inset line of them
+	   read as a stray box. The cost is the one the inset exists to avoid —
+	   the ends of the line sit where a thumb reaching for a step lands, so a
+	   tap there hits the control rather than the tap half. */
 	.guess {
 		display: flex;
 		flex-direction: column;
 		gap: 0.5rem;
 		margin-top: 0.75rem;
-		/* Margin, not padding: this block takes pointer events back (below), and
-		   padding is inside the element's own hit box — the inset would swallow
-		   the very presses it exists to keep clear. */
-		margin-inline: var(--control-inset);
+		/* the same 16px every prose step leaves under its last line (`p`'s
+		   margin, reset.css), which a control has none of and so sat flush on
+		   the screen's edge — see PairQuiz's .quiz for the same fix */
+		margin-bottom: 1rem;
 		pointer-events: auto;
 	}
 
-	.actions {
+	.ask {
 		display: flex;
+		align-items: center;
 		gap: 0.5rem;
+	}
+
+	/* the input fills whatever the line leaves beside Skip */
+	.search {
+		flex: 1;
+		min-width: 0;
 	}
 
 	.verdict {
