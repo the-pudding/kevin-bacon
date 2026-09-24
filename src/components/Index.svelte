@@ -5,7 +5,7 @@
 	import Step from "$components/scrolly/Step.svelte";
 	import Chapter from "$components/scrolly/Chapter.svelte";
 	import Splash from "$components/scrolly/Splash.svelte";
-	import GuessRank from "$components/scrolly/GuessRank.svelte";
+	import GuessRank, { skipGuess } from "$components/scrolly/GuessRank.svelte";
 	import RaceScrubber from "$components/scrolly/RaceScrubber.svelte";
 	import StartButton from "$components/scrolly/StartButton.svelte";
 	import PairQuiz from "$components/scrolly/PairQuiz.svelte";
@@ -30,9 +30,8 @@
 	import { fly } from "svelte/transition";
 	import { linear } from "svelte/easing";
 
-	// A gate that never opens: the step's own control is the way forward, so
-	// the reader's Next either presses it for them (the step's `onnext`) or has
-	// nothing to do but wait for them to press it.
+	// A gate that never opens: the step's own control is the way forward, and
+	// the reader's Next presses it for them (the step's `onnext`).
 	const NEVER = () => false;
 
 	// Which chart the reader's named actor is being asked about, for the search's
@@ -489,12 +488,14 @@
 					</p>
 				</Step>
 				<!-- guessing #1 or skipping is the only way on: GuessRank calls the
-		     registry's advance() itself, and stepping back off the reveal
+		     registry's advance() itself, the reader's Next skips the
+		     question for them (`onnext`), and stepping back off the reveal
 		     skips this step so its search box isn't left sitting under the
 		     answer (see `gate` / `skipback` in Step.svelte) -->
 				<Step
 					state="rankFocus"
 					gate={NEVER}
+					onnext={() => skipGuess(steps)}
 					skipback
 					alt="A ranked list of the top 250 actors by remoteness. Every name is hidden except Kevin Bacon's, at #175."
 				>
@@ -644,7 +645,8 @@
 				<!-- the one gate the reader's own Next walks through once it opens:
 		     the quiz has no single completing press, so finishing the last
 		     pair is what unblocks it — or the quiz's Skip, which leaves it
-		     through the registry's skip() at any pair. Stepping back to 20
+		     through the registry's skip() at any pair, and which the reader's
+		     Next presses for them while the gate is shut (`onnext`). Stepping back to 20
 		     stays open, and `quizDone` is the same predicate PairQuiz seeds
 		     itself from, so
 		     the gate can never hold the reader on a quiz with nothing left
@@ -653,6 +655,7 @@
 				<Step
 					state="scatterQuiz"
 					gate={() => quizDone(story)}
+					onnext={steps.skip}
 					panel={searchPanel}
 				>
 					<p>

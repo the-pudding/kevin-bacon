@@ -8,8 +8,9 @@ not fade out and in wholesale), plus a second tweener doing the same for
 and where each contract is tested. The reasoning behind individual charts —
 and the measurements that were taken — lives in `notes/design/`.
 
-> "Scrolly" is historical. The reader advances by tap halves and arrow keys
-> (`TapNav.svelte`), never by scroll; only the mechanism setting the active step
+> "Scrolly" is historical. The reader advances by tap halves (below 1200px),
+> edge notches (side by side, ≥ 1200px) and arrow keys (`TapNav.svelte`), never
+> by scroll; only the mechanism setting the active step
 > has ever changed, and the framework below is driven purely by that index.
 
 ## Design notes
@@ -35,7 +36,7 @@ and the measurements that were taken — lives in `notes/design/`.
 | `scrolly/arrivals.js`                                                | `prepareArrival(move)`: what a move does to the story before the destination renders — un-landing the beat, the rank panel's handoff, the reset on leaving the rank chapter backwards, and per-state arrival rules (the hop chart's anchor, quiz, simulation, Gen Z draw-on).                                                                                                                                                                                                                                                |
 | `scrolly/story.svelte.js`                                            | The shared interaction state, grouped by interaction (`intro`, `hops`, `rank`, `race`, `quiz`, `search`, `sim`) under four framework fields (`settled`, `settledStep`, `request`, `running`); `request(kind)`, `resetSimRace()`, `resetGenzLines()`, `resetHopAnchor()`.                                                                                                                                                                                                                                                     |
 | `scrolly/Step.svelte`, `Chapter.svelte`, `Splash.svelte`             | `Step` and `Splash` register one step each with the `"scrolly-steps"` context in document order. `Step` renders its prose while active; `Splash` renders nothing — `Stage` draws the title card from the registry so it can transition out. `Chapter` takes no step: it wraps a run of `<Step>`s and puts its `title` in the `"scrolly-chapter"` context, which each `Step` registers as `chapter`.                                                                                                                          |
-| `scrolly/TapNav.svelte`, `StepProgress.svelte`                       | The step driver (tap halves + arrow keys, through `go()`) and the chapter progress bar (indicator only).                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| `scrolly/TapNav.svelte`, `StepProgress.svelte`                       | The step driver (tap halves stacked, edge notches beside the prose, arrow keys always; all through `go()`) and the chapter progress bar (indicator only).                                                                                                                                                                                                                                                                                                                                                                    |
 | `scrolly/ScrollyVisual.svelte`                                       | The canvas host: the two tweeners, the render effect (below), dpr scaling, resize and bleed, reduced motion, the HTML overlay and annotation layer, the scrub loop and the request player.                                                                                                                                                                                                                                                                                                                                   |
 | `scrolly/render.js`                                                  | One frame of the buffers onto a 2D context: `clearCanvas`, `drawTrails`, `drawEdges`, `drawDots`, `drawLabelLeaders`. Pure over (ctx, buffers).                                                                                                                                                                                                                                                                                                                                                                              |
 | `scrolly/annotations.js`                                             | The annotation layer's per-frame decisions: `raceLabelCut`, `trackLabels`, `createLabelStacker`.                                                                                                                                                                                                                                                                                                                                                                                                                             |
@@ -62,7 +63,8 @@ and the measurements that were taken — lives in `notes/design/`.
 ### Tap-zone debug tint
 
 `TapNav`'s prev/next halves carry no marking by design (see the component's
-own doc comment) — this is a DEV-only way to see their extent anyway, e.g.
+own doc comment) — this is a DEV-only way to see their extent anyway (stacked
+only: beside the prose there are no halves to tint, just the notches), e.g.
 while checking they still cover the whole viewport at an odd width. It caught
 exactly that: the halves used to be sized off `#scrolly`'s own box (`50% +
 --column-gutter`), which is capped by `--column`, so any viewport wider than
@@ -452,7 +454,7 @@ rank order, never by raw rank against `nodes.length`.
 
 - Step prose overlays the bottom of the canvas below 1200px (`.scrolly-steps` in
   `Stage.svelte`); layouts keep essential marks out of it. The tap halves cover
-  the whole layout, so any control in a step card must take its presses back with
+  the whole layout (stacked; beside the prose they give way to edge notches), so any control in a step card must take its presses back with
   `pointer-events: auto` under the card's `--z-card` lift, and anything over the
   canvas must beat both at `--z-tap-above`. A step card that grows can cover a
   layout's `hits`.

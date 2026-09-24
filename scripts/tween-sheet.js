@@ -212,7 +212,8 @@ async function openAt(browser, base, move, opts) {
 		await page.addInitScript(SEEK_ANIMATIONS);
 	}
 	await page.goto(`${base}?step=${move.from}`);
-	await page.waitForSelector(".tap-half.next");
+	// the next control: a tap half stacked, an edge notch beside the prose
+	await page.waitForSelector(".tap-half.next, .notch.next");
 	await page.waitForSelector(".scrolly-visual canvas");
 	await page.evaluate(() => document.fonts.ready);
 	if (!opts.realClock) await page.clock.pauseAt(PAUSE_AT);

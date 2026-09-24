@@ -1,19 +1,32 @@
 <script>
 	// @ts-check
 	/**
-	 * The story's navigation: the screen split down the middle into two
-	 * full-height tap halves, plus ArrowLeft/ArrowRight. Both go through the
-	 * registry's `go()`, so a tap gets exactly what a key does: the gated steps'
-	 * refusal, the backward skip past them, and everything the arrival rules
-	 * (arrivals.js) prepare (see notes/scrolly-framework.md).
+	 * The story's navigation, in one of two forms by width, plus
+	 * ArrowLeft/ArrowRight at every width. Every form goes through the
+	 * registry's `go()`, so a tap, a notch and a key all get the same thing:
+	 * the gated steps' refusal, the backward skip past them, and everything the
+	 * arrival rules (arrivals.js) prepare (see notes/scrolly-framework.md).
 	 *
-	 * The next half goes disabled while the active step's gate is shut, so a
-	 * tap there does nothing and the cursor drops back to the default arrow.
-	 * The halves carry no marking of their own and no press tint — a tap's
-	 * only feedback is the step it takes. At the very last step it stays live instead:
-	 * a forward press there exits the wizard for the credits, one-way (see
-	 * `exit` on the registry) — the back half disappears along with the rest
-	 * of the step chrome once that happens, so there is no route back in.
+	 * STACKED (below Stage's `beside` breakpoint): the screen split down the
+	 * middle into two full-height tap halves.
+	 *
+	 * BESIDE (the side-by-side layout, >= 1200px): no tap halves. A click on a
+	 * desktop screen is too easy to make by accident, so the story moves only by
+	 * two notches pinned to the viewport's left and right edges, in a gutter
+	 * Stage reserves for them (`--notch-w`), and by the keys. The prev notch is
+	 * hidden on step 0 but keeps its box; the next notch's chevron pans there instead
+	 * of a written cue, once the prose has landed.
+	 *
+	 * The next half goes disabled while the active step's gate is shut and its
+	 * `onnext` cannot be pressed yet, so a press there does nothing. The next
+	 * notch never does: every gated step's Next presses the step's own control
+	 * (`onnext`), and in the moment before that control can be pressed a press
+	 * simply does nothing. The halves carry no marking of their own and no
+	 * press tint — a tap's only feedback is the step it takes. At the very last
+	 * step next stays live instead: a forward press there exits the
+	 * wizard for the credits, one-way (see `exit` on the registry) — the
+	 * navigation disappears along with the rest of the step chrome once that
+	 * happens, so there is no route back in.
 	 *
 	 * At step 0 (the one step `atStart` is ever true for — nothing before it to
 	 * go back to) the prev half stays live rather than disabled, and advances
@@ -37,6 +50,9 @@
 	 * to scrub.
 	 */
 	import { getContext } from "svelte";
+	import Button from "$components/ui/Button.svelte";
+	import ChevronLeft from "@lucide/svelte/icons/chevron-left";
+	import ChevronRight from "@lucide/svelte/icons/chevron-right";
 	import { createTap } from "./tap.js";
 	// DEV-ONLY: paints the halves with a light, very-low-opacity tint while
 	// scrolly/dev/TapZonesDev.svelte's HUD toggle is on, so their extent —
@@ -45,6 +61,9 @@
 	// that could flip it never mounts there), so this import costs a dead
 	// read, not a dead component.
 	import { tapZonesDev } from "./dev/tapZones.svelte.js";
+
+	/** @type {{ beside: boolean }} */
+	let { beside } = $props();
 
 	const steps = getContext("scrolly-steps");
 
@@ -69,10 +88,14 @@
 		)
 			return;
 		if (e.key === "ArrowLeft") steps.prev();
-		else if (e.key === "ArrowRight") {
-			if (atEnd) steps.exit();
-			else steps.next();
-		}
+		else if (e.key === "ArrowRight") forward();
+	}
+
+	// what the arrow key and the next notch do: forward off the last step
+	// leaves the wizard for the credits
+	function forward() {
+		if (atEnd) steps.exit();
+		else steps.next();
 	}
 
 	// the tap itself — the drag test and where it steps — is shared with the
@@ -93,24 +116,47 @@
 
 <svelte:window onkeydown={onKeydown} />
 
-<button
-	type="button"
-	class="tap-half prev"
-	class:debug-visible={tapZonesDev.visible}
-	aria-label={atStart ? "Continue" : "Previous step"}
-	onpointerdown={tap.down}
-	onclick={(e) => onTap(e, "prev")}
-></button>
+{#if beside}
+	<div class="notch prev" class:hidden={atStart}>
+		<Button
+			variant="notch"
+			data-side="left"
+			aria-label="Previous step"
+			onclick={() => steps.prev()}
+		>
+			<ChevronLeft />
+		</Button>
+	</div>
+	<div class="notch next" class:pan={atStart && !steps.held}>
+		<Button
+			variant="notch"
+			data-side="right"
+			aria-label="Next step"
+			onclick={forward}
+		>
+			<ChevronRight />
+		</Button>
+	</div>
+{:else}
+	<button
+		type="button"
+		class="tap-half prev"
+		class:debug-visible={tapZonesDev.visible}
+		aria-label={atStart ? "Continue" : "Previous step"}
+		onpointerdown={tap.down}
+		onclick={(e) => onTap(e, "prev")}
+	></button>
 
-<button
-	type="button"
-	class="tap-half next"
-	class:debug-visible={tapZonesDev.visible}
-	aria-label="Next step"
-	disabled={held}
-	onpointerdown={tap.down}
-	onclick={(e) => onTap(e, "next")}
-></button>
+	<button
+		type="button"
+		class="tap-half next"
+		class:debug-visible={tapZonesDev.visible}
+		aria-label="Next step"
+		disabled={held}
+		onpointerdown={tap.down}
+		onclick={(e) => onTap(e, "next")}
+	></button>
+{/if}
 
 <style>
 	/* Full height of the SCREEN, top to bottom — the reader's thumb rests at
@@ -175,6 +221,79 @@
 	}
 	.tap-half.debug-visible.next {
 		background: rgb(239 68 68 / 0.08);
+	}
+
+	/* The notches, beside the prose: fixed to the viewport's edges, vertically
+	   centred, each as wide as the gutter Stage reserves for it (--notch-w), so
+	   no column content ever runs under one. The look is the `notch` variant in
+	   ui.button.css; this rule is only where it sits. Above the canvas, whose
+	   element bleeds out to the viewport's edges beneath them.
+
+	   --notch-bleed: how far each tab runs on past its screen edge, out of
+	   sight. It is the pan's reach (below), so a tab panning away from its
+	   edge uncovers more of itself rather than lifting off it; the matching
+	   padding on that side keeps the chevron centred in what shows. */
+	.notch {
+		--notch-bleed: 3px;
+		position: fixed;
+		top: 50%;
+		translate: 0 -50%;
+		z-index: var(--z-tap-above);
+		display: flex;
+		width: calc(var(--notch-w) + var(--notch-bleed));
+		height: calc(2 * var(--notch-w));
+	}
+
+	.notch :global(.bits-button) {
+		flex: 1;
+	}
+
+	.notch.prev {
+		left: calc(-1 * var(--notch-bleed));
+	}
+
+	.notch.prev :global(.bits-button) {
+		padding-left: var(--notch-bleed);
+	}
+
+	.notch.next {
+		right: calc(-1 * var(--notch-bleed));
+	}
+
+	.notch.next :global(.bits-button) {
+		padding-right: var(--notch-bleed);
+	}
+
+	/* step 0 has nothing behind it: hidden rather than unmounted so its box
+	   stays put, and `visibility` takes it out of the tab order and the a11y
+	   tree with it */
+	.notch.hidden {
+		visibility: hidden;
+	}
+
+	/* step 0's only cue beside the prose: the whole next notch, outline and
+	   chevron together, pans left and right until the reader takes it. It
+	   reaches no further than --notch-bleed either way, so it never lifts off
+	   its edge. `translate` keeps the vertical centring in every frame. */
+	@media (prefers-reduced-motion: no-preference) {
+		.notch.pan {
+			animation: notch-pan 2.6s ease-in-out infinite;
+		}
+	}
+
+	@keyframes notch-pan {
+		0%,
+		100% {
+			translate: 0 -50%;
+		}
+
+		25% {
+			translate: calc(-1 * var(--notch-bleed)) -50%;
+		}
+
+		75% {
+			translate: var(--notch-bleed) -50%;
+		}
 	}
 
 	/* reset.css's outline-offset: 2px would draw a full-height rectangle bleeding

@@ -5,6 +5,8 @@
 	 * very-low-opacity background over the prev/next tap regions so their
 	 * extent — including the --column-gutter overhang past the reading
 	 * column's edge — can be checked visually without reading the CSS.
+	 * Stacked only: beside the prose TapNav mounts edge notches instead, and
+	 * there are no halves to tint.
 	 *
 	 * Fixed to the viewport rather than the canvas: unlike the race tuners,
 	 * this has to stay reachable across every step, not just one chapter, so

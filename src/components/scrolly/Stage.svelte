@@ -214,6 +214,8 @@
 	// not be scrolled: a scroll reaches only what is under the pointer and its
 	// ancestors, and the halves are neither. A tap on it still steps the story,
 	// by whichever half it landed over — the halves meet at the layout's middle.
+	// Beside the prose there are no halves (TapNav's notches instead), so a
+	// click on it steps nothing there.
 	/** @type {HTMLDivElement | undefined} */
 	let layoutBox;
 	const rankTap = createTap(() => steps);
@@ -357,7 +359,7 @@
 					</div>
 				{/if}
 			</div>
-			<TapNav />
+			<TapNav {beside} />
 		{/if}
 		<div
 			class="scrolly-visual"
@@ -419,8 +421,8 @@
 						class="rank-bars-panel"
 						class:revealed={story.rank.revealed}
 						style="bottom: {rankPanelBottom}px"
-						onpointerdown={rankTap.down}
-						onclick={onRankTap}
+						onpointerdown={beside ? undefined : rankTap.down}
+						onclick={beside ? undefined : onRankTap}
 					>
 						<RankBars
 							reveal={currentState === "rankReveal" ||
@@ -472,31 +474,23 @@
 						{/if}
 					</div>
 				{/if}
-				<!-- How to move, taught on step 0 — where the reader makes their
-				     first press, and the one step where the whole screen advances
-				     (TapNav's `atStart` is the same test). Beside the prose it sits in
-				     the canvas's corner; stacked, it sits under the prose instead
-				     (in the card, below). Either way it waits for the prose to land
-				     and then rises in after it (`.shown`). -->
+				<!-- How to move, for a screen reader, on step 0. The visible cue is
+				     stacked-only (in the card, above): beside the prose there are no
+				     tap halves to teach, and the next notch's chevron pans instead (TapNav). -->
 				{#if steps.current === 0}
-					{#if beside}
-						<div
-							class="nav-cue in-corner"
-							class:shown={!steps.held}
-							aria-hidden="true"
-							out:fade={cardOut}
-						>
-							{@render navCue()}
-						</div>
-					{/if}
 					<p class="sr-only">
-						<span class="on-narrow"
-							>Tap anywhere on the screen to navigate through the story.</span
-						>
-						<span class="on-wide"
-							>Click, or use the left and right arrow keys, to navigate through
-							the story.</span
-						>
+						{#if beside}
+							Use the Previous and Next buttons at the edges of the screen, or
+							the left and right arrow keys, to navigate through the story.
+						{:else}
+							<span class="on-narrow"
+								>Tap anywhere on the screen to navigate through the story.</span
+							>
+							<span class="on-wide"
+								>Click, or use the left and right arrow keys, to navigate
+								through the story.</span
+							>
+						{/if}
 					</p>
 				{/if}
 				<!-- dev-only race tuners. Mounted outside the step registry so they span
@@ -558,7 +552,9 @@
 	   dot steps the story like any other — the dots report position, they are
 	   never a jump target.
 
-	   The z ladder over this box, lowest first:
+	   The z ladder over this box, lowest first (the tap halves are stacked
+	   only: beside the prose TapNav mounts edge notches at --z-tap-above
+	   instead, in a gutter of their own, and nothing under the card steps):
 	     auto  canvas, scrubber panel, title card
 	     20   --z-tap: the two tap halves
 	     21    --z-card: the step card, which lies over them for its whole width.
@@ -656,14 +652,18 @@
 	   is what left this box 114px in from the left at 1000px wide when the
 	   docked one was 16px in at 796px. With no padding and no border on the
 	   element there is no box model to get wrong — every number here is a
-	   distance from a viewport edge. */
+	   distance from a viewport edge. #scrolly's own box model still counts,
+	   though: it is border-box, so --column is its width WITH both gutters,
+	   and the max-width takes them off too. Without that the exited box came
+	   out a gutter wider than the docked one on any screen past the column
+	   (848px docked, 888px exited at 1440px beside the prose). */
 	.scrolly-visual.exited {
 		position: fixed;
 		top: var(--title-band);
 		bottom: 0;
 		left: calc(var(--column-gutter) + var(--visual-l));
 		right: var(--column-gutter);
-		max-width: calc(var(--column) - var(--visual-l));
+		max-width: calc(var(--column) - 2 * var(--column-gutter) - var(--visual-l));
 		margin: 0 auto;
 		z-index: -1;
 	}
@@ -731,9 +731,9 @@
 
 	/* The title card, centred in the visual box (inset on all four sides of
 	   .scrolly-visual, so its height comes from that box's own CSS rather than a
-	   JS measurement). The layer takes no pointer events: the canvas underneath
-	   is the tap halves' ground, and the card's whole instruction is to use
-	   them. */
+	   JS measurement). The layer takes no pointer events: stacked, the canvas
+	   underneath is the tap halves' ground, and the card's whole instruction is
+	   to use them. */
 	.splash-card {
 		position: absolute;
 		inset: 0;
@@ -824,7 +824,8 @@
 		pointer-events: auto;
 	}
 
-	/* Where the tap goes, on step 0: a hand-cursor icon, "click"/"tap to
+	/* Where the tap goes, on step 0, stacked only (beside the prose the next
+	   notch's chevron pans instead — TapNav): a hand-cursor icon, "click"/"tap to
 	   continue" (ported like-for-like from The Pudding's pop-love-songs
 	   Tap.svelte) and, past 40rem, the keyboard alternative spelled out as two
 	   key glyphs. The whole screen answers a tap on step 0 (see TapNav's
@@ -856,10 +857,10 @@
 		transform: none;
 	}
 
-	/* A keyframe animation rather than a transition: the corner copy can be
-	   created already `.shown` (it mounts when `beside` turns true, which on a
-	   cold load can be the same flush the prose lands in), and a transition
-	   never plays on an element's first style. The curve is cubicInOut, the
+	/* A keyframe animation rather than a transition: the cue can be created
+	   already `.shown` (it mounts when `beside` turns false, which on a cold
+	   load can be the same flush the prose lands in), and a transition never
+	   plays on an element's first style. The curve is cubicInOut, the
 	   prose's own (Step.svelte). */
 	@media (prefers-reduced-motion: no-preference) {
 		.nav-cue.shown {
@@ -887,15 +888,6 @@
 		grid-area: 2 / 1;
 		justify-self: end;
 		padding-bottom: var(--16px, 1rem);
-	}
-
-	/* Beside the prose: the canvas's bottom-right corner, lifted over the tap
-	   halves it sits on. */
-	.nav-cue.in-corner {
-		position: absolute;
-		right: var(--column-gutter);
-		bottom: max(1.5rem, 6%);
-		z-index: var(--z-tap-above);
 	}
 
 	/* the rows the nudge moves — an element of their own, so the nudge's
@@ -1111,8 +1103,14 @@
 	   screen's middle, so its offset is the measure negated rather than a ratio
 	   between two columns. */
 	@media (min-width: 75rem) {
+		/* --notch-w: the prev/next notches TapNav pins to the viewport's edges
+		   beside the prose. Reserved in the column's own gutter, so no content
+		   runs under one at any width; .scrolly-visual.exited rebuilds its box
+		   from the same gutter, and the canvas measures its own bleed. */
 		#scrolly {
 			--column: 1400px;
+			--notch-w: 1.75rem;
+			--column-gutter: calc(1rem + var(--notch-w));
 		}
 
 		.scrolly-layout {

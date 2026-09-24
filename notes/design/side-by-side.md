@@ -132,6 +132,11 @@ fixed measure, `--prose-w` (what a phone gives the same words), plus
 up, and two rules read it: `--visual-l` insets the canvas by it, and the title
 card and its logo reach back across it to sit on the screen's middle.
 
+The column's side gutter grows here too: `--column-gutter` becomes
+`1rem + --notch-w`, reserving a strip at each viewport edge for the prev/next
+notches `TapNav` shows instead of its tap halves. Beside the prose nothing on
+the screen steps the story on a click; the notches and the arrow keys do.
+
 Until 2026-09-23 the prose swapped sides at every chapter card, hidden inside the
 card's full-bleed sky by re-pinning the canvas origin under the live frame
 (`reframe(dx)`). The swap went with the cards, and so did that path.

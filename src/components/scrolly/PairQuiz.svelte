@@ -49,7 +49,7 @@
 	// Skip leaves the quiz at any pair, through the registry's skip(): the gate
 	// below waits on every pair being answered, and a reader who would rather
 	// not take part must not be held to that. Pairs already answered stay
-	// answered.
+	// answered. The reader's Next skips the same way (the step's `onnext`).
 	const steps = getContext("scrolly-steps");
 
 	// MARK_MS is the beat the ✓/✗ is held before the chips leave. The mark stays

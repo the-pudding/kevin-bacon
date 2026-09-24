@@ -1,20 +1,37 @@
+<script module>
+	// @ts-check
+	import { story } from "./story.svelte.js";
+	import { recordRankGuess } from "$utils/analytics.js";
+
+	/**
+	 * The reader declining the question: the answer is read out and the step
+	 * moves on, as a correct guess does. Recorded as the `gave_up` the
+	 * analytics schema has always called it. Shared with the step's `onnext`
+	 * (Index.svelte), so the reader's Next skips the question too.
+	 * @param {{ advance: () => void }} steps the registry
+	 */
+	export function skipGuess(steps) {
+		story.rank.skipped = true;
+		steps.advance();
+		recordRankGuess({ gaveUp: true, correct: false });
+	}
+</script>
+
 <script>
 	// @ts-check
 	import { getContext } from "svelte";
 	import Button from "$components/ui/Button.svelte";
 	import Combobox from "$components/ui/Combobox.svelte";
-	import { story } from "./story.svelte.js";
 	import { nodeName, nodeRank } from "./states.js";
 	import { RANK_POOL, searchActors } from "./search.js";
 	import { RANK_TOP_N, SLJ } from "./cast.js";
-	import { recordRankGuess } from "$utils/analytics.js";
 
 	const steps = getContext("scrolly-steps");
 
 	// Guessing pans the rank ladder to the picked actor (a param update, not a
 	// step change). Naming #1 or skipping is the only way off this step — the
-	// reader's Next is refused there (the step's `gate`, see Step.svelte), and
-	// the advance() below bypasses it, so "Skip" is always the way out.
+	// step's `gate` never opens, and the reader's Next skips (its `onnext` is
+	// skipGuess above); both go through advance(), which bypasses the gate.
 	// Search is scoped to the same top-N actors RankBars renders, so every
 	// result here has a visible row to scroll to and highlight.
 	let query = $state("");
@@ -56,15 +73,10 @@
 		recordRankGuess({ actorId: id, correct });
 	}
 
-	// the reader declining the question: the answer is read out and the step
-	// moves on, as a correct guess does. Recorded as the `gave_up` the
-	// analytics schema has always called it.
 	function skip() {
-		story.rank.skipped = true;
 		query = "";
 		value = "";
-		steps.advance();
-		recordRankGuess({ gaveUp: true, correct: false });
+		skipGuess(steps);
 	}
 </script>
 

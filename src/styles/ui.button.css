@@ -137,6 +137,44 @@
 	text-decoration: underline;
 }
 
+/* The story's prev/next notches beside the prose (TapNav): a tab attached
+   to a viewport edge, so it has no border and no rounding on that edge.
+   `data-side` names the edge. Its box is sized by TapNav, not by `size`, and
+   it drops the root's 48px minimum: a pointer target at desktop widths, and
+   anything bigger is empty tab around the chevron. */
+.bits-button[data-button-root][data-variant="notch"] {
+	--bg: var(--color-bg);
+	--fg: var(--color-fg);
+	min-width: 0;
+	min-height: 0;
+	padding: 0;
+	background: var(--bg);
+	color: var(--fg);
+	border: 1px solid var(--color-border);
+}
+
+.bits-button[data-button-root][data-variant="notch"][data-side="left"] {
+	border-left: none;
+	border-radius: 0 var(--radius-md) var(--radius-md) 0;
+}
+
+.bits-button[data-button-root][data-variant="notch"][data-side="right"] {
+	border-right: none;
+	border-radius: var(--radius-md) 0 0 var(--radius-md);
+}
+
+.bits-button[data-button-root][data-variant="notch"]:where(
+		:not(:disabled)
+	):hover {
+	background: oklch(from var(--bg) calc(l - 0.05) c h);
+}
+
+/* app.css sizes every svg to 100% of its box */
+.bits-button[data-button-root][data-variant="notch"] svg {
+	width: 1.25rem;
+	height: 1.25rem;
+}
+
 /* className */
 .bits-button[data-button-root].circle {
 	border-radius: 50%;
