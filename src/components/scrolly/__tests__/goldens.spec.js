@@ -30,6 +30,8 @@ const STEP_PARAMS = {
 const INTERACTIONS = [
 	{ rank: { guesses: [SLJ], focusBar: { x: 120, y: 300, w: 400 } } },
 	{ rank: { skipped: true } },
+	// the step back into rankReveal out of the race: nothing under the ladder
+	{ rank: { bareCanvas: true } },
 	{ quiz: { picks: { 0: 1 }, revealed: true } },
 	{ sim: { runs: SIM_N_SIMS, names: 5 } },
 	{ race: { genzLinesShown: true } },

@@ -40,6 +40,13 @@ function layoutRank(nodes, w, h, _edges, params) {
 	// approximation of them, so the frame this tween settles on is the frame the
 	// panel then fades over.
 	const slots = hopDotSlots(hopFractions(ANCHOR_ID), maxBarW);
+	// stepping back out of the race, the ladder is rebuilt over the canvas
+	// rather than landing on a bar the canvas has built first: the race cast
+	// leaves, and nothing is drawn under the panel's fade-in (story.rank.bareCanvas)
+	if (params?.bare) {
+		for (const n of nodes) parkHidden(attrs, n, w, h);
+		return { attrs };
+	}
 	for (const n of nodes) {
 		if (inBar(n)) placeInBar(attrs, n, slots, x0, baconY);
 		else if (n.id !== ANCHOR_ID) parkHidden(attrs, n, w, h);
@@ -83,7 +90,7 @@ function placeInBar(attrs, n, slots, x0, baconY) {
 	);
 }
 
-const params = (s) => ({ bar: s.rank.focusBar });
+const params = (s) => ({ bar: s.rank.focusBar, bare: s.rank.bareCanvas });
 
 const title = "Ranking Actors by Remoteness Score";
 

@@ -139,9 +139,15 @@ export const story = $state({
 		/** the ladder panel has faded in. A latch: it has to outlive rankFocus —
 		 * the panel spans the step change into raceRecent — and re-checking
 		 * the live step would hide it again the moment the reader reaches
-		 * raceRecent. Stage raises it once a rank step has landed; the arrival rules re-arm it when the reader
-		 * steps back out of the chapter (see arrivals.js) */
+		 * raceRecent. Stage raises it once a rank step has landed; the arrival rules re-arm it on every
+		 * walk into the chapter (see arrivals.js) */
 		revealed: false,
+		/** the canvas under the ladder draws nothing: the reader stepped back into
+		 * rankReveal out of the race, where the ladder is rebuilt over the canvas
+		 * rather than landing on a bar the canvas has built first, so Bacon's bar
+		 * would only stand there alone until the ladder faded up over it. Set by
+		 * the arrival rules for that one arrival (see arrivals.js) */
+		bareCanvas: false,
 		/** the ladder carries over into raceRecent. Set by the arrival rules for
 		 * the one forward step out of the rank chapter into raceRecent — the
 		 * arrival whose bars collapse into the chart's dots — and held for as long

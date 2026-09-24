@@ -64,20 +64,16 @@ const ARRIVALS = {
 /**
  * Stepping back out of the rank chapter resets the guess, so returning to it
  * later starts the guessing game fresh instead of picking up where the reader
- * left off (guessed, or already seeing the reveal) — and re-arms the ladder's
- * fade-in latch (story.rank.revealed), which has to outlive rankFocus, so
- * without this a second walk into rankFocus would mount the ladder already
- * revealed and fade Bacon's bar up over a collapse still tweening underneath.
+ * left off (guessed, or already seeing the reveal).
  */
 function leaveRank() {
 	story.rank.guesses = [];
 	story.rank.skipped = false;
-	story.rank.revealed = false;
 }
 
 /** @param {Move} move */
 export function prepareArrival(move) {
-	const { to, from, back } = move;
+	const { to, from } = move;
 	// Un-land the beat. `settledStep` is only ever written by a landing, so a
 	// reader who steps back and returns before the step they stepped back to has
 	// landed would find it still naming the step they came back to: landed from
@@ -93,6 +89,16 @@ export function prepareArrival(move) {
 	// two steps sharing one is not a landing at all — nothing travels, so nothing
 	// would settle it again, and the tour across the 0 → 1 join would stop dead.
 	if (to !== from) story.settled = null;
+	prepareRank(move);
+	ARRIVALS[to]?.(move);
+}
+
+/**
+ * The rank chapter's arrival rules: the ladder's carry-over into raceRecent,
+ * its fade-in latch and the guess, for the steps into and out of the chapter.
+ * @param {Move} move
+ */
+function prepareRank({ to, from, back }) {
 	// the rank panel only carries over into raceRecent when the reader actually
 	// walks there out of the rank chapter — that is the one arrival whose bars
 	// collapse into the chart's dots. Reloading straight onto raceRecent, or
@@ -107,5 +113,12 @@ export function prepareArrival(move) {
 	story.rank.handoff =
 		to === "raceRecent" && (isRankState(from) || story.rank.handoff);
 	if (back && isRankState(from) && !isRankState(to)) leaveRank();
-	ARRIVALS[to]?.(move);
+	// Every walk INTO the rank chapter re-arms the ladder's fade-in latch
+	// (story.rank.revealed), which has to outlive rankFocus for the handoff into
+	// raceRecent. Left up, the ladder mounted already revealed: on a second walk
+	// into rankFocus it faded up over a collapse still tweening underneath, and back
+	// from raceRecent it faded up in the frame of the press over a race chart
+	// that had not begun to leave. Down, Stage raises it once the step lands.
+	if (isRankState(to) && !isRankState(from)) story.rank.revealed = false;
+	story.rank.bareCanvas = to === "rankReveal" && from === "raceRecent";
 }
