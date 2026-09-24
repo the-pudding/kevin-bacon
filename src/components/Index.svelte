@@ -389,8 +389,8 @@
 			>
 				<p>
 					The “Six Degrees of Kevin Bacon” is a game where players try to
-					connect an actor to Kevin Bacon via movies they've starred in with
-					other Hollywood actors, aiming to reach him in six movies or fewer.
+					connect actors to one another, using films in which they both
+					appeared, aiming to reach him in six movies or fewer.
 				</p>
 			</Step>
 			<Step state="networkIntro" panel={routePanel}>
@@ -558,7 +558,7 @@
 				>
 					<p>
 						We can then view all centers of Hollywood since 1980. Use the slider
-						to take a look around, or go next.
+						to take a look around.
 					</p>
 				</Step>
 			</Chapter>
@@ -568,8 +568,8 @@
 					alt="The chart runs on past 2025 into an empty shaded block labelled the future."
 				>
 					<p>
-						Now imagine us taking this into the future. How might we predict who
-						will take the crown from Samuel L. Jackson?
+						Now apply this to the future. How might we predict who will take the
+						crown from Samuel L. Jackson?
 					</p>
 
 					<p>
@@ -583,9 +583,9 @@
 					alt="Chart: films vs. remoteness. A dot per actor, with film count across on a log scale and remoteness up. Actors with more films sit lower on remoteness. Samuel L. Jackson and Nicolas Cage are labelled with their film counts."
 				>
 					<p>
-						The obvious one is film count. More films mean closer to the center.
-						Indeed, Samuel L. Jackson has been in far more films than anyone
-						else, 20 more than Nicolas Cage, who's next closest.
+						The obvious one is film count. A higher count moves an actor closer
+						to the center. Indeed, Samuel L. Jackson has been in far more films
+						than anyone else, 20 more than Nicolas Cage, who's the next closest.
 					</p>
 				</Step>
 				<Step
@@ -595,11 +595,11 @@
 					alt="Natalie Portman and Anna Kendrick are labelled with their remoteness: similar film counts, far apart on remoteness."
 				>
 					<p>
-						The relationship between film count and remoteness is strong, but it
-						doesn't explain it fully. Two actors can have the same film counts
-						but very different remoteness. Natalie Portman and Anna Kendrick are
-						shown here with different remoteness scores, despite starring in the
-						same number of films.
+						But though the relationship between film count and remoteness is
+						strong, it doesn't fully explain how an actor become a center. Two
+						actors can have the same film counts but very different remoteness.
+						Natalie Portman and Anna Kendrick are shown here with different
+						remoteness scores, despite starring in the same number of films.
 					</p>
 				</Step>
 				<Step
@@ -609,11 +609,11 @@
 					alt="Natalie Portman's label now reads 97 of the top 250, and Anna Kendrick's 35 of the top 250."
 				>
 					<p>
-						Natalie Portman, however, has better costars, cast in films with
-						more "big dogs" than Anna Kendrick. Of the 250 most-connected actors
-						from earlier, Natalie Portman has worked with almost three times as
-						many. They say in Hollywood "It's not what you know, it's who you
-						know," and it seems this is also true here.
+						Natalie Portman is cast in films with more prolific actors than Anna
+						Kendrick. Of the 250 most-connected actors from earlier, Natalie
+						Portman has worked with almost three times as many as Anna Kendrick
+						has. They say that in Hollywood "It's not what you know, it's who
+						you know," and it seems this is also true here.
 					</p>
 				</Step>
 				<Step
@@ -633,11 +633,11 @@
 					alt="Chart: films vs. costar film count. A dot per actor, with film count across and their costars' average film count up, both on log scales."
 				>
 					<p>
-						Instead we use the costar film count as a sort of proxy. Concretely,
-						this is an actor's 50 most prolific costars by number of films,
-						taken as an average. If you work with more “big dog” actors compared
-						to someone with the same film count, you'll almost certainly be
-						closer to the center of Hollywood than them.
+						Instead, we use the costar film count as a sort of proxy.
+						Concretely, this is an actor's 50 most prolific costars by number of
+						films, taken as an average. If you work with more “big dog” actors
+						compared to someone with the same film count, you'll almost
+						certainly be closer to the center of Hollywood than them.
 					</p>
 				</Step>
 				<!-- the one gate the reader's own Next walks through once it opens:
@@ -708,10 +708,10 @@
 				>
 					<p>
 						Films first. Take Sydney Sweeney: she's been in 16 films since her
-						debut 15 years ago. At the same point in their career, Robert De
-						Niro had also racked up 16 films, and went on to have a brilliant
-						career totalling 87. By contrast, Chevy Chase reached the same
-						milestone at the same point, but only ever appeared in 27.
+						debut 15 years ago. By the same point in his career, Robert De Niro
+						had also racked up 16 films, and went on to have a brilliant career
+						totalling 87. By contrast, Chevy Chase reached the same milestone at
+						the same point, but only ever appeared in 27.
 					</p>
 				</Step>
 				<Step
@@ -737,8 +737,8 @@
 					<p>
 						Back to Sydney Sweeney. We can now see that whatever actor we use to
 						model a Gen Z actor's film trajectory can massively impact the
-						results. For each actor, we consider similar actors based on
-						proximity to them, and randomly select one weighted by how close
+						results. For each actor, we consider similar ones based on film
+						count and career age, and randomly select one weighted by how close
 						they are.
 					</p>
 					<p>
