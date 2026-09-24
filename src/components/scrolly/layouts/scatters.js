@@ -276,15 +276,15 @@ const layoutDegScatter = (nodes, w, h, _edges, params) =>
 		labelOf: (t) => String(deLogFilms(t))
 	});
 
-// the y-axis direction is conveyed by the pinned "lower"/"higher" mini-labels
-// (see ScrollyVisual's .y-hint), not by an arrow in the title
+// the y-axis direction is conveyed by the pinned "more central"/"less central"
+// mini-labels (see ScrollyVisual's .y-hint), not by an arrow in the title
 const AVG_OVERLAY = {
 	xLabel: "Film count (log scale)",
 	yLabel: "Remoteness",
 	// these render inside writing-mode: vertical-rl + rotate(180deg) (see
 	// ScrollyVisual's .y-hint), which visually rotates → to ↑ and ← to ↓
-	yTopLabel: "lower →",
-	yBottomLabel: "← higher"
+	yTopLabel: "more central →",
+	yBottomLabel: "← less central"
 };
 
 export const states = {

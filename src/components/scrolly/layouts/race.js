@@ -2532,8 +2532,8 @@ function raceLayout(step, yCap = Infinity) {
 
 const CLOSE_OVERLAY = {
 	yLabel: "Remoteness",
-	yTopLabel: "lower →",
-	yBottomLabel: "← higher"
+	yTopLabel: "more central →",
+	yBottomLabel: "← less central"
 };
 
 const OVERLAY = {
@@ -2541,8 +2541,8 @@ const OVERLAY = {
 	yLabel: "Remoteness",
 	// these render inside writing-mode: vertical-rl + rotate(180deg) (see
 	// ScrollyVisual's .y-hint), which visually rotates → to ↑ and ← to ↓
-	yTopLabel: "lower →",
-	yBottomLabel: "← higher"
+	yTopLabel: "more central →",
+	yBottomLabel: "← less central"
 };
 
 // optional runtime override of the camera ({ playhead }); null while idle, so
