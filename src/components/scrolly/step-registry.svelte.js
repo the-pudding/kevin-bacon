@@ -4,7 +4,10 @@
 // control (StartButton, GuessRank) and a gated step carrying the reader on
 // itself (`advanceon`, watched by Index) — all move `current` through it. The
 // active step is kept in the URL (?step=N) so each tab keeps its own place
-// across refreshes, independently of every other tab on the origin.
+// across refreshes, independently of every other tab on the origin — in dev
+// only, the same `import.meta.env.DEV` gate as the race tuners: a production
+// build neither reads the param nor writes it, so every reader starts at the
+// top.
 //
 // Created once by Index.svelte, which puts it in the "scrolly-steps" context
 // for the components to read. Runes, so it is created inside a component's
@@ -49,7 +52,7 @@ const STEP_PARAM = "step";
  * catches up.
  */
 function readStep() {
-	if (typeof window === "undefined") return null;
+	if (!import.meta.env.DEV || typeof window === "undefined") return null;
 	const n = parseInt(urlParams.get(STEP_PARAM), 10);
 	return Number.isInteger(n) ? n : null;
 }
@@ -57,7 +60,7 @@ function readStep() {
 // whether the URL already carried a step param on load — only then does the
 // registry keep writing it back, so a bare "/" never grows a ?step=0
 function hasStepParam() {
-	if (typeof window === "undefined") return false;
+	if (!import.meta.env.DEV || typeof window === "undefined") return false;
 	return urlParams.get(STEP_PARAM) !== "";
 }
 
