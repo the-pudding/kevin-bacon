@@ -1,6 +1,6 @@
 <script>
 	// @ts-check
-	import { onMount } from "svelte";
+	import { onMount, untrack } from "svelte";
 	import rawNodes from "$data/scrolly-nodes.json";
 	import { story } from "./story.svelte.js";
 	import { ANCHOR_ID } from "./nodes.js";
@@ -169,9 +169,9 @@
 	let atTop = $state(true);
 	let scrolledByReader = false;
 	// the row the effect below last centered on, so it re-centers only when the
-	// focus actually moves. Without it, every reader scroll re-runs the effect
-	// (it republishes story.rank.listRows, which it also reads) and snaps the
-	// list straight back to the focus row — leaving the list unscrollable.
+	// focus actually moves. Without it, any re-run after the reader has scrolled
+	// (the list resizing, the fonts landing) snaps the list straight back to the
+	// focus row — leaving the list unscrollable.
 	let centeredId = null;
 	// the very first row-position measurement can land a few px off if it
 	// runs before the mono webfont has swapped in (font.css: font-display:
@@ -436,7 +436,14 @@
 			pitch: rowEls[1].offsetTop - rowEls[0].offsetTop,
 			bottom: panel.offsetTop + panel.offsetHeight
 		};
-		if (sameRows(story.rank.listRows, geom)) return;
+		// untracked, and so is the focus box's check below: both run inside the
+		// centring $effect.pre, and an effect that reads what it writes invalidates
+		// itself mid-flush. On Svelte 5.55.9 that self-invalidation, inside a batch
+		// that was itself spawned mid-flush, re-links a batch its scheduler has
+		// already unlinked, and every update after it is merged into that dead
+		// batch and dropped: the whole story freezes (bouncing hopAnchor ↔
+		// rankFocus, then Next).
+		if (untrack(() => sameRows(story.rank.listRows, geom))) return;
 		story.rank.listRows = geom;
 	}
 
@@ -448,7 +455,7 @@
 	// collapsing into the bar and the bar simply appearing.
 	/** @param {{x: number, y: number, w: number}} box */
 	function publish(box) {
-		const prev = story.rank.focusBar;
+		const prev = untrack(() => story.rank.focusBar);
 		if (prev && prev.x === box.x && prev.y === box.y && prev.w === box.w)
 			return;
 		story.rank.focusBar = box;
