@@ -11,6 +11,7 @@
 	import PairQuiz from "$components/scrolly/PairQuiz.svelte";
 	import ActorSearch from "$components/scrolly/ActorSearch.svelte";
 	import QuizResults from "$components/results/QuizResults.svelte";
+	import { createQuizResults } from "$components/results/quiz-results.svelte.js";
 	import useWindowDimensions from "$runes/useWindowDimensions.svelte.js";
 	import { story, request } from "$components/scrolly/story.svelte.js";
 	import { quizDone } from "$components/scrolly/states.js";
@@ -76,7 +77,16 @@
 	// story for each destination step. Created here so it is the one instance
 	// every <Step>, TapNav and StepProgress reads from the context.
 	const steps = createStepRegistry({ navigate: prepareArrival });
+
 	setContext("scrolly-steps", steps);
+
+	// The credits' results are read on the story's last step rather than when
+	// the credits mount: they roll in straight after it, and charts arriving
+	// mid-roll throw the moving section's layout about.
+	const quizResults = createQuizResults();
+	$effect(() => {
+		if (steps.current === steps.count - 1) quizResults.load();
+	});
 
 	// What each Start press does — the button's, and the reader's Next on the
 	// same step (its `onnext`), which is the same press made for them. The
@@ -848,7 +858,7 @@
 				     enough finished quiz-takers to compare against, or without a
 				     result of this reader's own — heading included, which is why
 				     the whole block lives inside the component -->
-				<QuizResults />
+				<QuizResults data={quizResults.data} loading={quizResults.loading} />
 				<div class="credits-block">
 					<h2>Author notes</h2>
 					<p>

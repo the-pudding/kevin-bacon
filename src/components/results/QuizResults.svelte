@@ -1,64 +1,24 @@
 <script>
 	// @ts-check
 	// The credits' "Your results" block: how the reader did on the story's two
-	// quizzes, against everyone who came before them. Owns the read, the gate
-	// and the copy; ResultBars draws.
+	// quizzes, against everyone who came before them. Owns the gate and the
+	// copy; the read is quiz-results.svelte.js, started by Index.svelte on the
+	// story's last step so it is normally in before the credits roll, and
+	// ResultBars draws.
 	//
 	// Nothing here touches the canvas, a layout state or the step registry,
 	// which is why it lives outside scrolly/ — it is plain document flow, below
 	// the wizard, rendered once the reader has left it (see `exited` in
 	// Index.svelte).
-	import {
-		analyticsEnabled,
-		fetchQuizResults,
-		MIN_QUIZ_TAKERS
-	} from "$utils/analytics.js";
+	import { analyticsEnabled, MIN_QUIZ_TAKERS } from "$utils/analytics.js";
 	import { INTERACTIVE_IDS, nodeName } from "$components/scrolly/states.js";
 	import { SLJ } from "$components/scrolly/cast.js";
 	import ResultBars from "./ResultBars.svelte";
 
+	/** @type {{ data: any, loading: boolean }} */
+	let { data, loading } = $props();
+
 	const PAIR_COUNT = INTERACTIVE_IDS.quiz.length;
-	// long enough for an insert that was in flight as the reader tapped into the
-	// credits to have landed
-	const RETRY_MS = 1500;
-
-	/** @type {any} */
-	let data = $state(null);
-
-	// A browser-only read: the page is prerendered (+layout.js), so there is no
-	// build-time fetch and nothing to bake into the HTML. $effect never runs
-	// during SSR, which is the guarantee this leans on.
-	$effect(() => {
-		let live = true;
-		(async () => {
-			try {
-				let result = await fetchQuizResults({
-					pairCount: PAIR_COUNT,
-					sljActorId: SLJ
-				});
-				// One retry when the reader appears to have no result at all: the
-				// writes in analytics.js are fire-and-forget, so a reader who sprints
-				// from the last pick to the credits can outrun their own row landing
-				// in Postgres, and this block hides on a null `you`.
-				if (live && result && !result.rank?.you && !result.pairs?.you) {
-					await new Promise((resolve) => setTimeout(resolve, RETRY_MS));
-					if (!live) return;
-					result = await fetchQuizResults({
-						pairCount: PAIR_COUNT,
-						sljActorId: SLJ
-					});
-				}
-				if (live) data = result;
-			} catch (error) {
-				// same failure idiom as the writers: log, show nothing, never throw
-				// at the reader
-				console.error("analytics: quiz_results failed", error);
-			}
-		})();
-		return () => {
-			live = false;
-		};
-	});
 
 	// Each chart is the reader's own or not shown: one only appears for a
 	// reader who finished that quiz (the database counts only finishers, and
@@ -151,7 +111,12 @@
 	});
 </script>
 
-{#if show}
+{#if analyticsEnabled && loading}
+	<div class="credits-block">
+		<h2>Your results</h2>
+		<p>Loading your results…</p>
+	</div>
+{:else if show}
 	<div class="credits-block">
 		<h2>Your results</h2>
 
