@@ -78,4 +78,8 @@ every pair, and fails if a role outside `surface.*` states nothing.
 on every step at the mobile and desktop boxes, on a dev server. It cannot see
 the canvas, and it reports text over the canvas whose background it can't
 resolve as unresolved rather than failed; the token pairs cover both. The dev
-tuners are marked `data-dev-only` and left out.
+tuners are marked `data-dev-only` and left out. It is a CI gate (full mode of
+`scripts/run-ci-quality-gates.sh`), not a pre-commit one: it takes about 2.5
+minutes. It is the only check that sees alpha applied in CSS or JS, so dim text
+with a muted role token rather than `opacity` — the token spec then checks the
+ink the reader actually gets.

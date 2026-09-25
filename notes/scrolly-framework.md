@@ -523,8 +523,9 @@ rank order, never by raw rank against `nodes.length`.
 
 `npm run gates` runs what CI runs: prettier and ESLint (with `complexity: 10`,
 `max-depth: 4`, `max-lines-per-function: 100` and import cycles enforced),
-svelte-check over `jsconfig.json`, and vitest. The pre-commit hook runs the same
-through lint-staged, plus `scripts/stale-checklist.js --check`.
+svelte-check over `jsconfig.json`, vitest, and the rendered contrast scan
+(`npm run a11y`). The pre-commit hook runs the same through lint-staged, minus
+the contrast scan, plus `scripts/stale-checklist.js --check`.
 
 The suite under `src/components/scrolly/__tests__/`, by contract:
 

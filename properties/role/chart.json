@@ -74,6 +74,14 @@
 				"min": 4.5
 			}
 		},
+		"rank-row-muted": {
+			"value": "{color.gray-500}",
+			"comment": "a rank ladder row whose actor is still hidden",
+			"contrast": {
+				"against": "surface.raised",
+				"min": 4.5
+			}
+		},
 		"rank-row-focus": {
 			"value": "{color.gray-900}",
 			"contrast": {

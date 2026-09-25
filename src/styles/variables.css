@@ -99,6 +99,8 @@
 	--chart-band-label: var(--category-yellow-dark);
 	/** a name in the rank ladder */
 	--chart-rank-row: var(--color-gray-700);
+	/** a rank ladder row whose actor is still hidden */
+	--chart-rank-row-muted: var(--color-gray-500);
 	--chart-rank-row-focus: var(--color-gray-900);
 	--chart-footnote: var(--color-gray-500);
 	/** the race scrubber's year */

@@ -132,8 +132,8 @@
 
 	// rows the reader already knows the identity of: Bacon (named by the step
 	// copy) plus every actor they have guessed, including earlier guesses the
-	// focus has since moved off. Those stay named and at full opacity — the fade
-	// is there to hide who's who, and there's nothing left to hide on them.
+	// focus has since moved off. Those stay named and in full-strength ink —
+	// there's nothing left to hide on them.
 	const known = $derived(new Set([ANCHOR_ID, ...story.rank.guesses]));
 
 	// Whether this mount is a RESUMPTION of a ladder the reader has already been
@@ -189,7 +189,7 @@
 	// the animation's 1.75s delay before fading back in, reading as the rank
 	// list vanishing and reappearing. Once this is true the `:not(.entered)`
 	// selector below no longer matches, so a later `known` change is the plain
-	// opacity transition `.rows li` already carries, not a fresh animation.
+	// colour transition `.rows li` already carries, not a fresh animation.
 	let entered = $state(resumed);
 
 	// The collapse clock. This panel owns it — it is the one that knows when its
@@ -617,9 +617,8 @@
 		font-family: var(--type-chart-family);
 		letter-spacing: var(--type-chart-tracking);
 		font-size: 0.75rem;
-		color: var(--chart-rank-row);
-		opacity: 0.35;
-		transition: opacity 0.25s ease;
+		color: var(--chart-rank-row-muted);
+		transition: color 0.25s ease;
 	}
 
 	/* everyone but Bacon starts invisible and fades in, arriving with the step's
@@ -641,11 +640,12 @@
 		animation: row-in var(--row-in-ms) ease var(--row-in-delay) both;
 	}
 
-	/* the fade exists to hide who's who: once a row's name is out — Bacon, a row
-	   the reader has guessed, or every row on the reveal step — there's nothing
-	   left to hide, so it reads at full strength */
+	/* the muted ink marks a row whose name is still "???": once it is out — Bacon,
+	   a row the reader has guessed, or every row on the reveal step — the row
+	   reads at full strength. A colour, not an alpha, so the token contrast spec
+	   sees what the reader sees */
 	.rows li.known {
-		opacity: 1;
+		color: var(--chart-rank-row);
 		animation: none;
 	}
 
@@ -659,7 +659,7 @@
 			opacity: 0;
 		}
 		to {
-			opacity: 0.35;
+			opacity: 1;
 		}
 	}
 
@@ -690,7 +690,15 @@
 	.dots {
 		display: block;
 		transform-origin: 50% 50%;
-		transition: transform var(--collapse-ms) ease;
+		transition:
+			transform var(--collapse-ms) ease,
+			opacity 0.25s ease;
+	}
+
+	/* a hidden actor's lattice stays faint beside the named rows. Alpha is fine
+	   here, unlike on the row's text: the svg is decoration, not something read */
+	.rows li:not(.known) .dots {
+		opacity: 0.35;
 	}
 
 	/* The focused row's hop key, laid over the strip's own box so it costs the

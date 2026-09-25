@@ -18,5 +18,7 @@ jobs:
           node-version-file: .node-version
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      # the rendered contrast gate (npm run a11y) drives a headless Chromium
+      - run: npx playwright install --with-deps chromium
       # same runner the pre-commit hook uses, in check-only (full) mode
       - run: bash scripts/run-ci-quality-gates.sh

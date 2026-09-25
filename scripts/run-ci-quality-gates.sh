@@ -6,13 +6,15 @@
 #
 # Modes:
 #   (default)  full/CI: whole-tree prettier + eslint + stylelint, the design
-#              tokens' build check, svelte-check, vitest, parity guard
+#              tokens' build check, svelte-check, vitest, the rendered
+#              colour-contrast scan, parity guard
 #   --local    pre-commit: skips the whole-tree prettier and eslint passes —
 #              lint-staged has already formatted and linted the staged files,
 #              and checking the *working tree* here would block commits over
 #              unrelated dirty files. Adds the tween-checklist check: the rows
 #              the staged diff stales must be marked [!] (npm run stale), and
-#              the table must match the <Step> list.
+#              the table must match the <Step> list. Also skips the rendered
+#              contrast scan (about 2.5 min on a dev server).
 #
 # svelte-check runs over jsconfig.json (everything under src/) and fails on type
 # errors. The vitest suite under src/components/scrolly/__tests__ holds the
@@ -55,6 +57,13 @@ npx svelte-check --tsconfig ./jsconfig.json --threshold error
 
 echo "gate: vitest"
 npx vitest run
+
+if ! $LOCAL; then
+	echo "gate: rendered colour contrast (axe, every step)"
+	# the token contrast spec cannot see alpha applied in CSS or JS, nor what
+	# ends up behind a label on the page; only the rendered scan does
+	npm run a11y
+fi
 
 echo "gate: hook/CI parity"
 grep -Eq '"pre-commit": ".*run-ci-quality-gates\.sh --local"' package.json
