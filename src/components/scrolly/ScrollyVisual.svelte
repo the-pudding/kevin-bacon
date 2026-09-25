@@ -36,6 +36,7 @@
 		racePlot,
 		racePanFrame,
 		RACE_CAST,
+		RACE_DOT_MAX_R,
 		RACE_LABEL_TOP
 	} from "./layouts/race.js";
 	import {
@@ -126,6 +127,9 @@
 	// the tweener parks it. Short: it's decluttering, not a beat the reader is
 	// meant to watch.
 	const DEPART_FADE_MS = 220;
+	// ...and its mirror: how long a line the arrival brings on takes to fade in
+	// where it stands once the dots have landed (see holdArrivingTrails)
+	const ARRIVE_FADE_MS = DEPART_FADE_MS;
 	// per-frame smoothing factor for the pan glide: the playhead moves this
 	// fraction of the remaining distance to the target each frame (exponential
 	// ease-out — feels like a weighted reel). Reduced motion uses 1 (snap).
@@ -241,18 +245,17 @@
 	 * the arriving state does not draw it, and ALSO when both states draw it but
 	 * they do not agree it is the same line (TRAIL_CONSTANCY) — so a chart change
 	 * fades out and re-enters instead of morphing through a shape that is in
-	 * neither chart. Geometry is untouched here; `reenter` names the slots whose
-	 * geometry is restated once they are invisible.
+	 * neither chart. Geometry is untouched here: a re-entering line is invisible
+	 * once the beat has run, so holdArrivingTrails restates it like any other
+	 * line the arrival brings on.
 	 *
 	 * The ink is left alone, for fadeOutTrails' reason: a departing leader fades
 	 * out in the colour it had rather than crossfading back to grey on its way
 	 * off.
-	 * @returns {{ fade: Float64Array, reenter: number[] } | null}
+	 * @returns {Float64Array | null}
 	 */
 	function departTrails(next, from) {
 		const live = trailTweener.current;
-		/** @type {number[]} */
-		const reenter = [];
 		let fade = null;
 		for (let t = 0; t < TRAIL_META.length; t++) {
 			const a = t * TRAIL_STRIDE + TRAIL_POINTS * 2;
@@ -261,16 +264,15 @@
 			if (!leaving && sameLine(t, from, stateName)) continue;
 			fade ??= Float64Array.from(live);
 			fade[a] = 0;
-			if (!leaving) reenter.push(t);
 		}
-		return fade && { fade, reenter };
+		return fade;
 	}
 
 	/**
-	 * A re-entering line's geometry, restated while it is invisible: it has just
-	 * faded out where it lay, so it can be MOVED to where it will stand without
-	 * anything drawn moving — which is what makes the second beat a pure fade-in
-	 * rather than a fade-in that travels (motion.md rule 2). `reframe` is the
+	 * An arriving line's geometry, restated while it is invisible: nothing drawn
+	 * is there, so it can be MOVED to where it will stand without anything drawn
+	 * moving — which is what makes its arrival a pure fade-in rather than a
+	 * fade-in that travels (motion.md rule 2). `reframe` is the
 	 * tweener's own restater and writes both the live frame and the frame a tween
 	 * eases from, so the move is not undone on the next tick.
 	 */
@@ -282,6 +284,30 @@
 					buf[base + k] = next[base + k];
 			}
 		});
+	}
+
+	/**
+	 * The trails half of the in beat (motion.md rule 2): every line the arrival
+	 * brings on — invisible on the live frame, drawn by `next` — is restated to
+	 * where it will stand, and held at alpha 0 in the travel's target. A line
+	 * tweened in with its dots is a line drawn between marks in flight; this one
+	 * fades in where it stands once they have landed, and the caller owns that
+	 * fade. Null when no line arrives, which is most arrivals.
+	 * @returns {Float64Array | null} the travel's trail target
+	 */
+	function holdArrivingTrails(next) {
+		const live = trailTweener.current;
+		/** @type {number[]} */
+		const slots = [];
+		for (let t = 0; t < TRAIL_META.length; t++) {
+			const a = t * TRAIL_STRIDE + TRAIL_POINTS * 2;
+			if (live[a] <= 0 && next[a] > 0) slots.push(t);
+		}
+		if (slots.length === 0) return null;
+		restateTrails(slots, next);
+		const travel = Float64Array.from(next);
+		for (const t of slots) travel[t * TRAIL_STRIDE + TRAIL_POINTS * 2] = 0;
+		return travel;
 	}
 
 	/**
@@ -302,22 +328,12 @@
 			then();
 			return;
 		}
-		const land = () => {
-			if (trails) restateTrails(trails.reenter, target.trails);
-			then();
-		};
 		// chain off whichever tweener has work, so an arrival that releases only
 		// links does not also push a full no-op trail target through the tweener
 		if (trails) {
-			trailTweener.to(
-				trails.fade,
-				DEPART_FADE_MS,
-				0,
-				null,
-				attrs ? null : land
-			);
+			trailTweener.to(trails, DEPART_FADE_MS, 0, null, attrs ? null : then);
 		}
-		if (attrs) tweener.to(attrs, DEPART_FADE_MS, 0, null, land);
+		if (attrs) tweener.to(attrs, DEPART_FADE_MS, 0, null, then);
 	}
 	/**
 	 * The trail target for a state that draws none: every slot keeps the geometry
@@ -1251,20 +1267,33 @@
 	// `arrivalJitter` is the state's own (see EntryAnim).
 	function startArrival(p) {
 		const jitter = p.anim.arrivalJitter ?? TWEEN_JITTER;
-		tweener.to(p.startAttrs, TWEEN_MS, jitter, p.stateDelays, () => {
-			// The dots are in place: THIS is the landing the words were waiting for,
-			// not the end of the legs that follow. The legs are the step's authored
-			// reveal and its prose describes them, so holding the card for the whole
-			// of a 1.6s fan or a 4s sweep leaves it blank over the very motion it is
-			// captioning.
+		const travel = holdArrivingTrails(p.startTrails);
+		// The dots are in place and any line they brought is up: THIS is the
+		// landing the words were waiting for, not the end of the legs that follow.
+		// The legs are the step's authored reveal and its prose describes them, so
+		// holding the card for the whole of a 1.6s fan or a 4s sweep leaves it
+		// blank over the very motion it is captioning.
+		const begin = () => {
 			land();
 			runLegs(p.anim, p.write, p.ctx, p.finalAttrs, p.finalTrails);
+		};
+		tweener.to(p.startAttrs, TWEEN_MS, jitter, p.stateDelays, () => {
+			if (!travel) {
+				begin();
+				return;
+			}
+			// the in beat: the arriving lines fade in over the landed dots before
+			// the legs take the buffers. Timed on the dots' tweener, a no-op tween
+			// onto the frame it already holds, because every arrival supersedes
+			// that one — a press mid-beat drops `begin` like it drops the travel's.
+			trailTweener.to(p.startTrails, ARRIVE_FADE_MS, 0);
+			tweener.to(p.startAttrs, ARRIVE_FADE_MS, 0, null, begin);
 		});
 		// coterminous with the attrs tween, so runLegs' trailTweener.stop() can no
 		// longer strand a slot part-way: the old two-phase fade pushed the real
 		// trail tween out past the legs' start and left every slot the entry's
 		// writer does not itself stamp frozen at whatever fraction it had reached
-		trailTweener.to(p.startTrails, TWEEN_MS, 0);
+		trailTweener.to(travel ?? p.startTrails, TWEEN_MS, 0);
 	}
 
 	// An arrival that plays an entry choreography (EntryAnim in states.js). The
@@ -1675,6 +1704,17 @@
 		// neighbouring chapter still crosses the whole canvas
 		return (i) => RACE_CAST.has(i / STRIDE) && !onRacePlot(attrs, i);
 	}
+	/**
+	 * How far down the canvas a dot is drawn, measured from the title band's
+	 * top, on a race step that draws dots below its plot (RaceFrame.enterBelow),
+	 * or null. The plot's bottom edge plus a dot's radius, so a dot on the
+	 * window's last value is drawn whole and one below it is cut by the edge
+	 * rather than culled, and slides in or out through it.
+	 */
+	function dotClip() {
+		if (!raceStep?.enterBelow || !racePlotRect) return null;
+		return racePlotRect.bottom + RACE_DOT_MAX_R + TITLE_BAND;
+	}
 	// raceFuture is the one step whose name column is pinned at the LEFT
 	// (tailPx), so its names lie over the plot and an overflowing stack would
 	// land on the x-axis tick row — eight names packed into the band's bottom
@@ -1710,12 +1750,20 @@
 			edgeEnds,
 			choreo.active
 		);
+		const clip = dotClip();
+		if (clip) {
+			ctx.save();
+			ctx.beginPath();
+			ctx.rect(-bleed.l, -TITLE_BAND, width + bleed.l + bleed.r, clip);
+			ctx.clip();
+		}
 		drawDots(ctx, attrs, dotCull(attrs), focusDots, [
 			-bleed.l,
 			-TITLE_BAND,
 			width + bleed.r,
 			height
 		]);
+		if (clip) ctx.restore();
 		// held names (see labelHolds) are still waiting out their lag; drawScene
 		// runs every frame of the arrival tween, which always outlasts the hold, so
 		// this flips over mid-tween with no timer of its own
@@ -1941,7 +1989,15 @@
 		tweener.to(target.attrs, TWEEN_MS, TWEEN_JITTER, stateDelays, () =>
 			settle(stateName)
 		);
-		trailTweener.to(target.trails, TWEEN_MS, 0, target.trailDelays);
+		// the lines this arrival brings on fade in once the travel has landed
+		const travel = holdArrivingTrails(target.trails);
+		trailTweener.to(
+			travel ?? target.trails,
+			TWEEN_MS,
+			0,
+			target.trailDelays,
+			travel && (() => trailTweener.to(target.trails, ARRIVE_FADE_MS, 0))
+		);
 	}
 	/**
 	 * An interaction: retarget quickly, with no choreography of its own (delays

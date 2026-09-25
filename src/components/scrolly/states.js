@@ -128,7 +128,10 @@ export const STATE_YCAP = pick("yCap");
  * `proj` is the closing step's alone — its resting draw-on progress out across
  * the future strip. Read here as a PRESENCE (`!== undefined`) rather than as a
  * number, to ask whether a step's marks reach past the data plot's right edge.
- * @type {Partial<Record<LayoutState, { extent: [number, number], minPlayhead?: number, maxPlayhead?: number, tailPx?: number, frontier?: number, proj?: number, highlight?: number[] }>>}
+ *
+ * `enterBelow` is raceGenz's alone: its dots are drawn below the plot and
+ * clipped to its bottom edge (see RaceFrame.enterBelow).
+ * @type {Partial<Record<LayoutState, { extent: [number, number], minPlayhead?: number, maxPlayhead?: number, tailPx?: number, frontier?: number, proj?: number, enterBelow?: boolean, highlight?: number[] }>>}
  */
 export const STATE_RACE = pick("race");
 

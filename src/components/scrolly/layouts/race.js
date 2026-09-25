@@ -1639,6 +1639,15 @@ function raceAxes(
  * @property {number} [genz] the Gen-Z field's draw-on progress 0..1; 0 (or
  * absent) leaves those 99 lines off the frame entirely.
  * @property {boolean} [backdrop] draw the backdrop sample.
+ * @property {boolean} [enterBelow] a dot below the window that the Gen-Z
+ * window (yOpen 1) shows is drawn where its value puts it, below the plot,
+ * instead of being hidden, and the draw pass clips the step's dots to the plot's
+ * bottom edge (ScrollyVisual's dotClip). So a dot leaves and enters through that
+ * edge the way its line does: the crowd arriving from the quiz's scatter flies
+ * straight at where it really is (motion.md rule 1), and the pan down brings it
+ * back in as the axis opens onto it. Only raceGenz sets it, and it is a no-op
+ * at yOpen 1, where that window IS the window, so the static layout is
+ * untouched.
  * @property {"curves"} [hidden] a hidden contender stays on their curve rather
  * than taking the frontier column (see placeHiddenDots).
  * @property {boolean} [lead] ink the crown holder at this camera (default true).
@@ -1691,6 +1700,8 @@ export function raceDotSpec(lead = false) {
  * treatment unchanged.
  */
 const GENZ_NAMED_DOT = { r: 5, rgb: INK, alpha: 1 };
+/** the largest radius a dot on this chart is drawn at (see ScrollyVisual's dotClip) */
+export const RACE_DOT_MAX_R = GENZ_NAMED_DOT.r;
 
 /**
  * ...and the backdrop field's, which has to sit UNDER both. Three depths on one
@@ -1801,6 +1812,8 @@ const edgeFadeAt = (cam, yr) =>
  * @property {number} m alpha multiplier, 0-1
  * @property {{ r: number, rgb: number[], alpha: number }} dot how the dot is drawn
  * @property {number} lineAlpha the line's stroke alpha at full strength
+ * @property {number} floorV the lowest value whose dot is drawn, below the
+ * plot when it is past the window (RaceFrame.enterBelow); vMax otherwise
  * @property {number} ink 0-1, the trail highlight
  * @property {boolean} fastHide collapse a hidden line onto its dot instead of drawing its geometry
  * @property {(yr: number) => number} xS the x scale the line is drawn on
@@ -1820,6 +1833,7 @@ const ACTOR = {
 	m: 0,
 	dot: BACKDROP_DOT,
 	lineAlpha: 0.35,
+	floorV: 0,
 	ink: 0,
 	fastHide: false,
 	xS: (yr) => yr
@@ -1848,7 +1862,9 @@ const ACTOR = {
  * @param {ActorLine} a
  */
 function writeActorLine(attrsBuf, trailBuf, yS, vMin, vMax, a) {
-	const dotM = inWindow(a.dotV, vMin, vMax) ? a.m : 0;
+	const dotM = inWindow(a.dotV, vMin, a.floorV) ? a.m : 0;
+	// a dot below the plot has no line on scale to draw
+	const lineM = inWindow(a.dotV, vMin, vMax) ? a.m : 0;
 	const dx = a.xS(a.dotYr);
 	const dy = yS(a.dotV);
 	set(attrsBuf, a.id, dx, dy, a.dot.r, a.dot.rgb, a.dot.alpha * dotM);
@@ -1873,7 +1889,7 @@ function writeActorLine(attrsBuf, trailBuf, yS, vMin, vMax, a) {
 			a.lineAlpha * a.m
 		);
 	} else {
-		collapseTrail(trailBuf, a.slot, dx, dy, a.lineAlpha * dotM);
+		collapseTrail(trailBuf, a.slot, dx, dy, a.lineAlpha * lineM);
 	}
 	setTrailHighlight(trailBuf, a.slot, a.ink);
 }
@@ -1891,9 +1907,11 @@ const GENZ_ARRIVE_LEAD = 0.06;
  * It takes NO progress parameter, and that is the point. These lines are always
  * written, and the CAMERA decides whether they are seen: at yOpen 0 the window is
  * the crown's [2.05, 2.20] and every one of them sits below it, so curveExit
- * finds nothing on scale and each collapses onto a hidden dot. As the window
- * opens downward they enter through the bottom edge on their own, exactly as the
- * race cast leaves through the top. No fade to schedule, nothing for an animator
+ * finds nothing on scale and each collapses onto a dot. As the window opens
+ * downward they enter through the bottom edge on their own, exactly as the race
+ * cast leaves through the top. The step draws those dots below that edge
+ * (RaceFrame.enterBelow), so the crowd arriving from the quiz flies down through
+ * it rather than fading out on the scatter, and the pan brings it back in. No fade to schedule, nothing for an animator
  * to carry, and a resize or a reduced-motion arrival lands on the right frame
  * because the frame is a pure function of the camera — the same property the
  * whole chapter's axis rests on.
@@ -2306,11 +2324,12 @@ function writeGenzLines(attrsBuf, trailBuf, cam, yS, vMin, vMax, reveal) {
  * plot's right edge), but once the playhead runs past the data the dot stays
  * glued to the curve's endpoint instead of floating ahead of a shorter line. A
  * dot whose value has left the fitted scale is hidden outright rather than
- * pinned to the plot edge. An actor the projection pass owns is zeroed rather
+ * pinned to the plot edge, except below it on a frame that draws it there
+ * (RaceFrame.enterBelow). An actor the projection pass owns is zeroed rather
  * than skipped, so he is also out of the lead pick: on a frame whose marks
  * reach 2030, "in front" is a question about where the lines END (CLOSE_LEAD).
  */
-function placeCast(frame, cam, visible, alphaOf, vMin, vMax) {
+function placeCast(frame, cam, visible, alphaOf, vMin, vFloor) {
 	const [, e1] = frame.extent;
 	const projecting = frame.proj !== undefined;
 	for (let i = 0; i < RACE_IDS.length; i++) {
@@ -2324,7 +2343,7 @@ function placeCast(frame, cam, visible, alphaOf, vMin, vMax) {
 			: shown * (onCamera ? edgeFadeAt(cam, Math.min(de, e1)) : 0);
 		dotYrs[i] = Math.min(Math.max(cam.playhead, ds), de);
 		dotVs[i] = curveYAt(RACE_SEGS.get(id), dotYrs[i]);
-		dotMs[i] = inWindow(dotVs[i], vMin, vMax) ? lineMs[i] : 0;
+		dotMs[i] = inWindow(dotVs[i], vMin, vFloor) ? lineMs[i] : 0;
 	}
 }
 
@@ -2421,6 +2440,17 @@ function placeHiddenDots(attrsBuf, frame, cam, h) {
 }
 
 /**
+ * The lowest value a frame draws a dot for (RaceFrame.enterBelow): the Gen-Z
+ * window's bottom on a frame that draws dots below the plot, else the window's.
+ * @param {RaceFrame} frame @param {ReturnType<typeof raceCamera>} cam
+ * @param {number} vMax
+ */
+function raceFloorV(frame, cam, vMax) {
+	if (!frame.enterBelow) return vMax;
+	return raceWindowYFit(cam.camLeft, cam.camRight, 1, frame.yClose ?? 0)[1];
+}
+
+/**
  * The marks the frame writes besides the cast, in draw order: the backdrop
  * first, so the contenders' lines are written over it; the Gen-Z field; and the
  * closing step's projections last, since they alone live out on the strip and
@@ -2493,7 +2523,8 @@ export function writeRaceSweepFrame(
 		frame.yClose ?? 0
 	);
 	const yS = (v) => lin(v, vMin, vMax, cam.top, cam.bottom);
-	placeCast(frame, cam, visible, alphaOf, vMin, vMax);
+	ACTOR.floorV = raceFloorV(frame, cam, vMax);
+	placeCast(frame, cam, visible, alphaOf, vMin, ACTOR.floorV);
 	// The crown at this camera, picked from the dots the frame is actually
 	// SHOWING — reusing dotM rather than testing the same gates again is what
 	// keeps "inked" and "on the plot" from ever disagreeing, so a frame can never
@@ -2832,6 +2863,8 @@ export const RACE_GENZ_STEP = {
 	// the backdrop, on for the whole step — the camera reveals it, see
 	// writeBackdropLines
 	backdrop: true,
+	// ...through the plot's bottom edge, dots included
+	enterBelow: true,
 	// the strip keeps its block and its label, but not its years — see raceAxes
 	futureTicks: false,
 	highlight: GENZ_NAMED_IDS
@@ -3775,7 +3808,11 @@ const closeFuture = raceChoreography(
 // The arrival tween flies the crowd onto the chart the reader left at the end
 // of the race chapter — the pan's frame 0: the crown window, the whole cast,
 // the strip already open — and the pan down off the crown is chained off it.
-// No fade for the cast: the camera is what removes the crown race. Every line
+// The ~400 who end up on the Gen-Z window (the backdrop, and the race actors
+// already down there) are below the crown window on that frame, so the step
+// draws their dots where they are, under the plot's clipped bottom edge
+// (`enterBelow`): the arrival flies them from the scatter straight down through
+// that edge, and the pan brings each back in as the axis opens onto it. No fade for the cast: the camera is what removes the crown race. Every line
 // either rides up and off the top edge as the window travels (curveExit ends
 // it there, like any line chart) or is genuinely inside the ground the step
 // lands on and stays as part of the crowd. The names are held through the

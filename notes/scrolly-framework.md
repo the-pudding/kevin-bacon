@@ -138,7 +138,11 @@ Four ways a state's frame comes to be on screen, all landing on the same
   the arrival uses `EDGE_LAG_DELAYS`: dots in unison, edges held back until the
   dots have mostly landed (`EDGE_LAG_MS`), because edges are drawn toward their
   endpoints' _final_ spots. The names an arrival introduces wait out the same
-  lag (`heldLabels`). `ms <= 0` is a jump (resize, reduced motion). `to()`
+  lag (`heldLabels`). A trail the arrival brings on (invisible on the live
+  frame, drawn by the target) is restated to its target shape unseen and held
+  at alpha 0 through the travel, then fades in where it stands once the dots
+  have landed (`holdArrivingTrails`, `ARRIVE_FADE_MS`); on an entry that in
+  beat runs before the legs start. `ms <= 0` is a jump (resize, reduced motion). `to()`
   snapshots the live buffer, so mashing Next retargets from mid-flight.
 - **An entry choreography** (`EntryAnim`, `STATE_ENTRIES`, `entryFor`). Legs
   played by the choreographer, each writing straight into the live buffers
