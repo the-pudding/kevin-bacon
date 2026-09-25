@@ -53,6 +53,10 @@ export const ATTR_SIZE = (NODE_COUNT + EDGE_COUNT + GALAXY_LINK_MAX) * STRIDE;
 // one delay slot per node, then one per edge (pool included)
 export const DELAY_SIZE = NODE_COUNT + EDGE_COUNT + GALAXY_LINK_MAX;
 
+// one bow (an x and a y offset) per group the tweener eases: the tween.js
+// `bows` array for a curved arrival. Edge groups carry no position and stay 0.
+export const BOW_SIZE = DELAY_SIZE * 2;
+
 export const edgeIndex = (e) => EDGE_BASE + e * STRIDE;
 
 // unordered endpoint key so an edge can be looked up regardless of orientation

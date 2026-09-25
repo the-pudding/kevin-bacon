@@ -53,6 +53,7 @@
 		STATE_RACE,
 		STATE_PARAMS,
 		STATE_REVEAL_FROM,
+		curveFor,
 		entryFor,
 		isProseOver,
 		STATE_REQUESTS,
@@ -1939,6 +1940,7 @@
 	function resetArrivalGates(from) {
 		entryLabels = null;
 		pendingArrival = null;
+		arrivalCurve = null;
 		const introduced = new Set();
 		for (const id of labelIds) if (!prevLabelIds.has(id)) introduced.add(id);
 		labelHolds = null;
@@ -1984,10 +1986,16 @@
 	 * state's authored reveal — and a superseded tween drops its callback, so a
 	 * reader who hits Next mid-reveal never settles.
 	 */
-	function tweenToState(target, stateDelays, introduced) {
+	function tweenToState(target, stateDelays, introduced, bows = null) {
 		holdLabels(introduced, performance.now() + LABEL_HOLD_MS);
-		tweener.to(target.attrs, TWEEN_MS, TWEEN_JITTER, stateDelays, () =>
-			settle(stateName)
+		tweener.to(
+			target.attrs,
+			TWEEN_MS,
+			TWEEN_JITTER,
+			stateDelays,
+			() => settle(stateName),
+			null,
+			bows
 		);
 		// the lines this arrival brings on fade in once the travel has landed
 		const travel = holdArrivingTrails(target.trails);
@@ -2017,8 +2025,14 @@
 		trailTweener.to(target.trails, PARAM_TWEEN_MS, 0);
 		const walk = target.paramWalk;
 		if (!walk) {
-			tweener.to(target.attrs, PARAM_TWEEN_MS, 0, null, () =>
-				settle(stateName)
+			tweener.to(
+				target.attrs,
+				PARAM_TWEEN_MS,
+				0,
+				null,
+				() => settle(stateName),
+				null,
+				arrivalBows(target)
 			);
 			return;
 		}
@@ -2134,6 +2148,29 @@
 	 * One array per arrival, never per frame: `to()` copies it into the tweener's
 	 * own `delays`, so nothing retains this.
 	 */
+	/**
+	 * The arrival's bows (tween.js), where the state curves out of `from`: built
+	 * from the frame the travel sets off from, so it is called once the out beat
+	 * has run, not when the arrival is planned. Null for a straight tween.
+	 */
+	function arrivalBows(target) {
+		if (!arrivalCurve) return null;
+		return arrivalCurve.bows(
+			tweener.current,
+			target.attrs,
+			width,
+			height,
+			bleed
+		);
+	}
+	/**
+	 * The curve of the state arrival in flight, from the press until its tween
+	 * has landed: what a param retarget that supersedes that tween keeps (see
+	 * ARRIVE.params). Set by a state arrival, cleared by every other kind.
+	 * @type {import("./states.js").ArrivalCurve | null}
+	 */
+	let arrivalCurve = null;
+
 	function arrivalDelays(from, target) {
 		const revealFrom = STATE_REVEAL_FROM[stateName];
 		const playReveal = !revealFrom || revealFrom.includes(from);
@@ -2223,10 +2260,22 @@
 				performance.now() + DEPART_FADE_MS + LABEL_HOLD_MS
 			);
 			const delays = arrivalDelays(from, target);
-			departFade(target, from, () => tweenToState(target, delays, introduced));
+			arrivalCurve = curveFor(stateName, from);
+			departFade(target, from, () =>
+				tweenToState(target, delays, introduced, arrivalBows(target))
+			);
 		},
+		// A retarget that supersedes the state arrival still in flight keeps that
+		// arrival's curve: the reader pressed nothing, the arrival is completing
+		// — rankFocus's bar lands this way, RankBars measuring its row a frame
+		// or two into the collapse, and without this the curve the state
+		// declared was seen only on a second visit, when the bar was already
+		// known (Owen, 2026-09-25). A retarget after the arrival has landed is
+		// an interaction, and travels straight.
 		params: (target, from) => {
+			const curve = tweener.running ? arrivalCurve : null;
 			resetArrivalGates(from);
+			arrivalCurve = curve;
 			tweenToParams(target);
 		}
 	};

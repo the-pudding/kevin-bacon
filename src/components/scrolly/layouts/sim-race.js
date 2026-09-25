@@ -2,6 +2,7 @@ import story from "$data/scrolly-story.json";
 import rawNodes from "$data/scrolly-nodes.json";
 import { ATTR_SIZE, set } from "../attr-buffer.js";
 import { SIM_SERIES, SIM_LABEL_N, SIM_LABEL_IDS } from "../cast.js";
+import { RIGHT, drain } from "../drain.js";
 import { CROWD, INK } from "../palette.js";
 import { MARGIN, plotBottom, lin } from "../plot.js";
 import {
@@ -257,6 +258,9 @@ export const states = {
 	simRace: {
 		layout: layoutSimRace,
 		title: "Wins after 10,000 simulations",
+		// the contenders converge on the origin out of the career cloud on a
+		// curve (drain.js); the cloud grows back out of it by its own entry
+		curve: { from: ["careerMany"], bows: drain(RIGHT) },
 		// the names arrive one at a time part-way through the race (SIM_NAMES_AT +
 		// SIM_NAME_STAGGER), once the field has pulled apart. `names` is what brings
 		// them in during the replay itself, whose playhead the layout never sees —

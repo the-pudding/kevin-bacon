@@ -14,6 +14,8 @@ import {
 	STATE_TITLE,
 	STATE_SCENE,
 	OVERLAYS,
+	STATE_CURVE,
+	curveFor,
 	entryFor,
 	isProseOver
 } from "../states.js";
@@ -99,6 +101,20 @@ describe("state registry", () => {
 		expect(entryFor("raceFuture", "raceFull")?.ownsArrival).toBe(true);
 		expect(entryFor("raceGenz", "scatterQuiz")).toBeDefined();
 		expect(entryFor("raceGenz", "careerTrio")).toBeUndefined();
+	});
+
+	test("curved arrivals name real origins and build their bows", () => {
+		for (const [state, curve] of Object.entries(STATE_CURVE)) {
+			expect(curve.from.length, state).toBeGreaterThan(0);
+			for (const origin of curve.from)
+				expect(STATES[origin], origin).toBeDefined();
+			expect(typeof curve.bows, state).toBe("function");
+			for (const origin of curve.from)
+				expect(curveFor(state, origin)).toBe(curve);
+		}
+		expect(curveFor("hopBands", "titleGalaxy")).toBeDefined();
+		expect(curveFor("hopBands", "rankFocus")).toBeUndefined();
+		expect(curveFor("titleGalaxy", "hopBands")).toBeUndefined();
 	});
 
 	test("requests are well formed", () => {

@@ -105,6 +105,65 @@ describe("createTweener", () => {
 		expect(Array.from(a.tw.current)).toEqual(Array.from(b.tw.current));
 	});
 
+	// Bows need a group whose first two values are a position, so these run on a
+	// stride-2 tweener rather than `make()`'s stride-1 one: two groups, (x, y)
+	// each, the first bowed and the second straight.
+	describe("bows", () => {
+		const bowed = () => {
+			const loop = createFrameLoop(() => {});
+			const tw = createTweener(4, loop, 2);
+			const bows = Float64Array.of(3, -4, 0, 0);
+			return { tw, bows };
+		};
+		const half = 10 * easeCubicInOut(0.5);
+		// the late hump 27/4·s²(1−s) at s = ½: the bow peaks at two thirds
+		const hump = 6.75 * 0.5 * 0.5 * 0.5;
+
+		test("a bowed group stands off the lerp by the hump's share of its bow and lands on the target", () => {
+			const { tw, bows } = bowed();
+			tw.to(Float64Array.of(10, 10, 10, 10), 100, 0, null, null, null, bows);
+			tick(50);
+			expect(tw.current[0]).toBeCloseTo(half + 3 * hump, 5);
+			expect(tw.current[1]).toBeCloseTo(half - 4 * hump, 5);
+			expect(tw.current[2]).toBeCloseTo(half, 5);
+			expect(tw.current[3]).toBeCloseTo(half, 5);
+			tick(100);
+			expect(Array.from(tw.current)).toEqual([10, 10, 10, 10]);
+		});
+
+		test("a superseding `to` without bows goes straight from the live frame", () => {
+			const { tw, bows } = bowed();
+			tw.to(Float64Array.of(10, 10, 10, 10), 100, 0, null, null, null, bows);
+			tick(50);
+			const [x, y] = tw.current;
+			tw.to(Float64Array.of(0, 0, 0, 0), 100);
+			tick(100);
+			expect(tw.current[0]).toBeCloseTo(x * (1 - easeCubicInOut(0.5)), 5);
+			expect(tw.current[1]).toBeCloseTo(y * (1 - easeCubicInOut(0.5)), 5);
+		});
+
+		test("an instant `to` ignores bows", () => {
+			const { tw, bows } = bowed();
+			tw.to(Float64Array.of(10, 10, 10, 10), 0, 0, null, null, null, bows);
+			expect(Array.from(tw.current)).toEqual([10, 10, 10, 10]);
+		});
+
+		test("reframe moves the line and the bow rides it", () => {
+			const { tw, bows } = bowed();
+			tw.to(Float64Array.of(10, 10, 10, 10), 100, 0, null, null, null, bows);
+			tick(25);
+			tw.reframe((buf) => {
+				buf[0] += 100;
+			});
+			tick(50);
+			expect(tw.current[0]).toBeCloseTo(
+				100 + (10 - 100) * easeCubicInOut(0.5) + 3 * hump,
+				4
+			);
+			expect(tw.current[1]).toBeCloseTo(half - 4 * hump, 5);
+		});
+	});
+
 	test("a superseding `to` retargets from mid-flight and drops the old onDone", () => {
 		const { tw } = make();
 		const doneA = vi.fn();

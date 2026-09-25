@@ -52,6 +52,45 @@ function windowProgress(windows, g, share) {
 }
 
 /**
+ * One group's frame at the progress the two functions above left in
+ * `progress`: every value on the eased lerp, the led value restated on the
+ * shorter window, then x and y pushed off the line by the group's bow.
+ *
+ * The hump is a late one, 27/4·s²(1−s): 0 at both ends, 1 at two thirds of
+ * the way, the curve of a cubic Bézier whose control point sits beside the
+ * TARGET — the group leaves along its line and sweeps in at the end. Late
+ * rather than the symmetric 4s(1−s) because most of a crowd arrives from off
+ * the canvas: a bow that peaked half-way was spent before the reader could see
+ * the dot, and the visible tail read as straight (Bacon on 3 → 4, 2026-09-25).
+ * Either way a bowed group sets off from and lands on exactly the frames a
+ * straight one does.
+ *
+ * @param {Float32Array} current
+ * @param {Float32Array} start
+ * @param {Float64Array} target
+ * @param {number} from the group's first slot
+ * @param {number} end one past its last
+ * @param {number} fadeOffset the led value's offset within the group, or -1
+ * @param {Float64Array | null} bows
+ * @param {number} b the group's slot in `bows`
+ */
+function writeGroup(current, start, target, from, end, fadeOffset, bows, b) {
+	const { eased, faded } = progress;
+	for (let i = from; i < end; i++) {
+		current[i] = start[i] + (target[i] - start[i]) * eased;
+	}
+	const a = from + fadeOffset;
+	if (fadeOffset >= 0 && a < end) {
+		current[a] = start[a] + (target[a] - start[a]) * faded;
+	}
+	if (bows) {
+		const hump = 6.75 * eased * eased * (1 - eased);
+		current[from] += bows[b] * hump;
+		current[from + 1] += bows[b + 1] * hump;
+	}
+}
+
+/**
  * @typedef {Object} Tweener
  * @property {Float32Array} current live rendered values
  * @property {Float32Array} start the frame an in-flight tween is easing FROM —
@@ -67,7 +106,7 @@ function windowProgress(windows, g, share) {
  * @property {boolean} running a timed tween is in flight — `current` is still
  *   easing toward `target`. False after an instant `to`, after the tween has
  *   landed, and after `stop()`.
- * @property {(next: Float64Array, ms: number, jitter?: number, nodeDelays?: Float64Array | null, onDone?: (() => void) | null, windows?: Float64Array | null) => void} to
+ * @property {(next: Float64Array, ms: number, jitter?: number, nodeDelays?: Float64Array | null, onDone?: (() => void) | null, windows?: Float64Array | null, bows?: Float64Array | null) => void} to
  * @property {(apply: (buf: Float32Array) => void) => void} reframe
  * @property {() => void} stop
  */
@@ -157,6 +196,16 @@ export function createFrameLoop(draw) {
  * and stall at the join. Alpha rides the group's window with everything else;
  * there is no lead to take inside a stretch that short.
  *
+ * `bows` (two per group: an x and a y offset) bends a group's first two values
+ * off the straight line onto a cubic Bézier that sweeps in at the end: two
+ * thirds of the way the group stands `bow` away from the lerp, and at either
+ * end exactly on it, so every contract written on a tween's endpoints holds
+ * for a bowed one (see `writeGroup` for the hump). The bow
+ * is an offset, not a place — `reframe` moves the line and the bow rides it —
+ * and it belongs to one `to()`: the next `to()` without bows retargets straight
+ * from the live frame (motion.md rules 8 and 15). A group's first two values
+ * must be a position for this to mean anything (stride ≥ 2).
+ *
  * @param {number} size total number of values
  * @param {FrameLoop} loop the shared frame: ticks on it while a tween runs,
  *   and paints through its `draw` for an instant `to`
@@ -180,6 +229,8 @@ export function createTweener(size, loop, stride = 1, fadeOffset = -1) {
 	let onDone = null;
 	/** @type {Float64Array | null} */
 	let windows = null;
+	/** @type {Float64Array | null} */
+	let bows = null;
 
 	function tick(now) {
 		const elapsed = now - startTime;
@@ -189,19 +240,9 @@ export function createTweener(size, loop, stride = 1, fadeOffset = -1) {
 				? windowProgress(windows, g, elapsed / duration)
 				: delayProgress(delays[g], elapsed, duration);
 			if (t < 1) done = false;
-			const { eased, faded } = progress;
-			const end = Math.min((g + 1) * stride, size);
-			for (let i = g * stride; i < end; i++) {
-				current[i] = start[i] + (target[i] - start[i]) * eased;
-			}
-			// ...then restate the one value that leads, over the same start and
-			// target, so alpha is the only thing running on the shorter window
-			if (fadeOffset >= 0) {
-				const a = g * stride + fadeOffset;
-				if (a < end) {
-					current[a] = start[a] + (target[a] - start[a]) * faded;
-				}
-			}
+			const from = g * stride;
+			const end = Math.min(from + stride, size);
+			writeGroup(current, start, target, from, end, fadeOffset, bows, g * 2);
 		}
 		if (!done) return;
 		loop.stop(tick);
@@ -219,12 +260,14 @@ export function createTweener(size, loop, stride = 1, fadeOffset = -1) {
 		jitter = 0,
 		nodeDelays = null,
 		done = null,
-		groupWindows = null
+		groupWindows = null,
+		groupBows = null
 	) {
 		loop.stop(tick);
 		onDone = done;
 		target = next;
 		windows = groupWindows;
+		bows = groupBows;
 		if (ms <= 0) {
 			running = false;
 			current.set(next);

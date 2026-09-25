@@ -141,6 +141,36 @@ travelling is something the reader has to re-find.
     (11 → 12). `contracts.spec.js` walks every arrival and holds each
     arriving dot to its departing spot, on the canvas.
 
+15. **A curve is one field, not noise.** A dot leaves the straight line only
+    as part of a motion the whole canvas shares — the momentum the departing
+    frame gave it, or one drain every dot turns with — never a wobble of its
+    own. A curve is authored per arrival like a reveal (a state's `curve`,
+    from named origins), has the endpoints of a straight tween — so every
+    contract, and a press mid-flight, holds as for one; a retarget that
+    completes the same arrival, such as the rank bar landing, keeps its
+    curve — and never circles:
+    one bow per dot, and the slower the dot the more of its travel it may
+    lean. The bend sits at the END of the travel — the dot leaves along its
+    line and sweeps in — because most of a crowd arrives from off the canvas,
+    and a bend spent half-way was over before the reader saw the dot. The
+    drain (`drain.js`) is the one field: every dot to one side of its own
+    heading, one side for the whole arrival, so a crowd collapsing onto a
+    bar, fanning out of a column or converging on an origin turns as one.
+    Which side is the arrival's call (`RIGHT`/`LEFT`): a crowd draining into
+    a point reads as a drain either way round, but a fan opening out of a
+    column reads as a spray only if it rises — bowed right, the rightward fan
+    onto the scatter sagged under its lines and lifted into place (Owen,
+    2026-09-25), so the two column fans turn left and the collapses right. Five arrivals curve (2026-09-25): the title card's sky into the hop
+    bands, where the flow's push across each dot's line sizes its bow (Bacon
+    with the rest); the bands into Bacon's bar; the race's frontier column
+    out onto the scatter, forward off `raceFuture` and back off `raceGenz`;
+    and the career cloud's contenders into the simulation's origin. Every
+    other arrival, and every Back of these, travels straight. The drain
+    decides the side and momentum only the size, because a signed momentum
+    cancelled the drain on every press where the flow had carried the dot to
+    the other side. Owen's ask, 2026-09-25 — momentum alone left the centre
+    column, and Bacon on it, dead straight.
+
 ## Checking a transition
 
 `npm run sheet -- <from> <to>` (`scripts/tween-sheet.js`) plays the step
@@ -168,6 +198,7 @@ What each rule looks like on a sheet:
 | 12 box                 | The canvas edges are in the same place in every frame.                                                                                |
 | 13 reduced motion      | Not on a sheet; check by hand with the OS setting on.                                                                                 |
 | 14 hidden spots        | A dot fading in comes out of a spot that means something (its own, the race's edge, an origin), never off the canvas's edge.          |
+| 15 curve               | The landing frames show the crowd sweeping in one way, Bacon with it; Δ is still one hump; the settled frame is a straight arrival's. |
 
 ## Open questions
 

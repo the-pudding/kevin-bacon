@@ -316,6 +316,23 @@ export function flowSpot(id, w, h, box, t) {
 }
 
 /**
+ * The way the flow is carrying a dot standing at (x, y): the unit vector out
+ * from the vanishing point through it. `flowSpot` is `centre + (entry − centre)
+ * × m` with only `m` moving, so every dot's velocity is radial and this is its
+ * heading at any clock. A dot on the centre itself is going nowhere: [0, 0].
+ *
+ * A curved arrival off the sky (hop-bands.js's `bowsOffSky`) reads this to
+ * carry the dot's momentum into its tween (motion.md rule 15).
+ * @returns {[number, number]}
+ */
+export function flowHeading(x, y, cx, cy) {
+	const dx = x - cx;
+	const dy = y - cy;
+	const d = Math.hypot(dx, dy);
+	return d > 0 ? [dx / d, dy / d] : [0, 0];
+}
+
+/**
  * Where one actor stands when the pull-back has landed: the flow at rest.
  * @returns {[number, number]}
  */

@@ -2,9 +2,9 @@
 // the bleed (plot.js's Bleed and screenSpan) so `.scrolly-visual`'s box never
 // has to move for it, and the prose lies over it (`proseOver`, Stage.svelte).
 import { describe, expect, test } from "vitest";
-import { STRIDE, ALPHA_OFFSET } from "../attr-buffer.js";
+import { STRIDE, ALPHA_OFFSET, BOW_SIZE } from "../attr-buffer.js";
 import { ANCHOR_ID } from "../nodes.js";
-import { HOP_CYCLE_IDS, SLJ } from "../cast.js";
+import { FIELD_IDS, HOP_CYCLE_IDS, SKY_IDS, SLJ } from "../cast.js";
 import { HOP_RGB } from "../palette.js";
 import {
 	MARGIN,
@@ -12,7 +12,14 @@ import {
 	SCREEN_CHART_MAX_W,
 	screenSpan
 } from "../plot.js";
-import { CROWD_DOT_R, DOT_GAP } from "../layouts/hop-bands.js";
+import {
+	CROWD_DOT_R,
+	DOT_GAP,
+	LEAN_SWIRL,
+	bowsOffSky
+} from "../layouts/hop-bands.js";
+import { LEAN_CAP, LEAN_SHARE } from "../drain.js";
+import { galaxyCentre } from "../sky.js";
 import { BOXES, buildLayout, nodes } from "./helpers.js";
 
 // the least distance between two seats, centre to centre. The sampler looks for
@@ -229,4 +236,79 @@ describe("hop bands pack as a scatter", () => {
 			});
 		});
 	}
+});
+
+// The arrival off the title card is curved (motion.md rule 15): the drain
+// (drain.spec.js holds what every drain does) sized by how much of the sky's
+// flow was carrying each dot across its chord.
+describe("hop bands curve out of the sky", () => {
+	const chord = (live, target, id) => [
+		target[id * STRIDE] - live[id * STRIDE],
+		target[id * STRIDE + 1] - live[id * STRIDE + 1]
+	];
+
+	for (const box of BOXES) {
+		const live = Float32Array.from(buildLayout("titleGalaxy", box).attrs);
+		const target = buildLayout("hopBands", box).attrs;
+		const bows = bowsOffSky(live, target, box.w, box.h, box.bleed);
+		const [cx, cy] = galaxyCentre(box.w, box.h, box.bleed);
+		const cap = LEAN_CAP * Math.min(box.w, box.h);
+
+		test(`${box.name}: every bow lies to the right of its chord, between the swirl's share and the lean, the more the flow crossed the chord`, () => {
+			expect(bows.length).toBe(BOW_SIZE);
+			let bowed = 0;
+			for (const id of SKY_IDS) {
+				const [dx, dy] = chord(live, target, id);
+				const [bx, by] = [bows[id * 2], bows[id * 2 + 1]];
+				const len = Math.hypot(dx, dy);
+				if (len < 1) {
+					expect(bx).toBe(0);
+					expect(by).toBe(0);
+					continue;
+				}
+				// on the chord's right-hand normal, and nowhere else...
+				const [nx, ny] = [-dy / len, dx / len];
+				const size = bx * nx + by * ny;
+				expect(Math.abs(bx * dx + by * dy) / len).toBeLessThan(1e-6);
+				expect(size).toBeGreaterThan(0);
+				// ...sized between the drain's share and the whole lean, by how
+				// much of the outward flow was crossing the chord
+				const lean = Math.min(cap, len * LEAN_SHARE);
+				const ux = live[id * STRIDE] - cx;
+				const uy = live[id * STRIDE + 1] - cy;
+				const across = Math.abs(ux * nx + uy * ny) / Math.hypot(ux, uy);
+				expect(size).toBeCloseTo(
+					lean * (LEAN_SWIRL + (1 - LEAN_SWIRL) * across),
+					6
+				);
+				if (size > 1) bowed++;
+			}
+			expect(bowed).toBeGreaterThan(0);
+		});
+
+		test(`${box.name}: Bacon arcs at least the drain's share, and the edges travel straight`, () => {
+			const [dx, dy] = chord(live, target, ANCHOR_ID);
+			const lean = Math.min(cap, Math.hypot(dx, dy) * LEAN_SHARE);
+			const arc = Math.hypot(bows[ANCHOR_ID * 2], bows[ANCHOR_ID * 2 + 1]);
+			expect(arc).toBeGreaterThanOrEqual(lean * LEAN_SWIRL - 1e-9);
+			for (let b = nodes.length * 2; b < BOW_SIZE; b++) expect(bows[b]).toBe(0);
+		});
+	}
+
+	test("a dot heading straight for its seat carries only the swirl", () => {
+		const box = BOXES[0];
+		const [cx, cy] = galaxyCentre(box.w, box.h, box.bleed);
+		const id = FIELD_IDS[0];
+		const live = new Float32Array(BOW_SIZE * STRIDE);
+		const target = new Float64Array(BOW_SIZE * STRIDE);
+		live[id * STRIDE] = cx;
+		live[id * STRIDE + 1] = cy - 200;
+		target[id * STRIDE] = cx;
+		target[id * STRIDE + 1] = cy + 100;
+		const bows = bowsOffSky(live, target, box.w, box.h, box.bleed);
+		// falling down the screen, "right of the heading" is screen-left
+		const lean = Math.min(LEAN_CAP * Math.min(box.w, box.h), 300 * LEAN_SHARE);
+		expect(bows[id * 2]).toBeCloseTo(-lean * LEAN_SWIRL, 9);
+		expect(bows[id * 2 + 1]).toBeCloseTo(0, 9);
+	});
 });

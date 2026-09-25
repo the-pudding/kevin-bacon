@@ -325,6 +325,38 @@ export function entryFor(state, from) {
 }
 
 /**
+ * A curved arrival: momentum carried from the departing frame into a state
+ * tween (motion.md rule 15). `from` scopes it to the origins it is authored
+ * for, as a reveal is; `bows` builds one x/y offset per tweener group — where
+ * the dot stands off its straight line as it sweeps in, see tween.js —
+ * from the frame the travel sets off from and the arrival's layout, once per
+ * arrival. Every other direction is a straight tween. A state tween only: an
+ * entry's legs author their own paths, and a pop-in grows in place.
+ *
+ * @typedef {Object} ArrivalCurve
+ * @property {LayoutState[]} from
+ * @property {(live: Float32Array, target: Float64Array, w: number, h: number, bleed: import("./plot.js").Bleed) => Float64Array} bows
+ */
+
+/**
+ * Per-state curved arrivals; `curveFor` picks the one an arrival plays.
+ * @type {Partial<Record<LayoutState, ArrivalCurve>>}
+ */
+export const STATE_CURVE = pick("curve");
+
+/**
+ * The curve `state` travels on when arriving from `from`, or undefined for a
+ * straight tween.
+ * @param {LayoutState} state
+ * @param {LayoutState | null | undefined} from
+ * @returns {ArrivalCurve | undefined}
+ */
+export function curveFor(state, from) {
+	const curve = STATE_CURVE[state];
+	return curve?.from.includes(from) ? curve : undefined;
+}
+
+/**
  * A reader's ask: an animation the active state plays when a StartButton
  * requests it by name (see request() in story.svelte.js). The same legs as an
  * EntryAnim — `phases`, `frames` and `finish` mean the same — planned against

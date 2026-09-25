@@ -1,5 +1,6 @@
 import { ANCHOR_ID, hash01 } from "../nodes.js";
 import { ATTR_SIZE, set } from "../attr-buffer.js";
+import { RIGHT, drain } from "../drain.js";
 import { CROWD, HOP_RGB, HOP_DOT_ALPHA, INK } from "../palette.js";
 import { MARGIN } from "../plot.js";
 import {
@@ -99,6 +100,15 @@ const title = "Ranking Actors by Remoteness Score";
 
 export const states = {
 	// one scene, so the title holds across the reveal rather than fading out and in
-	rankFocus: { layout: layoutRank, params, scene: "rank", title },
+	rankFocus: {
+		layout: layoutRank,
+		params,
+		scene: "rank",
+		title,
+		// the bands collapse onto Bacon's bar on a curve: the drain (drain.js),
+		// turning the way the title card's fall does. Back out of the bar (a
+		// step back past rankReveal) fans out straight.
+		curve: { from: ["hopAnchor"], bows: drain(RIGHT) }
+	},
 	rankReveal: { layout: layoutRank, params, scene: "rank", title }
 };

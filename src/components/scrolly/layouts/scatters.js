@@ -2,6 +2,7 @@ import story from "$data/scrolly-story.json";
 import rawNodes from "$data/scrolly-nodes.json";
 import { ATTR_SIZE, set } from "../attr-buffer.js";
 import { SLJ, CAGE, idOf } from "../cast.js";
+import { LEFT, drain } from "../drain.js";
 import { CROWD, QUIZ_RIGHT, QUIZ_WRONG } from "../palette.js";
 import { MARGIN, plotBottom, lin } from "../plot.js";
 import {
@@ -387,11 +388,21 @@ export const states = {
 							])
 						),
 		pulse: (params) => (params?.showPair ? null : SLJ),
-		overlay: AVG_OVERLAY
+		overlay: AVG_OVERLAY,
+		// off the race the cast and the crowd fan out of the frontier column on a
+		// curve (drain.js), to the LEFT of their heading: the fan opens
+		// rightward, so a left-hand bow rises and settles, a spray, where the
+		// right-hand one sagged under its lines and lifted into place (Owen,
+		// 2026-09-25). Back into the race they converge straight.
+		curve: { from: ["raceFuture"], bows: drain(LEFT) }
 	},
 	scatterQuiz: {
 		layout: layoutScatterQuiz,
 		title: "Films vs. remoteness",
+		// the step back off the Gen Z race is a plain tween the other way, and
+		// curves the same way scatterCenters does off the race: the same fan
+		// out of the same column, rising
+		curve: { from: ["raceGenz"], bows: drain(LEFT) },
 		labels: (params) =>
 			withSearchLabel(
 				QUIZ_PAIRS.flatMap((pair, i) =>

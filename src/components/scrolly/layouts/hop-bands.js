@@ -9,6 +9,7 @@ import {
 	STRIDE,
 	set
 } from "../attr-buffer.js";
+import { bowsInto } from "../drain.js";
 import { blueNoiseSeats } from "../blue-noise.js";
 import { FIELD_IDS, HOP_CYCLE_IDS, SKY_IDS, isIntroActor } from "../cast.js";
 import { ALPHA_SEEN } from "../render.js";
@@ -26,7 +27,9 @@ import {
 	writeFieldCrowd,
 	makeFlight,
 	galaxyBox,
+	galaxyCentre,
 	landedSpot,
+	flowHeading,
 	flowSpot,
 	restingSkyDot,
 	skyFlight
@@ -484,6 +487,41 @@ function bandCuts(shares, n) {
 const bandDelay = (id, band) =>
 	band * NETWORK_HOP_DELAY_MS + hash01(id, 5) * 400;
 
+// The share of the lean every dot gets regardless of its momentum — the
+// drain's own turn — so a dot heading straight for its seat still arcs. The
+// rest is earned by momentum: how much of the flow was carrying the dot ACROSS
+// its line when the press came.
+export const LEAN_SWIRL = 0.5;
+
+/**
+ * The bows of the arrival off the title card: the drain (drain.js) sized by
+ * momentum. The drain decides the SIDE — every dot to the right of its own
+ * heading, so the whole fall turns one way — and the dot's momentum decides
+ * the SIZE: the sky streams every dot outward from the vanishing point, and
+ * the share of that heading across its chord (sin θ) is the share of the lean
+ * above LEAN_SWIRL it takes, so a dot the flow was carrying sideways bends
+ * more than one already heading for its seat.
+ *
+ * Side and size are kept apart on purpose. Signed momentum — the dot bowing
+ * to its own outward side, the drain's turn added — cancelled on every press
+ * where the two fell on opposite sides, and which side that is depends on
+ * where the flow had carried the dot by the press (its dwell time): measured
+ * on Bacon, 2026-09-25, off-screen top-left at the press with a 10px arc
+ * left of a 56px lean. Bacon and the fifteen fly with the crowd on the card,
+ * so they fall out of it the same way.
+ *
+ * @type {import("../states.js").ArrivalCurve["bows"]}
+ */
+export function bowsOffSky(live, target, w, h, bleed = NO_BLEED) {
+	const [cx, cy] = galaxyCentre(w, h, bleed);
+	return bowsInto(live, target, w, h, (x, y, nx, ny) => {
+		const [ux, uy] = flowHeading(x, y, cx, cy);
+		// how much of the flow was crossing the chord: |sin θ|, 0 for a dot
+		// heading straight for its seat (or standing on the vanishing point)
+		return LEAN_SWIRL + (1 - LEAN_SWIRL) * Math.abs(ux * nx + uy * ny);
+	});
+}
+
 /**
  * `ids`, in their BAND_ORDER order, split into the four rows: one pass down the
  * list, moving to the next row as each cut is spent.
@@ -824,7 +862,12 @@ export const states = {
 		// sky (hopSeed's, carried on), where the crowd is spread across the plot
 		// and sorts itself into rows; any other direction (a step back from
 		// rankFocus) is one plain tween.
-		revealFrom: ["titleGalaxy"]
+		revealFrom: ["titleGalaxy"],
+		// ...and off the card the fall is curved: the sky drains into the rows,
+		// each dot keeping its sideways momentum and turning the drain's way
+		// for a beat before its row takes it (bowsOffSky). Scoped like the
+		// cascade — 4 → 3 and the step back from rankFocus travel straight.
+		curve: { from: ["titleGalaxy"], bows: bowsOffSky }
 	},
 	hopAnchor: {
 		// The same layout `hopBands` draws, handed an anchor.
