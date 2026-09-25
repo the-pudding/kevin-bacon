@@ -138,8 +138,14 @@ travelling is something the reader has to re-find.
     unseen, at the next state change (`restateHidden`, `parkLeavers`). Owen's
     decision, 2026-09-25, after the crowd slid down onto the scatter from the
     top of the plot and the race cast rose onto it from below the canvas
-    (11 → 12). `contracts.spec.js` walks every arrival and holds each
-    arriving dot to its departing spot, on the canvas.
+    (11 → 12). The race's frontier column is the one spot allowed off the
+    canvas: it stands the crowd at its remoteness on the race's own y scale
+    with no clamp, so the fan out of it rises from where each dot ranks — mostly
+    from below the canvas, far under the cast. At its scatter height, level
+    with its landing, the crowd only slid sideways and the scatter's left
+    filled before its right (Owen, 2026-09-25, 11 → 12). `contracts.spec.js`
+    walks every arrival and holds each arriving dot to its departing spot, on
+    the canvas, or in the canvas's width off a race step.
 
 15. **A curve is one field, not noise.** A dot leaves the straight line only
     as part of a motion the whole canvas shares — the momentum the departing

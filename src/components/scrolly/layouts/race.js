@@ -21,7 +21,7 @@ import {
 } from "../intro-geometry.js";
 import { INK, CROWD } from "../palette.js";
 import { MARGIN, plotBottom, lin, NO_BLEED } from "../plot.js";
-import { scatterY } from "../scatter-scales.js";
+import { avgDistanceOf } from "../scatter-scales.js";
 import { ALPHA_SEEN } from "../render.js";
 import {
 	writeFieldCrowd,
@@ -2404,10 +2404,15 @@ function writeCast(
  * shows it next brings it on from somewhere the race means.
  *
  * By default that is the FRONTIER COLUMN: the present's x on this camera (the
- * playhead, where it has not run on into the future), at the height
- * scatterCenters draws the dot, both clamped to the plot. Every chart that
- * follows a race step and shows the crowd brings it out of the race's leading
- * edge — and scatterCenters, after raceFuture, only spreads it sideways.
+ * playhead, where it has not run on into the future, clamped to the plot), at
+ * the height the race's own y scale puts the dot's remoteness — not clamped, so
+ * a crowd far less central than the cast stands far below it, most of it off
+ * the bottom of the canvas. Every chart that follows a race step and shows the
+ * crowd brings it up out of the race's leading edge from where it ranks: the
+ * crowd's spot at scatterY, beside the cast, put it level with its landing,
+ * and the fan off raceFuture only spread sideways, its left in place before
+ * its right (Owen on 11 → 12, 2026-09-25 — the column's one exception to
+ * motion.md rule 14's "inside the canvas").
  *
  * A step whose neighbours are both race steps (`hidden: "curves"`: raceRecent
  * and raceFull) keeps a hidden contender on their own curve instead, clamped
@@ -2420,7 +2425,7 @@ function writeCast(
  * drawn one on the frame its alpha crosses the renderer's floor, so the move is
  * never drawn.
  */
-function placeHiddenDots(attrsBuf, frame, cam, h) {
+function placeHiddenDots(attrsBuf, frame, cam, yS) {
 	const x = clamp(
 		cam.xS(Math.min(cam.playhead, RACE_DATA_END)),
 		cam.left,
@@ -2434,8 +2439,7 @@ function placeHiddenDots(attrsBuf, frame, cam, h) {
 			attrsBuf[i + 1] = clamp(attrsBuf[i + 1], cam.top, cam.bottom);
 			continue;
 		}
-		const y = clamp(scatterY(id, h), cam.top, cam.bottom);
-		set(attrsBuf, id, x, y, 2, CROWD, 0);
+		set(attrsBuf, id, x, yS(avgDistanceOf(id)), 2, CROWD, 0);
 	}
 }
 
@@ -2552,7 +2556,7 @@ export function writeRaceSweepFrame(
 		alphaOf !== null
 	);
 	writeFields(attrsBuf, trailBuf, frame, cam, yS, vMin, vMax);
-	placeHiddenDots(attrsBuf, frame, cam, h);
+	placeHiddenDots(attrsBuf, frame, cam, yS);
 	return {
 		axes: raceAxes(
 			cam,

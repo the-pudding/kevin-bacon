@@ -54,10 +54,13 @@ const AVG_MAX = Math.max(...SHOWN_AVGS);
 
 const AVG_PAD = (AVG_MAX - AVG_MIN) * SCATTER_PAD;
 
+/** actor `id`'s average distance: the remoteness the scatters and the race plot */
+export const avgDistanceOf = (id) => rawNodes.nodes[id][4];
+
 /** the height the avg-distance scatter draws actor `id` at, by id */
 export const scatterY = (id, h) =>
 	lin(
-		rawNodes.nodes[id][4],
+		avgDistanceOf(id),
 		AVG_MIN - AVG_PAD,
 		AVG_MAX + AVG_PAD,
 		MARGIN + 8,

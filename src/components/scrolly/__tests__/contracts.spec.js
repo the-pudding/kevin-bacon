@@ -338,10 +338,10 @@ describe("simulation race: the replay's frames are the settled layouts", () => {
 	}
 });
 
-// The race's frontier column stands a hidden dot at scatterY, so the crowd
-// raceFuture hands to scatterCenters only spreads sideways. A y on any other
-// scale is a crowd that slides up or down the plot as it fades in — it once
-// arrived from above, off a y scale fitted to the whole corpus.
+// scatterCenters draws a dot at scatterY, the one avg-distance scale every
+// films scatter shares. A y on any other scale is a crowd that lands and then
+// slides up or down the plot — it once arrived from above, off a y scale
+// fitted to the whole corpus.
 describe("scatterY: every dot scatterCenters draws stands at its scatterY", () => {
 	for (const box of BOXES) {
 		test(`@${box.name}`, () => {
@@ -364,7 +364,12 @@ describe("scatterY: every dot scatterCenters draws stands at its scatterY", () =
 // motion.md rule 14. An arrival restates every dot the departing state hides
 // onto that state's mark for it (restateHidden), so a dot the arrival shows
 // sets off from the departing state's designed spot — and that spot has to be
-// on the canvas, or the dot streaks in from off screen as it fades in.
+// on the canvas, or the dot streaks in from off screen as it fades in. The
+// race's frontier column is the one exception: it stands the crowd at its
+// remoteness on the race's own scale, wherever that falls — below the plot and
+// mostly off the bottom of the canvas on raceFuture, and a few of the most
+// central above the top on raceGenz — so the fan out of it sets off from where
+// each dot ranks.
 describe("restateHidden: only a dot the departing state hides and the reader cannot see", () => {
 	const at = (id) => id * STRIDE;
 	test("moves a hidden dot onto the departing mark, alpha untouched", () => {
@@ -434,18 +439,24 @@ const arrives = (box, start, end, i) =>
 	end[i + 6] > ALPHA_SEEN &&
 	onCanvas(box, end[i], end[i + 1]);
 
-/** is slot `i` at the start on the departing spot (or parked by a hold), and on the canvas */
-const startsWell = (box, start, departing, i, held) =>
+/** is (x, y) in the canvas's width, at any height: the race's frontier column */
+const inCanvasColumn = (box, x) => onCanvas(box, x, 0);
+
+/** is slot `i` at the start on the departing spot (or parked by a hold), and on the canvas (or in its width, off a race step) */
+const startsWell = (box, start, departing, i, held, fromRace) =>
 	(held ||
 		(Math.abs(start[i] - departing[i]) <= 0.01 &&
 			Math.abs(start[i + 1] - departing[i + 1]) <= 0.01)) &&
-	onCanvas(box, start[i], start[i + 1]);
+	(fromRace
+		? inCanvasColumn(box, start[i])
+		: onCanvas(box, start[i], start[i + 1]));
 
 /**
  * One arrival as ScrollyVisual plays it, checked: restate the hidden dots, then
  * every dot that is invisible at the start and on the canvas, visible, in the
  * frame the arrival tweens onto must start at the departing state's spot
- * (unless a hold has parked it) and on the canvas.
+ * (unless a hold has parked it) and on the canvas — or anywhere up or down
+ * the canvas's width, when it departs a race step's frontier column.
  */
 function expectArrivalsOnCanvas(move, departing, live, box) {
 	restateHidden(live, departing);
@@ -453,11 +464,12 @@ function expectArrivalsOnCanvas(move, departing, live, box) {
 	const target = arrivalTarget(to, from, layout, params, box, live);
 	const start = arrivalStart(target.anim, params, box, live, from);
 	const held = Boolean(target.anim?.hold);
+	const fromRace = Boolean(STATE_RACE[from]);
 	const bad = [];
 	for (let id = 0, i = 0; i < EDGE_BASE; id++, i += STRIDE) {
 		if (!arrives(box, start, target.attrs, i)) continue;
 		move.checked.n += 1;
-		if (!startsWell(box, start, departing, i, held))
+		if (!startsWell(box, start, departing, i, held, fromRace))
 			bad.push(`${id}@(${start[i] | 0},${start[i + 1] | 0})`);
 	}
 	expect(bad, `${move.label}: ${bad.length} dots`).toEqual([]);
