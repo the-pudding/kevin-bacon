@@ -1177,7 +1177,7 @@ function raceCalloutGeometry(cam, ring, at) {
  */
 const RACE_TAKEOVER_CALLOUT = {
 	...RACE_TAKEOVER,
-	text: "Freedomland (2006) - Samuel L. Jackson stars in this crime drama mystery with Julianne Moore. This gives him an average distance of 2.14, overtaking Gene Hackman who's last film was in 2004",
+	text: "Freedomland (2006) - Samuel L. Jackson stars in this crime drama with Julianne Moore. This gives him an average distance of 2.14, overtaking Gene Hackman whose last film was in 2004.",
 	focus: [HACKMAN]
 };
 
@@ -1209,7 +1209,7 @@ function raceCalloutList(...list) {
 // nothing can guard it and a rebuild cannot invalidate it either. Confirmed by
 // Owen against the analysis repo (2026-09-21).
 const RACE_WOMAN_NOTE =
-	"With 6 film credits in 2012, Susan Sarandon reaches #9; the highest position for any woman actor since 1980.";
+	"With 6 film credits in 2012, Susan Sarandon reaches #9, the highest position for any actress since 1980.";
 
 /** the nearest a woman has come to the centre on the years this step can reach */
 const RACE_WOMAN_CALLOUT = {
@@ -1227,7 +1227,7 @@ const RACE_WOMAN_CALLOUT = {
 // this repo carries a career total per actor and never a per-year credit list,
 // which is exactly the caveat RACE_WOMAN_NOTE carries above.
 const RACE_DAFOE_NOTE =
-	"Since 2021, Willem Dafoe has been credited in 16 films including roles in both MCU and DC superhero franchises, cementing him firmly in #2.";
+	"Since 2021, Willem Dafoe has been credited in 16 films including roles in both the MCU and DC franchises, cementing him firmly at #2.";
 
 /** the recent chart's one change of lane, and where it leads */
 const RACE_DAFOE_CALLOUT = {
@@ -1246,7 +1246,7 @@ const RACE_MCU_CALLOUT = {
 /** the game's own year, and who it would have been named after */
 const RACE_STARR_CALLOUT = {
 	...RACE_STARR_STEP,
-	text: "The Six Degrees of Kevin Bacon game was invented in 1994 by college students. At that point, Mike Starr was the center of Hollywood",
+	text: "The Six Degrees of Kevin Bacon game was invented in 1994 by college students. At that time, Mike Starr was the center of Hollywood.",
 	focus: [STARR]
 };
 
