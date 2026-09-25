@@ -2294,6 +2294,11 @@
 		if (departing) tweener.reframe((buf) => restateHidden(buf, departing));
 	}
 
+	/** A step change the render effect returns early on is still a landing. */
+	function landBeat(beat) {
+		if (beat) land();
+	}
+
 	$effect(() => {
 		const cacheDropped = dropStaleLayouts();
 		// canvasWidth is in here with the rest: it sizes the backing store, so a tick
@@ -2306,14 +2311,20 @@
 		// are identical, which is exactly the case six steps in this story are.
 		const beat = step !== prevStep;
 		prevStep = step;
-		if (!box) return;
+		// A step change inside the state while a choreography owns the frame (the
+		// rewind's press brings its step with it): the run is that step's reveal,
+		// so its words caption it, as an entry's legs are captioned (startArrival).
+		if (!box) {
+			landBeat(beat);
+			return;
+		}
 		const paramsKey = JSON.stringify(layoutParams) ?? "";
+		// Two steps resting on one layout: nothing travels, so nothing is kept
+		// waiting. `beat` is load-bearing — the identity-only re-runs this guard
+		// exists for must NOT land, or a publish mid-arrival would release the
+		// words early.
 		if (unchanged(box, cacheDropped, paramsKey)) {
-			// Two steps resting on one layout: nothing travels, so nothing is kept
-			// waiting. `beat` is load-bearing — the identity-only re-runs this guard
-			// exists for must NOT land, or a publish mid-arrival would release the
-			// words early.
-			if (beat) land();
+			landBeat(beat);
 			return;
 		}
 		const from = prevState;
