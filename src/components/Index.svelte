@@ -404,10 +404,9 @@
 			</Step>
 			<Step state="networkIntro" panel={routePanel}>
 				<p>
-					The intuition is that Kevin Bacon is so prolific and well-known that
-					the game is a lot easier than if it were called the “Six Degrees of
-					John Doe,” implying he's some sort of all-encompassing center of
-					Hollywood.
+					The conventional wisdom is that Kevin Bacon is the all-encompassing
+					center of Hollywood: so prolific and well-known that the game is a lot
+					easier than if it were called the “Six Degrees of John Doe.”
 				</p>
 			</Step>
 			<Step
