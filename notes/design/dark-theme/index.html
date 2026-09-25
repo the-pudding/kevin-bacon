@@ -1,0 +1,926 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<title>Kevin Bacon After Dark</title>
+		<link rel="preconnect" href="https://fonts.googleapis.com" />
+		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+		<link
+			rel="stylesheet"
+			href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,600&family=Instrument+Sans:wght@400;500;600&family=Limelight&family=JetBrains+Mono:wght@400&display=swap"
+		/>
+		<style>
+			:root {
+				color-scheme: dark;
+				--ground: #1d1e20;
+				--panel: #26272a;
+				--rule: #393a3e;
+				--text: #ecebe8;
+				--text-2: #b9b8b3;
+				--muted: #8f8e89;
+				--select: #f0d58c;
+				--serif: "Newsreader", "Iowan Old Style", Georgia, serif;
+				--sans:
+					"Instrument Sans", -apple-system, "Helvetica Neue", Arial, sans-serif;
+				--gutter: clamp(16px, 4vw, 48px);
+			}
+			* {
+				box-sizing: border-box;
+			}
+			body {
+				background: var(--ground);
+				color: var(--text);
+				font: 400 15px/1.5 var(--sans);
+				padding-inline: var(--gutter);
+				padding-block: 40px 96px;
+			}
+			.wrap {
+				max-width: 1400px;
+				margin-inline: auto;
+				display: grid;
+				gap: 40px;
+			}
+			header {
+				display: grid;
+				gap: 12px;
+				max-width: 70ch;
+			}
+			h1 {
+				font: 600 clamp(34px, 5vw, 56px)/1.02 var(--serif);
+				letter-spacing: -0.015em;
+				margin: 0;
+				text-wrap: balance;
+			}
+			header p {
+				margin: 0;
+				color: var(--text-2);
+				font-size: 16px;
+			}
+			h2 {
+				font: 600 28px/1.15 var(--serif);
+				margin: 0;
+				text-wrap: balance;
+			}
+			h3 {
+				font: 600 15px/1.3 var(--sans);
+				margin: 0;
+				color: var(--text);
+			}
+
+			.bar {
+				display: flex;
+				flex-wrap: wrap;
+				gap: 16px 24px;
+				align-items: center;
+			}
+			.seg {
+				display: inline-flex;
+				border: 1px solid var(--rule);
+				border-radius: 999px;
+				padding: 3px;
+			}
+			.seg button {
+				font: 500 14px/1 var(--sans);
+				color: var(--text-2);
+				background: none;
+				border: 0;
+				padding: 9px 16px;
+				border-radius: 999px;
+				cursor: pointer;
+			}
+			.seg button[aria-pressed="true"] {
+				background: var(--text);
+				color: var(--ground);
+			}
+			button:focus-visible,
+			a:focus-visible,
+			.shot:focus-visible {
+				outline: 2px solid var(--select);
+				outline-offset: 2px;
+			}
+
+			.picker {
+				display: grid;
+				grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+				gap: 10px;
+			}
+			.pick {
+				display: grid;
+				gap: 10px;
+				text-align: left;
+				cursor: pointer;
+				background: var(--panel);
+				color: var(--text);
+				border: 1px solid var(--rule);
+				border-radius: 10px;
+				padding: 10px;
+				font: 500 14px/1.2 var(--sans);
+			}
+			.pick[aria-pressed="true"] {
+				border-color: var(--select);
+				box-shadow: inset 0 0 0 1px var(--select);
+			}
+			.strip {
+				display: flex;
+				height: 34px;
+				border-radius: 6px;
+				overflow: hidden;
+				box-shadow: 0 0 0 1px rgb(255 255 255 / 0.14);
+			}
+			.strip span {
+				flex: 1;
+			}
+			.strip span:first-child {
+				flex: 3;
+			}
+
+			.intro {
+				display: grid;
+				grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+				gap: 32px 48px;
+				align-items: start;
+			}
+			.intro .summary {
+				display: grid;
+				gap: 14px;
+			}
+			.intro .summary p {
+				margin: 0;
+				font: 400 19px/1.5 var(--serif);
+				color: var(--text);
+				max-width: 60ch;
+			}
+			.intro .summary .bold {
+				font: 400 15px/1.5 var(--sans);
+				color: var(--text-2);
+			}
+			.intro .bold strong {
+				color: var(--text);
+				font-weight: 600;
+			}
+			.facts {
+				display: grid;
+				gap: 20px;
+			}
+			.swatches {
+				display: grid;
+				gap: 12px;
+			}
+			.sg {
+				display: grid;
+				grid-template-columns: 88px 1fr;
+				gap: 10px;
+				align-items: start;
+			}
+			.sg > span {
+				color: var(--muted);
+				font-size: 13px;
+				padding-top: 4px;
+			}
+			.chips {
+				display: flex;
+				flex-wrap: wrap;
+				gap: 6px;
+			}
+			.chip {
+				display: grid;
+				grid-template-columns: 22px auto;
+				gap: 2px 8px;
+				align-items: center;
+				background: var(--panel);
+				border-radius: 6px;
+				padding: 4px 9px 4px 4px;
+				font-size: 12px;
+				line-height: 1.2;
+			}
+			.chip i {
+				grid-row: span 2;
+				width: 22px;
+				height: 22px;
+				border-radius: 4px;
+				box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.12);
+			}
+			.chip b {
+				font-weight: 500;
+			}
+			.chip code {
+				font:
+					400 11px/1 ui-monospace,
+					Menlo,
+					monospace;
+				color: var(--muted);
+			}
+
+			table {
+				border-collapse: collapse;
+				width: 100%;
+				font-size: 14px;
+			}
+			td {
+				padding: 6px 0;
+				border-top: 1px solid var(--rule);
+				vertical-align: baseline;
+			}
+			td:first-child {
+				color: var(--muted);
+				width: 110px;
+			}
+			.sig {
+				background: var(--panel);
+				border-radius: 8px;
+				padding: 12px 14px;
+				display: grid;
+				gap: 6px;
+				font-size: 14px;
+				color: var(--text-2);
+			}
+			.sig .face {
+				font-size: 28px;
+				line-height: 1.1;
+				color: var(--text);
+			}
+			.note {
+				color: var(--select);
+				font-size: 14px;
+			}
+
+			.steps {
+				display: grid;
+				gap: 44px;
+			}
+			.step {
+				display: grid;
+				gap: 12px;
+			}
+			.step header {
+				display: flex;
+				gap: 12px;
+				align-items: baseline;
+				max-width: none;
+			}
+			.step .n {
+				font: 600 28px/1 var(--serif);
+				color: var(--muted);
+				font-variant-numeric: tabular-nums;
+				min-width: 1.6ch;
+			}
+			.step .state {
+				color: var(--muted);
+				font:
+					400 13px/1 ui-monospace,
+					Menlo,
+					monospace;
+			}
+			.pair {
+				display: grid;
+				grid-template-columns: 1.6fr 0.5622fr;
+				gap: 12px;
+				align-items: start;
+			}
+			.shot {
+				display: block;
+				border-radius: 6px;
+				overflow: hidden;
+				background: #000;
+				cursor: zoom-in;
+				border: 0;
+				padding: 0;
+				width: 100%;
+			}
+			.shot img {
+				display: block;
+				width: 100%;
+				height: auto;
+			}
+			.cap {
+				color: var(--muted);
+				font-size: 12px;
+				margin-top: 6px;
+			}
+
+			.step-picker {
+				display: flex;
+				flex-wrap: wrap;
+				gap: 6px;
+			}
+			.step-picker button {
+				font: 500 13px/1 var(--sans);
+				background: var(--panel);
+				color: var(--text-2);
+				border: 1px solid var(--rule);
+				border-radius: 999px;
+				padding: 8px 12px;
+				cursor: pointer;
+			}
+			.step-picker button[aria-pressed="true"] {
+				background: var(--text);
+				color: var(--ground);
+				border-color: var(--text);
+			}
+			.compare {
+				display: grid;
+				grid-template-columns: repeat(2, minmax(0, 1fr));
+				gap: 36px 24px;
+			}
+			.compare .cell {
+				display: grid;
+				gap: 10px;
+			}
+			.compare .cell h3 button {
+				all: unset;
+				cursor: pointer;
+				border-bottom: 1px solid var(--rule);
+			}
+
+			dialog {
+				border: 0;
+				padding: 0;
+				background: transparent;
+				max-width: 96vw;
+				max-height: 94vh;
+			}
+			dialog::backdrop {
+				background: rgb(0 0 0 / 0.85);
+			}
+			dialog img {
+				display: block;
+				max-width: 96vw;
+				max-height: 90vh;
+				width: auto;
+				height: auto;
+				border-radius: 6px;
+			}
+			dialog p {
+				color: #ddd;
+				margin: 8px 0 0;
+				font-size: 13px;
+			}
+
+			@media (max-width: 900px) {
+				.intro {
+					grid-template-columns: 1fr;
+				}
+				.compare {
+					grid-template-columns: 1fr;
+				}
+			}
+			@media (max-width: 560px) {
+				.pair {
+					grid-template-columns: 1fr;
+				}
+				.pair .m {
+					max-width: 260px;
+				}
+				.sg {
+					grid-template-columns: 1fr;
+				}
+			}
+		</style>
+	</head>
+	<body>
+		<div class="wrap">
+			<header>
+				<h1>Kevin Bacon after dark</h1>
+				<p>
+					Dark directions for the story, each built from real tokens and shot on
+					the running story. Each step shows desktop at 1280×800 next to mobile
+					at 375×667. Tap a shot to see it full size.
+				</p>
+			</header>
+			<div class="bar">
+				<div class="seg" role="group" aria-label="View">
+					<button type="button" id="v-dir" aria-pressed="true">
+						By direction
+					</button>
+					<button type="button" id="v-step" aria-pressed="false">
+						Compare a step
+					</button>
+				</div>
+			</div>
+			<main id="view"></main>
+		</div>
+		<dialog id="lb">
+			<img alt="" />
+			<p></p>
+		</dialog>
+
+		<script>
+			const THEMES = [
+				{
+					key: "credits-warm-1",
+					name: "Warm credits, a touch",
+					principle:
+						"End credits with its greys swung from cool to amber (OKLCH chroma 0.008 at hue 70, lightness unchanged), set in Nitrate's type: Tiempos for everything read, including the chart labels, Atlas Grotesk for controls.",
+					boldness:
+						"Restraint: the chrome is warm grey, so the gold is still the only colour that reads as warm.",
+					signature: null,
+					palette: {
+						bg: "#2A2723",
+						raised: "#35322E",
+						fg: "#FFFFFC",
+						fg2: "#D9D7D4",
+						muted: "#AEAAA5",
+						line: "#4A4743",
+						cardLine: "#676460",
+						selection: "#53504C",
+						markBg: "#5A4A24",
+						ink: "#FFFFFF",
+						crowd: "#5C5854",
+						edge: "#86827D",
+						hop1: "#E8B04A",
+						hop2: "#7AA7D9",
+						hop3: "#B9A2E0",
+						hop4: "#5C5854",
+						hop1L: "#F3CB80",
+						hop2L: "#A9C6E8",
+						hop3L: "#D2C3EE",
+						hop4L: "#B7B3AE",
+						band: "#E8B04A",
+						bandL: "#F3CB80",
+						trail: "#E8B04A",
+						right: "#8CCB9B",
+						wrong: "#E88A7A",
+						career: "#7AA7D9"
+					},
+					type: [
+						["prose", "Tiempos Text"],
+						["heading", "Tiempos Text"],
+						["ui", "Atlas Grotesk"],
+						["chart", "Tiempos Text"],
+						["annotation", "Tiempos Text"],
+						["callout", "Tiempos Text"],
+						["chip", "Tiempos Text"]
+					],
+					misses: [],
+					caveat: null,
+					a11y: {
+						pass: true,
+						summary: "no contrast violations across 54 scans",
+						fails: [],
+						detail: []
+					}
+				},
+				{
+					key: "credits-warm-2",
+					name: "Warm credits, medium",
+					principle:
+						"End credits with its greys swung from cool to amber (OKLCH chroma 0.014 at hue 70, lightness unchanged), set in Nitrate's type: Tiempos for everything read, including the chart labels, Atlas Grotesk for controls.",
+					boldness:
+						"Restraint: the chrome is warm grey, so the gold is still the only colour that reads as warm.",
+					signature: null,
+					palette: {
+						bg: "#2C2620",
+						raised: "#37312B",
+						fg: "#FFFEFA",
+						fg2: "#DAD7D2",
+						muted: "#B0A9A1",
+						line: "#4C463F",
+						cardLine: "#6A635C",
+						selection: "#564F48",
+						markBg: "#5A4A24",
+						ink: "#FFFFFF",
+						crowd: "#5E5851",
+						edge: "#88817A",
+						hop1: "#E8B04A",
+						hop2: "#7AA7D9",
+						hop3: "#B9A2E0",
+						hop4: "#5E5851",
+						hop1L: "#F3CB80",
+						hop2L: "#A9C6E8",
+						hop3L: "#D2C3EE",
+						hop4L: "#B9B2AA",
+						band: "#E8B04A",
+						bandL: "#F3CB80",
+						trail: "#E8B04A",
+						right: "#8CCB9B",
+						wrong: "#E88A7A",
+						career: "#7AA7D9"
+					},
+					type: [
+						["prose", "Tiempos Text"],
+						["heading", "Tiempos Text"],
+						["ui", "Atlas Grotesk"],
+						["chart", "Tiempos Text"],
+						["annotation", "Tiempos Text"],
+						["callout", "Tiempos Text"],
+						["chip", "Tiempos Text"]
+					],
+					misses: [],
+					caveat: null,
+					a11y: {
+						pass: true,
+						summary: "no contrast violations across 54 scans",
+						fails: [],
+						detail: []
+					}
+				},
+				{
+					key: "credits-warm-3",
+					name: "Warm credits, full",
+					principle:
+						"End credits with its greys swung from cool to amber (OKLCH chroma 0.022 at hue 70, lightness unchanged), set in Nitrate's type: Tiempos for everything read, including the chart labels, Atlas Grotesk for controls.",
+					boldness:
+						"Restraint: the chrome is warm grey, so the gold is still the only colour that reads as warm.",
+					signature: null,
+					palette: {
+						bg: "#2E251B",
+						raised: "#3A3126",
+						fg: "#FFFEF7",
+						fg2: "#DCD6D0",
+						muted: "#B4A99C",
+						line: "#4F453B",
+						cardLine: "#6D6257",
+						selection: "#584F44",
+						markBg: "#5A4A24",
+						ink: "#FFFFFF",
+						crowd: "#61574C",
+						edge: "#8B8075",
+						hop1: "#E8B04A",
+						hop2: "#7AA7D9",
+						hop3: "#B9A2E0",
+						hop4: "#61574C",
+						hop1L: "#F3CB80",
+						hop2L: "#A9C6E8",
+						hop3L: "#D2C3EE",
+						hop4L: "#BDB1A5",
+						band: "#E8B04A",
+						bandL: "#F3CB80",
+						trail: "#E8B04A",
+						right: "#8CCB9B",
+						wrong: "#E88A7A",
+						career: "#7AA7D9"
+					},
+					type: [
+						["prose", "Tiempos Text"],
+						["heading", "Tiempos Text"],
+						["ui", "Atlas Grotesk"],
+						["chart", "Tiempos Text"],
+						["annotation", "Tiempos Text"],
+						["callout", "Tiempos Text"],
+						["chip", "Tiempos Text"]
+					],
+					misses: [],
+					caveat: null,
+					a11y: {
+						pass: true,
+						summary: "no contrast violations across 54 scans",
+						fails: [],
+						detail: []
+					}
+				},
+				{
+					key: "credits",
+					name: "End credits",
+					principle:
+						"The quietest option: graphite and pure white, like the roll after the film. One warm gold for the first hop band and the race accent, cool blue and violet for the rest. Data set in JetBrains Mono so every number sits in its column.",
+					boldness:
+						"Restraint: the chrome is greyscale, so the only warmth on screen is the gold.",
+					signature: {
+						family: "JetBrains Mono",
+						role: "chart, annotation, chip",
+						licence:
+							"OFL, Google Fonts (free to self-host). Used by The Pudding's democracy story.",
+						link: "https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap",
+						stack: '"JetBrains Mono", Menlo, Consolas, monospace'
+					},
+					palette: {
+						bg: "#26272B",
+						raised: "#313237",
+						fg: "#FFFFFF",
+						fg2: "#D6D7DB",
+						muted: "#A9AAB1",
+						line: "#45474E",
+						cardLine: "#62646C",
+						selection: "#4E5058",
+						markBg: "#5A4A24",
+						ink: "#FFFFFF",
+						crowd: "#57595F",
+						edge: "#80828A",
+						hop1: "#E8B04A",
+						hop2: "#7AA7D9",
+						hop3: "#B9A2E0",
+						hop4: "#57595F",
+						hop1L: "#F3CB80",
+						hop2L: "#A9C6E8",
+						hop3L: "#D2C3EE",
+						hop4L: "#B2B3B9",
+						band: "#E8B04A",
+						bandL: "#F3CB80",
+						trail: "#E8B04A",
+						right: "#8CCB9B",
+						wrong: "#E88A7A",
+						career: "#7AA7D9"
+					},
+					type: [
+						["prose", "Tiempos Text"],
+						["heading", "Atlas Grotesk"],
+						["ui", "Atlas Grotesk"],
+						["chart", "JetBrains Mono"],
+						["annotation", "JetBrains Mono"],
+						["callout", "Atlas Grotesk"],
+						["chip", "JetBrains Mono"]
+					],
+					misses: [],
+					caveat: null,
+					a11y: {
+						pass: true,
+						summary: "no contrast violations across 54 scans",
+						fails: [],
+						detail: []
+					}
+				},
+				{
+					key: "nitrate",
+					name: "Nitrate",
+					principle:
+						"Silver-halide black and white, toned the way old prints were: sepia and selenium instead of hue. Tiempos everywhere a reader reads, even the chart labels, so it feels like a printed programme.",
+					boldness:
+						"No saturated colour at all: the hop bands are told apart by toning, not by hue.",
+					signature: null,
+					palette: {
+						bg: "#222320",
+						raised: "#2D2E2A",
+						fg: "#EAE7DE",
+						fg2: "#CAC6BA",
+						muted: "#A4A198",
+						line: "#44453F",
+						cardLine: "#5E5F57",
+						selection: "#4A4A43",
+						markBg: "#5A4A38",
+						ink: "#F6F2E8",
+						crowd: "#62635C",
+						edge: "#83847B",
+						hop1: "#D9A77A",
+						hop2: "#8FAAA3",
+						hop3: "#C9C1A8",
+						hop4: "#62635C",
+						hop1L: "#EBC7A4",
+						hop2L: "#B8CBC5",
+						hop3L: "#DED8C6",
+						hop4L: "#B5B3AA",
+						band: "#D9A77A",
+						bandL: "#EBC7A4",
+						trail: "#D9A77A",
+						right: "#A3C4A3",
+						wrong: "#E0907A",
+						career: "#8FAAA3"
+					},
+					type: [
+						["prose", "Tiempos Text"],
+						["heading", "Tiempos Text"],
+						["ui", "Atlas Grotesk"],
+						["chart", "Tiempos Text"],
+						["annotation", "Tiempos Text"],
+						["callout", "Tiempos Text"],
+						["chip", "Tiempos Text"]
+					],
+					misses: [],
+					caveat: null,
+					a11y: {
+						pass: true,
+						summary: "no contrast violations across 54 scans",
+						fails: [],
+						detail: []
+					}
+				},
+				{
+					key: "booth",
+					name: "Projection booth",
+					principle:
+						"The story is lit the way a screening room is: warm umber dark, the named dots glowing tungsten like the bulbs in a lamp house, labels typed like a film can's slate.",
+					boldness:
+						"The amber ink: every named actor is the brightest, warmest thing on screen.",
+					signature: null,
+					palette: {
+						bg: "#1A1511",
+						raised: "#261E18",
+						fg: "#EFE5D3",
+						fg2: "#CDBFAA",
+						muted: "#A6937E",
+						line: "#3D3229",
+						cardLine: "#5C4D40",
+						selection: "#4A3C30",
+						markBg: "#5A4524",
+						ink: "#FFC870",
+						crowd: "#6E6056",
+						edge: "#8A7A6A",
+						hop1: "#FF8A5B",
+						hop2: "#7FB2E0",
+						hop3: "#9BD3A5",
+						hop4: "#6E6056",
+						hop1L: "#FFB395",
+						hop2L: "#B3D3F0",
+						hop3L: "#C3E7CA",
+						hop4L: "#B8AA9A",
+						band: "#FFC870",
+						bandL: "#FFD9A0",
+						trail: "#FF8A5B",
+						right: "#9BD3A5",
+						wrong: "#FF7A6B",
+						career: "#7FB2E0"
+					},
+					type: [
+						["prose", "Tiempos Text"],
+						["heading", "Tiempos Text"],
+						["ui", "Atlas Grotesk"],
+						["chart", "Atlas Typewriter"],
+						["annotation", "Atlas Typewriter"],
+						["callout", "Atlas Grotesk"],
+						["chip", "Atlas Typewriter"]
+					],
+					misses: [],
+					caveat: null,
+					a11y: {
+						pass: true,
+						summary: "no contrast violations across 54 scans",
+						fails: [],
+						detail: []
+					}
+				},
+				{
+					key: "baseline",
+					name: "Current light theme",
+					reference: true,
+					misses: []
+				}
+			];
+			const STEPS = [
+				[0, "networkIntro", "The constellation"],
+				[3, "titleGalaxy", "Title card"],
+				[4, "hopBands", "Hop bands"],
+				[7, "rankReveal", "Rank ladder"],
+				[10, "raceFull", "The race, in full"],
+				[14, "scatterCenters", "Scatter with costars"],
+				[17, "scatterQuiz", "Pair quiz"],
+				[22, "careerMany", "Careers"],
+				[24, "simRace", "Simulated race"],
+				[26, "outro", "Outro"]
+			];
+			const SLOT_GROUPS = [
+				[
+					"Surfaces",
+					["bg", "raised", "line", "cardLine", "selection", "markBg"]
+				],
+				["Text", ["fg", "fg2", "muted"]],
+				[
+					"Canvas",
+					["ink", "crowd", "edge", "trail", "career", "right", "wrong"]
+				],
+				["Hop bands", ["hop1", "hop2", "hop3", "hop4", "band"]],
+				["Hop labels", ["hop1L", "hop2L", "hop3L", "hop4L", "bandL"]]
+			];
+			const SLOT_NAMES = {
+				bg: "page",
+				raised: "raised",
+				line: "hairline",
+				cardLine: "card edge",
+				selection: "selection",
+				markBg: "<mark>",
+				fg: "body",
+				fg2: "secondary",
+				muted: "muted",
+				ink: "named dot",
+				crowd: "crowd",
+				edge: "link",
+				trail: "race accent",
+				career: "career",
+				right: "quiz right",
+				wrong: "quiz wrong",
+				hop1: "1 movie",
+				hop2: "2 movies",
+				hop3: "3 movies",
+				hop4: "4 movies",
+				band: "race band",
+				hop1L: "1 movie",
+				hop2L: "2 movies",
+				hop3L: "3 movies",
+				hop4L: "4 movies",
+				bandL: "race band"
+			};
+			const $ = (h) => {
+				const t = document.createElement("template");
+				t.innerHTML = h.trim();
+				return t.content.firstElementChild;
+			};
+			const esc = (s) =>
+				String(s).replace(
+					/[&<>"]/g,
+					(c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]
+				);
+			const FACE = {
+				Limelight: '"Limelight", serif',
+				"JetBrains Mono": '"JetBrains Mono", monospace'
+			};
+			let state = { view: "dir", theme: THEMES[0].key, step: STEPS[2][0] };
+			try {
+				const s = JSON.parse(localStorage.getItem("kb-dark") || "null");
+				if (s) state = { ...state, ...s };
+			} catch {}
+			const h = location.hash.slice(1);
+			if (THEMES.some((t) => t.key === h && !t.reference))
+				state = { ...state, view: "dir", theme: h };
+			if (/^step-\d+$/.test(h))
+				state = { ...state, view: "step", step: Number(h.slice(5)) };
+
+			const src = (key, step, box) => `shots/${key}/${step}-${box}.jpg`;
+			const shot = (t, step, box, label) =>
+				`<button type="button" class="shot ${box === "mobile" ? "m" : "d"}" data-src="${src(t.key, step, box)}" data-cap="${esc(label)}"><img loading="lazy" src="${src(t.key, step, box)}" alt="${esc(label)}" width="${box === "mobile" ? 750 : 1280}" height="${box === "mobile" ? 1334 : 800}" /></button>`;
+			const pair = (t, [n, , title]) =>
+				`<div class="pair">${shot(t, n, "desktop", `${t.name}, step ${n} (${title}), desktop`)}${shot(t, n, "mobile", `${t.name}, step ${n} (${title}), mobile`)}</div>`;
+			const strip = (p) =>
+				`<div class="strip">${[p.bg, p.ink, p.hop1, p.hop2, p.hop3, p.fg].map((c) => `<span style="background:${c}"></span>`).join("")}</div>`;
+
+			function dirView() {
+				const DIRS = THEMES.filter((x) => !x.reference);
+				const t = DIRS.find((x) => x.key === state.theme) ?? DIRS[0];
+				const picker = DIRS.map(
+					(x) =>
+						`<button type="button" class="pick" data-theme="${x.key}" aria-pressed="${x.key === t.key}">${strip(x.palette)}${esc(x.name)}</button>`
+				).join("");
+				const swatches = SLOT_GROUPS.map(
+					([g, slots]) =>
+						`<div class="sg"><span>${g}</span><div class="chips">${slots.map((s) => `<span class="chip"><i style="background:${t.palette[s]}"></i><b>${esc(SLOT_NAMES[s])}</b><code>${t.palette[s]}</code></span>`).join("")}</div></div>`
+				).join("");
+				const type = `<table><tbody>${t.type.map(([r, f]) => `<tr><td>${r}</td><td>${esc(f)}</td></tr>`).join("")}</tbody></table>`;
+				const sig = t.signature
+					? `<div class="sig"><span class="face" style="font-family:${FACE[t.signature.family]}">Gen Z's Kevin Bacon</span><span><strong>${esc(t.signature.family)}</strong> on ${esc(t.signature.role)}. ${esc(t.signature.licence)}</span></div>`
+					: `<div class="sig">House set only: loads from pudding.cool, no new licence.</div>`;
+				const a = t.a11y;
+				const axe = `<div class="sig"><span><strong>Rendered contrast (axe, every step, mobile and desktop):</strong> ${esc(a.summary)}.</span>${a.fails.length ? `<span>${esc(a.fails.join(", "))}</span>` : ""}${a.detail.map((d) => `<code style="font-size:11px;word-break:break-word">${esc(d)}</code>`).join("")}<span>The token contrast spec passes for every pair.</span></div>`;
+				const caveat = t.caveat ? `<p class="note">${esc(t.caveat)}</p>` : "";
+				const misses = t.misses.length
+					? `<p class="note">Landed elsewhere: ${t.misses.map((m) => `step ${m.step} → ${m.landed} (${m.box})`).join(", ")}</p>`
+					: "";
+				const steps = STEPS.map(
+					(s) =>
+						`<section class="step"><header><span class="n">${s[0]}</span><h3>${esc(s[2])}</h3><span class="state">${s[1]}</span></header>${pair(t, s)}</section>`
+				).join("");
+				return `<div style="display:grid;gap:36px"><div class="picker">${picker}</div>
+			<section class="intro"><div class="summary"><h2>${esc(t.name)}</h2><p>${esc(t.principle)}</p><p class="bold"><strong>Where the boldness sits:</strong> ${esc(t.boldness)}</p>${misses}${caveat}</div>
+			<div class="facts"><div class="swatches">${swatches}</div><div><h3 style="margin-bottom:6px">Type roles</h3>${type}</div>${sig}${axe}</div></section>
+			<div class="steps">${steps}</div></div>`;
+			}
+
+			function stepView() {
+				const s = STEPS.find((x) => x[0] === state.step);
+				const chips = STEPS.map(
+					(x) =>
+						`<button type="button" data-step="${x[0]}" aria-pressed="${x[0] === s[0]}">${x[0]} ${esc(x[2])}</button>`
+				).join("");
+				const cells = THEMES.map(
+					(t) =>
+						`<div class="cell"><h3>${t.reference ? `${esc(t.name)} <span style="color:var(--muted);font-weight:400">(for reference)</span>` : `<button type="button" data-goto="${t.key}">${esc(t.name)}</button>`}</h3>${pair(t, s)}</div>`
+				).join("");
+				return `<div style="display:grid;gap:28px"><div class="step-picker">${chips}</div><div class="compare">${cells}</div></div>`;
+			}
+
+			const view = document.getElementById("view");
+			function render() {
+				document
+					.getElementById("v-dir")
+					.setAttribute("aria-pressed", state.view === "dir");
+				document
+					.getElementById("v-step")
+					.setAttribute("aria-pressed", state.view === "step");
+				view.replaceChildren(
+					$(`<div>${state.view === "dir" ? dirView() : stepView()}</div>`)
+				);
+				try {
+					localStorage.setItem("kb-dark", JSON.stringify(state));
+				} catch {}
+			}
+			document.getElementById("v-dir").onclick = () => {
+				state.view = "dir";
+				render();
+			};
+			document.getElementById("v-step").onclick = () => {
+				state.view = "step";
+				render();
+			};
+			const lb = document.getElementById("lb");
+			lb.onclick = () => lb.close();
+			view.addEventListener("click", (e) => {
+				const b = e.target.closest("button");
+				if (!b) return;
+				if (b.dataset.theme) {
+					state.theme = b.dataset.theme;
+					render();
+				} else if (b.dataset.step) {
+					state.step = Number(b.dataset.step);
+					render();
+				} else if (b.dataset.goto) {
+					state.theme = b.dataset.goto;
+					state.view = "dir";
+					render();
+					scrollTo(0, 0);
+				} else if (b.dataset.src) {
+					lb.querySelector("img").src = b.dataset.src;
+					lb.querySelector("p").textContent = b.dataset.cap;
+					lb.showModal();
+				}
+			});
+			render();
+		</script>
+	</body>
+</html>
