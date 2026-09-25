@@ -1,0 +1,27 @@
+{
+	"dev": {
+		"accent": {
+			"value": "{color.red}",
+			"comment": "the dev tuners' active state and markers",
+			"contrast": { "exempt": "dev-only tooling, never shown to readers" }
+		},
+		"accent-fg": {
+			"value": "{color.white}",
+			"contrast": { "exempt": "dev-only tooling, never shown to readers" }
+		},
+		"grid": {
+			"value": "{color.gray-200}",
+			"contrast": { "exempt": "dev-only tooling, never shown to readers" }
+		},
+		"tap-prev": {
+			"value": "{color.debug-blue}",
+			"modify": { "alpha": 0.08 },
+			"contrast": { "exempt": "dev-only tooling, never shown to readers" }
+		},
+		"tap-next": {
+			"value": "{color.debug-red}",
+			"modify": { "alpha": 0.08 },
+			"contrast": { "exempt": "dev-only tooling, never shown to readers" }
+		}
+	}
+}

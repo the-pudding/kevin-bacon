@@ -217,10 +217,10 @@
 	   or prose underneath; the two halves get different hues so "prev" and
 	   "next" read apart at a glance. */
 	.tap-half.debug-visible.prev {
-		background: rgb(59 130 246 / 0.08);
+		background: var(--dev-tap-prev);
 	}
 	.tap-half.debug-visible.next {
-		background: rgb(239 68 68 / 0.08);
+		background: var(--dev-tap-next);
 	}
 
 	/* The notches, beside the prose: fixed to the viewport's edges, vertically

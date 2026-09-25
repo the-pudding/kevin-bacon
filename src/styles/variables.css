@@ -14,6 +14,8 @@
 	--category-blue-dark: #153554;
 	--category-cyan-dark: #003a4e;
 	--category-gray-dark: #333333;
+	/** --category-yellow darkened to clear AA as text on white (#CCBB44 is ~1.75:1) */
+	--category-yellow-dark: #6b5f15;
 	--color-black: oklch(0 0 0);
 	--color-white: oklch(100% 0 0);
 	--color-gray-50: oklch(98.5% 0 0);
@@ -32,6 +34,12 @@
 	--color-green: oklch(0.6506 0.0971 191.52);
 	--color-red: oklch(0.677 0.2117 30.54);
 	--color-yellow: oklch(0.8897 0.1781 108.83);
+	/** the canvas's near-black: dots, routes and the rings drawn over them */
+	--color-ink: #222222;
+	/** network links at rest */
+	--color-edge: #787878;
+	--color-debug-blue: rgb(59 130 246);
+	--color-debug-red: rgb(239 68 68);
 	--12px: 0.75rem;
 	--14px: 0.875rem;
 	--16px: 1rem;
@@ -51,4 +59,169 @@
 	--96px: 6rem;
 	--112px: 7rem;
 	--128px: 8rem;
+	--font-sans:
+		"Atlas Grotesk", -apple-system, BlinkMacSystemFont, Helvetica, Arial,
+		sans-serif;
+	--font-serif: "Tiempos Text", Iowan Old Style, Times New Roman, Times, serif;
+	--font-mono: "Atlas Typewriter", Menlo, Consolas, Monaco, monospace;
+	--tracking-mono: -0.3px;
+	/** the outline variant's hover: no fill */
+	--control-button-quiet-hover: transparent;
+	/** an over-canvas paragraph at rest */
+	--annotation-text: var(--color-gray-600);
+	--annotation-note: var(--color-gray-700);
+	--annotation-note-strong: var(--color-gray-900);
+	--annotation-callout-note: var(--color-gray-900);
+	/** the ring a callout draws round its dot */
+	--annotation-callout-mark: var(--color-gray-700);
+	/** an annotation arrow's line and head */
+	--annotation-arrow: var(--color-gray-600);
+	--annotation-pulse-ring: rgba(34, 34, 34, 0.45);
+	--annotation-hit-pressed: rgba(34, 34, 34, 0.05);
+	/** The Pudding's wordmark on the title card */
+	--art-wordmark: var(--color-black);
+	/** the splash cue's hand-cursor doodle */
+	--art-pointer-fill: var(--color-white);
+	--art-pointer-ink: var(--color-black);
+	/** an actor's name beside their dot */
+	--chart-node-label: var(--color-gray-900);
+	--chart-title: var(--color-gray-800);
+	/** axis tick labels, including the race chart's 1980 tick */
+	--chart-tick: var(--color-gray-500);
+	/** the tick's own stroke */
+	--chart-tick-mark: var(--color-gray-500);
+	/** the y-axis direction hint */
+	--chart-axis-hint: var(--color-gray-500);
+	--chart-legend: var(--color-gray-700);
+	/** the dashed edge of the race chart's future band */
+	--chart-band-edge: var(--category-yellow);
+	--chart-band-fill: rgba(204, 187, 68, 0.13);
+	--chart-band-label: var(--category-yellow-dark);
+	/** a name in the rank ladder */
+	--chart-rank-row: var(--color-gray-700);
+	--chart-rank-row-focus: var(--color-gray-900);
+	--chart-footnote: var(--color-gray-500);
+	/** the race scrubber's year */
+	--chart-readout: var(--color-gray-900);
+	/** the quiz results chart's caption */
+	--chart-result-label: var(--color-gray-500);
+	/** a results bucket's name */
+	--chart-result-key: var(--color-gray-900);
+	--chart-result-value: var(--color-gray-500);
+	--chart-result-value-mine: var(--color-gray-900);
+	--chart-result-fill: rgba(23, 23, 23, 0.22);
+	--chart-result-fill-mine: var(--color-black);
+	/** the focus ring */
+	--control-focus: var(--color-gray-500);
+	/** a filled button: the default and story variants, the plain <button>, skip-to-main */
+	--control-button-primary-bg: var(--color-gray-900);
+	--control-button-primary-fg: var(--color-white);
+	--control-button-primary-hover: oklch(0.405 0 0);
+	/** reset.css's hover for a plain <button> */
+	--control-button-primary-hover-plain: oklch(0.105 0 0);
+	--control-button-secondary-bg: var(--color-gray-500);
+	--control-button-secondary-fg: var(--color-white);
+	--control-button-secondary-hover: oklch(0.356 0 0);
+	--control-input-bg: var(--color-gray-50);
+	--control-input-fg: var(--color-gray-900);
+	--control-input-placeholder: var(--color-gray-500);
+	/** a pair-quiz card before its verdict */
+	--control-card-border: var(--color-gray-400);
+	--control-card-hover-border: var(--color-gray-900);
+	/** a search result chip */
+	--control-chip-border: var(--color-gray-900);
+	/** a step still to come in the progress bar */
+	--control-progress-track: var(--color-gray-200);
+	--control-progress-past: var(--color-gray-400);
+	/** the dev tuners' active state and markers */
+	--dev-accent: var(--color-red);
+	--dev-accent-fg: var(--color-white);
+	--dev-grid: var(--color-gray-200);
+	--dev-tap-prev: rgba(59, 130, 246, 0.08);
+	--dev-tap-next: rgba(239, 68, 68, 0.08);
+	/** a named dot, the anchor, the leader */
+	--mark-ink: var(--color-ink);
+	/** the background crowd every chart is drawn against */
+	--mark-crowd: var(--category-gray);
+	/** the race line and dot a hovered callout refers to */
+	--mark-focus: var(--color-ink);
+	/** network links at rest */
+	--mark-edge: var(--color-edge);
+	--mark-hop-1: var(--category-red);
+	--mark-hop-2: var(--category-blue);
+	--mark-hop-3: var(--category-cyan);
+	--mark-hop-4: var(--category-gray);
+	/** a hop row's label: its dots' hue, darkened to text weight */
+	--mark-hop-1-label: var(--category-red-dark);
+	--mark-hop-2-label: var(--category-blue-dark);
+	--mark-hop-3-label: var(--category-cyan-dark);
+	--mark-hop-4-label: var(--category-gray-dark);
+	/** the Sweeney and Bacon race lines */
+	--mark-trail-accent: var(--category-red);
+	--mark-quiz-right: var(--category-green);
+	--mark-quiz-wrong: var(--category-red);
+	/** the career chart's highlighted actor */
+	--mark-career: var(--category-blue);
+	/** body copy, the splash card, the nav cue, credits */
+	--prose-fg: var(--color-gray-900);
+	/** the splash title and the credits' headings */
+	--prose-heading: var(--color-gray-900);
+	/** secondary copy: captions, hints, placeholders */
+	--prose-muted: var(--color-gray-500);
+	--prose-link: var(--color-black);
+	--prose-link-hover: var(--color-black);
+	/** the page and the canvas behind the dot field */
+	--surface-page: var(--color-white);
+	/** panels, cards, menus, chips and key caps laid over the page */
+	--surface-raised: var(--color-white);
+	/** selected text, a highlighted option, a slider track */
+	--surface-selection: var(--color-gray-300);
+	/** the <mark> element */
+	--surface-highlight: var(--color-yellow);
+	/** hairline rules and the edges of controls */
+	--surface-border: var(--color-gray-300);
+	/** the drop shadow under a popover */
+	--surface-shadow: rgba(0, 0, 0, 0.15);
+	/** the backdrop behind a modal panel */
+	--surface-scrim: rgba(0, 0, 0, 0.4);
+	/** body copy */
+	--type-prose-family: var(--font-serif);
+	/** the splash title and subtitle, the credits' headings */
+	--type-heading-family: var(--font-serif);
+	/** form controls, the byline, the nav cue */
+	--type-ui-family: var(--font-sans);
+	/** graph labels and data readouts: names, legends, ranks, results, the scrubber year, the route listing */
+	--type-chart-family: var(--font-mono);
+	--type-chart-tracking: var(--tracking-mono);
+	/** over-canvas notes */
+	--type-annotation-family: var(--font-mono);
+	--type-annotation-tracking: var(--tracking-mono);
+	/** a callout's note on the race chart */
+	--type-callout-family: var(--font-sans);
+	/** quiz cards, search chips and the search box's readouts */
+	--type-chip-family: var(--font-mono);
+	--type-chip-tracking: var(--tracking-mono);
+	--type-dev-family: var(--font-mono);
+	--chart-result-track: rgba(255, 255, 255, 0.78);
+	/** the outline and ghost variants */
+	--control-button-quiet-fg: var(--prose-fg);
+	/** the prev/next notches beside the prose */
+	--control-button-notch-fg: var(--prose-fg);
+	--control-button-notch-hover: oklch(0.95 0 0);
+	--control-slider-thumb: var(--control-button-primary-bg);
+	--control-slider-thumb-border: var(--surface-raised);
+	--control-slider-track: var(--surface-selection);
+	--control-slider-track-active: var(--prose-muted);
+	--control-progress-current: var(--prose-fg);
+	/** the race scrubber's accent-color */
+	--control-scrubber: var(--control-button-primary-bg);
+	--mark-edge-highlight: var(--mark-ink);
+	/** the dot a search result flies to, and its DOM twin in the search box */
+	--mark-search: var(--mark-ink);
+	/** the anchor of the hop bands */
+	--mark-hop-0: var(--mark-ink);
+	/** one layer of --text-halo, the hold-out behind text over the dot field */
+	--surface-halo: rgba(255, 255, 255, 0.7);
+	/** the solid rings and glows that part a mark or logo from the field behind it */
+	--surface-holdout: var(--surface-page);
 }

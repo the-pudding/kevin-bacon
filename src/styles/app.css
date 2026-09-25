@@ -4,17 +4,9 @@
 @import "reset.css";
 @import "ui.css"; /* optional for bits UI components */
 
-/* colors defined in variables.css */
+/* Colours, fonts and type roles are design tokens: properties/, built into
+   variables.css by `npm run style`. See notes/design/tokens.md. */
 :root {
-	/* font */
-	--font-sans:
-		"Atlas Grotesk", -apple-system, BlinkMacSystemFont, Helvetica, Arial,
-		sans-serif;
-	--font-serif: "Tiempos Text", Iowan Old Style, Times New Roman, Times, serif;
-	--font-mono: "Atlas Typewriter", Menlo, Consolas, Monaco, monospace;
-	/* the chart annotations' tracking: every chart rule that sets --font-mono */
-	--tracking-mono: -0.3px;
-
 	/* z-index */
 	--z-bottom: -1;
 	--z-base: 1;
@@ -29,88 +21,58 @@
 	--z-overlay: 100;
 	--z-modal: 1000;
 
-	/* presets (used in reset.css) */
-	--font-body: var(--font-serif);
-	--font-form: var(--font-sans);
-
 	--radius-xs: 0.125rem;
 	--radius-sm: 0.25rem;
 	--radius-md: 0.5rem;
 	--radius-lg: 1rem;
 
-	--color-bg: var(--color-white);
-	--color-fg: var(--color-gray-900);
-	--color-fg-light: var(--color-gray-500);
-	--color-primary: var(--color-black);
-	--color-link: var(--color-black);
-	--color-link-hover: var(--color-black);
-	--color-focus: var(--color-gray-500);
-	--color-mark: var(--color-yellow);
-	--color-selection: var(--color-gray-300);
-	--color-border: var(--color-gray-300);
-	--color-button-fg-primary: var(--color-white);
-	--color-button-bg-primary: var(--color-gray-900);
-	--color-button-fg-secondary: var(--color-white);
-	--color-button-bg-secondary: var(--color-gray-500);
-	--color-input-bg: var(--color-gray-50);
-	--color-input-fg: var(--color-gray-900);
-	--color-placeholder: var(--color-gray-500);
-	--color-text-halo: color-mix(in srgb, var(--color-bg) 70%, transparent);
-
 	/* the legibility halo for text over the dot field: a 9x9 grid of offset
 	   copies, so it holds out as a solid band rather than a soft glow */
 	--text-halo:
-		-4px -4px 1px var(--color-text-halo), -4px -3px 1px var(--color-text-halo),
-		-4px -2px 1px var(--color-text-halo), -4px -1px 1px var(--color-text-halo),
-		-4px 0px 1px var(--color-text-halo), -4px 1px 1px var(--color-text-halo),
-		-4px 2px 1px var(--color-text-halo), -4px 3px 1px var(--color-text-halo),
-		-4px 4px 1px var(--color-text-halo), -3px -4px 1px var(--color-text-halo),
-		-3px -3px 1px var(--color-text-halo), -3px -2px 1px var(--color-text-halo),
-		-3px -1px 1px var(--color-text-halo), -3px 0px 1px var(--color-text-halo),
-		-3px 1px 1px var(--color-text-halo), -3px 2px 1px var(--color-text-halo),
-		-3px 3px 1px var(--color-text-halo), -3px 4px 1px var(--color-text-halo),
-		-2px -4px 1px var(--color-text-halo), -2px -3px 1px var(--color-text-halo),
-		-2px -2px 1px var(--color-text-halo), -2px -1px 1px var(--color-text-halo),
-		-2px 0px 1px var(--color-text-halo), -2px 1px 1px var(--color-text-halo),
-		-2px 2px 1px var(--color-text-halo), -2px 3px 1px var(--color-text-halo),
-		-2px 4px 1px var(--color-text-halo), -1px -4px 1px var(--color-text-halo),
-		-1px -3px 1px var(--color-text-halo), -1px -2px 1px var(--color-text-halo),
-		-1px -1px 1px var(--color-text-halo), -1px 0px 1px var(--color-text-halo),
-		-1px 1px 1px var(--color-text-halo), -1px 2px 1px var(--color-text-halo),
-		-1px 3px 1px var(--color-text-halo), -1px 4px 1px var(--color-text-halo),
-		0px -4px 1px var(--color-text-halo), 0px -3px 1px var(--color-text-halo),
-		0px -2px 1px var(--color-text-halo), 0px -1px 1px var(--color-text-halo),
-		0px 1px 1px var(--color-text-halo), 0px 2px 1px var(--color-text-halo),
-		0px 3px 1px var(--color-text-halo), 0px 4px 1px var(--color-text-halo),
-		1px -4px 1px var(--color-text-halo), 1px -3px 1px var(--color-text-halo),
-		1px -2px 1px var(--color-text-halo), 1px -1px 1px var(--color-text-halo),
-		1px 0px 1px var(--color-text-halo), 1px 1px 1px var(--color-text-halo),
-		1px 2px 1px var(--color-text-halo), 1px 3px 1px var(--color-text-halo),
-		1px 4px 1px var(--color-text-halo), 2px -4px 1px var(--color-text-halo),
-		2px -3px 1px var(--color-text-halo), 2px -2px 1px var(--color-text-halo),
-		2px -1px 1px var(--color-text-halo), 2px 0px 1px var(--color-text-halo),
-		2px 1px 1px var(--color-text-halo), 2px 2px 1px var(--color-text-halo),
-		2px 3px 1px var(--color-text-halo), 2px 4px 1px var(--color-text-halo),
-		3px -4px 1px var(--color-text-halo), 3px -3px 1px var(--color-text-halo),
-		3px -2px 1px var(--color-text-halo), 3px -1px 1px var(--color-text-halo),
-		3px 0px 1px var(--color-text-halo), 3px 1px 1px var(--color-text-halo),
-		3px 2px 1px var(--color-text-halo), 3px 3px 1px var(--color-text-halo),
-		3px 4px 1px var(--color-text-halo), 4px -4px 1px var(--color-text-halo),
-		4px -3px 1px var(--color-text-halo), 4px -2px 1px var(--color-text-halo),
-		4px -1px 1px var(--color-text-halo), 4px 0px 1px var(--color-text-halo),
-		4px 1px 1px var(--color-text-halo), 4px 2px 1px var(--color-text-halo),
-		4px 3px 1px var(--color-text-halo), 4px 4px 1px var(--color-text-halo);
+		-4px -4px 1px var(--surface-halo), -4px -3px 1px var(--surface-halo),
+		-4px -2px 1px var(--surface-halo), -4px -1px 1px var(--surface-halo),
+		-4px 0px 1px var(--surface-halo), -4px 1px 1px var(--surface-halo),
+		-4px 2px 1px var(--surface-halo), -4px 3px 1px var(--surface-halo),
+		-4px 4px 1px var(--surface-halo), -3px -4px 1px var(--surface-halo),
+		-3px -3px 1px var(--surface-halo), -3px -2px 1px var(--surface-halo),
+		-3px -1px 1px var(--surface-halo), -3px 0px 1px var(--surface-halo),
+		-3px 1px 1px var(--surface-halo), -3px 2px 1px var(--surface-halo),
+		-3px 3px 1px var(--surface-halo), -3px 4px 1px var(--surface-halo),
+		-2px -4px 1px var(--surface-halo), -2px -3px 1px var(--surface-halo),
+		-2px -2px 1px var(--surface-halo), -2px -1px 1px var(--surface-halo),
+		-2px 0px 1px var(--surface-halo), -2px 1px 1px var(--surface-halo),
+		-2px 2px 1px var(--surface-halo), -2px 3px 1px var(--surface-halo),
+		-2px 4px 1px var(--surface-halo), -1px -4px 1px var(--surface-halo),
+		-1px -3px 1px var(--surface-halo), -1px -2px 1px var(--surface-halo),
+		-1px -1px 1px var(--surface-halo), -1px 0px 1px var(--surface-halo),
+		-1px 1px 1px var(--surface-halo), -1px 2px 1px var(--surface-halo),
+		-1px 3px 1px var(--surface-halo), -1px 4px 1px var(--surface-halo),
+		0px -4px 1px var(--surface-halo), 0px -3px 1px var(--surface-halo),
+		0px -2px 1px var(--surface-halo), 0px -1px 1px var(--surface-halo),
+		0px 1px 1px var(--surface-halo), 0px 2px 1px var(--surface-halo),
+		0px 3px 1px var(--surface-halo), 0px 4px 1px var(--surface-halo),
+		1px -4px 1px var(--surface-halo), 1px -3px 1px var(--surface-halo),
+		1px -2px 1px var(--surface-halo), 1px -1px 1px var(--surface-halo),
+		1px 0px 1px var(--surface-halo), 1px 1px 1px var(--surface-halo),
+		1px 2px 1px var(--surface-halo), 1px 3px 1px var(--surface-halo),
+		1px 4px 1px var(--surface-halo), 2px -4px 1px var(--surface-halo),
+		2px -3px 1px var(--surface-halo), 2px -2px 1px var(--surface-halo),
+		2px -1px 1px var(--surface-halo), 2px 0px 1px var(--surface-halo),
+		2px 1px 1px var(--surface-halo), 2px 2px 1px var(--surface-halo),
+		2px 3px 1px var(--surface-halo), 2px 4px 1px var(--surface-halo),
+		3px -4px 1px var(--surface-halo), 3px -3px 1px var(--surface-halo),
+		3px -2px 1px var(--surface-halo), 3px -1px 1px var(--surface-halo),
+		3px 0px 1px var(--surface-halo), 3px 1px 1px var(--surface-halo),
+		3px 2px 1px var(--surface-halo), 3px 3px 1px var(--surface-halo),
+		3px 4px 1px var(--surface-halo), 4px -4px 1px var(--surface-halo),
+		4px -3px 1px var(--surface-halo), 4px -2px 1px var(--surface-halo),
+		4px -1px 1px var(--surface-halo), 4px 0px 1px var(--surface-halo),
+		4px 1px 1px var(--surface-halo), 4px 2px 1px var(--surface-halo),
+		4px 3px 1px var(--surface-halo), 4px 4px 1px var(--surface-halo);
 
 	/* "1" second duration */
 	--1s: 1ms;
 }
-
-/* dark theme */
-/* @media screen and (prefers-color-scheme:dark) {
-	:root {
-		
-	}
-} */
 
 @media screen and (prefers-reduced-motion: no-preference) {
 	:root {
@@ -119,27 +81,27 @@
 }
 
 h1 {
-	font-size: var(--48px, 48px);
+	font-size: var(--48px);
 }
 
 h2 {
-	font-size: var(--36px, 36px);
+	font-size: var(--36px);
 }
 
 h3 {
-	font-size: var(--28px, 28px);
+	font-size: var(--28px);
 }
 
 h4 {
-	font-size: var(--24px, 24px);
+	font-size: var(--24px);
 }
 
 h5 {
-	font-size: var(--22px, 22px);
+	font-size: var(--22px);
 }
 
 h6 {
-	font-size: var(--20px, 20px);
+	font-size: var(--20px);
 }
 
 svg {

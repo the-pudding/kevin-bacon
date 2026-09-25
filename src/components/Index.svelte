@@ -934,11 +934,11 @@
 		margin: 0;
 		padding: 0 1rem;
 		text-align: center;
-		color: var(--color-fg);
-		font-family: var(--font-mono);
-		letter-spacing: var(--tracking-mono);
+		color: var(--prose-fg);
+		font-family: var(--type-chart-family);
+		letter-spacing: var(--type-chart-tracking);
 		/* matches .node-label in ScrollyVisual */
-		font-size: var(--12px, 12px);
+		font-size: var(--12px);
 		line-height: 1.2;
 		/* the caption lies over the layout's tap halves; only the term inside it
 		   is meant to catch a click */
@@ -990,19 +990,19 @@
 	   dot field rather than a plain background */
 	#credits :global(.credits-block h2) {
 		margin: 0;
-		font-family: var(--font-serif);
-		font-size: var(--28px, 28px);
+		font-family: var(--type-heading-family);
+		font-size: var(--28px);
 		font-weight: 400;
 		line-height: 1.06;
 		letter-spacing: 0.03em;
 		text-transform: uppercase;
-		color: var(--color-fg);
+		color: var(--prose-heading);
 		text-shadow: var(--text-halo);
 	}
 
 	#credits :global(.credits-block p) {
 		margin: 0;
-		color: var(--color-fg);
+		color: var(--prose-fg);
 		text-shadow: var(--text-halo);
 	}
 

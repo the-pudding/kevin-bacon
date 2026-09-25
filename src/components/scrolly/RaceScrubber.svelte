@@ -148,18 +148,18 @@
 		/* the minimum tap target on mobile; the track stays centred in it */
 		height: var(--48px);
 		margin: 0;
-		accent-color: var(--color-button-bg-primary);
+		accent-color: var(--control-scrubber);
 		cursor: pointer;
 		pointer-events: auto;
 	}
 	.year {
 		flex: none;
 		white-space: nowrap;
-		font-family: var(--font-mono);
-		letter-spacing: var(--tracking-mono);
+		font-family: var(--type-chart-family);
+		letter-spacing: var(--type-chart-tracking);
 		font-variant-numeric: tabular-nums;
 		font-size: 0.9rem;
-		color: var(--color-fg, #222);
+		color: var(--chart-readout);
 		min-width: 4ch;
 		text-align: right;
 	}

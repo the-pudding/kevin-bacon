@@ -1,9 +1,9 @@
 .bits-togglegroup[data-toggle-group-root] {
 	display: inline-flex;
 	border-radius: var(--radius-md);
-	border: 1px solid var(--color-border);
-	background: var(--color-bg);
-	color: var(--color-fg);
+	border: 1px solid var(--surface-border);
+	background: var(--surface-raised);
+	color: var(--prose-fg);
 	overflow: hidden;
 }
 
@@ -16,8 +16,8 @@
 	outline: none;
 	text-decoration: none;
 	border-radius: 0;
-	border-right: 1px solid var(--color-border);
-	font-family: var(--font-form);
+	border-right: 1px solid var(--surface-border);
+	font-family: var(--type-ui-family);
 	transition:
 		transform 0.25s ease,
 		background 0.25s ease,
@@ -32,7 +32,7 @@
 }
 
 .bits-togglegroup [data-toggle-group-item][data-state="on"] {
-	background: var(--color-selection);
+	background: var(--surface-selection);
 }
 
 .bits-togglegroup [data-toggle-group-item-icon] {

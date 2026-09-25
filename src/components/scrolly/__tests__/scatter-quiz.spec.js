@@ -17,7 +17,7 @@ import { nodes, BOXES, buildLayout } from "./helpers.js";
 import { STRIDE } from "../attr-buffer.js";
 import { STATE_LABELS } from "../states.js";
 import { QUIZ_PAIRS, quizWinner } from "../layouts/scatters.js";
-import { CROWD, GREEN, RED } from "../palette.js";
+import { CROWD, QUIZ_RIGHT, QUIZ_WRONG } from "../palette.js";
 
 const rgbAt = (attrs, id) => [...attrs.slice(id * STRIDE + 3, id * STRIDE + 6)];
 const rAt = (attrs, id) => attrs[id * STRIDE + 2];
@@ -46,7 +46,7 @@ describe("verdict colours", () => {
 	test("a right pick greens the reader's dot and leaves the other grey", () => {
 		const { ids, right } = pairAt(0);
 		const attrs = build({ picks: { 0: right }, revealAll: false });
-		expect(rgbAt(attrs, ids[right])).toEqual(GREEN);
+		expect(rgbAt(attrs, ids[right])).toEqual(QUIZ_RIGHT);
 		expect(rgbAt(attrs, ids[1 - right])).toEqual(CROWD);
 		// both come up to the answered mark — height is still the answer
 		expect(rAt(attrs, ids[right])).toBe(5.5);
@@ -56,7 +56,7 @@ describe("verdict colours", () => {
 	test("a wrong pick reds the reader's dot and leaves the closer one grey", () => {
 		const { ids, right } = pairAt(0);
 		const attrs = build({ picks: { 0: 1 - right }, revealAll: false });
-		expect(rgbAt(attrs, ids[1 - right])).toEqual(RED);
+		expect(rgbAt(attrs, ids[1 - right])).toEqual(QUIZ_WRONG);
 		expect(rgbAt(attrs, ids[right])).toEqual(CROWD);
 	});
 
@@ -83,7 +83,7 @@ describe("revealAll — the reader stepping back into the step", () => {
 	test("keeps the verdict on the pairs the reader did answer", () => {
 		const { ids, right } = pairAt(0);
 		const attrs = build({ picks: { 0: right }, revealAll: true });
-		expect(rgbAt(attrs, ids[right])).toEqual(GREEN);
+		expect(rgbAt(attrs, ids[right])).toEqual(QUIZ_RIGHT);
 		expect(rgbAt(attrs, ids[1 - right])).toEqual(CROWD);
 	});
 });

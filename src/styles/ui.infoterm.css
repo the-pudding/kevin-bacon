@@ -20,7 +20,7 @@
 	text-decoration-style: dotted;
 	text-decoration-thickness: 1px;
 	text-underline-offset: 3px;
-	text-decoration-color: var(--color-fg-light);
+	text-decoration-color: var(--prose-muted);
 }
 
 /* reset.css paints every <button> with the filled primary style on hover, at
@@ -40,13 +40,13 @@
 	box-sizing: border-box;
 	max-width: min(22rem, calc(100vw - 1.5rem));
 	padding: 0.875rem 1rem 1rem;
-	background: var(--color-bg);
-	color: var(--color-fg);
-	border: 1px solid var(--color-border);
+	background: var(--surface-raised);
+	color: var(--prose-fg);
+	border: 1px solid var(--surface-border);
 	border-radius: var(--radius-md);
-	box-shadow: 0 6px 24px rgb(0 0 0 / 15%);
-	font-family: var(--font-form);
-	font-size: var(--14px, 14px);
+	box-shadow: 0 6px 24px var(--surface-shadow);
+	font-family: var(--type-ui-family);
+	font-size: var(--14px);
 	line-height: 1.4;
 	/* a long list of films still has to fit above the fold on a short viewport */
 	max-height: min(60vh, 30rem);
@@ -68,12 +68,12 @@
 	gap: 0.75rem;
 	margin-bottom: 0.625rem;
 	padding-bottom: 0.25rem;
-	background: var(--color-bg);
+	background: var(--surface-raised);
 }
 
 [data-infoterm-title] {
 	margin: 0 auto 0 0;
-	font-size: var(--14px, 14px);
+	font-size: var(--14px);
 	font-weight: 600;
 	line-height: 1.3;
 }
@@ -90,7 +90,7 @@
 	background: none;
 	border: 0;
 	border-radius: var(--radius-sm);
-	color: var(--color-fg-light);
+	color: var(--prose-muted);
 	cursor: pointer;
 }
 
@@ -99,7 +99,7 @@
    in a black square. Hover here is a colour shift only, nothing else */
 [data-infoterm-close]:hover {
 	background: none;
-	color: var(--color-fg);
+	color: var(--prose-fg);
 }
 
 [data-infoterm-close] svg {
@@ -112,7 +112,7 @@
 	position: fixed;
 	inset: 0;
 	z-index: var(--z-overlay);
-	background: rgb(0 0 0 / 40%);
+	background: var(--surface-scrim);
 	animation: infoterm-scrim-in calc(var(--1s) * 0.15) ease both;
 }
 

@@ -153,6 +153,6 @@
 
 	p {
 		max-width: 480px;
-		font-size: var(--14px, 0.875rem);
+		font-size: var(--14px);
 	}
 </style>

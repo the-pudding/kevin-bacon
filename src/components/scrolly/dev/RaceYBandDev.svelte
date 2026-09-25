@@ -382,11 +382,16 @@
 {#if cam && hidden}
 	<!-- the way back: without this the only way to reopen the editor would be to
 	     clear its localStorage key by hand -->
-	<button class="reopen" type="button" onclick={() => setHidden(false)}>
+	<button
+		class="reopen"
+		type="button"
+		data-dev-only
+		onclick={() => setHidden(false)}
+	>
 		y band
 	</button>
 {:else if cam}
-	<div class="ybands-dev">
+	<div class="ybands-dev" data-dev-only>
 		<div class="editor-wrap" bind:clientWidth={plotW}>
 			<!-- svelte-ignore a11y_no_static_element_interactions -->
 			<svg
@@ -522,13 +527,13 @@
 		display: flex;
 		flex-direction: column;
 		gap: 0.25rem;
-		background: var(--color-bg, #fff);
-		border-top: 1px solid var(--color-gray-300, #ccc);
-		border-bottom: 1px solid var(--color-gray-300, #ccc);
-		font-family: var(--font-mono);
+		background: var(--surface-raised);
+		border-top: 1px solid var(--surface-border);
+		border-bottom: 1px solid var(--surface-border);
+		font-family: var(--type-dev-family);
 		font-size: 0.7rem;
 		font-variant-numeric: tabular-nums;
-		color: var(--color-fg, #222);
+		color: var(--prose-fg);
 	}
 	/* the hidden state's only affordance: small enough to sit over the chart's
 	   bottom-right gutter without covering a line */
@@ -537,8 +542,8 @@
 		right: 0.5rem;
 		top: 64%;
 		z-index: var(--z-tap-above);
-		background: var(--color-bg, #fff);
-		font-family: var(--font-mono);
+		background: var(--surface-raised);
+		font-family: var(--type-dev-family);
 		font-size: 0.65rem;
 		text-transform: uppercase;
 		letter-spacing: 0.06em;
@@ -592,42 +597,42 @@
 		cursor: crosshair;
 	}
 	.grid {
-		stroke: var(--color-gray-200, #e5e5e5);
+		stroke: var(--dev-grid);
 		stroke-width: 1;
 	}
 	.axis {
 		font-size: 7px;
-		fill: var(--color-fg, #222);
+		fill: var(--prose-fg);
 		opacity: 0.5;
 	}
 	.shipped {
 		fill: none;
-		stroke: var(--color-fg, #222);
+		stroke: var(--prose-fg);
 		stroke-width: 1;
 		stroke-dasharray: 2 2;
 		opacity: 0.35;
 	}
 	.curve {
 		fill: none;
-		stroke: var(--color-fg, #222);
+		stroke: var(--prose-fg);
 		stroke-width: 1.5;
 	}
 	.playhead {
-		stroke: var(--color-red, #c0392b);
+		stroke: var(--dev-accent);
 		stroke-width: 1;
 		opacity: 0.5;
 	}
 	.playhead-dot {
-		fill: var(--color-red, #c0392b);
+		fill: var(--dev-accent);
 	}
 	.handle {
-		fill: var(--color-bg, #fff);
-		stroke: var(--color-fg, #222);
+		fill: var(--surface-raised);
+		stroke: var(--prose-fg);
 		stroke-width: 1.5;
 		cursor: grab;
 	}
 	.handle.active {
-		fill: var(--color-fg, #222);
+		fill: var(--prose-fg);
 		cursor: grabbing;
 	}
 
@@ -639,7 +644,7 @@
 		color: inherit;
 		padding: 0.15rem 0.4rem;
 		background: none;
-		border: 1px solid var(--color-gray-300, #ccc);
+		border: 1px solid var(--surface-border);
 		border-radius: 3px;
 		cursor: pointer;
 	}

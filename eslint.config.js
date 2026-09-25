@@ -58,6 +58,38 @@ export default [
 		}
 	},
 	{
+		// Every colour is a role token (notes/design/tokens.md): DOM reads its CSS
+		// custom property, canvas reads its rgb triple through palette.js. A colour
+		// literal in a script or a markup attribute is one the tokens never see.
+		files: ["src/**/*.js", "src/**/*.svelte"],
+		ignores: ["src/styles/tokens.js"],
+		rules: {
+			"no-restricted-syntax": [
+				"error",
+				{
+					selector: "Literal[value=/^#[0-9a-fA-F]{3,8}$/]",
+					message: "Use a colour role token, not a hex literal."
+				},
+				{
+					selector:
+						"Literal[value=/^(rgba?|hsla?|hwb|lab|lch|oklab|oklch|color-mix)\\(/]",
+					message: "Use a colour role token, not a colour function literal."
+				},
+				{
+					selector:
+						"SvelteAttribute[key.name=/^(fill|stroke|color|stop-color|flood-color|lighting-color)$/] > SvelteLiteral[value!=/^(none|currentcolor|url\\(.*\\))$/i]",
+					message:
+						"Paint from a role token in CSS (or currentcolor), not a markup colour."
+				},
+				{
+					selector:
+						"SvelteAttribute[key.name='style'] > SvelteLiteral[value=/(#[0-9a-fA-F]{3,8}\\b|\\b(rgba?|hsla?|oklch)\\()/]",
+					message: "Use a colour role token, not an inline colour literal."
+				}
+			]
+		}
+	},
+	{
 		// a test file's describe blocks are lists of cases, not logic
 		files: ["**/*.spec.js"],
 		rules: { "max-lines-per-function": "off" }

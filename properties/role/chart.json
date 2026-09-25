@@ -1,0 +1,155 @@
+{
+	"chart": {
+		"node-label": {
+			"value": "{color.gray-900}",
+			"comment": "an actor's name beside their dot",
+			"contrast": {
+				"against": "surface.page",
+				"min": 4.5
+			}
+		},
+		"title": {
+			"value": "{color.gray-800}",
+			"contrast": {
+				"against": "surface.page",
+				"min": 4.5
+			}
+		},
+		"tick": {
+			"value": "{color.gray-500}",
+			"comment": "axis tick labels, including the race chart's 1980 tick",
+			"contrast": {
+				"against": "surface.page",
+				"min": 4.5
+			}
+		},
+		"tick-mark": {
+			"value": "{color.gray-500}",
+			"comment": "the tick's own stroke",
+			"contrast": {
+				"against": "surface.page",
+				"min": 3
+			}
+		},
+		"axis-hint": {
+			"value": "{color.gray-500}",
+			"comment": "the y-axis direction hint",
+			"contrast": {
+				"against": "surface.page",
+				"min": 4.5
+			}
+		},
+		"legend": {
+			"value": "{color.gray-700}",
+			"contrast": {
+				"against": "surface.page",
+				"min": 4.5
+			}
+		},
+		"band-edge": {
+			"value": "{category.yellow}",
+			"comment": "the dashed edge of the race chart's future band",
+			"contrast": {
+				"exempt": "the band is named by its own label; the edge is not the only cue"
+			}
+		},
+		"band-fill": {
+			"value": "{category.yellow}",
+			"modify": {
+				"alpha": 0.13
+			}
+		},
+		"band-label": {
+			"value": "{category.yellow-dark}",
+			"contrast": {
+				"against": "chart.band-fill",
+				"min": 4.5
+			}
+		},
+		"rank-row": {
+			"value": "{color.gray-700}",
+			"comment": "a name in the rank ladder",
+			"contrast": {
+				"against": "surface.raised",
+				"min": 4.5
+			}
+		},
+		"rank-row-focus": {
+			"value": "{color.gray-900}",
+			"contrast": {
+				"against": "surface.raised",
+				"min": 4.5
+			}
+		},
+		"footnote": {
+			"value": "{color.gray-500}",
+			"contrast": {
+				"against": "surface.raised",
+				"min": 4.5
+			}
+		},
+		"readout": {
+			"value": "{color.gray-900}",
+			"comment": "the race scrubber's year",
+			"contrast": {
+				"against": "surface.page",
+				"min": 4.5
+			}
+		},
+		"result-label": {
+			"value": "{color.gray-500}",
+			"comment": "the quiz results chart's caption",
+			"contrast": {
+				"against": "surface.page",
+				"min": 4.5
+			}
+		},
+		"result-key": {
+			"value": "{color.gray-900}",
+			"comment": "a results bucket's name",
+			"contrast": {
+				"against": "surface.page",
+				"min": 4.5
+			}
+		},
+		"result-value": {
+			"value": "{color.gray-500}",
+			"contrast": {
+				"against": "surface.page",
+				"min": 4.5
+			}
+		},
+		"result-value-mine": {
+			"value": "{color.gray-900}",
+			"contrast": {
+				"against": "surface.page",
+				"min": 4.5
+			}
+		},
+		"result-track": {
+			"value": "{surface.page}",
+			"modify": {
+				"alpha": 0.78
+			},
+			"contrast": {
+				"exempt": "the empty track behind a bar"
+			}
+		},
+		"result-fill": {
+			"value": "{color.gray-900}",
+			"modify": {
+				"alpha": 0.22
+			},
+			"contrast": {
+				"exempt": "every bar carries its value as text beside it"
+			}
+		},
+		"result-fill-mine": {
+			"value": "{color.black}",
+			"contrast": {
+				"against": "surface.page",
+				"min": 3
+			}
+		}
+	}
+}

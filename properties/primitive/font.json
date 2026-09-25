@@ -1,0 +1,18 @@
+{
+	"font": {
+		"sans": {
+			"value": "\"Atlas Grotesk\", -apple-system, BlinkMacSystemFont, Helvetica, Arial, sans-serif"
+		},
+		"serif": {
+			"value": "\"Tiempos Text\", Iowan Old Style, Times New Roman, Times, serif"
+		},
+		"mono": {
+			"value": "\"Atlas Typewriter\", Menlo, Consolas, Monaco, monospace"
+		}
+	},
+	"tracking": {
+		"mono": {
+			"value": "-0.3px"
+		}
+	}
+}

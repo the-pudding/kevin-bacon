@@ -2,7 +2,7 @@ import story from "$data/scrolly-story.json";
 import rawNodes from "$data/scrolly-nodes.json";
 import { ATTR_SIZE, set } from "../attr-buffer.js";
 import { SLJ, CAGE, idOf } from "../cast.js";
-import { CROWD, GREEN, RED } from "../palette.js";
+import { CROWD, QUIZ_RIGHT, QUIZ_WRONG } from "../palette.js";
 import { MARGIN, plotBottom, lin } from "../plot.js";
 import {
 	scatterPosition,
@@ -252,7 +252,7 @@ const pairShown = (params, i) =>
 // competes with height, which is still the whole of who is closer. A pair the
 // reader never answered has no picked dot, so it stays grey on both sides.
 const verdictRgb = (pair, id, picked) =>
-	id !== picked ? CROWD : id === quizWinner(pair) ? GREEN : RED;
+	id !== picked ? CROWD : id === quizWinner(pair) ? QUIZ_RIGHT : QUIZ_WRONG;
 
 // Label placement for the quiz dots, to keep names off each other in the tight
 // cluster: high-film pairs sit on the right of the cloud so their labels go

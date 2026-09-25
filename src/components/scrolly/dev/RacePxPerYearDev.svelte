@@ -66,11 +66,16 @@
 </script>
 
 {#if story.race.cam && hidden}
-	<button class="reopen" type="button" onclick={() => setHidden(false)}>
+	<button
+		class="reopen"
+		type="button"
+		data-dev-only
+		onclick={() => setHidden(false)}
+	>
 		px/yr
 	</button>
 {:else if story.race.cam}
-	<div class="px-dev">
+	<div class="px-dev" data-dev-only>
 		<span class="tag">px/yr</span>
 		<input
 			type="range"
@@ -100,21 +105,21 @@
 		display: flex;
 		align-items: center;
 		gap: 0.5rem;
-		background: var(--color-bg, #fff);
-		border-top: 1px solid var(--color-gray-300, #ccc);
-		border-bottom: 1px solid var(--color-gray-300, #ccc);
-		font-family: var(--font-mono);
+		background: var(--surface-raised);
+		border-top: 1px solid var(--surface-border);
+		border-bottom: 1px solid var(--surface-border);
+		font-family: var(--type-dev-family);
 		font-size: 0.7rem;
 		font-variant-numeric: tabular-nums;
-		color: var(--color-fg, #222);
+		color: var(--prose-fg);
 	}
 	.reopen {
 		position: absolute;
 		right: 0.5rem;
 		top: 72%;
 		z-index: var(--z-tap-above);
-		background: var(--color-bg, #fff);
-		font-family: var(--font-mono);
+		background: var(--surface-raised);
+		font-family: var(--type-dev-family);
 		font-size: 0.65rem;
 		text-transform: uppercase;
 		letter-spacing: 0.06em;
@@ -140,7 +145,7 @@
 		color: inherit;
 		padding: 0.15rem 0.4rem;
 		background: none;
-		border: 1px solid var(--color-gray-300, #ccc);
+		border: 1px solid var(--surface-border);
 		border-radius: 3px;
 		cursor: pointer;
 	}

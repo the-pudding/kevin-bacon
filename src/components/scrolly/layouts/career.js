@@ -2,7 +2,7 @@ import story from "$data/scrolly-story.json";
 import { ATTR_SIZE, set } from "../attr-buffer.js";
 import { SWEENEY, DENIRO, CHASE, HACKMAN, MIRREN } from "../cast.js";
 import { ANCHOR_ID } from "../nodes.js";
-import { CROWD, BLUE } from "../palette.js";
+import { CROWD, CAREER } from "../palette.js";
 import { MARGIN, plotBottom, lin } from "../plot.js";
 import {
 	SEARCH_DOT_R,
@@ -184,7 +184,7 @@ function careerLayout(cast, showCohort) {
 					n.id,
 					xS(age),
 					yS(films),
-					...careerDot(marked, 5.5, BLUE, alpha)
+					...careerDot(marked, 5.5, CAREER, alpha)
 				);
 			} else if (n.careerAge != null) {
 				// background cloud: this actor's (career age, films) position
@@ -283,7 +283,7 @@ function lineDrawer(nodes, w, h) {
 			xS(tip),
 			yS(curveYAt(line.segs, tip)),
 			5.5,
-			BLUE,
+			CAREER,
 			dotAlpha
 		);
 	};
@@ -339,7 +339,7 @@ function careerEntry(cast) {
 				// comparisons wait, invisible, where their own line begins
 				for (const line of comparisons) {
 					collapseTrail(trails, line.slot, line.start[0], line.start[1], 0);
-					set(attrs, line.id, line.start[0], line.start[1], 5.5, BLUE, 0);
+					set(attrs, line.id, line.start[0], line.start[1], 5.5, CAREER, 0);
 				}
 				return;
 			}

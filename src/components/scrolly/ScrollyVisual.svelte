@@ -9,6 +9,7 @@
 	import { createChoreographer } from "./choreographer.js";
 	import { createRaceCamera } from "./race-camera.js";
 	import { parkLeavers, restateHidden } from "./arrival-marks.js";
+	import { rgb } from "./palette.js";
 	import {
 		ALPHA_SEEN,
 		clearCanvas,
@@ -2607,9 +2608,7 @@
 			>
 				{#each set.decor.legend as item}
 					<li class="legend-item">
-						<span
-							class="legend-swatch"
-							style="background: rgb({item.color.join(',')})"
+						<span class="legend-swatch" style:background={rgb(item.color)}
 						></span>
 						{item.label}
 					</li>
@@ -2737,13 +2736,13 @@
 		/* positioned via inline transform (compositor-only), not left/top */
 		will-change: transform, opacity;
 		padding: 0 3px;
-		font-family: var(--font-mono);
-		letter-spacing: var(--tracking-mono);
+		font-family: var(--type-chart-family);
+		letter-spacing: var(--type-chart-tracking);
 		/* NODE_LABEL_PX in layouts/intro.js is this line box */
-		font-size: var(--12px, 12px);
+		font-size: var(--12px);
 		line-height: 1.2;
 		white-space: nowrap;
-		color: var(--color-gray-900, #222);
+		color: var(--chart-node-label);
 		/* halo, not opaque: a name sits over the dot cloud and its own links,
 		   and an opaque tag hides too much of the data underneath it */
 		text-shadow: var(--text-halo);
@@ -2769,7 +2768,7 @@
 	.pulse-ring {
 		position: absolute;
 		inset: 0;
-		border: 2px solid rgba(34, 34, 34, 0.45);
+		border: 2px solid var(--annotation-pulse-ring);
 		border-radius: 50%;
 		animation: ripple 1.8s ease-out both;
 	}
@@ -2836,7 +2835,7 @@
 	.hit:hover,
 	.hit[aria-pressed="true"] {
 		/* translucent: the tint sits over the canvas dots, so it can't be opaque */
-		background: rgba(34, 34, 34, 0.05);
+		background: var(--annotation-hit-pressed);
 	}
 
 	/* a region centred on a single dot reads as a halo, not a box */
@@ -2877,10 +2876,10 @@
 	.overlay p {
 		position: absolute;
 		margin: 0;
-		font-family: var(--font-mono);
-		letter-spacing: var(--tracking-mono);
+		font-family: var(--type-annotation-family);
+		letter-spacing: var(--type-annotation-tracking);
 		font-size: 0.75rem;
-		color: var(--color-gray-600, #666);
+		color: var(--annotation-text);
 	}
 
 	.chart-title {
@@ -2898,7 +2897,7 @@
 		max-width: calc(100% - 2 * var(--plot-margin));
 		text-align: center;
 		font-weight: 600;
-		color: var(--color-gray-800, #222);
+		color: var(--chart-title);
 	}
 
 	/* A searchable step puts ActorSearch's glyph (1.75rem, at the plot's right
@@ -2918,7 +2917,7 @@
 
 	.tick {
 		font-size: 0.75rem;
-		color: var(--color-gray-500, #888);
+		color: var(--chart-tick);
 		/* tick numbers can sit over the dot cloud (tight left margin) — keep them legible */
 		text-shadow: var(--text-halo);
 	}
@@ -2944,7 +2943,7 @@
 		   halves' own layer rather than a bare 1 */
 		z-index: var(--z-tap-above);
 		font-size: 0.75rem;
-		color: var(--color-gray-500, #888);
+		color: var(--chart-tick);
 		text-shadow: var(--text-halo);
 		bottom: 1.6rem; /* fallback when the layout provides no xBase */
 		transform: translateX(-50%);
@@ -2977,14 +2976,14 @@
 
 	.band-box {
 		position: absolute;
-		border: 2px dashed var(--category-yellow, #ccbb44);
+		border: 2px dashed var(--chart-band-edge);
 		/* --category-yellow at 13%. A wash rather than nothing: the block reads as
 		   ground the chart has no data for, and an outline alone left it looking like
 		   an empty frame drawn over the plot. It can be this faint and still register
 		   because it is a large area — and it HAS to be faint, and has to sit in the
 		   annotations layer under the names, because this step's ten names render
 		   inside it. */
-		background: rgba(204, 187, 68, 0.13);
+		background: var(--chart-band-fill);
 		/* The right-edge fade, and it works on the border too: a mask applies to the
 		   element's whole rendered box, so the top and bottom rules fade out along
 		   their length and the RIGHT rule disappears entirely — which is exactly the
@@ -2992,8 +2991,12 @@
 		   with any opacity, unlike the animation trap noted on .callout's children.
 		   -webkit- for Safari < 15.4; without either the box simply keeps its right
 		   wall, which is degraded rather than broken. */
-		-webkit-mask-image: linear-gradient(to right, #000 0 45%, transparent 100%);
-		mask-image: linear-gradient(to right, #000 0 45%, transparent 100%);
+		-webkit-mask-image: linear-gradient(
+			to right,
+			currentcolor 0 45%,
+			transparent 100%
+		);
+		mask-image: linear-gradient(to right, currentcolor 0 45%, transparent 100%);
 	}
 
 	/* Selected as `.overlay p` + a class for the specificity reason spelled out on
@@ -3012,10 +3015,10 @@
 	.band-label {
 		position: absolute;
 		margin: 0;
-		font-family: var(--font-mono);
+		font-family: var(--type-chart-family);
 		font-size: 0.75rem;
-		letter-spacing: var(--tracking-mono);
-		color: #6b5f15;
+		letter-spacing: var(--type-chart-tracking);
+		color: var(--chart-band-label);
 		white-space: nowrap;
 		/* it sits just inside the box, and can crowd the border on a narrow strip,
 		   so it needs the same legibility halo the ticks carry */
@@ -3034,13 +3037,13 @@
 		position: absolute;
 		width: 11px;
 		height: 11px;
-		border: 1.5px solid var(--color-gray-700, #444);
+		border: 1.5px solid var(--annotation-callout-mark);
 		border-radius: 50%;
 		/* the halo the rest of the chart furniture uses, so the ring reads where it
 		   sits: over the two lines it is pointing at */
 		box-shadow:
-			0 0 0 1.5px var(--color-bg, #fff),
-			0 0 4px var(--color-bg, #fff);
+			0 0 0 1.5px var(--surface-holdout),
+			0 0 4px var(--surface-holdout);
 		transform: translate(-50%, -50%);
 	}
 
@@ -3064,22 +3067,22 @@
 	}
 
 	.arrow-line {
-		stroke: var(--color-gray-600, #666);
+		stroke: var(--annotation-arrow);
 		stroke-width: 1;
 	}
 
 	/* the leader crosses live chart lines and SVG has no text-shadow to lean on,
 	   so the halo is a fatter pass of the same path underneath it */
 	.arrow-halo {
-		stroke: var(--color-bg, #fff);
+		stroke: var(--surface-holdout);
 		stroke-width: 3.5;
 	}
 
 	.arrow-head {
-		fill: var(--color-gray-600, #666);
+		fill: var(--annotation-arrow);
 		/* its own halo, same reason as the line's — and paint-order keeps the
 		   stroke behind the fill so it haloes the head instead of thinning it */
-		stroke: var(--color-bg, #fff);
+		stroke: var(--surface-holdout);
 		stroke-width: 1.5;
 		paint-order: stroke fill;
 	}
@@ -3095,10 +3098,10 @@
 	   class plus a type, so it out-specifies a lone class and its --font-mono
 	   silently wins. */
 	.overlay p.callout-note {
-		font-family: var(--font-form);
-		font-size: var(--12px, 12px);
+		font-family: var(--type-callout-family);
+		font-size: var(--12px);
 		line-height: 1.35;
-		color: var(--color-gray-900, #222);
+		color: var(--annotation-callout-note);
 		/* three or four lines sitting over the chasing field, which would
 		   otherwise show through the counters */
 		text-shadow: var(--text-halo);
@@ -3119,7 +3122,7 @@
 
 	.note.strong {
 		font-weight: 700;
-		color: var(--color-gray-900, #222);
+		color: var(--annotation-note-strong);
 	}
 
 	.tick-y {
@@ -3135,7 +3138,7 @@
 	   reach left from just outside the plot's left edge (anchored at yMarkX) */
 	.tick-mark {
 		position: absolute;
-		background: var(--color-gray-500, #888);
+		background: var(--chart-tick-mark);
 	}
 
 	.tick-mark-x {
@@ -3160,7 +3163,7 @@
 
 	.note {
 		font-size: 0.75rem;
-		color: var(--color-gray-700, #444);
+		color: var(--annotation-note);
 		white-space: nowrap;
 		text-shadow: var(--text-halo);
 	}
@@ -3194,7 +3197,7 @@
 		left: 0;
 		font-size: 0.75rem;
 		font-style: italic;
-		color: var(--color-gray-500, #888);
+		color: var(--chart-axis-hint);
 		text-shadow: var(--text-halo);
 		/* same rotated column as .y-label, so "lower"/"Remoteness"/"higher"
 		   read as one vertical line; rotate INSIDE transform (see .y-label) */
@@ -3221,8 +3224,8 @@
 		padding: 0;
 		list-style: none;
 		white-space: nowrap;
-		font-family: var(--font-mono);
-		letter-spacing: var(--tracking-mono);
+		font-family: var(--type-chart-family);
+		letter-spacing: var(--type-chart-tracking);
 	}
 
 	.legend-item {
@@ -3230,7 +3233,7 @@
 		align-items: center;
 		gap: 0.3rem;
 		font-size: 0.75rem;
-		color: var(--color-gray-700, #444);
+		color: var(--chart-legend);
 		white-space: nowrap;
 	}
 

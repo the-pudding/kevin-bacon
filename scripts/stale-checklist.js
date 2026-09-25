@@ -12,7 +12,8 @@
 // either side; an over-canvas panel stales the steps that mount it (RankBars is
 // mounted by Stage.svelte across the rank chapter and raceRecent); anything else
 // under src/components/scrolly/ that draws — the buffers, the visual and its
-// modules, the state registry — stales the whole table; navigation chrome, the
+// modules, the state registry — stales the whole table, as does the canvas's
+// generated palette (src/styles/tokens.js, the mark.* colour tokens); navigation chrome, the
 // dev tuners and the tests stale nothing. A change to Index.svelte is checked
 // against the table's numbering, since a <Step> added, removed or reordered
 // renumbers every row after it. Only Owen signs a row off ([x]); this only ever
@@ -25,6 +26,8 @@ const ROOT = new URL("../", import.meta.url);
 export const INDEX = "src/components/Index.svelte";
 export const CHECKLIST = "notes/tween-checklist.md";
 const SCROLLY = "src/components/scrolly/";
+/** the mark.* colour tokens as rgb, which every canvas state draws with */
+const CANVAS_TOKENS = "src/styles/tokens.js";
 /** components that are the story's chrome, not its canvas */
 const CHROME = new Set(["TapNav", "StepProgress", "Step", "Chapter", "Splash"]);
 /** the panel Stage.svelte mounts itself, and the states it is up for */
@@ -130,6 +133,7 @@ function stepsMounting(name, steps) {
  * @returns {Set<number> | "all"}
  */
 export function affectedSteps(file, steps, statesOf) {
+	if (file === CANVAS_TOKENS) return "all";
 	if (!file.startsWith(SCROLLY)) return new Set();
 	const rel = file.slice(SCROLLY.length);
 	const layout = rel.match(/^layouts\/([\w-]+)\.js$/);

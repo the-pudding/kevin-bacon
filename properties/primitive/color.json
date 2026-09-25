@@ -53,6 +53,20 @@
 		},
 		"yellow": {
 			"value": "oklch(0.8897 0.1781 108.83)"
+		},
+		"ink": {
+			"value": "#222222",
+			"comment": "the canvas's near-black: dots, routes and the rings drawn over them"
+		},
+		"edge": {
+			"value": "#787878",
+			"comment": "network links at rest"
+		},
+		"debug-blue": {
+			"value": "rgb(59 130 246)"
+		},
+		"debug-red": {
+			"value": "rgb(239 68 68)"
 		}
 	}
 }

@@ -61,11 +61,11 @@
 	}
 
 	figcaption {
-		font-family: var(--font-mono);
-		font-size: var(--12px, 0.75rem);
+		font-family: var(--type-chart-family);
+		font-size: var(--12px);
 		text-transform: uppercase;
-		letter-spacing: var(--tracking-mono);
-		color: var(--color-fg-light);
+		letter-spacing: var(--type-chart-tracking);
+		color: var(--chart-result-label);
 		margin-bottom: 0.6rem;
 		text-align: left;
 	}
@@ -91,10 +91,10 @@
 
 	.key,
 	.val {
-		font-family: var(--font-mono);
-		letter-spacing: var(--tracking-mono);
-		font-size: var(--12px, 0.75rem);
-		color: var(--color-fg);
+		font-family: var(--type-chart-family);
+		letter-spacing: var(--type-chart-tracking);
+		font-size: var(--12px);
+		color: var(--chart-result-key);
 		/* the same halo as .credits-block p: this sits over the drifting dot
 		   field, not over a plain background */
 		text-shadow: var(--text-halo);
@@ -106,7 +106,7 @@
 
 	.val {
 		text-align: right;
-		color: var(--color-fg-light);
+		color: var(--chart-result-value);
 	}
 
 	/* the track carries its own background for the same reason the labels carry
@@ -117,14 +117,14 @@
 		height: 0.85rem;
 		border-radius: 2rem;
 		overflow: hidden;
-		background: color-mix(in srgb, var(--color-bg) 78%, transparent);
+		background: var(--chart-result-track);
 	}
 
 	.fill {
 		display: block;
 		height: 100%;
 		border-radius: 2rem;
-		background: color-mix(in srgb, var(--color-fg) 22%, transparent);
+		background: var(--chart-result-fill);
 		transition: width 900ms cubic-bezier(0.65, 0, 0.35, 1);
 	}
 
@@ -135,13 +135,13 @@
 	}
 
 	.mine .fill {
-		background: var(--color-primary);
+		background: var(--chart-result-fill-mine);
 	}
 
 	.mine .key,
 	.mine .val {
 		font-weight: 700;
-		color: var(--color-fg);
+		color: var(--chart-result-value-mine);
 	}
 
 	/* no JS clock to coordinate here, unlike PairQuiz's flight, so the

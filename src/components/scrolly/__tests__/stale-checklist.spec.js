@@ -128,7 +128,8 @@ describe("affectedSteps", () => {
 			"src/components/scrolly/ScrollyVisual.svelte",
 			"src/components/scrolly/Stage.svelte",
 			"src/components/scrolly/states.js",
-			"src/components/scrolly/render.js"
+			"src/components/scrolly/render.js",
+			"src/styles/tokens.js"
 		]) {
 			expect(affectedSteps(file, steps, statesOf)).toBe("all");
 		}

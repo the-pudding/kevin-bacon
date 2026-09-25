@@ -1,0 +1,45 @@
+{
+	"annotation": {
+		"text": {
+			"value": "{color.gray-600}",
+			"comment": "an over-canvas paragraph at rest",
+			"contrast": { "against": "surface.page", "min": 4.5 }
+		},
+		"note": {
+			"value": "{color.gray-700}",
+			"contrast": { "against": "surface.page", "min": 4.5 }
+		},
+		"note-strong": {
+			"value": "{color.gray-900}",
+			"contrast": { "against": "surface.page", "min": 4.5 }
+		},
+		"callout-note": {
+			"value": "{color.gray-900}",
+			"contrast": { "against": "surface.page", "min": 4.5 }
+		},
+		"callout-mark": {
+			"value": "{color.gray-700}",
+			"comment": "the ring a callout draws round its dot",
+			"contrast": { "against": "surface.page", "min": 3 }
+		},
+		"arrow": {
+			"value": "{color.gray-600}",
+			"comment": "an annotation arrow's line and head",
+			"contrast": { "against": "surface.page", "min": 3 }
+		},
+		"pulse-ring": {
+			"value": "{color.ink}",
+			"modify": { "alpha": 0.45 },
+			"contrast": {
+				"exempt": "a transient attention pulse round a dot that is already drawn"
+			}
+		},
+		"hit-pressed": {
+			"value": "{color.ink}",
+			"modify": { "alpha": 0.05 },
+			"contrast": {
+				"exempt": "a pressed-state tint; aria-pressed and the dot's own change carry the state"
+			}
+		}
+	}
+}

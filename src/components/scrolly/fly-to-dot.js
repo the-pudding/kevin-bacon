@@ -31,9 +31,6 @@ const DOT_DIAMETER = 11;
 
 const EASE = "cubic-bezier(0.65, 0, 0.35, 1)";
 
-/** `rgb(r, g, b)` from a palette triple */
-export const rgb = (c) => `rgb(${c.join(", ")})`;
-
 /**
  * Does this reader want the flight at all? Read at the moment of the press
  * rather than tracked: the only question ever asked of it is "should THIS pick
@@ -69,9 +66,9 @@ export function flyToDot({ el, rect, target, fill }) {
 		[
 			{
 				transform: "translate(0, 0) scale(1, 1)",
-				backgroundColor: "var(--color-bg, #fff)",
+				backgroundColor: "var(--surface-raised)",
 				borderColor: fill,
-				color: "var(--color-fg, #282828)",
+				color: "var(--prose-fg)",
 				borderRadius: "2rem"
 			},
 			{

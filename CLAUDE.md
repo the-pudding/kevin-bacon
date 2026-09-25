@@ -8,15 +8,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Dev server: `npm run dev`
 - Build (static site to `build/`): `npm run build`
 - Preview a production build: `npm run preview`
-- Lint (Prettier check, then ESLint per `eslint.config.js`): `npm run lint`
+- Lint (Prettier check, then ESLint per `eslint.config.js`, then Stylelint per `stylelint.config.js`): `npm run lint`
 - Test (vitest): `npm run test`. Regenerate the layout goldens after an intentional layout change: `npx vitest run -u`
 - Stale the tween checklist's rows from the staged diff: `npm run stale` (`--check` only reports; the pre-commit gate runs it)
 - Contact sheet of one step transition, frame by frame on a faked clock: `npm run sheet -- <from> <to>` (both directions, mobile box; `--box desktop|wide`, `--click Start` for a gated step). Output under `sheets/`, gitignored. The `tween-sheet` skill is the workflow.
-- All quality gates as CI runs them (lint, svelte-check, vitest): `npm run gates`
+- All quality gates as CI runs them (lint, the design tokens' build check, svelte-check, vitest): `npm run gates`
+- WCAG colour contrast of the rendered page at every step (axe-core on a dev server): `npm run a11y` (`--box`, `--steps`)
 - Format: `npm run format`
 - Sync Google Docs/Sheets micro-CMS content into `src/data` (per `google.config.js`): `npm run gdoc`
 - Rebuild the story data from the analysis repo: `ANALYSIS_REPO=<path> npm run scrolly-data`. The env var is required — the script never guesses where the analysis checkout is, since a stale path would silently rebuild the committed data from the wrong inputs. Rarely needed: the output is committed.
-- Regenerate CSS/JS design tokens from `properties/` via Style Dictionary: `npm run style`
+- Regenerate the design tokens from `properties/` via Style Dictionary (`variables.css`, the canvas's `tokens.js`, the contrast spec's `tokens.json`): `npm run style`
 - Deploy to GitHub Pages (builds, then `rm -rf docs && cp -r build docs`, commits, pushes): `npm run staging`
 - Deploy to production/AWS (pudding.cool): `npm run prodution` (typo preserved as-is in `package.json`)
 - Password-protect a build (requires `.env` with `PASSWORD=...`): `make protect`, then `make github` or `make pudding`
@@ -65,11 +66,11 @@ This is The Pudding's `svelte-starter` template (SvelteKit 2 + Svelte 5 with run
 - **Path aliases** (defined in both `vite.config.js` and `jsconfig.json`): `$actions`, `$components`, `$data`, `$routes`, `$runes`, `$styles`, `$utils` all resolve into `src/`.
 - **Data flow**: small datasets can be imported directly (CSV via `@rollup/plugin-dsv`, JSON, SVG); anything needing server-side processing goes through `+page.server.js`, which returns data consumed in `+page.svelte` and exposed to components via `getContext("data")`.
 - **Micro-CMS**: `google.config.js` lists Google Docs/Sheets to pull in via `npm run gdoc`, parsed with ArchieML and written into `src/data`.
-- **Styling**: global styles live in `src/styles` and are pulled into `app.css`; design tokens are authored in `properties/` and compiled to CSS/JS via Style Dictionary (`npm run style`).
+- **Styling**: global styles live in `src/styles` and are pulled into `app.css`; every colour and font is a design token authored in `properties/` (primitives, then role groups: surface, prose, chart, annotation, mark, control, type) and compiled via Style Dictionary (`npm run style`) — components read role tokens only, which Stylelint and ESLint enforce. See `notes/design/tokens.md`.
 - **Component layers** under `src/components/`:
   - `scrolly/` — the story's object-constancy visual framework (canvas dots tweening between per-step layout states, driven by the active step index from `scrolly/TapNav.svelte` through the step registry, `scrolly/step-registry.svelte.js`, which `Index.svelte` creates). `scrolly/Stage.svelte` is the layout shell — the canvas, the over-canvas panels, the prose column and the navigation — and `Index.svelte` is the prose and the `<Step>` list. Architecture and contracts documented in `notes/scrolly-framework.md` (the map) and `notes/design/` (per-chart reasoning) — read the map before touching these files.
   - `helpers/` — the CMS helpers and `Tip.svelte`. The story's step driver is not here: it is `scrolly/TapNav.svelte` (tap gutters + arrow keys) against the registry `Index.svelte` creates.
-  - `ui/` — bits-ui-based headless UI wrappers (Button, Checkbox, InfoTerm, Select, Slider, Switch, ToggleGroup). Each is styled from a global `src/styles/ui.<name>.css` that must be `@import`ed by `src/styles/ui.css`, not from a scoped `<style>` block.
+  - `ui/` — bits-ui-based headless UI wrappers (Button, Checkbox, InfoTerm, Select, Slider, ToggleGroup). Each is styled from a global `src/styles/ui.<name>.css` that must be `@import`ed by `src/styles/ui.css`, not from a scoped `<style>` block.
 - `src/runes/` — Svelte 5 rune-based state utilities (`useWindowDimensions`, `useClipboard`, `useFetcher`, `useWindowFocus`); the `runed` package is also preloaded for more.
 - `src/actions/` — Svelte actions (`canTab`, `checkOverlap`, `focusTrap`, `keepWithinBox`, `inView`, `resize`).
 - `src/utils/` — plain JS helpers (CSV/JSON/image loading, localStorage, URL params, transforms).

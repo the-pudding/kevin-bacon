@@ -36,6 +36,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { parseArgs } from "node:util";
 import { chromium } from "playwright";
+import { startVite, waitForStory } from "./lib/story-page.js";
 
 const BOXES = {
 	mobile: { w: 375, h: 667, cols: 5, scale: 1 },
@@ -124,16 +125,6 @@ function moves({ from, to, dir, click }) {
 	return [fwd, back];
 }
 
-async function startVite() {
-	const { createServer } = await import("vite");
-	const server = await createServer({
-		server: { port: 0, host: "127.0.0.1" },
-		logLevel: "error"
-	});
-	await server.listen();
-	return { url: server.resolvedUrls.local[0], close: () => server.close() };
-}
-
 /**
  * The page's timeline once the clock is paused: `advance` moves the faked clock
  * and the compositor's animations together, and `elapsed` is where it has got
@@ -212,10 +203,7 @@ async function openAt(browser, base, move, opts) {
 		await page.addInitScript(SEEK_ANIMATIONS);
 	}
 	await page.goto(`${base}?step=${move.from}`);
-	// the next control: a tap half stacked, an edge notch beside the prose
-	await page.waitForSelector(".tap-half.next, .notch.next");
-	await page.waitForSelector(".scrolly-visual canvas");
-	await page.evaluate(() => document.fonts.ready);
+	await waitForStory(page);
 	if (!opts.realClock) await page.clock.pauseAt(PAUSE_AT);
 	const time = opts.realClock ? realTimeline(page) : timeline(page);
 	await time.advance(opts.settle);

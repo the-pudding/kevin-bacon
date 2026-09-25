@@ -38,6 +38,6 @@
 	}
 
 	.halo-flood {
-		flood-color: var(--color-bg);
+		flood-color: var(--surface-holdout);
 	}
 </style>

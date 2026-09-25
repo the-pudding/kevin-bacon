@@ -1,0 +1,46 @@
+{
+	"type": {
+		"prose": {
+			"family": { "value": "{font.serif}", "comment": "body copy" }
+		},
+		"heading": {
+			"family": {
+				"value": "{font.serif}",
+				"comment": "the splash title and subtitle, the credits' headings"
+			}
+		},
+		"ui": {
+			"family": {
+				"value": "{font.sans}",
+				"comment": "form controls, the byline, the nav cue"
+			}
+		},
+		"chart": {
+			"family": {
+				"value": "{font.mono}",
+				"comment": "graph labels and data readouts: names, legends, ranks, results, the scrubber year, the route listing"
+			},
+			"tracking": { "value": "{tracking.mono}" }
+		},
+		"annotation": {
+			"family": { "value": "{font.mono}", "comment": "over-canvas notes" },
+			"tracking": { "value": "{tracking.mono}" }
+		},
+		"callout": {
+			"family": {
+				"value": "{font.sans}",
+				"comment": "a callout's note on the race chart"
+			}
+		},
+		"chip": {
+			"family": {
+				"value": "{font.mono}",
+				"comment": "quiz cards, search chips and the search box's readouts"
+			},
+			"tracking": { "value": "{tracking.mono}" }
+		},
+		"dev": {
+			"family": { "value": "{font.mono}" }
+		}
+	}
+}

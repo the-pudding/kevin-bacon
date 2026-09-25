@@ -1,6 +1,6 @@
 /* CHECKBOX */
 .bits-checkbox {
-	font-family: var(--font-form);
+	font-family: var(--type-ui-family);
 }
 
 .bits-checkbox [data-checkbox-root] {
@@ -10,7 +10,7 @@
 	justify-content: center;
 	width: var(--size);
 	height: var(--size);
-	border: 1.5px solid var(--color-fg-light);
+	border: 1.5px solid var(--prose-muted);
 	border-radius: var(--radius-xs);
 	background: transparent;
 	cursor: pointer;
@@ -25,8 +25,8 @@
 }
 
 .bits-checkbox [data-checkbox-root][data-state="checked"] {
-	background: var(--color-button-bg-primary);
-	border-color: var(--color-button-bg-primary);
+	background: var(--control-button-primary-bg);
+	border-color: var(--control-button-primary-bg);
 }
 
 .bits-checkbox [data-checkbox-root][data-state="checked"]::after {
@@ -34,7 +34,7 @@
 	display: block;
 	width: 0.3em;
 	height: 0.55em;
-	border: solid var(--color-button-fg-primary);
+	border: solid var(--control-button-primary-fg);
 	border-width: 0 2px 2px 0;
 	transform: rotate(45deg) translateY(-0.05em);
 }

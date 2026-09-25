@@ -2,12 +2,17 @@
 // nothing keeps every hash; an intentional layout change regenerates its
 // golden in the same commit (`vitest run -u`). Layouts are also checked to be
 // pure — the render layer caches them on (state, box, params) and assumes so.
+//
+// Colour is hashed apart from everything else (`colour`), so a palette change
+// — a token edit in properties/role/mark.json — regenerates only colour
+// hashes, and every other hash staying put is the proof that nothing moved.
 import { describe, expect, test } from "vitest";
 import { STATES } from "../states.js";
 import { SIM_N_SIMS } from "../layouts/sim-race.js";
 import { INTRO_IDS } from "../nodes.js";
 import { SLJ } from "../cast.js";
 import { SEARCH_POOL } from "../search.js";
+import { STRIDE } from "../attr-buffer.js";
 import {
 	BOXES,
 	buildLayout,
@@ -76,19 +81,53 @@ function variants(state) {
 	return [...seen.entries()];
 }
 
+/** a slot's red, green and blue channels, after x, y and r */
+const RGB = [3, 4, 5];
+/** decor keys that name a colour; `ink` is also a numeric highlight weight */
+const COLOUR_KEYS = new Set(["color", "rgb", "ink"]);
+
+/** the attrs buffer split into its rgb channels and everything else */
+function splitAttrs(attrs) {
+	const rgb = [];
+	const rest = [];
+	attrs.forEach((v, i) => (RGB.includes(i % STRIDE) ? rgb : rest).push(v));
+	return { rgb: Float64Array.from(rgb), rest: Float64Array.from(rest) };
+}
+
+/** decor as JSON with its colour values lifted out, and those values */
+function splitDecor(decor) {
+	const colours = [];
+	const shape = JSON.stringify(decor, (key, value) => {
+		if (!COLOUR_KEYS.has(key) || typeof value === "number") return value;
+		colours.push(value);
+		return undefined;
+	});
+	return { shape, colours: JSON.stringify(colours) };
+}
+
 /** the layout's whole output, as hashes — buffers by bytes, decor by JSON */
 function summarise(layout) {
 	const { attrs, trails, delays, paramWalk, trailDelays, ...decor } = layout;
+	const { rgb, rest } = splitAttrs(attrs);
+	const clear = paramWalk && splitAttrs(paramWalk.clear);
+	const { shape, colours } = splitDecor(decor);
 	return {
-		attrs: hashOf(attrs),
+		attrs: hashOf(rest),
+		colour: hashOf(
+			Buffer.concat([
+				Buffer.from(rgb.buffer),
+				...(clear ? [Buffer.from(clear.rgb.buffer)] : []),
+				Buffer.from(colours)
+			])
+		),
 		trails: trails ? hashOf(trails) : null,
 		delays: delays ? hashOf(delays) : null,
 		trailDelays: trailDelays ? hashOf(trailDelays) : null,
-		decor: hashOf(Buffer.from(JSON.stringify(decor))),
+		decor: hashOf(Buffer.from(shape)),
 		// only the layouts that author a retarget schedule carry the key
 		...(paramWalk && {
 			paramWalk: {
-				clear: hashOf(paramWalk.clear),
+				clear: hashOf(clear.rest),
 				fadeMs: paramWalk.fadeMs,
 				ms: paramWalk.ms,
 				windows: hashOf(paramWalk.windows),

@@ -2,7 +2,8 @@
 
 exports[`layout goldens > careerBacon {"searchId":105} @beside 1`] = `
 {
-  "attrs": "a441dd0f1e3c436b",
+  "attrs": "79d65af75898db55",
+  "colour": "dc7a69237f57352e",
   "decor": "7b99d7164640466b",
   "delays": null,
   "trailDelays": "7a078e112ae41257",
@@ -12,7 +13,8 @@ exports[`layout goldens > careerBacon {"searchId":105} @beside 1`] = `
 
 exports[`layout goldens > careerBacon {"searchId":105} @phone 1`] = `
 {
-  "attrs": "bc18463551eff043",
+  "attrs": "8990ab2fdc32086a",
+  "colour": "dc7a69237f57352e",
   "decor": "3d88ed0a8bc041bd",
   "delays": null,
   "trailDelays": "7a078e112ae41257",
@@ -22,7 +24,8 @@ exports[`layout goldens > careerBacon {"searchId":105} @phone 1`] = `
 
 exports[`layout goldens > careerBacon {"searchId":105} @stacked 1`] = `
 {
-  "attrs": "72794f1f81961a6a",
+  "attrs": "d6bc9bddca2abe70",
+  "colour": "dc7a69237f57352e",
   "decor": "64fd7b24808b70fc",
   "delays": null,
   "trailDelays": "7a078e112ae41257",
@@ -32,7 +35,8 @@ exports[`layout goldens > careerBacon {"searchId":105} @stacked 1`] = `
 
 exports[`layout goldens > careerBacon {"searchId":null} @beside 1`] = `
 {
-  "attrs": "42dfa00455a8314d",
+  "attrs": "5d5041ca83d2172e",
+  "colour": "08b6aa8d320f49e1",
   "decor": "7b99d7164640466b",
   "delays": null,
   "trailDelays": "7a078e112ae41257",
@@ -42,7 +46,8 @@ exports[`layout goldens > careerBacon {"searchId":null} @beside 1`] = `
 
 exports[`layout goldens > careerBacon {"searchId":null} @phone 1`] = `
 {
-  "attrs": "2fead93516f365f3",
+  "attrs": "a8b0dbbfd6dc82e8",
+  "colour": "08b6aa8d320f49e1",
   "decor": "3d88ed0a8bc041bd",
   "delays": null,
   "trailDelays": "7a078e112ae41257",
@@ -52,7 +57,8 @@ exports[`layout goldens > careerBacon {"searchId":null} @phone 1`] = `
 
 exports[`layout goldens > careerBacon {"searchId":null} @stacked 1`] = `
 {
-  "attrs": "463bcf060c117e56",
+  "attrs": "4f2243e2efc91d15",
+  "colour": "08b6aa8d320f49e1",
   "decor": "64fd7b24808b70fc",
   "delays": null,
   "trailDelays": "7a078e112ae41257",
@@ -62,7 +68,8 @@ exports[`layout goldens > careerBacon {"searchId":null} @stacked 1`] = `
 
 exports[`layout goldens > careerMany {"searchId":105} @beside 1`] = `
 {
-  "attrs": "09ee6cfdeefdb18a",
+  "attrs": "8b1ff2f3735b1cd9",
+  "colour": "fb88fd3ecfb31ad4",
   "decor": "7b99d7164640466b",
   "delays": null,
   "trailDelays": "e8e459a5709789ac",
@@ -72,7 +79,8 @@ exports[`layout goldens > careerMany {"searchId":105} @beside 1`] = `
 
 exports[`layout goldens > careerMany {"searchId":105} @phone 1`] = `
 {
-  "attrs": "b22cb21149d910c4",
+  "attrs": "d493e32fb25d6aa6",
+  "colour": "fb88fd3ecfb31ad4",
   "decor": "3d88ed0a8bc041bd",
   "delays": null,
   "trailDelays": "e8e459a5709789ac",
@@ -82,7 +90,8 @@ exports[`layout goldens > careerMany {"searchId":105} @phone 1`] = `
 
 exports[`layout goldens > careerMany {"searchId":105} @stacked 1`] = `
 {
-  "attrs": "b4ceb022f98bfe34",
+  "attrs": "b1c6e44551e5ce73",
+  "colour": "fb88fd3ecfb31ad4",
   "decor": "64fd7b24808b70fc",
   "delays": null,
   "trailDelays": "e8e459a5709789ac",
@@ -92,7 +101,8 @@ exports[`layout goldens > careerMany {"searchId":105} @stacked 1`] = `
 
 exports[`layout goldens > careerMany {"searchId":null} @beside 1`] = `
 {
-  "attrs": "316eb2eb54b0c6b0",
+  "attrs": "2f5d1bfaef6f012c",
+  "colour": "5f5ece06abfb86fd",
   "decor": "7b99d7164640466b",
   "delays": null,
   "trailDelays": "e8e459a5709789ac",
@@ -102,7 +112,8 @@ exports[`layout goldens > careerMany {"searchId":null} @beside 1`] = `
 
 exports[`layout goldens > careerMany {"searchId":null} @phone 1`] = `
 {
-  "attrs": "f8be008efc0a5725",
+  "attrs": "25729eb51b568e24",
+  "colour": "5f5ece06abfb86fd",
   "decor": "3d88ed0a8bc041bd",
   "delays": null,
   "trailDelays": "e8e459a5709789ac",
@@ -112,7 +123,8 @@ exports[`layout goldens > careerMany {"searchId":null} @phone 1`] = `
 
 exports[`layout goldens > careerMany {"searchId":null} @stacked 1`] = `
 {
-  "attrs": "c0c73e66d0bbcceb",
+  "attrs": "ddfe16b17b90229d",
+  "colour": "5f5ece06abfb86fd",
   "decor": "64fd7b24808b70fc",
   "delays": null,
   "trailDelays": "e8e459a5709789ac",
@@ -122,7 +134,8 @@ exports[`layout goldens > careerMany {"searchId":null} @stacked 1`] = `
 
 exports[`layout goldens > careerTrio {"searchId":105} @beside 1`] = `
 {
-  "attrs": "09ee6cfdeefdb18a",
+  "attrs": "8b1ff2f3735b1cd9",
+  "colour": "fb88fd3ecfb31ad4",
   "decor": "7b99d7164640466b",
   "delays": null,
   "trailDelays": "6e76de75dd4a66ba",
@@ -132,7 +145,8 @@ exports[`layout goldens > careerTrio {"searchId":105} @beside 1`] = `
 
 exports[`layout goldens > careerTrio {"searchId":105} @phone 1`] = `
 {
-  "attrs": "b22cb21149d910c4",
+  "attrs": "d493e32fb25d6aa6",
+  "colour": "fb88fd3ecfb31ad4",
   "decor": "3d88ed0a8bc041bd",
   "delays": null,
   "trailDelays": "6e76de75dd4a66ba",
@@ -142,7 +156,8 @@ exports[`layout goldens > careerTrio {"searchId":105} @phone 1`] = `
 
 exports[`layout goldens > careerTrio {"searchId":105} @stacked 1`] = `
 {
-  "attrs": "b4ceb022f98bfe34",
+  "attrs": "b1c6e44551e5ce73",
+  "colour": "fb88fd3ecfb31ad4",
   "decor": "64fd7b24808b70fc",
   "delays": null,
   "trailDelays": "6e76de75dd4a66ba",
@@ -152,7 +167,8 @@ exports[`layout goldens > careerTrio {"searchId":105} @stacked 1`] = `
 
 exports[`layout goldens > careerTrio {"searchId":null} @beside 1`] = `
 {
-  "attrs": "316eb2eb54b0c6b0",
+  "attrs": "2f5d1bfaef6f012c",
+  "colour": "5f5ece06abfb86fd",
   "decor": "7b99d7164640466b",
   "delays": null,
   "trailDelays": "6e76de75dd4a66ba",
@@ -162,7 +178,8 @@ exports[`layout goldens > careerTrio {"searchId":null} @beside 1`] = `
 
 exports[`layout goldens > careerTrio {"searchId":null} @phone 1`] = `
 {
-  "attrs": "f8be008efc0a5725",
+  "attrs": "25729eb51b568e24",
+  "colour": "5f5ece06abfb86fd",
   "decor": "3d88ed0a8bc041bd",
   "delays": null,
   "trailDelays": "6e76de75dd4a66ba",
@@ -172,7 +189,8 @@ exports[`layout goldens > careerTrio {"searchId":null} @phone 1`] = `
 
 exports[`layout goldens > careerTrio {"searchId":null} @stacked 1`] = `
 {
-  "attrs": "c0c73e66d0bbcceb",
+  "attrs": "ddfe16b17b90229d",
+  "colour": "5f5ece06abfb86fd",
   "decor": "64fd7b24808b70fc",
   "delays": null,
   "trailDelays": "6e76de75dd4a66ba",
@@ -182,7 +200,8 @@ exports[`layout goldens > careerTrio {"searchId":null} @stacked 1`] = `
 
 exports[`layout goldens > degScatter {"searchId":105} @beside 1`] = `
 {
-  "attrs": "4d20c338f8d2acc3",
+  "attrs": "cc08c8f86cd24032",
+  "colour": "3bb0c763645d6d56",
   "decor": "107fa10bef7b5590",
   "delays": null,
   "trailDelays": null,
@@ -192,7 +211,8 @@ exports[`layout goldens > degScatter {"searchId":105} @beside 1`] = `
 
 exports[`layout goldens > degScatter {"searchId":105} @phone 1`] = `
 {
-  "attrs": "baf50653e651520f",
+  "attrs": "6e093f5938f3edf9",
+  "colour": "3bb0c763645d6d56",
   "decor": "e13a191c126757d1",
   "delays": null,
   "trailDelays": null,
@@ -202,7 +222,8 @@ exports[`layout goldens > degScatter {"searchId":105} @phone 1`] = `
 
 exports[`layout goldens > degScatter {"searchId":105} @stacked 1`] = `
 {
-  "attrs": "be9bc16e7cf60b5b",
+  "attrs": "465091e85879740b",
+  "colour": "3bb0c763645d6d56",
   "decor": "6cd3c2069bf2e706",
   "delays": null,
   "trailDelays": null,
@@ -212,7 +233,8 @@ exports[`layout goldens > degScatter {"searchId":105} @stacked 1`] = `
 
 exports[`layout goldens > degScatter {"searchId":null} @beside 1`] = `
 {
-  "attrs": "c8bf38cb158424c8",
+  "attrs": "a2834c1bd00a2dde",
+  "colour": "9920df70f2a8f9e6",
   "decor": "107fa10bef7b5590",
   "delays": null,
   "trailDelays": null,
@@ -222,7 +244,8 @@ exports[`layout goldens > degScatter {"searchId":null} @beside 1`] = `
 
 exports[`layout goldens > degScatter {"searchId":null} @phone 1`] = `
 {
-  "attrs": "c22552b8c6d80503",
+  "attrs": "8d9e9007b39b01ab",
+  "colour": "9920df70f2a8f9e6",
   "decor": "e13a191c126757d1",
   "delays": null,
   "trailDelays": null,
@@ -232,7 +255,8 @@ exports[`layout goldens > degScatter {"searchId":null} @phone 1`] = `
 
 exports[`layout goldens > degScatter {"searchId":null} @stacked 1`] = `
 {
-  "attrs": "bbc5e95b2149c4b9",
+  "attrs": "da853ad2ad82a259",
+  "colour": "9920df70f2a8f9e6",
   "decor": "6cd3c2069bf2e706",
   "delays": null,
   "trailDelays": null,
@@ -242,8 +266,9 @@ exports[`layout goldens > degScatter {"searchId":null} @stacked 1`] = `
 
 exports[`layout goldens > hopAnchor {"anchorId":0,"arriving":false} @beside 1`] = `
 {
-  "attrs": "d24cd8813c5231ad",
-  "decor": "e6d8412e00a64407",
+  "attrs": "1735b594ae83a0b7",
+  "colour": "36fc4407f8f127fd",
+  "decor": "67418b50cdb92eda",
   "delays": "81adf7d1bf8819f7",
   "trailDelays": null,
   "trails": null,
@@ -252,8 +277,9 @@ exports[`layout goldens > hopAnchor {"anchorId":0,"arriving":false} @beside 1`] 
 
 exports[`layout goldens > hopAnchor {"anchorId":0,"arriving":false} @phone 1`] = `
 {
-  "attrs": "6a1ffeb06a92b56c",
-  "decor": "2a27d120132687d0",
+  "attrs": "4d42dcdec6568e17",
+  "colour": "36fc4407f8f127fd",
+  "decor": "e79276245b20a2a2",
   "delays": "81adf7d1bf8819f7",
   "trailDelays": null,
   "trails": null,
@@ -262,8 +288,9 @@ exports[`layout goldens > hopAnchor {"anchorId":0,"arriving":false} @phone 1`] =
 
 exports[`layout goldens > hopAnchor {"anchorId":0,"arriving":false} @stacked 1`] = `
 {
-  "attrs": "8b31969ae0fe293b",
-  "decor": "f20d5e7891f7012b",
+  "attrs": "d73c20e933a27d17",
+  "colour": "36fc4407f8f127fd",
+  "decor": "21979002f110156c",
   "delays": "81adf7d1bf8819f7",
   "trailDelays": null,
   "trails": null,
@@ -272,8 +299,9 @@ exports[`layout goldens > hopAnchor {"anchorId":0,"arriving":false} @stacked 1`]
 
 exports[`layout goldens > hopAnchor {"anchorId":105,"arriving":false} @beside 1`] = `
 {
-  "attrs": "e1235735d23e91e4",
-  "decor": "489e57921ba2afbc",
+  "attrs": "c3ab2b53188edd15",
+  "colour": "633cb194c0a48b00",
+  "decor": "1c0b331edd957b95",
   "delays": "f8bc069d2e84086c",
   "trailDelays": null,
   "trails": null,
@@ -282,8 +310,9 @@ exports[`layout goldens > hopAnchor {"anchorId":105,"arriving":false} @beside 1`
 
 exports[`layout goldens > hopAnchor {"anchorId":105,"arriving":false} @phone 1`] = `
 {
-  "attrs": "862afa611f8a38fb",
-  "decor": "429064ca4c96cba6",
+  "attrs": "a6a91ade664e261e",
+  "colour": "0537929f43bb036a",
+  "decor": "7a9da37d660bc5fb",
   "delays": "743e57736a443af0",
   "trailDelays": null,
   "trails": null,
@@ -292,8 +321,9 @@ exports[`layout goldens > hopAnchor {"anchorId":105,"arriving":false} @phone 1`]
 
 exports[`layout goldens > hopAnchor {"anchorId":105,"arriving":false} @stacked 1`] = `
 {
-  "attrs": "bdf5fd523567f731",
-  "decor": "f6e0c23f65beca63",
+  "attrs": "4cd4c1ec5023df4c",
+  "colour": "f5b3aa23c5c32117",
+  "decor": "9670d39598052910",
   "delays": "cd51a73494f8ee30",
   "trailDelays": null,
   "trails": null,
@@ -302,8 +332,9 @@ exports[`layout goldens > hopAnchor {"anchorId":105,"arriving":false} @stacked 1
 
 exports[`layout goldens > hopAnchor {"anchorId":105,"arriving":true} @beside 1`] = `
 {
-  "attrs": "9b3202e0dbe81b8f",
-  "decor": "489e57921ba2afbc",
+  "attrs": "f794be256c4e3d6f",
+  "colour": "633cb194c0a48b00",
+  "decor": "1c0b331edd957b95",
   "delays": "f8bc069d2e84086c",
   "trailDelays": null,
   "trails": null,
@@ -312,8 +343,9 @@ exports[`layout goldens > hopAnchor {"anchorId":105,"arriving":true} @beside 1`]
 
 exports[`layout goldens > hopAnchor {"anchorId":105,"arriving":true} @phone 1`] = `
 {
-  "attrs": "e6d3df089bc793bb",
-  "decor": "429064ca4c96cba6",
+  "attrs": "a288f53fe0bf50c7",
+  "colour": "0537929f43bb036a",
+  "decor": "7a9da37d660bc5fb",
   "delays": "743e57736a443af0",
   "trailDelays": null,
   "trails": null,
@@ -322,8 +354,9 @@ exports[`layout goldens > hopAnchor {"anchorId":105,"arriving":true} @phone 1`] 
 
 exports[`layout goldens > hopAnchor {"anchorId":105,"arriving":true} @stacked 1`] = `
 {
-  "attrs": "f6771a10172a1414",
-  "decor": "f6e0c23f65beca63",
+  "attrs": "45394e619316c2f9",
+  "colour": "f5b3aa23c5c32117",
+  "decor": "9670d39598052910",
   "delays": "cd51a73494f8ee30",
   "trailDelays": null,
   "trails": null,
@@ -332,8 +365,9 @@ exports[`layout goldens > hopAnchor {"anchorId":105,"arriving":true} @stacked 1`
 
 exports[`layout goldens > hopBands null @beside 1`] = `
 {
-  "attrs": "39fea7a3c8a8e73c",
-  "decor": "e6d8412e00a64407",
+  "attrs": "23fc9cf9f6834ee1",
+  "colour": "862345be28f1acd5",
+  "decor": "67418b50cdb92eda",
   "delays": "81adf7d1bf8819f7",
   "trailDelays": null,
   "trails": null,
@@ -342,8 +376,9 @@ exports[`layout goldens > hopBands null @beside 1`] = `
 
 exports[`layout goldens > hopBands null @phone 1`] = `
 {
-  "attrs": "e7cb47544743b203",
-  "decor": "2a27d120132687d0",
+  "attrs": "21297e898bd438ec",
+  "colour": "450941ab62e9a4d7",
+  "decor": "e79276245b20a2a2",
   "delays": "81adf7d1bf8819f7",
   "trailDelays": null,
   "trails": null,
@@ -352,8 +387,9 @@ exports[`layout goldens > hopBands null @phone 1`] = `
 
 exports[`layout goldens > hopBands null @stacked 1`] = `
 {
-  "attrs": "1866ea9753316b3c",
-  "decor": "f20d5e7891f7012b",
+  "attrs": "5ee64f0dde4f9dec",
+  "colour": "862345be28f1acd5",
+  "decor": "21979002f110156c",
   "delays": "81adf7d1bf8819f7",
   "trailDelays": null,
   "trails": null,
@@ -362,7 +398,8 @@ exports[`layout goldens > hopBands null @stacked 1`] = `
 
 exports[`layout goldens > hopSeed null @beside 1`] = `
 {
-  "attrs": "49bda4dc7a4ea921",
+  "attrs": "d0989fbd17942022",
+  "colour": "9920df70f2a8f9e6",
   "decor": "bf21a9e8fbc5a384",
   "delays": null,
   "trailDelays": null,
@@ -372,7 +409,8 @@ exports[`layout goldens > hopSeed null @beside 1`] = `
 
 exports[`layout goldens > hopSeed null @phone 1`] = `
 {
-  "attrs": "78186a5ab1b0b22b",
+  "attrs": "58f7e2c3962f93e2",
+  "colour": "9920df70f2a8f9e6",
   "decor": "bf21a9e8fbc5a384",
   "delays": null,
   "trailDelays": null,
@@ -382,7 +420,8 @@ exports[`layout goldens > hopSeed null @phone 1`] = `
 
 exports[`layout goldens > hopSeed null @stacked 1`] = `
 {
-  "attrs": "d6348d9361ca9bdb",
+  "attrs": "8525606fa6f6c2ec",
+  "colour": "9920df70f2a8f9e6",
   "decor": "bf21a9e8fbc5a384",
   "delays": null,
   "trailDelays": null,
@@ -392,11 +431,12 @@ exports[`layout goldens > hopSeed null @stacked 1`] = `
 
 exports[`layout goldens > networkIntro {"focus":3} @beside 1`] = `
 {
-  "attrs": "159b3a141f9c032e",
+  "attrs": "f0f67ecc6e375732",
+  "colour": "53060390b1794711",
   "decor": "d05ae7ffdc3cae20",
   "delays": "3af643a145dbf304",
   "paramWalk": {
-    "clear": "e7d696949a744152",
+    "clear": "d90902e843615224",
     "fadeMs": 400,
     "labelAt": [],
     "ms": 701,
@@ -409,11 +449,12 @@ exports[`layout goldens > networkIntro {"focus":3} @beside 1`] = `
 
 exports[`layout goldens > networkIntro {"focus":3} @phone 1`] = `
 {
-  "attrs": "94d463ad9a4d0e9c",
+  "attrs": "c5043da7745d300a",
+  "colour": "53060390b1794711",
   "decor": "ace78b214483d2e1",
   "delays": "3af643a145dbf304",
   "paramWalk": {
-    "clear": "2486ade13d33b1a1",
+    "clear": "9b445d8fe098a2c3",
     "fadeMs": 400,
     "labelAt": [],
     "ms": 701,
@@ -426,11 +467,12 @@ exports[`layout goldens > networkIntro {"focus":3} @phone 1`] = `
 
 exports[`layout goldens > networkIntro {"focus":3} @stacked 1`] = `
 {
-  "attrs": "0b8320caaf9280fa",
+  "attrs": "c9217cf52d1ce396",
+  "colour": "53060390b1794711",
   "decor": "0796d37cb912cc4e",
   "delays": "3af643a145dbf304",
   "paramWalk": {
-    "clear": "e2c9d741fc50e3fe",
+    "clear": "d5921ac4bb6b2195",
     "fadeMs": 400,
     "labelAt": [],
     "ms": 701,
@@ -443,7 +485,8 @@ exports[`layout goldens > networkIntro {"focus":3} @stacked 1`] = `
 
 exports[`layout goldens > networkIntro {"focus":null} @beside 1`] = `
 {
-  "attrs": "194fc16fb35ff4c1",
+  "attrs": "48d8e0391475ac11",
+  "colour": "7a5f28e5224f75ed",
   "decor": "b2d4b14b84f928d7",
   "delays": "3af643a145dbf304",
   "trailDelays": null,
@@ -453,7 +496,8 @@ exports[`layout goldens > networkIntro {"focus":null} @beside 1`] = `
 
 exports[`layout goldens > networkIntro {"focus":null} @phone 1`] = `
 {
-  "attrs": "bc6c8d3efe394f5a",
+  "attrs": "15373dd1ae7a3a34",
+  "colour": "7a5f28e5224f75ed",
   "decor": "de5b76dbda656f3b",
   "delays": "3af643a145dbf304",
   "trailDelays": null,
@@ -463,7 +507,8 @@ exports[`layout goldens > networkIntro {"focus":null} @phone 1`] = `
 
 exports[`layout goldens > networkIntro {"focus":null} @stacked 1`] = `
 {
-  "attrs": "4846e820ab18ae4b",
+  "attrs": "37408d7c97c25694",
+  "colour": "7a5f28e5224f75ed",
   "decor": "16236ae855f2a329",
   "delays": "3af643a145dbf304",
   "trailDelays": null,
@@ -473,7 +518,8 @@ exports[`layout goldens > networkIntro {"focus":null} @stacked 1`] = `
 
 exports[`layout goldens > outro {"playhead":2006} @beside 1`] = `
 {
-  "attrs": "e259fa82caeff868",
+  "attrs": "0fb6bfff7c213e94",
+  "colour": "9920df70f2a8f9e6",
   "decor": "bf21a9e8fbc5a384",
   "delays": null,
   "trailDelays": null,
@@ -483,7 +529,8 @@ exports[`layout goldens > outro {"playhead":2006} @beside 1`] = `
 
 exports[`layout goldens > outro {"playhead":2006} @phone 1`] = `
 {
-  "attrs": "b2d5e09e8fb63d86",
+  "attrs": "a8e7f7b7a555e3c7",
+  "colour": "9920df70f2a8f9e6",
   "decor": "bf21a9e8fbc5a384",
   "delays": null,
   "trailDelays": null,
@@ -493,7 +540,8 @@ exports[`layout goldens > outro {"playhead":2006} @phone 1`] = `
 
 exports[`layout goldens > outro {"playhead":2006} @stacked 1`] = `
 {
-  "attrs": "d09b9c6322846160",
+  "attrs": "f0a191dd9c488b11",
+  "colour": "9920df70f2a8f9e6",
   "decor": "bf21a9e8fbc5a384",
   "delays": null,
   "trailDelays": null,
@@ -503,7 +551,8 @@ exports[`layout goldens > outro {"playhead":2006} @stacked 1`] = `
 
 exports[`layout goldens > outro null @beside 1`] = `
 {
-  "attrs": "a178fed3e0e6e94c",
+  "attrs": "a24ba9414da3c89d",
+  "colour": "9920df70f2a8f9e6",
   "decor": "bf21a9e8fbc5a384",
   "delays": null,
   "trailDelays": null,
@@ -513,7 +562,8 @@ exports[`layout goldens > outro null @beside 1`] = `
 
 exports[`layout goldens > outro null @phone 1`] = `
 {
-  "attrs": "7079b16bea81ecb9",
+  "attrs": "eb74f145157fc27c",
+  "colour": "9920df70f2a8f9e6",
   "decor": "bf21a9e8fbc5a384",
   "delays": null,
   "trailDelays": null,
@@ -523,7 +573,8 @@ exports[`layout goldens > outro null @phone 1`] = `
 
 exports[`layout goldens > outro null @stacked 1`] = `
 {
-  "attrs": "95a43730c10a673b",
+  "attrs": "2b250d0bd8ae506a",
+  "colour": "9920df70f2a8f9e6",
   "decor": "bf21a9e8fbc5a384",
   "delays": null,
   "trailDelays": null,
@@ -533,7 +584,8 @@ exports[`layout goldens > outro null @stacked 1`] = `
 
 exports[`layout goldens > raceClose {"playhead":2006} @beside 1`] = `
 {
-  "attrs": "6a7fce04f0d0ae68",
+  "attrs": "db55813f00bb0ddf",
+  "colour": "9920df70f2a8f9e6",
   "decor": "0a45276dafcd0377",
   "delays": null,
   "trailDelays": "b349a3eb452c8f93",
@@ -543,7 +595,8 @@ exports[`layout goldens > raceClose {"playhead":2006} @beside 1`] = `
 
 exports[`layout goldens > raceClose {"playhead":2006} @phone 1`] = `
 {
-  "attrs": "d1a643a0e40c357c",
+  "attrs": "31715f924a4d1556",
+  "colour": "9920df70f2a8f9e6",
   "decor": "ee7586b527463ad2",
   "delays": null,
   "trailDelays": "b349a3eb452c8f93",
@@ -553,7 +606,8 @@ exports[`layout goldens > raceClose {"playhead":2006} @phone 1`] = `
 
 exports[`layout goldens > raceClose {"playhead":2006} @stacked 1`] = `
 {
-  "attrs": "3a2c0bf1e83dc90a",
+  "attrs": "fb753c5e123a8a78",
+  "colour": "9920df70f2a8f9e6",
   "decor": "f7b906cb29583e39",
   "delays": null,
   "trailDelays": "b349a3eb452c8f93",
@@ -563,7 +617,8 @@ exports[`layout goldens > raceClose {"playhead":2006} @stacked 1`] = `
 
 exports[`layout goldens > raceClose null @beside 1`] = `
 {
-  "attrs": "484ae736c0b70174",
+  "attrs": "607f1e255f81bc1d",
+  "colour": "4aa4726ef2e31817",
   "decor": "f158f177c4115115",
   "delays": null,
   "trailDelays": "b349a3eb452c8f93",
@@ -573,7 +628,8 @@ exports[`layout goldens > raceClose null @beside 1`] = `
 
 exports[`layout goldens > raceClose null @phone 1`] = `
 {
-  "attrs": "df5607a6a89c8643",
+  "attrs": "813e3e1d0494f0dd",
+  "colour": "4aa4726ef2e31817",
   "decor": "4f80b7f825917477",
   "delays": null,
   "trailDelays": "b349a3eb452c8f93",
@@ -583,7 +639,8 @@ exports[`layout goldens > raceClose null @phone 1`] = `
 
 exports[`layout goldens > raceClose null @stacked 1`] = `
 {
-  "attrs": "e30b159d87c36442",
+  "attrs": "65d93c4bd92c846d",
+  "colour": "4aa4726ef2e31817",
   "decor": "d473000f970a6c91",
   "delays": null,
   "trailDelays": "b349a3eb452c8f93",
@@ -593,7 +650,8 @@ exports[`layout goldens > raceClose null @stacked 1`] = `
 
 exports[`layout goldens > raceFull {"playhead":2006} @beside 1`] = `
 {
-  "attrs": "40d483e652cc234c",
+  "attrs": "fb3032365ac23a15",
+  "colour": "3bb0c763645d6d56",
   "decor": "0032612fd9078e3b",
   "delays": null,
   "trailDelays": "02becff878e6d0f2",
@@ -603,7 +661,8 @@ exports[`layout goldens > raceFull {"playhead":2006} @beside 1`] = `
 
 exports[`layout goldens > raceFull {"playhead":2006} @phone 1`] = `
 {
-  "attrs": "a95efe3a6104e11c",
+  "attrs": "102808dd3434a35f",
+  "colour": "3bb0c763645d6d56",
   "decor": "64d0261e4f625645",
   "delays": null,
   "trailDelays": "02becff878e6d0f2",
@@ -613,7 +672,8 @@ exports[`layout goldens > raceFull {"playhead":2006} @phone 1`] = `
 
 exports[`layout goldens > raceFull {"playhead":2006} @stacked 1`] = `
 {
-  "attrs": "2b594184b2f7c13f",
+  "attrs": "ee59d7f4c1f47c25",
+  "colour": "3bb0c763645d6d56",
   "decor": "b525872360410555",
   "delays": null,
   "trailDelays": "02becff878e6d0f2",
@@ -623,7 +683,8 @@ exports[`layout goldens > raceFull {"playhead":2006} @stacked 1`] = `
 
 exports[`layout goldens > raceFull null @beside 1`] = `
 {
-  "attrs": "40d483e652cc234c",
+  "attrs": "fb3032365ac23a15",
+  "colour": "3bb0c763645d6d56",
   "decor": "0032612fd9078e3b",
   "delays": null,
   "trailDelays": "02becff878e6d0f2",
@@ -633,7 +694,8 @@ exports[`layout goldens > raceFull null @beside 1`] = `
 
 exports[`layout goldens > raceFull null @phone 1`] = `
 {
-  "attrs": "a95efe3a6104e11c",
+  "attrs": "102808dd3434a35f",
+  "colour": "3bb0c763645d6d56",
   "decor": "64d0261e4f625645",
   "delays": null,
   "trailDelays": "02becff878e6d0f2",
@@ -643,7 +705,8 @@ exports[`layout goldens > raceFull null @phone 1`] = `
 
 exports[`layout goldens > raceFull null @stacked 1`] = `
 {
-  "attrs": "2b594184b2f7c13f",
+  "attrs": "ee59d7f4c1f47c25",
+  "colour": "3bb0c763645d6d56",
   "decor": "b525872360410555",
   "delays": null,
   "trailDelays": "02becff878e6d0f2",
@@ -653,7 +716,8 @@ exports[`layout goldens > raceFull null @stacked 1`] = `
 
 exports[`layout goldens > raceFuture {"playhead":2006} @beside 1`] = `
 {
-  "attrs": "a35b775df0564abb",
+  "attrs": "31f7694c6d2d38f2",
+  "colour": "3bb0c763645d6d56",
   "decor": "0032612fd9078e3b",
   "delays": null,
   "trailDelays": "02becff878e6d0f2",
@@ -663,7 +727,8 @@ exports[`layout goldens > raceFuture {"playhead":2006} @beside 1`] = `
 
 exports[`layout goldens > raceFuture {"playhead":2006} @phone 1`] = `
 {
-  "attrs": "a53d5eaf73089ad1",
+  "attrs": "5a774203913728eb",
+  "colour": "3bb0c763645d6d56",
   "decor": "64d0261e4f625645",
   "delays": null,
   "trailDelays": "02becff878e6d0f2",
@@ -673,7 +738,8 @@ exports[`layout goldens > raceFuture {"playhead":2006} @phone 1`] = `
 
 exports[`layout goldens > raceFuture {"playhead":2006} @stacked 1`] = `
 {
-  "attrs": "419e6d34b26f5269",
+  "attrs": "a6d49c55ca4fd455",
+  "colour": "3bb0c763645d6d56",
   "decor": "b525872360410555",
   "delays": null,
   "trailDelays": "02becff878e6d0f2",
@@ -683,7 +749,8 @@ exports[`layout goldens > raceFuture {"playhead":2006} @stacked 1`] = `
 
 exports[`layout goldens > raceFuture null @beside 1`] = `
 {
-  "attrs": "3be800b2ff2342e7",
+  "attrs": "78f4311a618b2352",
+  "colour": "3bb0c763645d6d56",
   "decor": "b6fce806a0b6d022",
   "delays": null,
   "trailDelays": "02becff878e6d0f2",
@@ -693,7 +760,8 @@ exports[`layout goldens > raceFuture null @beside 1`] = `
 
 exports[`layout goldens > raceFuture null @phone 1`] = `
 {
-  "attrs": "e029c636ee3affb3",
+  "attrs": "d7100b13e84c4535",
+  "colour": "3bb0c763645d6d56",
   "decor": "d56db62635973cfb",
   "delays": null,
   "trailDelays": "02becff878e6d0f2",
@@ -703,7 +771,8 @@ exports[`layout goldens > raceFuture null @phone 1`] = `
 
 exports[`layout goldens > raceFuture null @stacked 1`] = `
 {
-  "attrs": "c7ecd744ad8f777c",
+  "attrs": "70983a179fbe7e62",
+  "colour": "3bb0c763645d6d56",
   "decor": "e7522fb9a0289965",
   "delays": null,
   "trailDelays": "02becff878e6d0f2",
@@ -713,7 +782,8 @@ exports[`layout goldens > raceFuture null @stacked 1`] = `
 
 exports[`layout goldens > raceGenz {"genzShown":false} @beside 1`] = `
 {
-  "attrs": "a3c90bfd86302f2d",
+  "attrs": "82457bd44203b9bd",
+  "colour": "9920df70f2a8f9e6",
   "decor": "d0f985d7da9fd74c",
   "delays": null,
   "trailDelays": "02becff878e6d0f2",
@@ -723,7 +793,8 @@ exports[`layout goldens > raceGenz {"genzShown":false} @beside 1`] = `
 
 exports[`layout goldens > raceGenz {"genzShown":false} @phone 1`] = `
 {
-  "attrs": "03615dbd8620f81e",
+  "attrs": "463db068d5fc6a29",
+  "colour": "9920df70f2a8f9e6",
   "decor": "8536b702b51464fe",
   "delays": null,
   "trailDelays": "02becff878e6d0f2",
@@ -733,7 +804,8 @@ exports[`layout goldens > raceGenz {"genzShown":false} @phone 1`] = `
 
 exports[`layout goldens > raceGenz {"genzShown":false} @stacked 1`] = `
 {
-  "attrs": "98547cc6d30f2efe",
+  "attrs": "77f1677150442f4a",
+  "colour": "9920df70f2a8f9e6",
   "decor": "a454dbe6701ed7f5",
   "delays": null,
   "trailDelays": "02becff878e6d0f2",
@@ -743,7 +815,8 @@ exports[`layout goldens > raceGenz {"genzShown":false} @stacked 1`] = `
 
 exports[`layout goldens > raceGenz {"genzShown":true} @beside 1`] = `
 {
-  "attrs": "de119c7751a48a19",
+  "attrs": "c10f140f5e5e7bea",
+  "colour": "ae4781dba578cab6",
   "decor": "d0f985d7da9fd74c",
   "delays": null,
   "trailDelays": "02becff878e6d0f2",
@@ -753,7 +826,8 @@ exports[`layout goldens > raceGenz {"genzShown":true} @beside 1`] = `
 
 exports[`layout goldens > raceGenz {"genzShown":true} @phone 1`] = `
 {
-  "attrs": "968c8089d95b9b56",
+  "attrs": "ccb80ea2cdbe7e6a",
+  "colour": "ae4781dba578cab6",
   "decor": "8536b702b51464fe",
   "delays": null,
   "trailDelays": "02becff878e6d0f2",
@@ -763,7 +837,8 @@ exports[`layout goldens > raceGenz {"genzShown":true} @phone 1`] = `
 
 exports[`layout goldens > raceGenz {"genzShown":true} @stacked 1`] = `
 {
-  "attrs": "a41d4eec1c298d67",
+  "attrs": "a148750322ec5d2d",
+  "colour": "ae4781dba578cab6",
   "decor": "a454dbe6701ed7f5",
   "delays": null,
   "trailDelays": "02becff878e6d0f2",
@@ -773,7 +848,8 @@ exports[`layout goldens > raceGenz {"genzShown":true} @stacked 1`] = `
 
 exports[`layout goldens > raceGenz {"playhead":2006,"genzShown":false} @beside 1`] = `
 {
-  "attrs": "e89cdc56bc043dcd",
+  "attrs": "e6e01a996018651e",
+  "colour": "9920df70f2a8f9e6",
   "decor": "e8848fcf6d8df0bb",
   "delays": null,
   "trailDelays": "02becff878e6d0f2",
@@ -783,7 +859,8 @@ exports[`layout goldens > raceGenz {"playhead":2006,"genzShown":false} @beside 1
 
 exports[`layout goldens > raceGenz {"playhead":2006,"genzShown":false} @phone 1`] = `
 {
-  "attrs": "dd3cf59b5aaf3bb0",
+  "attrs": "76df9fe2281c9add",
+  "colour": "9920df70f2a8f9e6",
   "decor": "ac4338385ebe08db",
   "delays": null,
   "trailDelays": "02becff878e6d0f2",
@@ -793,7 +870,8 @@ exports[`layout goldens > raceGenz {"playhead":2006,"genzShown":false} @phone 1`
 
 exports[`layout goldens > raceGenz {"playhead":2006,"genzShown":false} @stacked 1`] = `
 {
-  "attrs": "cc001e5884168407",
+  "attrs": "7249e5e644c170e2",
+  "colour": "9920df70f2a8f9e6",
   "decor": "9f114d828033ed28",
   "delays": null,
   "trailDelays": "02becff878e6d0f2",
@@ -803,7 +881,8 @@ exports[`layout goldens > raceGenz {"playhead":2006,"genzShown":false} @stacked 
 
 exports[`layout goldens > raceRecent {"playhead":2006} @beside 1`] = `
 {
-  "attrs": "40d483e652cc234c",
+  "attrs": "fb3032365ac23a15",
+  "colour": "3bb0c763645d6d56",
   "decor": "0032612fd9078e3b",
   "delays": null,
   "trailDelays": "57327e672d6d2d0d",
@@ -813,7 +892,8 @@ exports[`layout goldens > raceRecent {"playhead":2006} @beside 1`] = `
 
 exports[`layout goldens > raceRecent {"playhead":2006} @phone 1`] = `
 {
-  "attrs": "a95efe3a6104e11c",
+  "attrs": "102808dd3434a35f",
+  "colour": "3bb0c763645d6d56",
   "decor": "64d0261e4f625645",
   "delays": null,
   "trailDelays": "57327e672d6d2d0d",
@@ -823,7 +903,8 @@ exports[`layout goldens > raceRecent {"playhead":2006} @phone 1`] = `
 
 exports[`layout goldens > raceRecent {"playhead":2006} @stacked 1`] = `
 {
-  "attrs": "2b594184b2f7c13f",
+  "attrs": "ee59d7f4c1f47c25",
+  "colour": "3bb0c763645d6d56",
   "decor": "b525872360410555",
   "delays": null,
   "trailDelays": "57327e672d6d2d0d",
@@ -833,7 +914,8 @@ exports[`layout goldens > raceRecent {"playhead":2006} @stacked 1`] = `
 
 exports[`layout goldens > raceRecent null @beside 1`] = `
 {
-  "attrs": "51276fbb460cdd87",
+  "attrs": "6652c65c848ff5df",
+  "colour": "3bb0c763645d6d56",
   "decor": "a2bfc25bef8408b3",
   "delays": null,
   "trailDelays": "57327e672d6d2d0d",
@@ -843,7 +925,8 @@ exports[`layout goldens > raceRecent null @beside 1`] = `
 
 exports[`layout goldens > raceRecent null @phone 1`] = `
 {
-  "attrs": "8f1048420f01791b",
+  "attrs": "0447d0ce13b41946",
+  "colour": "3bb0c763645d6d56",
   "decor": "a0ca8fcc649e9a92",
   "delays": null,
   "trailDelays": "57327e672d6d2d0d",
@@ -853,7 +936,8 @@ exports[`layout goldens > raceRecent null @phone 1`] = `
 
 exports[`layout goldens > raceRecent null @stacked 1`] = `
 {
-  "attrs": "01edce4b2b07d9bc",
+  "attrs": "fdb91506763c20a6",
+  "colour": "3bb0c763645d6d56",
   "decor": "a4fb3d183fb8d9a3",
   "delays": null,
   "trailDelays": "57327e672d6d2d0d",
@@ -863,7 +947,8 @@ exports[`layout goldens > raceRecent null @stacked 1`] = `
 
 exports[`layout goldens > rankFocus {"bar":{"x":120,"y":300,"w":400},"bare":false} @beside 1`] = `
 {
-  "attrs": "9a9b42d8e47e8777",
+  "attrs": "5189bc83f8c5dd81",
+  "colour": "4a75cd65259f479a",
   "decor": "bf21a9e8fbc5a384",
   "delays": null,
   "trailDelays": null,
@@ -873,7 +958,8 @@ exports[`layout goldens > rankFocus {"bar":{"x":120,"y":300,"w":400},"bare":fals
 
 exports[`layout goldens > rankFocus {"bar":{"x":120,"y":300,"w":400},"bare":false} @phone 1`] = `
 {
-  "attrs": "9a9b42d8e47e8777",
+  "attrs": "5189bc83f8c5dd81",
+  "colour": "4a75cd65259f479a",
   "decor": "bf21a9e8fbc5a384",
   "delays": null,
   "trailDelays": null,
@@ -883,7 +969,8 @@ exports[`layout goldens > rankFocus {"bar":{"x":120,"y":300,"w":400},"bare":fals
 
 exports[`layout goldens > rankFocus {"bar":{"x":120,"y":300,"w":400},"bare":false} @stacked 1`] = `
 {
-  "attrs": "9a9b42d8e47e8777",
+  "attrs": "5189bc83f8c5dd81",
+  "colour": "4a75cd65259f479a",
   "decor": "bf21a9e8fbc5a384",
   "delays": null,
   "trailDelays": null,
@@ -893,7 +980,8 @@ exports[`layout goldens > rankFocus {"bar":{"x":120,"y":300,"w":400},"bare":fals
 
 exports[`layout goldens > rankFocus {"bar":null,"bare":false} @beside 1`] = `
 {
-  "attrs": "f1bbcb60611bc008",
+  "attrs": "42dcc371acfb1639",
+  "colour": "4a75cd65259f479a",
   "decor": "bf21a9e8fbc5a384",
   "delays": null,
   "trailDelays": null,
@@ -903,7 +991,8 @@ exports[`layout goldens > rankFocus {"bar":null,"bare":false} @beside 1`] = `
 
 exports[`layout goldens > rankFocus {"bar":null,"bare":false} @phone 1`] = `
 {
-  "attrs": "81085b556333fab4",
+  "attrs": "0c95462556d597f2",
+  "colour": "4a75cd65259f479a",
   "decor": "bf21a9e8fbc5a384",
   "delays": null,
   "trailDelays": null,
@@ -913,7 +1002,8 @@ exports[`layout goldens > rankFocus {"bar":null,"bare":false} @phone 1`] = `
 
 exports[`layout goldens > rankFocus {"bar":null,"bare":false} @stacked 1`] = `
 {
-  "attrs": "f1bbcb60611bc008",
+  "attrs": "42dcc371acfb1639",
+  "colour": "4a75cd65259f479a",
   "decor": "bf21a9e8fbc5a384",
   "delays": null,
   "trailDelays": null,
@@ -923,7 +1013,8 @@ exports[`layout goldens > rankFocus {"bar":null,"bare":false} @stacked 1`] = `
 
 exports[`layout goldens > rankFocus {"bar":null,"bare":true} @beside 1`] = `
 {
-  "attrs": "73d2c7fedede94a0",
+  "attrs": "0d807b90d380ff4d",
+  "colour": "4a75cd65259f479a",
   "decor": "bf21a9e8fbc5a384",
   "delays": null,
   "trailDelays": null,
@@ -933,7 +1024,8 @@ exports[`layout goldens > rankFocus {"bar":null,"bare":true} @beside 1`] = `
 
 exports[`layout goldens > rankFocus {"bar":null,"bare":true} @phone 1`] = `
 {
-  "attrs": "43179e09d3d67ac4",
+  "attrs": "47fe4f33b56db19c",
+  "colour": "4a75cd65259f479a",
   "decor": "bf21a9e8fbc5a384",
   "delays": null,
   "trailDelays": null,
@@ -943,7 +1035,8 @@ exports[`layout goldens > rankFocus {"bar":null,"bare":true} @phone 1`] = `
 
 exports[`layout goldens > rankFocus {"bar":null,"bare":true} @stacked 1`] = `
 {
-  "attrs": "73d2c7fedede94a0",
+  "attrs": "0d807b90d380ff4d",
+  "colour": "4a75cd65259f479a",
   "decor": "bf21a9e8fbc5a384",
   "delays": null,
   "trailDelays": null,
@@ -953,7 +1046,8 @@ exports[`layout goldens > rankFocus {"bar":null,"bare":true} @stacked 1`] = `
 
 exports[`layout goldens > rankReveal {"bar":{"x":120,"y":300,"w":400},"bare":false} @beside 1`] = `
 {
-  "attrs": "9a9b42d8e47e8777",
+  "attrs": "5189bc83f8c5dd81",
+  "colour": "4a75cd65259f479a",
   "decor": "bf21a9e8fbc5a384",
   "delays": null,
   "trailDelays": null,
@@ -963,7 +1057,8 @@ exports[`layout goldens > rankReveal {"bar":{"x":120,"y":300,"w":400},"bare":fal
 
 exports[`layout goldens > rankReveal {"bar":{"x":120,"y":300,"w":400},"bare":false} @phone 1`] = `
 {
-  "attrs": "9a9b42d8e47e8777",
+  "attrs": "5189bc83f8c5dd81",
+  "colour": "4a75cd65259f479a",
   "decor": "bf21a9e8fbc5a384",
   "delays": null,
   "trailDelays": null,
@@ -973,7 +1068,8 @@ exports[`layout goldens > rankReveal {"bar":{"x":120,"y":300,"w":400},"bare":fal
 
 exports[`layout goldens > rankReveal {"bar":{"x":120,"y":300,"w":400},"bare":false} @stacked 1`] = `
 {
-  "attrs": "9a9b42d8e47e8777",
+  "attrs": "5189bc83f8c5dd81",
+  "colour": "4a75cd65259f479a",
   "decor": "bf21a9e8fbc5a384",
   "delays": null,
   "trailDelays": null,
@@ -983,7 +1079,8 @@ exports[`layout goldens > rankReveal {"bar":{"x":120,"y":300,"w":400},"bare":fal
 
 exports[`layout goldens > rankReveal {"bar":null,"bare":false} @beside 1`] = `
 {
-  "attrs": "f1bbcb60611bc008",
+  "attrs": "42dcc371acfb1639",
+  "colour": "4a75cd65259f479a",
   "decor": "bf21a9e8fbc5a384",
   "delays": null,
   "trailDelays": null,
@@ -993,7 +1090,8 @@ exports[`layout goldens > rankReveal {"bar":null,"bare":false} @beside 1`] = `
 
 exports[`layout goldens > rankReveal {"bar":null,"bare":false} @phone 1`] = `
 {
-  "attrs": "81085b556333fab4",
+  "attrs": "0c95462556d597f2",
+  "colour": "4a75cd65259f479a",
   "decor": "bf21a9e8fbc5a384",
   "delays": null,
   "trailDelays": null,
@@ -1003,7 +1101,8 @@ exports[`layout goldens > rankReveal {"bar":null,"bare":false} @phone 1`] = `
 
 exports[`layout goldens > rankReveal {"bar":null,"bare":false} @stacked 1`] = `
 {
-  "attrs": "f1bbcb60611bc008",
+  "attrs": "42dcc371acfb1639",
+  "colour": "4a75cd65259f479a",
   "decor": "bf21a9e8fbc5a384",
   "delays": null,
   "trailDelays": null,
@@ -1013,7 +1112,8 @@ exports[`layout goldens > rankReveal {"bar":null,"bare":false} @stacked 1`] = `
 
 exports[`layout goldens > rankReveal {"bar":null,"bare":true} @beside 1`] = `
 {
-  "attrs": "73d2c7fedede94a0",
+  "attrs": "0d807b90d380ff4d",
+  "colour": "4a75cd65259f479a",
   "decor": "bf21a9e8fbc5a384",
   "delays": null,
   "trailDelays": null,
@@ -1023,7 +1123,8 @@ exports[`layout goldens > rankReveal {"bar":null,"bare":true} @beside 1`] = `
 
 exports[`layout goldens > rankReveal {"bar":null,"bare":true} @phone 1`] = `
 {
-  "attrs": "43179e09d3d67ac4",
+  "attrs": "47fe4f33b56db19c",
+  "colour": "4a75cd65259f479a",
   "decor": "bf21a9e8fbc5a384",
   "delays": null,
   "trailDelays": null,
@@ -1033,7 +1134,8 @@ exports[`layout goldens > rankReveal {"bar":null,"bare":true} @phone 1`] = `
 
 exports[`layout goldens > rankReveal {"bar":null,"bare":true} @stacked 1`] = `
 {
-  "attrs": "73d2c7fedede94a0",
+  "attrs": "0d807b90d380ff4d",
+  "colour": "4a75cd65259f479a",
   "decor": "bf21a9e8fbc5a384",
   "delays": null,
   "trailDelays": null,
@@ -1043,7 +1145,8 @@ exports[`layout goldens > rankReveal {"bar":null,"bare":true} @stacked 1`] = `
 
 exports[`layout goldens > scatterCenters {"showFilms":true,"searchId":105} @beside 1`] = `
 {
-  "attrs": "cf26c439e56a3872",
+  "attrs": "1dd8398c568351b9",
+  "colour": "3bb0c763645d6d56",
   "decor": "844e44ef5a6908f3",
   "delays": null,
   "trailDelays": null,
@@ -1053,7 +1156,8 @@ exports[`layout goldens > scatterCenters {"showFilms":true,"searchId":105} @besi
 
 exports[`layout goldens > scatterCenters {"showFilms":true,"searchId":105} @phone 1`] = `
 {
-  "attrs": "a06c9ea821ace625",
+  "attrs": "d6bb71aed6188f8c",
+  "colour": "3bb0c763645d6d56",
   "decor": "195efd89bae94198",
   "delays": null,
   "trailDelays": null,
@@ -1063,7 +1167,8 @@ exports[`layout goldens > scatterCenters {"showFilms":true,"searchId":105} @phon
 
 exports[`layout goldens > scatterCenters {"showFilms":true,"searchId":105} @stacked 1`] = `
 {
-  "attrs": "ee6ec1fcd0eb89c5",
+  "attrs": "5f12b2b78ec87a54",
+  "colour": "3bb0c763645d6d56",
   "decor": "8dab2eadf22f252b",
   "delays": null,
   "trailDelays": null,
@@ -1073,7 +1178,8 @@ exports[`layout goldens > scatterCenters {"showFilms":true,"searchId":105} @stac
 
 exports[`layout goldens > scatterCenters {"showFilms":true,"searchId":null} @beside 1`] = `
 {
-  "attrs": "eb0cfde86f9e95b7",
+  "attrs": "d77409ecf04b44da",
+  "colour": "9920df70f2a8f9e6",
   "decor": "844e44ef5a6908f3",
   "delays": null,
   "trailDelays": null,
@@ -1083,7 +1189,8 @@ exports[`layout goldens > scatterCenters {"showFilms":true,"searchId":null} @bes
 
 exports[`layout goldens > scatterCenters {"showFilms":true,"searchId":null} @phone 1`] = `
 {
-  "attrs": "0af0f68730acccfb",
+  "attrs": "42389b5e956975e7",
+  "colour": "9920df70f2a8f9e6",
   "decor": "195efd89bae94198",
   "delays": null,
   "trailDelays": null,
@@ -1093,7 +1200,8 @@ exports[`layout goldens > scatterCenters {"showFilms":true,"searchId":null} @pho
 
 exports[`layout goldens > scatterCenters {"showFilms":true,"searchId":null} @stacked 1`] = `
 {
-  "attrs": "93102da6f985c3b4",
+  "attrs": "5688740e21f5407f",
+  "colour": "9920df70f2a8f9e6",
   "decor": "8dab2eadf22f252b",
   "delays": null,
   "trailDelays": null,
@@ -1103,7 +1211,8 @@ exports[`layout goldens > scatterCenters {"showFilms":true,"searchId":null} @sta
 
 exports[`layout goldens > scatterCenters {"showPair":true,"searchId":105} @beside 1`] = `
 {
-  "attrs": "602d76b65583740b",
+  "attrs": "3076b529593077ad",
+  "colour": "3bb0c763645d6d56",
   "decor": "844e44ef5a6908f3",
   "delays": null,
   "trailDelays": null,
@@ -1113,7 +1222,8 @@ exports[`layout goldens > scatterCenters {"showPair":true,"searchId":105} @besid
 
 exports[`layout goldens > scatterCenters {"showPair":true,"searchId":105} @phone 1`] = `
 {
-  "attrs": "a32bcdd21e0198dc",
+  "attrs": "72303224fd52292c",
+  "colour": "3bb0c763645d6d56",
   "decor": "195efd89bae94198",
   "delays": null,
   "trailDelays": null,
@@ -1123,7 +1233,8 @@ exports[`layout goldens > scatterCenters {"showPair":true,"searchId":105} @phone
 
 exports[`layout goldens > scatterCenters {"showPair":true,"searchId":105} @stacked 1`] = `
 {
-  "attrs": "e7ca79f6df67122e",
+  "attrs": "e124609c9dca0fd0",
+  "colour": "3bb0c763645d6d56",
   "decor": "8dab2eadf22f252b",
   "delays": null,
   "trailDelays": null,
@@ -1133,7 +1244,8 @@ exports[`layout goldens > scatterCenters {"showPair":true,"searchId":105} @stack
 
 exports[`layout goldens > scatterCenters {"showPair":true,"searchId":null} @beside 1`] = `
 {
-  "attrs": "0e0276a5bf3582ea",
+  "attrs": "2b298554590dfb16",
+  "colour": "9920df70f2a8f9e6",
   "decor": "844e44ef5a6908f3",
   "delays": null,
   "trailDelays": null,
@@ -1143,7 +1255,8 @@ exports[`layout goldens > scatterCenters {"showPair":true,"searchId":null} @besi
 
 exports[`layout goldens > scatterCenters {"showPair":true,"searchId":null} @phone 1`] = `
 {
-  "attrs": "c80222c49f962ba3",
+  "attrs": "3d9a094d3d422cb3",
+  "colour": "9920df70f2a8f9e6",
   "decor": "195efd89bae94198",
   "delays": null,
   "trailDelays": null,
@@ -1153,7 +1266,8 @@ exports[`layout goldens > scatterCenters {"showPair":true,"searchId":null} @phon
 
 exports[`layout goldens > scatterCenters {"showPair":true,"searchId":null} @stacked 1`] = `
 {
-  "attrs": "976dce3117adb4b0",
+  "attrs": "1e5d1176f2f9f5eb",
+  "colour": "9920df70f2a8f9e6",
   "decor": "8dab2eadf22f252b",
   "delays": null,
   "trailDelays": null,
@@ -1163,7 +1277,8 @@ exports[`layout goldens > scatterCenters {"showPair":true,"searchId":null} @stac
 
 exports[`layout goldens > scatterCenters {"showPair":true,"showCostars":true,"searchId":105} @beside 1`] = `
 {
-  "attrs": "602d76b65583740b",
+  "attrs": "3076b529593077ad",
+  "colour": "3bb0c763645d6d56",
   "decor": "844e44ef5a6908f3",
   "delays": null,
   "trailDelays": null,
@@ -1173,7 +1288,8 @@ exports[`layout goldens > scatterCenters {"showPair":true,"showCostars":true,"se
 
 exports[`layout goldens > scatterCenters {"showPair":true,"showCostars":true,"searchId":105} @phone 1`] = `
 {
-  "attrs": "a32bcdd21e0198dc",
+  "attrs": "72303224fd52292c",
+  "colour": "3bb0c763645d6d56",
   "decor": "195efd89bae94198",
   "delays": null,
   "trailDelays": null,
@@ -1183,7 +1299,8 @@ exports[`layout goldens > scatterCenters {"showPair":true,"showCostars":true,"se
 
 exports[`layout goldens > scatterCenters {"showPair":true,"showCostars":true,"searchId":105} @stacked 1`] = `
 {
-  "attrs": "e7ca79f6df67122e",
+  "attrs": "e124609c9dca0fd0",
+  "colour": "3bb0c763645d6d56",
   "decor": "8dab2eadf22f252b",
   "delays": null,
   "trailDelays": null,
@@ -1193,7 +1310,8 @@ exports[`layout goldens > scatterCenters {"showPair":true,"showCostars":true,"se
 
 exports[`layout goldens > scatterCenters {"showPair":true,"showCostars":true,"searchId":null} @beside 1`] = `
 {
-  "attrs": "0e0276a5bf3582ea",
+  "attrs": "2b298554590dfb16",
+  "colour": "9920df70f2a8f9e6",
   "decor": "844e44ef5a6908f3",
   "delays": null,
   "trailDelays": null,
@@ -1203,7 +1321,8 @@ exports[`layout goldens > scatterCenters {"showPair":true,"showCostars":true,"se
 
 exports[`layout goldens > scatterCenters {"showPair":true,"showCostars":true,"searchId":null} @phone 1`] = `
 {
-  "attrs": "c80222c49f962ba3",
+  "attrs": "3d9a094d3d422cb3",
+  "colour": "9920df70f2a8f9e6",
   "decor": "195efd89bae94198",
   "delays": null,
   "trailDelays": null,
@@ -1213,7 +1332,8 @@ exports[`layout goldens > scatterCenters {"showPair":true,"showCostars":true,"se
 
 exports[`layout goldens > scatterCenters {"showPair":true,"showCostars":true,"searchId":null} @stacked 1`] = `
 {
-  "attrs": "976dce3117adb4b0",
+  "attrs": "1e5d1176f2f9f5eb",
+  "colour": "9920df70f2a8f9e6",
   "decor": "8dab2eadf22f252b",
   "delays": null,
   "trailDelays": null,
@@ -1223,7 +1343,8 @@ exports[`layout goldens > scatterCenters {"showPair":true,"showCostars":true,"se
 
 exports[`layout goldens > scatterQuiz {"picks":{"0":1},"revealAll":true,"searchId":null} @beside 1`] = `
 {
-  "attrs": "0c5d739a1c6498fd",
+  "attrs": "98bc756cf78f1880",
+  "colour": "11a6901d4a4c2317",
   "decor": "844e44ef5a6908f3",
   "delays": null,
   "trailDelays": null,
@@ -1233,7 +1354,8 @@ exports[`layout goldens > scatterQuiz {"picks":{"0":1},"revealAll":true,"searchI
 
 exports[`layout goldens > scatterQuiz {"picks":{"0":1},"revealAll":true,"searchId":null} @phone 1`] = `
 {
-  "attrs": "ad61a485ce196903",
+  "attrs": "f250b6c10c9a30f7",
+  "colour": "11a6901d4a4c2317",
   "decor": "195efd89bae94198",
   "delays": null,
   "trailDelays": null,
@@ -1243,7 +1365,8 @@ exports[`layout goldens > scatterQuiz {"picks":{"0":1},"revealAll":true,"searchI
 
 exports[`layout goldens > scatterQuiz {"picks":{"0":1},"revealAll":true,"searchId":null} @stacked 1`] = `
 {
-  "attrs": "766dd6aeaa3e4fe0",
+  "attrs": "cf6832371b4fb16d",
+  "colour": "11a6901d4a4c2317",
   "decor": "8dab2eadf22f252b",
   "delays": null,
   "trailDelays": null,
@@ -1253,7 +1376,8 @@ exports[`layout goldens > scatterQuiz {"picks":{"0":1},"revealAll":true,"searchI
 
 exports[`layout goldens > scatterQuiz {"picks":{},"revealAll":false,"searchId":105} @beside 1`] = `
 {
-  "attrs": "7045ba349fb851f7",
+  "attrs": "cc40f47779bf09f0",
+  "colour": "3bb0c763645d6d56",
   "decor": "844e44ef5a6908f3",
   "delays": null,
   "trailDelays": null,
@@ -1263,7 +1387,8 @@ exports[`layout goldens > scatterQuiz {"picks":{},"revealAll":false,"searchId":1
 
 exports[`layout goldens > scatterQuiz {"picks":{},"revealAll":false,"searchId":105} @phone 1`] = `
 {
-  "attrs": "4cbe63afae96ecd3",
+  "attrs": "c66177e77fbcb43e",
+  "colour": "3bb0c763645d6d56",
   "decor": "195efd89bae94198",
   "delays": null,
   "trailDelays": null,
@@ -1273,7 +1398,8 @@ exports[`layout goldens > scatterQuiz {"picks":{},"revealAll":false,"searchId":1
 
 exports[`layout goldens > scatterQuiz {"picks":{},"revealAll":false,"searchId":105} @stacked 1`] = `
 {
-  "attrs": "88cb7bae26c1b107",
+  "attrs": "04909a9baf514945",
+  "colour": "3bb0c763645d6d56",
   "decor": "8dab2eadf22f252b",
   "delays": null,
   "trailDelays": null,
@@ -1283,7 +1409,8 @@ exports[`layout goldens > scatterQuiz {"picks":{},"revealAll":false,"searchId":1
 
 exports[`layout goldens > scatterQuiz {"picks":{},"revealAll":false,"searchId":null} @beside 1`] = `
 {
-  "attrs": "7b2ee1f8cd66f21a",
+  "attrs": "751e710895ab733d",
+  "colour": "9920df70f2a8f9e6",
   "decor": "844e44ef5a6908f3",
   "delays": null,
   "trailDelays": null,
@@ -1293,7 +1420,8 @@ exports[`layout goldens > scatterQuiz {"picks":{},"revealAll":false,"searchId":n
 
 exports[`layout goldens > scatterQuiz {"picks":{},"revealAll":false,"searchId":null} @phone 1`] = `
 {
-  "attrs": "6dbc59b688ee426b",
+  "attrs": "8c9e24a732d274cd",
+  "colour": "9920df70f2a8f9e6",
   "decor": "195efd89bae94198",
   "delays": null,
   "trailDelays": null,
@@ -1303,7 +1431,8 @@ exports[`layout goldens > scatterQuiz {"picks":{},"revealAll":false,"searchId":n
 
 exports[`layout goldens > scatterQuiz {"picks":{},"revealAll":false,"searchId":null} @stacked 1`] = `
 {
-  "attrs": "a5ae1f71db01f67c",
+  "attrs": "766a15e768698a24",
+  "colour": "9920df70f2a8f9e6",
   "decor": "8dab2eadf22f252b",
   "delays": null,
   "trailDelays": null,
@@ -1313,7 +1442,8 @@ exports[`layout goldens > scatterQuiz {"picks":{},"revealAll":false,"searchId":n
 
 exports[`layout goldens > simRace {"runs":0,"names":0} @beside 1`] = `
 {
-  "attrs": "f655ce55fa9656b0",
+  "attrs": "2624db9de994211f",
+  "colour": "0835cca37022255f",
   "decor": "080cb30d9888a7d1",
   "delays": null,
   "trailDelays": null,
@@ -1323,7 +1453,8 @@ exports[`layout goldens > simRace {"runs":0,"names":0} @beside 1`] = `
 
 exports[`layout goldens > simRace {"runs":0,"names":0} @phone 1`] = `
 {
-  "attrs": "daf47622688ff175",
+  "attrs": "6fdb038f46938129",
+  "colour": "0835cca37022255f",
   "decor": "a72b86267340a5d6",
   "delays": null,
   "trailDelays": null,
@@ -1333,7 +1464,8 @@ exports[`layout goldens > simRace {"runs":0,"names":0} @phone 1`] = `
 
 exports[`layout goldens > simRace {"runs":0,"names":0} @stacked 1`] = `
 {
-  "attrs": "a42300bbdcfcba9d",
+  "attrs": "f45023a126aa65e3",
+  "colour": "0835cca37022255f",
   "decor": "7b04c5ef1e53acbd",
   "delays": null,
   "trailDelays": null,
@@ -1343,7 +1475,8 @@ exports[`layout goldens > simRace {"runs":0,"names":0} @stacked 1`] = `
 
 exports[`layout goldens > simRace {"runs":10000,"names":5} @beside 1`] = `
 {
-  "attrs": "0281be4660de7fe5",
+  "attrs": "7a1dd09359d560ec",
+  "colour": "0835cca37022255f",
   "decor": "080cb30d9888a7d1",
   "delays": null,
   "trailDelays": null,
@@ -1353,7 +1486,8 @@ exports[`layout goldens > simRace {"runs":10000,"names":5} @beside 1`] = `
 
 exports[`layout goldens > simRace {"runs":10000,"names":5} @phone 1`] = `
 {
-  "attrs": "4348314239fa1656",
+  "attrs": "cbad9e14e7875e24",
+  "colour": "0835cca37022255f",
   "decor": "a72b86267340a5d6",
   "delays": null,
   "trailDelays": null,
@@ -1363,7 +1497,8 @@ exports[`layout goldens > simRace {"runs":10000,"names":5} @phone 1`] = `
 
 exports[`layout goldens > simRace {"runs":10000,"names":5} @stacked 1`] = `
 {
-  "attrs": "fb27ac123d827343",
+  "attrs": "f135b5987df952c8",
+  "colour": "0835cca37022255f",
   "decor": "7b04c5ef1e53acbd",
   "delays": null,
   "trailDelays": null,
@@ -1373,7 +1508,8 @@ exports[`layout goldens > simRace {"runs":10000,"names":5} @stacked 1`] = `
 
 exports[`layout goldens > titleGalaxy null @beside 1`] = `
 {
-  "attrs": "49bda4dc7a4ea921",
+  "attrs": "d0989fbd17942022",
+  "colour": "9920df70f2a8f9e6",
   "decor": "bf21a9e8fbc5a384",
   "delays": null,
   "trailDelays": null,
@@ -1383,7 +1519,8 @@ exports[`layout goldens > titleGalaxy null @beside 1`] = `
 
 exports[`layout goldens > titleGalaxy null @phone 1`] = `
 {
-  "attrs": "78186a5ab1b0b22b",
+  "attrs": "58f7e2c3962f93e2",
+  "colour": "9920df70f2a8f9e6",
   "decor": "bf21a9e8fbc5a384",
   "delays": null,
   "trailDelays": null,
@@ -1393,7 +1530,8 @@ exports[`layout goldens > titleGalaxy null @phone 1`] = `
 
 exports[`layout goldens > titleGalaxy null @stacked 1`] = `
 {
-  "attrs": "d6348d9361ca9bdb",
+  "attrs": "8525606fa6f6c2ec",
+  "colour": "9920df70f2a8f9e6",
   "decor": "bf21a9e8fbc5a384",
   "delays": null,
   "trailDelays": null,

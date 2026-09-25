@@ -1,0 +1,18 @@
+{
+	"art": {
+		"wordmark": {
+			"value": "{color.black}",
+			"comment": "The Pudding's wordmark on the title card",
+			"contrast": { "exempt": "a logotype (WCAG 1.4.3's logotype exception)" }
+		},
+		"pointer-fill": {
+			"value": "{color.white}",
+			"comment": "the splash cue's hand-cursor doodle",
+			"contrast": { "exempt": "a decorative doodle beside the cue's text" }
+		},
+		"pointer-ink": {
+			"value": "{color.black}",
+			"contrast": { "exempt": "a decorative doodle beside the cue's text" }
+		}
+	}
+}

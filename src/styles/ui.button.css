@@ -10,7 +10,7 @@
 	outline: none;
 	text-decoration: none;
 	border-radius: var(--radius-md);
-	font-family: var(--font-form);
+	font-family: var(--type-ui-family);
 	transition:
 		transform 0.25s ease,
 		background 0.25s ease;
@@ -20,7 +20,7 @@
    keyboard reader needs it back — outside the button, where it reads against
    the page rather than against the button's own fill */
 .bits-button[data-button-root]:focus-visible {
-	outline: 2px solid var(--color-focus);
+	outline: 2px solid var(--control-focus);
 	outline-offset: 2px;
 }
 
@@ -62,8 +62,8 @@
    there: it adds no specificity, so each rule keeps the weight it had and goes
    on losing to whatever already overruled it. */
 .bits-button[data-button-root][data-variant="default"] {
-	--bg: var(--color-button-bg-primary);
-	--fg: var(--color-button-fg-primary);
+	--bg: var(--control-button-primary-bg);
+	--fg: var(--control-button-primary-fg);
 	background: var(--bg);
 	color: var(--fg);
 }
@@ -71,7 +71,7 @@
 .bits-button[data-button-root][data-variant="default"]:where(
 		:not(:disabled)
 	):hover {
-	background: oklch(from var(--bg) calc(l + 0.2) c h);
+	background: var(--control-button-primary-hover);
 }
 
 /* The story's card controls — Start, Show Gen Z actors and both Skips — are
@@ -80,8 +80,8 @@
    white glyphs on a dark plate; a button carries its own background, so it
    needs no hold-out. */
 .bits-button[data-button-root][data-variant="story"] {
-	--bg: var(--color-button-bg-primary);
-	--fg: var(--color-button-fg-primary);
+	--bg: var(--control-button-primary-bg);
+	--fg: var(--control-button-primary-fg);
 	background: var(--bg);
 	color: var(--fg);
 	text-shadow: none;
@@ -90,13 +90,13 @@
 .bits-button[data-button-root][data-variant="story"]:where(
 		:not(:disabled)
 	):hover {
-	background: oklch(from var(--bg) calc(l + 0.2) c h);
+	background: var(--control-button-primary-hover);
 }
 
 .bits-button[data-button-root][data-variant="outline"] {
 	--bg: transparent;
-	--fg: var(--color-fg);
-	--border: 1px solid var(--color-border);
+	--fg: var(--control-button-quiet-fg);
+	--border: 1px solid var(--surface-border);
 	background: var(--bg);
 	color: var(--fg);
 	border: var(--border);
@@ -105,12 +105,12 @@
 .bits-button[data-button-root][data-variant="outline"]:where(
 		:not(:disabled)
 	):hover {
-	background: oklch(from var(--bg) calc(l - 0.2) c h);
+	background: var(--control-button-quiet-hover);
 }
 
 .bits-button[data-button-root][data-variant="secondary"] {
-	--bg: var(--color-button-bg-secondary);
-	--fg: var(--color-button-fg-secondary);
+	--bg: var(--control-button-secondary-bg);
+	--fg: var(--control-button-secondary-fg);
 	background: var(--bg);
 	color: var(--fg);
 }
@@ -118,20 +118,20 @@
 .bits-button[data-button-root][data-variant="secondary"]:where(
 		:not(:disabled)
 	):hover {
-	background: oklch(from var(--bg) calc(l - 0.2) c h);
+	background: var(--control-button-secondary-hover);
 }
 
 .bits-button[data-button-root][data-variant="ghost"] {
 	--bg: transparent;
-	--fg: var(--color-fg);
+	--fg: var(--control-button-quiet-fg);
 	background: var(--bg);
 	color: var(--fg);
 }
 
 .bits-button[data-button-root][data-variant="link"] {
 	--bg: transparent;
-	--fg: var(--color-link);
-	--hover: var(--color-link-hover);
+	--fg: var(--prose-link);
+	--hover: var(--prose-link-hover);
 	background: var(--bg);
 	color: var(--fg);
 	text-decoration: underline;
@@ -143,14 +143,14 @@
    it drops the root's 48px minimum: a pointer target at desktop widths, and
    anything bigger is empty tab around the chevron. */
 .bits-button[data-button-root][data-variant="notch"] {
-	--bg: var(--color-bg);
-	--fg: var(--color-fg);
+	--bg: var(--surface-raised);
+	--fg: var(--control-button-notch-fg);
 	min-width: 0;
 	min-height: 0;
 	padding: 0;
 	background: var(--bg);
 	color: var(--fg);
-	border: 1px solid var(--color-border);
+	border: 1px solid var(--surface-border);
 }
 
 .bits-button[data-button-root][data-variant="notch"][data-side="left"] {
@@ -166,7 +166,7 @@
 .bits-button[data-button-root][data-variant="notch"]:where(
 		:not(:disabled)
 	):hover {
-	background: oklch(from var(--bg) calc(l - 0.05) c h);
+	background: var(--control-button-notch-hover);
 }
 
 /* app.css sizes every svg to 100% of its box */

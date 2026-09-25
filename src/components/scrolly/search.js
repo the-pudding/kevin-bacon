@@ -8,7 +8,7 @@
 // highlight rule without wanting the registry.
 import rawNodes from "$data/scrolly-nodes.json";
 import { BY_RANK, RANK_TOP_N } from "./cast.js";
-import { INK } from "./palette.js";
+import { SEARCH } from "./palette.js";
 
 /** name lookup over the node tuples — the same column states.js reads. The
  * tuples type as a union of their columns, so the cast is what says which. */
@@ -80,7 +80,7 @@ export function searchActors(query, { pool, limit = 8 }) {
  * is the only ink in a cloud of category colour, and it is the only dot on any
  * of the three charts carrying a name the reader chose.
  */
-export const SEARCH_RGB = INK;
+export const SEARCH_RGB = SEARCH;
 
 /** the radius a searched dot takes on the three films scatters — the same one
  * the quiz and the costar chart already give a singled-out dot, so the reader's

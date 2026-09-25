@@ -57,9 +57,9 @@
 		HOLD_MS,
 		MARK_MS,
 		flyToDot,
-		prefersReducedMotion,
-		rgb
+		prefersReducedMotion
 	} from "./fly-to-dot.js";
+	import { rgb } from "./palette.js";
 	import { recordActorSearch } from "$utils/analytics.js";
 
 	/** @type {{ visual: any, chart: string, pool: number[], picked: number | null,
@@ -325,7 +325,7 @@
 		border: 0;
 		border-radius: var(--radius-sm);
 		background: none;
-		color: var(--color-fg-light);
+		color: var(--prose-muted);
 		cursor: pointer;
 		pointer-events: auto;
 	}
@@ -339,7 +339,7 @@
 	.search__glyph:focus-visible,
 	.search__glyph--open {
 		background: none;
-		color: var(--color-fg);
+		color: var(--prose-fg);
 	}
 
 	.search__glyph :global(svg) {
@@ -359,10 +359,10 @@
 		flex-direction: column;
 		gap: 0.5rem;
 		padding: 0.625rem;
-		border: 1px solid var(--color-border);
+		border: 1px solid var(--surface-border);
 		border-radius: var(--radius-md);
-		background: var(--color-bg);
-		box-shadow: 0 6px 24px rgb(0 0 0 / 15%);
+		background: var(--surface-raised);
+		box-shadow: 0 6px 24px var(--surface-shadow);
 		pointer-events: auto;
 		/* the canvas states carry a halo on their prose; a control is a solid
 		   object and does not want one */
@@ -374,7 +374,7 @@
 		align-items: center;
 		gap: 0.3rem;
 		margin: 0;
-		font-family: var(--font-mono);
+		font-family: var(--type-chip-family);
 		font-size: 0.8rem;
 	}
 
@@ -386,7 +386,7 @@
 		width: 0.55rem;
 		height: 0.55rem;
 		border-radius: 50%;
-		background: var(--color-gray-900, #222);
+		background: var(--mark-search);
 	}
 
 	.search__clear {
@@ -394,11 +394,11 @@
 		min-width: var(--48px);
 		min-height: var(--48px);
 		padding: 0.1rem 0.5rem;
-		border: 1px solid var(--color-gray-300, #ccc);
+		border: 1px solid var(--surface-border);
 		border-radius: 2rem;
 		background: none;
-		color: var(--color-gray-500, #888);
-		font-family: var(--font-mono);
+		color: var(--prose-muted);
+		font-family: var(--type-chip-family);
 		font-size: var(--16px);
 		cursor: pointer;
 	}
@@ -415,11 +415,11 @@
 		align-items: center;
 		justify-content: center;
 		padding: 0.4rem 1rem;
-		border: 1px solid var(--color-gray-900, #222);
+		border: 1px solid var(--control-chip-border);
 		border-radius: 2rem;
-		background: var(--color-bg);
-		color: var(--color-fg, #282828);
-		font-family: var(--font-mono);
+		background: var(--surface-raised);
+		color: var(--prose-fg);
+		font-family: var(--type-chip-family);
 		font-size: 0.8rem;
 		/* the WAAPI flight drives transform/colour; keep it compositor-friendly */
 		will-change: transform;

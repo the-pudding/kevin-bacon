@@ -22,6 +22,7 @@
 <button
 	type="button"
 	class="tap-zones-toggle"
+	data-dev-only
 	class:on={tapZonesDev.visible}
 	onclick={toggleTapZones}
 	aria-pressed={tapZonesDev.visible}
@@ -38,14 +39,14 @@
 		   that, and this is a fixed HUD control, not part of the canvas stack */
 		z-index: var(--z-modal);
 		font: inherit;
-		font-family: var(--font-mono);
+		font-family: var(--type-dev-family);
 		font-size: 0.65rem;
 		text-transform: uppercase;
 		letter-spacing: 0.06em;
 		color: inherit;
 		padding: 0.2rem 0.5rem;
-		background: var(--color-bg, #fff);
-		border: 1px solid var(--color-gray-300, #ccc);
+		background: var(--surface-raised);
+		border: 1px solid var(--surface-border);
 		border-radius: 3px;
 		cursor: pointer;
 		opacity: 0.55;
@@ -55,8 +56,8 @@
 	}
 	.tap-zones-toggle.on {
 		opacity: 1;
-		background: var(--color-red, #c0392b);
-		color: #fff;
-		border-color: var(--color-red, #c0392b);
+		background: var(--dev-accent);
+		color: var(--dev-accent-fg);
+		border-color: var(--dev-accent);
 	}
 </style>

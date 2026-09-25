@@ -33,13 +33,12 @@
 	import { story } from "./story.svelte.js";
 	import { INTERACTIVE_IDS, nodeName, quizDone } from "./states.js";
 	import { quizWinner } from "./layouts/scatters.js";
-	import { CROWD, GREEN, RED } from "./palette.js";
+	import { CROWD, QUIZ_RIGHT, QUIZ_WRONG, rgb } from "./palette.js";
 	import {
 		HOLD_MS,
 		MARK_MS,
 		flyToDot,
-		prefersReducedMotion,
-		rgb
+		prefersReducedMotion
 	} from "./fly-to-dot.js";
 	import { recordPairPick } from "$utils/analytics.js";
 
@@ -123,7 +122,7 @@
 	 * colour with both meanings at once is what would make either unreadable.
 	 */
 	const colourOf = (choice, id) =>
-		choice !== picked ? CROWD : id === winner ? GREEN : RED;
+		choice !== picked ? CROWD : id === winner ? QUIZ_RIGHT : QUIZ_WRONG;
 
 	// The state write and the move onward come FIRST; the analytics write goes
 	// LAST, on both paths out of a pick. It is background instrumentation reached
@@ -334,11 +333,11 @@
 	.quiz__status,
 	.quiz__done {
 		margin: 0;
-		font-family: var(--font-mono);
-		letter-spacing: var(--tracking-mono);
+		font-family: var(--type-chip-family);
+		letter-spacing: var(--type-chip-tracking);
 		font-size: 0.75rem;
 		line-height: 1.4;
-		color: var(--color-gray-500, #888);
+		color: var(--prose-muted);
 	}
 
 	.quiz__status {
@@ -370,15 +369,16 @@
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		font-family: var(--font-mono);
-		letter-spacing: var(--tracking-mono);
+		font-family: var(--type-chip-family);
+		letter-spacing: var(--type-chip-tracking);
 		font-size: var(--16px);
 		padding: 0.7rem 1.2rem;
 		min-height: var(--chip-h);
-		border: 1px solid var(--verdict, var(--color-gray-400, #999));
+		--verdict: var(--control-card-border);
+		border: 1px solid var(--verdict);
 		border-radius: 2rem;
-		background: var(--color-bg, #fff);
-		color: var(--color-fg, #282828);
+		background: var(--surface-raised);
+		color: var(--prose-fg);
 		cursor: pointer;
 		/* the WAAPI flight drives transform/colour; keep it compositor-friendly */
 		will-change: transform;
@@ -397,7 +397,7 @@
 	}
 
 	.quiz__card:not(:disabled):hover {
-		border-color: var(--color-gray-900, #222);
+		border-color: var(--control-card-hover-border);
 	}
 
 	/* Absolutely placed rather than laid out beside the name, so the name is

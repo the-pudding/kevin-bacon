@@ -14,7 +14,7 @@ import {
 	SWEENEY
 } from "./cast.js";
 import { ANCHOR_ID } from "./nodes.js";
-import { CROWD, RED } from "./palette.js";
+import { CROWD, TRAIL_ACCENT } from "./palette.js";
 
 export const TRAIL_POINTS = 48;
 
@@ -37,7 +37,7 @@ export const TRAIL_META = [
 	...RACE_IDS.map((id) => ({ id, rgb: CROWD, width: 1 })),
 	// career chapter: red hero trajectory, grey comparison lines (the dots are
 	// blue marks — see layouts/career.js)
-	{ id: SWEENEY, rgb: RED, width: 1.5 },
+	{ id: SWEENEY, rgb: TRAIL_ACCENT, width: 1.5 },
 	{ id: DENIRO, rgb: CROWD, width: 1.5 },
 	{ id: CHASE, rgb: CROWD, width: 1.5 },
 	// the same chart asked about Bacon himself: his own red trajectory, and the
@@ -45,7 +45,7 @@ export const TRAIL_META = [
 	// re-use of the three above, because a slot's stroke colour is fixed here —
 	// Bacon needs the red De Niro's slot does not have — and because the two
 	// steps are two different charts: see the TRAIL_CONSTANCY note below.
-	{ id: ANCHOR_ID, rgb: RED, width: 1.5 },
+	{ id: ANCHOR_ID, rgb: TRAIL_ACCENT, width: 1.5 },
 	{ id: HACKMAN, rgb: CROWD, width: 1.5 },
 	{ id: MIRREN, rgb: CROWD, width: 1.5 },
 	...story.careers.cohort.map(() => ({ id: null, rgb: CROWD, width: 1 })),

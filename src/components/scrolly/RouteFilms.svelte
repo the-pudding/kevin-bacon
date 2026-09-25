@@ -58,13 +58,13 @@
 	.routes > li + li {
 		margin-top: 0.625rem;
 		padding-top: 0.625rem;
-		border-top: 1px solid var(--color-border);
+		border-top: 1px solid var(--surface-border);
 	}
 
 	.hops > li {
 		/* the rail reads as the route running down toward Bacon */
 		padding-left: 0.625rem;
-		border-left: 2px solid var(--color-border);
+		border-left: 2px solid var(--surface-border);
 	}
 
 	p {
@@ -72,8 +72,8 @@
 	}
 
 	.to {
-		color: var(--color-fg-light);
-		font-size: var(--12px, 12px);
+		color: var(--prose-muted);
+		font-size: var(--12px);
 	}
 
 	.to::before {
@@ -82,6 +82,6 @@
 
 	.year,
 	.sep {
-		color: var(--color-fg-light);
+		color: var(--prose-muted);
 	}
 </style>

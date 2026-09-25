@@ -32,6 +32,10 @@
 		},
 		"gray-dark": {
 			"value": "#333333"
+		},
+		"yellow-dark": {
+			"value": "#6B5F15",
+			"comment": "--category-yellow darkened to clear AA as text on white (#CCBB44 is ~1.75:1)"
 		}
 	}
 }

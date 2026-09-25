@@ -707,7 +707,7 @@
 		top: calc(var(--chart-title-top) + 2rem);
 		left: 0;
 		right: 0;
-		background: var(--color-bg);
+		background: var(--surface-raised);
 		opacity: 0;
 	}
 
@@ -761,15 +761,15 @@
 	   they need the air at 28px and start to fall apart at 64. */
 	.splash-card h1 {
 		margin: 0;
-		font-family: var(--font-serif);
-		font-size: clamp(var(--32px, 2rem), 12vw, var(--64px, 4rem));
+		font-family: var(--type-heading-family);
+		font-size: clamp(var(--32px), 12vw, var(--64px));
 		font-weight: 400;
 		line-height: 1.02;
 		letter-spacing: 0.02em;
 		text-transform: uppercase;
 		text-align: center;
 		text-wrap: balance;
-		color: var(--color-fg);
+		color: var(--prose-heading);
 		/* halo, not a plate: the title lies over the drifting crowd, and a solid
 		   background would punch a rectangle out of the sky it is meant to be
 		   inside */
@@ -793,8 +793,8 @@
 		/* two soft layers, not --text-halo: that halo is tuned for solid letters,
 		   and on this wordmark's thin, close-set script strokes it just merges
 		   into a visible white blob instead of a halo. */
-		filter: drop-shadow(0 0 6px var(--color-bg, #fff))
-			drop-shadow(0 0 6px var(--color-bg, #fff));
+		filter: drop-shadow(0 0 6px var(--surface-holdout))
+			drop-shadow(0 0 6px var(--surface-holdout));
 	}
 
 	.splash-logo :global(svg) {
@@ -811,12 +811,12 @@
 	.splash-subtitle {
 		max-width: 32rem;
 		margin: 1rem 0 0;
-		font-family: var(--font-serif);
-		font-size: var(--20px, 1.25rem);
+		font-family: var(--type-heading-family);
+		font-size: var(--20px);
 		line-height: 1.35;
 		text-align: center;
 		text-wrap: balance;
-		color: var(--color-fg);
+		color: var(--prose-fg);
 		text-shadow: var(--text-halo);
 	}
 
@@ -828,10 +828,10 @@
 	   over rather than just being painted under them. */
 	.splash-byline {
 		margin: 0.5rem 0 0;
-		font-family: var(--font-sans);
-		font-size: var(--16px, 1rem);
+		font-family: var(--type-ui-family);
+		font-size: var(--16px);
 		letter-spacing: 0.02em;
-		color: var(--color-fg);
+		color: var(--prose-fg);
 		text-shadow: var(--text-halo);
 		z-index: var(--z-tap-above);
 	}
@@ -862,10 +862,10 @@
 	.nav-cue {
 		width: max-content;
 		max-width: 70%;
-		font-family: var(--font-sans);
+		font-family: var(--type-ui-family);
 		font-weight: 700;
 		text-align: right;
-		color: var(--color-fg);
+		color: var(--prose-fg);
 		/* over the half it points at, but never catching the press it is asking
 		   for — the button underneath has to get it */
 		pointer-events: none;
@@ -909,7 +909,7 @@
 	.nav-cue.in-card {
 		grid-area: 2 / 1;
 		justify-self: end;
-		padding-bottom: var(--16px, 1rem);
+		padding-bottom: var(--16px);
 	}
 
 	/* the rows the nudge moves — an element of their own, so the nudge's
@@ -923,7 +923,7 @@
 	}
 
 	.nav-cue strong {
-		font-size: var(--16px, 1rem);
+		font-size: var(--16px);
 		line-height: 1.1;
 	}
 
@@ -948,15 +948,15 @@
 		display: flex;
 		align-items: center;
 		gap: 0.3rem;
-		font-size: var(--12px, 0.75rem);
+		font-size: var(--12px);
 	}
 
 	.nav-keys .key {
 		display: flex;
 		padding: 2px;
-		border: 1px solid var(--color-gray-300);
+		border: 1px solid var(--surface-border);
 		border-radius: 4px;
-		background: var(--color-bg);
+		background: var(--surface-raised);
 	}
 
 	.nav-keys .key :global(svg) {

@@ -1,0 +1,227 @@
+{
+	"control": {
+		"focus": {
+			"value": "{color.gray-500}",
+			"comment": "the focus ring",
+			"contrast": {
+				"against": "surface.page",
+				"min": 3
+			}
+		},
+		"button": {
+			"primary": {
+				"bg": {
+					"value": "{color.gray-900}",
+					"comment": "a filled button: the default and story variants, the plain <button>, skip-to-main",
+					"contrast": {
+						"against": "surface.page",
+						"min": 3
+					}
+				},
+				"fg": {
+					"value": "{color.white}",
+					"contrast": [
+						{
+							"against": "control.button.primary.bg",
+							"min": 4.5
+						},
+						{
+							"against": "control.button.primary.hover",
+							"min": 4.5
+						},
+						{
+							"against": "control.button.primary.hover-plain",
+							"min": 4.5
+						}
+					]
+				},
+				"hover": {
+					"value": "{color.gray-900}",
+					"modify": {
+						"lighten": 0.2
+					}
+				},
+				"hover-plain": {
+					"value": "{color.gray-900}",
+					"modify": {
+						"lighten": -0.1
+					},
+					"comment": "reset.css's hover for a plain <button>"
+				}
+			},
+			"secondary": {
+				"bg": {
+					"value": "{color.gray-500}",
+					"contrast": {
+						"against": "surface.page",
+						"min": 3
+					}
+				},
+				"fg": {
+					"value": "{color.white}",
+					"contrast": [
+						{
+							"against": "control.button.secondary.bg",
+							"min": 4.5
+						},
+						{
+							"against": "control.button.secondary.hover",
+							"min": 4.5
+						}
+					]
+				},
+				"hover": {
+					"value": "{color.gray-500}",
+					"modify": {
+						"lighten": -0.2
+					}
+				}
+			},
+			"quiet": {
+				"fg": {
+					"value": "{prose.fg}",
+					"comment": "the outline and ghost variants",
+					"contrast": [
+						{
+							"against": "surface.page",
+							"min": 4.5
+						},
+						{
+							"against": "control.button.quiet.hover",
+							"min": 4.5
+						}
+					]
+				},
+				"hover": {
+					"value": "transparent",
+					"comment": "the outline variant's hover: no fill"
+				}
+			},
+			"notch": {
+				"fg": {
+					"value": "{prose.fg}",
+					"comment": "the prev/next notches beside the prose",
+					"contrast": [
+						{
+							"against": "surface.raised",
+							"min": 3
+						},
+						{
+							"against": "control.button.notch.hover",
+							"min": 3
+						}
+					]
+				},
+				"hover": {
+					"value": "{surface.raised}",
+					"modify": {
+						"lighten": -0.05
+					}
+				}
+			}
+		},
+		"input": {
+			"bg": {
+				"value": "{color.gray-50}"
+			},
+			"fg": {
+				"value": "{color.gray-900}",
+				"contrast": {
+					"against": "control.input.bg",
+					"min": 4.5
+				}
+			},
+			"placeholder": {
+				"value": "{color.gray-500}",
+				"contrast": {
+					"against": "control.input.bg",
+					"min": 4.5
+				}
+			}
+		},
+		"slider": {
+			"thumb": {
+				"value": "{control.button.primary.bg}",
+				"contrast": {
+					"against": "surface.page",
+					"min": 3
+				}
+			},
+			"thumb-border": {
+				"value": "{surface.raised}",
+				"contrast": {
+					"exempt": "the ring that parts the thumb from the track"
+				}
+			},
+			"track": {
+				"value": "{surface.selection}",
+				"contrast": {
+					"exempt": "the thumb carries the value; the track is its context"
+				}
+			},
+			"track-active": {
+				"value": "{prose.muted}",
+				"contrast": {
+					"against": "surface.page",
+					"min": 3
+				}
+			}
+		},
+		"card": {
+			"border": {
+				"value": "{color.gray-400}",
+				"comment": "a pair-quiz card before its verdict",
+				"contrast": {
+					"exempt": "the card is identified by the name it carries; the border is not the only cue"
+				}
+			},
+			"hover-border": {
+				"value": "{color.gray-900}",
+				"contrast": {
+					"against": "surface.raised",
+					"min": 3
+				}
+			}
+		},
+		"chip": {
+			"border": {
+				"value": "{color.gray-900}",
+				"comment": "a search result chip",
+				"contrast": {
+					"against": "surface.raised",
+					"min": 3
+				}
+			}
+		},
+		"progress": {
+			"track": {
+				"value": "{color.gray-200}",
+				"comment": "a step still to come in the progress bar",
+				"contrast": {
+					"exempt": "the bar's position is also announced as text to assistive tech"
+				}
+			},
+			"past": {
+				"value": "{color.gray-400}",
+				"contrast": {
+					"exempt": "the bar's position is also announced as text to assistive tech"
+				}
+			},
+			"current": {
+				"value": "{prose.fg}",
+				"contrast": {
+					"against": "surface.page",
+					"min": 3
+				}
+			}
+		},
+		"scrubber": {
+			"value": "{control.button.primary.bg}",
+			"comment": "the race scrubber's accent-color",
+			"contrast": {
+				"against": "surface.page",
+				"min": 3
+			}
+		}
+	}
+}

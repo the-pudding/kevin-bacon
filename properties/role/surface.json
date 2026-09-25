@@ -1,0 +1,43 @@
+{
+	"surface": {
+		"page": {
+			"value": "{color.white}",
+			"comment": "the page and the canvas behind the dot field"
+		},
+		"raised": {
+			"value": "{color.white}",
+			"comment": "panels, cards, menus, chips and key caps laid over the page"
+		},
+		"halo": {
+			"value": "{surface.page}",
+			"modify": { "alpha": 0.7 },
+			"comment": "one layer of --text-halo, the hold-out behind text over the dot field"
+		},
+		"holdout": {
+			"value": "{surface.page}",
+			"comment": "the solid rings and glows that part a mark or logo from the field behind it"
+		},
+		"selection": {
+			"value": "{color.gray-300}",
+			"comment": "selected text, a highlighted option, a slider track"
+		},
+		"highlight": {
+			"value": "{color.yellow}",
+			"comment": "the <mark> element"
+		},
+		"border": {
+			"value": "{color.gray-300}",
+			"comment": "hairline rules and the edges of controls"
+		},
+		"shadow": {
+			"value": "{color.black}",
+			"modify": { "alpha": 0.15 },
+			"comment": "the drop shadow under a popover"
+		},
+		"scrim": {
+			"value": "{color.black}",
+			"modify": { "alpha": 0.4 },
+			"comment": "the backdrop behind a modal panel"
+		}
+	}
+}

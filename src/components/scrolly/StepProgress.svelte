@@ -88,8 +88,8 @@
 	   wherever the canvas behind it is empty. */
 	.step-progress {
 		--bar-halo:
-			0 0 3px var(--color-bg, #fff), 0 0 3px var(--color-bg, #fff),
-			0 0 6px var(--color-bg, #fff), 0 0 6px var(--color-bg, #fff);
+			0 0 3px var(--surface-holdout), 0 0 3px var(--surface-holdout),
+			0 0 6px var(--surface-holdout), 0 0 6px var(--surface-holdout);
 		position: absolute;
 		top: 0;
 		left: 0;
@@ -116,7 +116,7 @@
 	.line {
 		flex: 1 1 0;
 		height: 2px;
-		background: var(--color-gray-200);
+		background: var(--control-progress-track);
 		box-shadow: var(--bar-halo);
 		/* --1s rather than an explicit reduced-motion block (which is what
 		   Index.svelte uses): those disable keyframe animations with delays,
@@ -126,10 +126,10 @@
 	}
 
 	.line.past {
-		background: var(--color-gray-400);
+		background: var(--control-progress-past);
 	}
 
 	.line.lit {
-		background: var(--color-fg);
+		background: var(--control-progress-current);
 	}
 </style>

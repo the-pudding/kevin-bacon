@@ -5,7 +5,7 @@
 	import { story } from "./story.svelte.js";
 	import { ANCHOR_ID } from "./nodes.js";
 	import { BY_RANK, SLJ, RANK_TOP_N } from "./cast.js";
-	import { HOP_RGB, HOP_DOT_ALPHA } from "./palette.js";
+	import { HOP_RGB, HOP_DOT_ALPHA, rgb } from "./palette.js";
 	import {
 		RANK_BAR_H,
 		RANK_DOT_D,
@@ -513,7 +513,7 @@
 						{#each bars?.[i] ?? [] as band}
 							<path
 								d={band.d}
-								stroke="rgb({band.color.join(',')})"
+								stroke={rgb(band.color)}
 								stroke-opacity={HOP_DOT_ALPHA}
 								stroke-width={RANK_DOT_D}
 								stroke-linecap="round"
@@ -544,9 +544,10 @@
 					{#if row.dot}
 						<span
 							class="node"
-							style="width: {row.dot.r * 2}px; height: {row.dot.r *
-								2}px; background: rgb({row.dot.rgb.join(',')}); opacity: {row
-								.dot.alpha}"
+							style:width="{row.dot.r * 2}px"
+							style:height="{row.dot.r * 2}px"
+							style:background={rgb(row.dot.rgb)}
+							style:opacity={row.dot.alpha}
 							aria-hidden="true"
 						></span>
 					{/if}
@@ -579,22 +580,22 @@
 		mask-image: linear-gradient(
 			to bottom,
 			transparent,
-			black var(--fade-top),
-			black calc(100% - 1.5rem),
+			currentcolor var(--fade-top),
+			currentcolor calc(100% - 1.5rem),
 			transparent
 		);
 		-webkit-mask-image: linear-gradient(
 			to bottom,
 			transparent,
-			black var(--fade-top),
-			black calc(100% - 1.5rem),
+			currentcolor var(--fade-top),
+			currentcolor calc(100% - 1.5rem),
 			transparent
 		);
 	}
 
 	/* inset: the list's edge mask would fade an outline drawn outside it */
 	.rows:focus-visible {
-		outline: 2px solid var(--color-focus);
+		outline: 2px solid var(--control-focus);
 		outline-offset: -2px;
 	}
 
@@ -613,10 +614,10 @@
 		   arrival places all 250 canvas copies off a single measured row pitch, so
 		   rows of two different heights would scatter them. */
 		padding: 0.3rem 0 2rem;
-		font-family: var(--font-mono);
-		letter-spacing: var(--tracking-mono);
+		font-family: var(--type-chart-family);
+		letter-spacing: var(--type-chart-tracking);
 		font-size: 0.75rem;
-		color: var(--color-gray-700, #444);
+		color: var(--chart-rank-row);
 		opacity: 0.35;
 		transition: opacity 0.25s ease;
 	}
@@ -650,7 +651,7 @@
 
 	.rows li.focus {
 		font-weight: bold;
-		color: var(--color-gray-900);
+		color: var(--chart-rank-row-focus);
 	}
 
 	@keyframes row-in {
@@ -714,9 +715,9 @@
 	.share {
 		flex: 0 1 auto;
 		min-width: max-content;
-		font-family: var(--font-mono);
-		letter-spacing: var(--tracking-mono);
-		font-size: var(--12px, 12px);
+		font-family: var(--type-chart-family);
+		letter-spacing: var(--type-chart-tracking);
+		font-size: var(--12px);
 		text-align: center;
 		white-space: nowrap;
 	}
@@ -802,11 +803,11 @@
 	.footnote {
 		margin: 0;
 		padding: 0.4rem 1rem;
-		font-family: var(--font-mono);
-		letter-spacing: var(--tracking-mono);
-		font-size: var(--12px, 12px);
+		font-family: var(--type-chart-family);
+		letter-spacing: var(--type-chart-tracking);
+		font-size: var(--12px);
 		font-style: italic;
-		color: var(--color-gray-500, #888);
+		color: var(--chart-footnote);
 		text-align: center;
 	}
 </style>

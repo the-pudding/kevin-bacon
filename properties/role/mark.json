@@ -1,0 +1,99 @@
+{
+	"mark": {
+		"ink": {
+			"value": "{color.ink}",
+			"comment": "a named dot, the anchor, the leader",
+			"contrast": { "against": "surface.page", "min": 3 }
+		},
+		"crowd": {
+			"value": "{category.gray}",
+			"comment": "the background crowd every chart is drawn against",
+			"contrast": {
+				"exempt": "context, not content: no reading of a chart depends on picking out a single crowd dot"
+			}
+		},
+		"focus": {
+			"value": "{color.ink}",
+			"comment": "the race line and dot a hovered callout refers to",
+			"contrast": { "against": "surface.page", "min": 3 }
+		},
+		"edge": {
+			"value": "{color.edge}",
+			"comment": "network links at rest",
+			"contrast": { "against": "surface.page", "min": 3 }
+		},
+		"edge-highlight": {
+			"value": "{mark.ink}",
+			"contrast": { "against": "surface.page", "min": 3 }
+		},
+		"search": {
+			"value": "{mark.ink}",
+			"comment": "the dot a search result flies to, and its DOM twin in the search box",
+			"contrast": { "against": "surface.page", "min": 3 }
+		},
+		"hop-0": {
+			"value": "{mark.ink}",
+			"comment": "the anchor of the hop bands",
+			"contrast": { "against": "surface.page", "min": 3 }
+		},
+		"hop-1": {
+			"value": "{category.red}",
+			"contrast": {
+				"exempt": "every hop band is named by its row label (hop-N-label); the dot hue is not the only cue"
+			}
+		},
+		"hop-2": {
+			"value": "{category.blue}",
+			"contrast": {
+				"exempt": "every hop band is named by its row label (hop-N-label); the dot hue is not the only cue"
+			}
+		},
+		"hop-3": {
+			"value": "{category.cyan}",
+			"contrast": {
+				"exempt": "every hop band is named by its row label (hop-N-label); the dot hue is not the only cue"
+			}
+		},
+		"hop-4": {
+			"value": "{category.gray}",
+			"contrast": {
+				"exempt": "every hop band is named by its row label (hop-N-label); the dot hue is not the only cue"
+			}
+		},
+		"hop-1-label": {
+			"value": "{category.red-dark}",
+			"comment": "a hop row's label: its dots' hue, darkened to text weight",
+			"contrast": { "against": "surface.page", "min": 4.5 }
+		},
+		"hop-2-label": {
+			"value": "{category.blue-dark}",
+			"contrast": { "against": "surface.page", "min": 4.5 }
+		},
+		"hop-3-label": {
+			"value": "{category.cyan-dark}",
+			"contrast": { "against": "surface.page", "min": 4.5 }
+		},
+		"hop-4-label": {
+			"value": "{category.gray-dark}",
+			"contrast": { "against": "surface.page", "min": 4.5 }
+		},
+		"trail-accent": {
+			"value": "{category.red}",
+			"comment": "the Sweeney and Bacon race lines",
+			"contrast": { "against": "surface.page", "min": 3 }
+		},
+		"quiz-right": {
+			"value": "{category.green}",
+			"contrast": { "against": "surface.page", "min": 3 }
+		},
+		"quiz-wrong": {
+			"value": "{category.red}",
+			"contrast": { "against": "surface.page", "min": 3 }
+		},
+		"career": {
+			"value": "{category.blue}",
+			"comment": "the career chart's highlighted actor",
+			"contrast": { "against": "surface.page", "min": 3 }
+		}
+	}
+}

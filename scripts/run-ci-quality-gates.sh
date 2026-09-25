@@ -5,8 +5,8 @@
 #   - .github/workflows/ci-quality-gates.yml      → runs in full (default) mode
 #
 # Modes:
-#   (default)  full/CI: whole-tree prettier + eslint, svelte-check, vitest,
-#              parity guard
+#   (default)  full/CI: whole-tree prettier + eslint + stylelint, the design
+#              tokens' build check, svelte-check, vitest, parity guard
 #   --local    pre-commit: skips the whole-tree prettier and eslint passes —
 #              lint-staged has already formatted and linted the staged files,
 #              and checking the *working tree* here would block commits over
@@ -34,7 +34,7 @@ for arg in "$@"; do
 done
 
 if ! $LOCAL; then
-	echo "gate: prettier + eslint (whole tree)"
+	echo "gate: prettier + eslint + stylelint (whole tree)"
 	npm run lint
 fi
 
@@ -42,6 +42,12 @@ if $LOCAL; then
 	echo "gate: tween checklist"
 	node scripts/stale-checklist.js --check
 fi
+
+echo "gate: design tokens built"
+# the generated token files must be what properties/ builds: a stale
+# tokens.json would let the contrast spec pass on values nobody ships
+npm run style --silent >/dev/null
+git diff --exit-code -- src/styles/variables.css src/styles/tokens.js src/styles/tokens.json
 
 echo "gate: svelte-check"
 npx svelte-kit sync
