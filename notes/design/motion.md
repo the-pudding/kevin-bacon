@@ -126,6 +126,21 @@ travelling is something the reader has to re-find.
     every transition lands on its settled frame at once. Fades are kept, travel is
     not, and nothing the reader needs waits on a tween finishing.
 
+14. **A hidden dot stands somewhere on purpose.** Every layout places every dot,
+    the ones it hides included, and a hidden dot's spot is designed: inside the
+    canvas, and where a neighbouring step that shows it should bring it on from.
+    Either that neighbour's own spot for it, so it fades in without travelling
+    (hopBands' hidden crowd in the title card's sky), or a place the chart means
+    (the race's frontier column, the simulation's origin, Bacon's bar). A step
+    change starts every dot the reader cannot see from the departing state's
+    spot; a dot the reader can see still travels from where it stands, and one
+    that fades out does so where it stands and is moved to its hidden spot,
+    unseen, at the next state change (`restateHidden`, `parkLeavers`). Owen's
+    decision, 2026-09-25, after the crowd slid down onto the scatter from the
+    top of the plot and the race cast rose onto it from below the canvas
+    (11 → 12). `contracts.spec.js` walks every arrival and holds each
+    arriving dot to its departing spot, on the canvas.
+
 ## Checking a transition
 
 `npm run sheet -- <from> <to>` (`scripts/tween-sheet.js`) plays the step
@@ -152,6 +167,7 @@ What each rule looks like on a sheet:
 | 11 stagger             | Where a stagger exists, the middle frames show an order the eye can follow.                                                           |
 | 12 box                 | The canvas edges are in the same place in every frame.                                                                                |
 | 13 reduced motion      | Not on a sheet; check by hand with the OS setting on.                                                                                 |
+| 14 hidden spots        | A dot fading in comes out of a spot that means something (its own, the race's edge, an origin), never off the canvas's edge.          |
 
 ## Open questions
 

@@ -8,6 +8,7 @@
 	import { skyFlight } from "./sky.js";
 	import { createChoreographer } from "./choreographer.js";
 	import { createRaceCamera } from "./race-camera.js";
+	import { parkLeavers, restateHidden } from "./arrival-marks.js";
 	import {
 		ALPHA_SEEN,
 		clearCanvas,
@@ -339,35 +340,6 @@
 			target[base + TRAIL_POINTS * 2 + 1] = live[base + TRAIL_POINTS * 2 + 1];
 		}
 		return target;
-	}
-
-	/**
-	 * Park every id the arriving state does not draw where the frame the reader
-	 * is looking at has it, so it fades out where it stands instead of being
-	 * lerped across the canvas to a park spot it is invisible at anyway — the
-	 * career crowd climbing off the top of the plot, the race cast crossing the
-	 * chart inside the future block, the sky sliding onto the films scatter.
-	 *
-	 * The live mark is restated WHOLE — position, radius and colour — so a leaver
-	 * crossfades nothing on its way out; exactly what fadeOutTrails does for a
-	 * departing line's geometry and its ink. The alpha is left at the layout's
-	 * own, because that alpha IS the fade.
-	 *
-	 * "Does not draw" is the renderer's own floor, so a dot that was already
-	 * invisible keeps the park its layout authored and `parkHidden`'s arrival
-	 * case is untouched: a dot the reader has never seen still fades in where a
-	 * later scatter chapter wants it. On a cold start the live frame is all
-	 * zeros, so this is a no-op by construction.
-	 *
-	 * Writes into the per-arrival copy, never `layout.attrs` — that array is
-	 * cached, and mutating it would poison every later visit to the state.
-	 */
-	function parkLeavers(attrs) {
-		const live = tweener.current;
-		for (let i = 0; i < EDGE_BASE; i += STRIDE) {
-			if (attrs[i + 6] > ALPHA_SEEN || live[i + 6] <= ALPHA_SEEN) continue;
-			for (let k = 0; k < 6; k++) attrs[i + k] = live[i + k];
-		}
 	}
 
 	// trapezoidal speed profile (ported from the reference _animate): R = ramp
@@ -1116,6 +1088,10 @@
 	let prevParamsKey = null;
 	let prevStep = -1;
 	let entered = false;
+	// the attrs of the layout the canvas is on: the departing state's hidden
+	// spots at the next state change (restateHidden). Cached layout attrs, which
+	// nothing mutates, so holding the reference is safe.
+	let shownAttrs = /** @type {Float64Array | null} */ (null);
 	// While an entry choreography is playing, the set of ids whose names have
 	// been introduced so far (see EntryAnim.labelsAfter); null = no gate, every
 	// labelled id shows. Deliberately NOT $state: drawScene folds it into
@@ -1994,7 +1970,7 @@
 		labelHolds = new Map(walk.labelAt.map(([id, ms]) => [id, now + ms]));
 		// a copy, parked like the target, because `walk.clear` is cached
 		const clear = walk.clear.slice();
-		parkLeavers(clear);
+		parkLeavers(clear, tweener.current);
 		tweener.to(clear, walk.fadeMs, 0, null, () =>
 			tweener.to(
 				target.attrs,
@@ -2198,6 +2174,20 @@
 		}
 	};
 
+	/**
+	 * A transition to another state starts every dot the reader cannot see from
+	 * the departing state's hidden spot (motion.md rule 14): a leaver the last
+	 * arrival faded where it stood is moved there now, unseen. Run before the out
+	 * beat, whose target is a copy of the live frame. Only the two kinds that
+	 * travel: a `params` change keeps its own state's spots, and `carry`, `snap`,
+	 * `cold` and `popIn` have no tween to start anyone from.
+	 */
+	function restateDeparting(kind) {
+		if (kind !== "state" && kind !== "entry") return;
+		const departing = shownAttrs;
+		if (departing) tweener.reframe((buf) => restateHidden(buf, departing));
+	}
+
 	$effect(() => {
 		const cacheDropped = dropStaleLayouts();
 		// canvasWidth is in here with the rest: it sizes the backing store, so a tick
@@ -2243,9 +2233,11 @@
 			kind === "entry" && !!entryAnim.ownsFurniture,
 			ARRIVAL_MS[kind]
 		);
+		restateDeparting(kind);
+		shownAttrs = layout.attrs;
 		// a copy, because parkLeavers rewrites it and `layout.attrs` is cached
 		const attrs = layout.attrs.slice();
-		parkLeavers(attrs);
+		parkLeavers(attrs, tweener.current);
 		/** @type {Target} */
 		const target = {
 			attrs,

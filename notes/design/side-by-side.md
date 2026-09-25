@@ -281,17 +281,17 @@ layout cache whenever a flight stops. The cache is dropped rather than the key
 made to carry a clock that moves every frame and would never hit, and `stopSweep`
 runs before any layout is built on a state change — which is what makes the frame
 the bands are struck against the frame the sky was showing at the instant the
-reader tapped. `hopSeed`'s invisible seed park goes through the same layout and
+reader tapped. `hopSeed`'s invisible seed frame goes through the same layout and
 so inherits the live column; it is alpha 0, and every dot the reader can see on
 `hopSeed` is written over it by the crowd and the fifteen, so nothing reads it.
+The crowd the sky hides does not take its seat from it either: those dots fly
+with the sky, so their hidden spot in the bands has to be free of the clock
+(`writeLandedCrowd`).
 
 `hopSeed`'s pull-back strikes its box once in `zoomOutFrames`, outside the
 per-frame closure, so the leg's last frame and the static layout it settles onto
 cannot drift apart; a frame built against a different `bleed` would snap the sky
 inward on settle, which is why `EntryAnim.frames` takes `bleed` as well.
-`networkIntro` parks the same crowd (invisible, at scale 1) through the same box,
-so stepping back out of `hopSeed` zooms the camera in over that state's own
-geometry rather than one that merely looks like it from behind alpha 0.
 `hopSeed`'s sky shows 12,097 dots: `FIELD_IDS` (12,082 = hop 1–4 less the intro
 fifteen) plus the fifteen. If a future layout wants to receive that crowd the
 same way, share the x the same way, and pass no box.

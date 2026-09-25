@@ -21,7 +21,8 @@ import {
 } from "../intro-geometry.js";
 import { INK, CROWD } from "../palette.js";
 import { MARGIN, plotBottom, lin, NO_BLEED } from "../plot.js";
-import { scatterPosition } from "../scatter-scales.js";
+import { scatterY } from "../scatter-scales.js";
+import { ALPHA_SEEN } from "../render.js";
 import {
 	writeFieldCrowd,
 	galaxyBox,
@@ -1638,6 +1639,8 @@ function raceAxes(
  * @property {number} [genz] the Gen-Z field's draw-on progress 0..1; 0 (or
  * absent) leaves those 99 lines off the frame entirely.
  * @property {boolean} [backdrop] draw the backdrop sample.
+ * @property {"curves"} [hidden] a hidden contender stays on their curve rather
+ * than taking the frontier column (see placeHiddenDots).
  * @property {boolean} [lead] ink the crown holder at this camera (default true).
  * false on a step whose camera has travelled off the race entirely. No progress value: the
  * camera decides whether it is seen (see writeBackdropLines).
@@ -2378,6 +2381,46 @@ function writeCast(
 }
 
 /**
+ * Where every dot the frame hides stands (motion.md rule 14), so the chart that
+ * shows it next brings it on from somewhere the race means.
+ *
+ * By default that is the FRONTIER COLUMN: the present's x on this camera (the
+ * playhead, where it has not run on into the future), at the height
+ * scatterCenters draws the dot, both clamped to the plot. Every chart that
+ * follows a race step and shows the crowd brings it out of the race's leading
+ * edge — and scatterCenters, after raceFuture, only spreads it sideways.
+ *
+ * A step whose neighbours are both race steps (`hidden: "curves"`: raceRecent
+ * and raceFull) keeps a hidden contender on their own curve instead, clamped
+ * to the plot, so the step that adds them grows them where their line runs;
+ * only its crowd takes the column.
+ *
+ * Here, in the one frame writer, rather than in the layout: a leg writes the
+ * cast on every frame, so its last frame and the static layout have to place
+ * the hidden ones the same way. A dot crosses between its hidden spot and its
+ * drawn one on the frame its alpha crosses the renderer's floor, so the move is
+ * never drawn.
+ */
+function placeHiddenDots(attrsBuf, frame, cam, h) {
+	const x = clamp(
+		cam.xS(Math.min(cam.playhead, RACE_DATA_END)),
+		cam.left,
+		cam.right
+	);
+	const curves = frame.hidden === "curves";
+	for (let id = 0, i = 0; i < EDGE_BASE; id++, i += STRIDE) {
+		if (attrsBuf[i + 6] > ALPHA_SEEN) continue;
+		if (curves && RACE_CAST.has(id)) {
+			attrsBuf[i] = clamp(attrsBuf[i], cam.left, cam.right);
+			attrsBuf[i + 1] = clamp(attrsBuf[i + 1], cam.top, cam.bottom);
+			continue;
+		}
+		const y = clamp(scatterY(id, h), cam.top, cam.bottom);
+		set(attrsBuf, id, x, y, 2, CROWD, 0);
+	}
+}
+
+/**
  * The marks the frame writes besides the cast, in draw order: the backdrop
  * first, so the contenders' lines are written over it; the Gen-Z field; and the
  * closing step's projections last, since they alone live out on the strip and
@@ -2478,6 +2521,7 @@ export function writeRaceSweepFrame(
 		alphaOf !== null
 	);
 	writeFields(attrsBuf, trailBuf, frame, cam, yS, vMin, vMax);
+	placeHiddenDots(attrsBuf, frame, cam, h);
 	return {
 		axes: raceAxes(
 			cam,
@@ -2556,18 +2600,14 @@ function settleTrails(trails, trailDelays, step, visible, w, bottom) {
  */
 function raceLayout(step, yCap = Infinity) {
 	/** @type {import("../layout-types.js").LayoutFn} */
-	return function layoutRace(nodes, w, h, _edges, params) {
+	return function layoutRace(_nodes, w, h, _edges, params) {
 		const attrs = new Float64Array(ATTR_SIZE);
 		const trails = new Float64Array(TRAIL_SIZE);
 		const trailDelays = new Float64Array(TRAIL_META.length);
-		// park every node hidden at its scatter spot first; the frame writer then
-		// places the race cast on their curves. Sharing that writer with the
-		// choreographies is what makes a settle byte-identical to its animation's
-		// last frame — there is only one placer of race dots and trails.
-		for (const n of nodes) {
-			const [x, y] = scatterPosition(n, w, h);
-			set(attrs, n.id, x, y, 2, CROWD, 0);
-		}
+		// The frame writer places every dot, the hidden ones included
+		// (placeHiddenDots). Sharing that writer with the choreographies is what
+		// makes a settle byte-identical to its animation's last frame — there is
+		// only one placer of race dots and trails.
 		const { axes, callout, band, cam, visible } = writeRaceSweepFrame(
 			attrs,
 			trails,
@@ -2576,14 +2616,6 @@ function raceLayout(step, yCap = Infinity) {
 			restingFrame(step, params, w, h),
 			yCap
 		);
-		// NOTE: the actors this step doesn't show are deliberately left where the
-		// writer put them — on their own curve, at alpha 0 — rather than parked
-		// back at their scatter spot. Parking them is what used to make a dot
-		// travel the width of the canvas between two race steps to arrive, since
-		// the tweener interpolates position while alpha goes 0 -> 1. The outbound
-		// transition doesn't need the park either: raceFull shows the whole cast,
-		// so by the time the story leaves the chapter there is nobody hidden left
-		// to fly in from off the plot.
 		settleTrails(trails, trailDelays, step, visible, w, cam.bottom);
 		return { attrs, trails, trailDelays, axes, callout, band };
 	};
@@ -2699,7 +2731,7 @@ export const RACE_REWIND_WAYPOINT_YEAR = 2006;
 // chapter's subject gone. So the resting year falls through to the extent's end
 // and the choreographies put the camera where each step wants it, which is what
 // `landAt` is for.
-export const RACE_RECENT_STEP = { extent: RACE_RECENT_EXTENT, highlight: [SLJ, HACKMAN] }; // prettier-ignore
+export const RACE_RECENT_STEP = { extent: RACE_RECENT_EXTENT, highlight: [SLJ, HACKMAN], hidden: "curves" }; // prettier-ignore
 // raceFull shows the whole cast, so it has to name its subject: without a
 // highlight, `subject` falls back to everything visible and every line on the
 // chart would claim the foreground at once. Hackman and Sarandon are the two it
@@ -2723,7 +2755,9 @@ export const RACE_FULL_STEP = {
 	// and the crossing raceRecent's second step is about is still on the plot.
 	restPlayhead: RACE_REWIND_WAYPOINT_YEAR,
 	callouts: RACE_FULL_CALLOUTS,
-	highlight: [HACKMAN, SARANDON]
+	highlight: [HACKMAN, SARANDON],
+	// both neighbours are race steps: see placeHiddenDots
+	hidden: "curves"
 };
 // raceFuture: raceFull's chart with the camera run forward to the present, and a
 // fitted strip of future ground opened out to the right of it.

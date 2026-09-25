@@ -4,7 +4,6 @@ import { ATTR_SIZE, set } from "../attr-buffer.js";
 import { SIM_SERIES, SIM_LABEL_N, SIM_LABEL_IDS } from "../cast.js";
 import { CROWD, INK } from "../palette.js";
 import { MARGIN, plotBottom, lin } from "../plot.js";
-import { scatterPosition } from "../scatter-scales.js";
 import {
 	TRAIL_SIZE,
 	TRAIL_POINTS,
@@ -189,17 +188,16 @@ function layoutSimRace(nodes, w, h, _edges, params) {
 	const attrs = new Float64Array(ATTR_SIZE);
 	const trails = new Float64Array(TRAIL_SIZE);
 	const onChart = new Set(SIM_SERIES.filter((id) => id !== null));
-	// every contender below the cut waits at their scatter spot, invisible, so
-	// nothing travels the width of the canvas to get here
+	const plot = simPlot(w, h);
+	// everyone off the chart waits hidden on its origin, the corner every run
+	// starts from, so the career cloud a step back shows grows out of it
 	for (const n of nodes) {
 		if (onChart.has(n.id)) continue;
-		const [x, y] = scatterPosition(n, w, h);
-		set(attrs, n.id, x, y, 2, CROWD, 0);
+		set(attrs, n.id, plot.left, plot.bottom, 2, CROWD, 0);
 	}
 	// the sim slots are the writer's; every other line retracts into the origin
 	const simSlots = SIM_SERIES.map((_id, s) => SIM_SLOT_BASE + s);
 	const owned = new Set(simSlots);
-	const plot = simPlot(w, h);
 	TRAIL_META.forEach((_meta, t) => {
 		if (owned.has(t)) return;
 		collapseTrail(trails, t, plot.left, plot.bottom, 0);

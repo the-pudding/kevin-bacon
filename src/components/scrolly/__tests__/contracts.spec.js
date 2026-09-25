@@ -9,8 +9,13 @@ import {
 	STATE_REQUESTS,
 	STATE_AMBIENT,
 	STATE_RACE,
-	STATE_YCAP
+	STATE_YCAP,
+	entryFor
 } from "../states.js";
+import { prepareArrival } from "../arrivals.js";
+import { parkLeavers, restateHidden } from "../arrival-marks.js";
+import { ALPHA_SEEN } from "../render.js";
+import { story } from "../story.svelte.js";
 import { TRAIL_SIZE, TRAIL_STRIDE, TRAIL_POINTS } from "../trails.js";
 import { EDGE_BASE, STRIDE } from "../attr-buffer.js";
 import {
@@ -20,6 +25,7 @@ import {
 	RACE_FUTURE_END
 } from "../layouts/race.js";
 import { writeSimFrame, SIM_N_SIMS } from "../layouts/sim-race.js";
+import { scatterY } from "../scatter-scales.js";
 import {
 	BOXES,
 	arrivalContext,
@@ -30,6 +36,8 @@ import {
 	nodes,
 	phasesOf,
 	storyWith,
+	storySteps,
+	backFrom,
 	published
 } from "./helpers.js";
 
@@ -327,5 +335,205 @@ describe("simulation race: the replay's frames are the settled layouts", () => {
 				expectSameFrame(trails, layout.trails, "trails");
 			});
 		}
+	}
+});
+
+// The race's frontier column stands a hidden dot at scatterY, so the crowd
+// raceFuture hands to scatterCenters only spreads sideways. A y on any other
+// scale is a crowd that slides up or down the plot as it fades in — it once
+// arrived from above, off a y scale fitted to the whole corpus.
+describe("scatterY: every dot scatterCenters draws stands at its scatterY", () => {
+	for (const box of BOXES) {
+		test(`@${box.name}`, () => {
+			const { attrs } = buildLayout(
+				"scatterCenters",
+				box,
+				layoutParamsFor("scatterCenters", { showFilms: true })
+			);
+			let max = 0;
+			for (const n of nodes) {
+				const i = n.id * STRIDE;
+				if (attrs[i + 6] <= TOLERANCE) continue;
+				max = Math.max(max, Math.abs(attrs[i + 1] - scatterY(n.id, box.h)));
+			}
+			expect(max).toBeLessThanOrEqual(TOLERANCE);
+		});
+	}
+});
+
+// motion.md rule 14. An arrival restates every dot the departing state hides
+// onto that state's mark for it (restateHidden), so a dot the arrival shows
+// sets off from the departing state's designed spot — and that spot has to be
+// on the canvas, or the dot streaks in from off screen as it fades in.
+describe("restateHidden: only a dot the departing state hides and the reader cannot see", () => {
+	const at = (id) => id * STRIDE;
+	test("moves a hidden dot onto the departing mark, alpha untouched", () => {
+		const live = new Float32Array(EDGE_BASE);
+		const departing = new Float64Array(EDGE_BASE);
+		live.set([10, 20, 3, 1, 1, 1, 0], at(0));
+		departing.set([100, 200, 2, 0.5, 0.5, 0.5, 0], at(0));
+		restateHidden(live, departing);
+		expect(Array.from(live.subarray(at(0), at(1)))).toEqual([
+			100, 200, 2, 0.5, 0.5, 0.5, 0
+		]);
+	});
+	test("leaves a dot the reader can see, and one the departing state draws", () => {
+		const live = new Float32Array(EDGE_BASE);
+		const departing = new Float64Array(EDGE_BASE);
+		live.set([10, 20, 3, 1, 1, 1, 0.5], at(0));
+		departing.set([100, 200, 2, 0.5, 0.5, 0.5, 0], at(0));
+		live.set([30, 40, 3, 1, 1, 1, 0], at(1));
+		departing.set([300, 400, 2, 0.5, 0.5, 0.5, 0.3], at(1));
+		const before = Float32Array.from(live);
+		restateHidden(live, departing);
+		expect(live).toEqual(before);
+	});
+});
+
+/** the frame an arrival tweens onto: an entry's frame 0, else the static layout */
+function arrivalTarget(to, from, layout, params, box, live) {
+	const anim = entryFor(to, from);
+	const attrs = layout.attrs.slice();
+	parkLeavers(attrs, live);
+	if (!anim) return { attrs, anim };
+	const ctx = arrivalContext(box, { from });
+	ctx.live.attrs.set(live);
+	const phases = phasesOf(anim, ctx);
+	if (phases.length === 0) return { attrs, anim };
+	const start = attrs.slice();
+	const trails = trailsOf(layout).slice();
+	const args = [nodes, box.w, box.h, edges, params, box.bleed, ctx];
+	if (anim.seed) anim.seed(...args)(start, trails);
+	else anim.frames(...args)(start, trails, 0, 0, 0);
+	return { attrs: start, anim, settle: attrs };
+}
+
+/** where an arrival starts every dot: the live frame, or the hold it parks on */
+function arrivalStart(anim, params, box, live, from) {
+	if (!anim?.hold) return live;
+	const hold = Float64Array.from(live);
+	const ctx = arrivalContext(box, { from });
+	anim.hold.frame(
+		nodes,
+		box.w,
+		box.h,
+		edges,
+		params,
+		box.bleed,
+		ctx
+	)(hold, new Float64Array(TRAIL_SIZE));
+	return hold;
+}
+
+const onCanvas = (box, x, y) =>
+	x >= -box.bleed.l && x <= box.w + box.bleed.r && y >= 0 && y <= box.h;
+
+/** does the arrival bring slot `i` onto the canvas: invisible at the start, drawn on the canvas at the end */
+const arrives = (box, start, end, i) =>
+	start[i + 6] <= ALPHA_SEEN &&
+	end[i + 6] > ALPHA_SEEN &&
+	onCanvas(box, end[i], end[i + 1]);
+
+/** is slot `i` at the start on the departing spot (or parked by a hold), and on the canvas */
+const startsWell = (box, start, departing, i, held) =>
+	(held ||
+		(Math.abs(start[i] - departing[i]) <= 0.01 &&
+			Math.abs(start[i + 1] - departing[i + 1]) <= 0.01)) &&
+	onCanvas(box, start[i], start[i + 1]);
+
+/**
+ * One arrival as ScrollyVisual plays it, checked: restate the hidden dots, then
+ * every dot that is invisible at the start and on the canvas, visible, in the
+ * frame the arrival tweens onto must start at the departing state's spot
+ * (unless a hold has parked it) and on the canvas.
+ */
+function expectArrivalsOnCanvas(move, departing, live, box) {
+	restateHidden(live, departing);
+	const { to, from, layout, params } = move;
+	const target = arrivalTarget(to, from, layout, params, box, live);
+	const start = arrivalStart(target.anim, params, box, live, from);
+	const held = Boolean(target.anim?.hold);
+	const bad = [];
+	for (let id = 0, i = 0; i < EDGE_BASE; id++, i += STRIDE) {
+		if (!arrives(box, start, target.attrs, i)) continue;
+		move.checked.n += 1;
+		if (!startsWell(box, start, departing, i, held))
+			bad.push(`${id}@(${start[i] | 0},${start[i + 1] | 0})`);
+	}
+	expect(bad, `${move.label}: ${bad.length} dots`).toEqual([]);
+	return target.settle ?? target.attrs;
+}
+
+// Every state change the reader can make, both ways, with the story's arrival
+// rules applied as the registry applies them: forward through the story with
+// a step back and forth at every step, then all the way back. The live frame
+// is carried from arrival to arrival as it rests on screen — the leavers
+// parked where they faded — so the restatement is exercised, not assumed.
+describe("hidden spots: every dot an arrival shows starts on the canvas", () => {
+	const steps = storySteps();
+	for (const box of BOXES) {
+		test(`@${box.name}`, () => {
+			const saved = storyWith();
+			try {
+				let cur = 0;
+				let shown = buildLayout(
+					steps[0].state,
+					box,
+					layoutParamsFor(steps[0].state, steps[0].params, story)
+				);
+				let live = Float32Array.from(shown.attrs);
+				// the arriving dots checked, so a walk that checks nobody fails
+				const checked = { n: 0 };
+				const go = (dest) => {
+					const from = steps[cur].state;
+					const to = steps[dest].state;
+					prepareArrival({
+						to,
+						from,
+						forward: dest > cur,
+						back: dest < cur
+					});
+					const params = layoutParamsFor(to, steps[dest].params, story);
+					const layout = buildLayout(to, box, params);
+					const carry = STATE_AMBIENT[to]?.carryFrom?.includes(from);
+					const move = {
+						to,
+						from,
+						layout,
+						params,
+						checked,
+						label: `${cur} → ${dest}`
+					};
+					const owns = to !== from && entryFor(to, from)?.ownsArrival;
+					let rest;
+					if (to === from || carry || owns) {
+						rest = layout.attrs.slice();
+						parkLeavers(rest, live);
+					} else {
+						rest = expectArrivalsOnCanvas(move, shown.attrs, live, box);
+					}
+					live = Float32Array.from(rest);
+					shown = layout;
+					cur = dest;
+				};
+				for (let i = 1; i < steps.length; i++) {
+					go(i);
+					go(backFrom(steps, i));
+					go(i);
+				}
+				while (cur > 0) go(backFrom(steps, cur));
+				expect(checked.n).toBeGreaterThan(0);
+			} finally {
+				for (const [key, value] of Object.entries(saved)) {
+					if (
+						value !== null &&
+						typeof value === "object" &&
+						!Array.isArray(value)
+					)
+						Object.assign(story[key], value);
+					else story[key] = value;
+				}
+			}
+		});
 	}
 });

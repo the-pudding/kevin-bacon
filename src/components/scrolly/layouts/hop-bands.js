@@ -1,9 +1,17 @@
 import rawNodes from "$data/scrolly-nodes.json";
 import story from "$data/scrolly-story.json";
 import { ANCHOR_ID, INTRO_IDS, hash01 } from "../nodes.js";
-import { ATTR_SIZE, DELAY_SIZE, set } from "../attr-buffer.js";
+import {
+	ALPHA_OFFSET,
+	ATTR_SIZE,
+	DELAY_SIZE,
+	EDGE_BASE,
+	STRIDE,
+	set
+} from "../attr-buffer.js";
 import { blueNoiseSeats } from "../blue-noise.js";
-import { HOP_CYCLE_IDS, SKY_IDS, isIntroActor } from "../cast.js";
+import { FIELD_IDS, HOP_CYCLE_IDS, SKY_IDS, isIntroActor } from "../cast.js";
+import { ALPHA_SEEN } from "../render.js";
 import {
 	NETWORK_HOP_DELAY_MS,
 	NETWORK_INTRO_RADIUS,
@@ -54,9 +62,9 @@ const BAND_GAP = 12;
 //
 // The identity that matters: for Bacon the ratio is 1, so this is exactly the
 // sample and his frame is the frame `hopBands` has always drawn. That is what
-// makes stepping from step 5 onto the cycling chart move nothing at all —
-// asserted by the goldens, which give `hopBands` and `hopAnchor {anchorId: 0}`
-// the same three hashes.
+// makes stepping from step 4 onto the cycling chart move no dot the reader can
+// see. (The dots neither shows differ: hopBands hides them in the sky, see
+// layoutBandsOffSky, and they cross to hopAnchor's rows unseen.)
 const BACON_HOP_COUNTS = story.rankHopBands[ANCHOR_ID];
 
 /**
@@ -627,6 +635,42 @@ function writeIntroIntoSky(attrs, nodes, w, h, scale, blend) {
 	}
 }
 
+// The sky's crowd that rests invisible: at the edge of its flight window, or
+// too deep in the volume to draw. A dot at the far edge is magnified off the
+// canvas, often by a screen width or more, and the bands arrival would draw it
+// in from there. So these stand in their hopBands row instead and fade in
+// there. Only the position moves: the mark is the sky's, so the flight's t = 0
+// is still the static frame, and a dot at the entry edge simply enters from
+// its spot in the row.
+const SKY_HIDDEN = FIELD_IDS.filter((id) => restingSkyDot(id)[1] <= ALPHA_SEEN);
+const SKY_HIDDEN_SET = new Set(SKY_HIDDEN);
+
+/**
+ * The landed sky, with the dots it hides in their row of Bacon's bands: a
+ * hashed column across the span and `placeHidden`'s hashed height in the row.
+ * Not their seat, and not the column they leave the sky in: both read the
+ * sky's live clock (departureColumn), and the flight flies these dots from
+ * this frame, so two flights built at different moments would disagree about
+ * where they are — a jump on the carry between hopSeed and the title card.
+ * Anchored on Bacon the rows are cut on the degrees exactly, so a dot's row is
+ * its own hop.
+ */
+function writeLandedCrowd(attrs, w, h, bleed) {
+	writeFieldCrowd(attrs, w, h, PULLBACK_ZOOM, galaxyBox(w, h, bleed));
+	const base = bandFrame(w, h, bleed);
+	const shown = shownDots(base.seats.length);
+	// the dots on show, less the anchor up in the header: the seats the rows cut
+	const seated = shown.reduce((sum, s) => sum + s, 0) - 1;
+	const cuts = bandCuts(anchorShares(SAMPLE_COUNTS, ANCHOR_ID), seated);
+	const { bandTop, bandH } = bandGeometry(base.seats, cuts);
+	for (const id of SKY_HIDDEN) {
+		const band = Math.min(4, Math.max(1, hopOf(id)));
+		const i = id * STRIDE;
+		attrs[i] = base.x0 + hash01(id, 22) * (base.x1 - base.x0);
+		attrs[i + 1] = bandTop[band] + hash01(id, 4) * bandH[band];
+	}
+}
+
 // "slowly" — the whole pull-back is one long leg, long enough that the reader
 // reads the line while the camera is still moving. Exported so the outro
 // state's own echo of this bloom (race.js) shares the same duration rather
@@ -642,7 +686,7 @@ function layoutHopSeed(nodes, w, h, edges, _params, bleed = NO_BLEED) {
 	// no focus: whatever route the reader lit up on networkIntro releases as the
 	// camera pulls back, because the step is about the network as a whole again
 	writeNetwork(attrs, nodes, w, h, null, PULLBACK_ZOOM, HOP_SEED_EDGE_FADE);
-	writeFieldCrowd(attrs, w, h, PULLBACK_ZOOM, galaxyBox(w, h, bleed));
+	writeLandedCrowd(attrs, w, h, bleed);
 	// the camera has landed, so the fifteen have finished joining: this frame is
 	// the flight's own t = 0 and they are drawn here as the flight will draw them
 	writeIntroIntoSky(attrs, nodes, w, h, PULLBACK_ZOOM, 1);
@@ -673,11 +717,34 @@ function zoomOutFrames(nodes, w, h, _edges, _params, bleed = NO_BLEED) {
 	return (attrs, _trails, _phase, e) => {
 		const scale = 1 + (PULLBACK_ZOOM - 1) * e;
 		writeNetwork(attrs, nodes, w, h, null, scale, HOP_SEED_EDGE_FADE);
-		writeFieldCrowd(attrs, w, h, scale, box);
+		// the hidden crowd keeps the static layout's seat throughout, so the leg
+		// lands on it (writeLandedCrowd)
+		writeFieldCrowd(attrs, w, h, scale, box, SKY_HIDDEN_SET);
 		// the camera's travel IS the blend: the fifteen let go of the diagram at
 		// the rate the crowd arrives around them, so the two finish together
 		writeIntroIntoSky(attrs, nodes, w, h, scale, e);
 	};
+}
+
+/**
+ * hopBands' own frame: the bands, with every dot they do not show standing
+ * where the title card's sky draws it (alpha 0). The one arrival that shows
+ * those dots is the step back onto the card, so each fades in on its own spot
+ * in the flow while the rows rise into it. Forwards nothing changes: a sky dot
+ * the bands do not show fades where it stands (parkLeavers), and hopAnchor's
+ * hidden dots keep the band rows `placeHidden` gives them, which is where the
+ * rank bar's convergence pours them in from.
+ * @type {import("../layout-types.js").LayoutFn}
+ */
+function layoutBandsOffSky(nodes, w, h, edges, params, bleed = NO_BLEED) {
+	const bands = layoutHopBands(nodes, w, h, edges, params, bleed);
+	const { attrs: sky } = layoutHopSeed(nodes, w, h, edges, null, bleed);
+	const { attrs } = bands;
+	for (let i = 0; i < EDGE_BASE; i += STRIDE) {
+		if (attrs[i + ALPHA_OFFSET] > ALPHA_SEEN) continue;
+		for (let k = 0; k < ALPHA_OFFSET; k++) attrs[i + k] = sky[i + k];
+	}
+	return bands;
 }
 
 export const states = {
@@ -733,12 +800,13 @@ export const states = {
 		}
 	},
 	hopBands: {
-		// Straight through, with no params of its own, so the layout falls back to
-		// Bacon as the anchor — which is the same call `hopAnchor` makes on its own
-		// first frame, and why stepping between the two moves no dot at all.
-		// `seed` is hopSeed's alone, and that state calls the layout directly
-		// rather than coming past this entry.
-		layout: layoutHopBands,
+		// No params of its own, so the layout falls back to Bacon as the anchor —
+		// which is the same call `hopAnchor` makes on its own first frame, and why
+		// stepping between the two moves no dot the reader can see. The dots it
+		// hides stand in the sky instead (layoutBandsOffSky). `seed` is hopSeed's
+		// alone, and that state calls the layout directly rather than coming past
+		// this entry.
+		layout: layoutBandsOffSky,
 		// One chart with hopAnchor, so the two share one scene: the legend stays
 		// up and glides with its rows across the step change instead of fading
 		// out and in around them. The title changes the way every title does:

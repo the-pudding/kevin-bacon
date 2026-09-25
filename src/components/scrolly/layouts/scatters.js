@@ -8,7 +8,8 @@ import {
 	scatterPosition,
 	deLogFilms,
 	filmAxisTicks,
-	FILM_MIN_SHOWN
+	FILM_MIN_SHOWN,
+	SCATTER_PAD
 } from "../scatter-scales.js";
 import {
 	SEARCH_DOT_R,
@@ -29,6 +30,7 @@ import {
  * @param {(n: import("../nodes.js").ActorNode) => number|null} cfg.yOf
  * @param {boolean} [cfg.invert] smaller value = higher up (avg-distance charts)
  * @param {number} [cfg.tickStep] y ticks at even steps of the metric (default 0.5)
+ * @param {number[]} [cfg.ticks] y ticks at these raw metric values instead of even steps; any outside the domain are dropped
  * @param {Map<number, { rgb: number[], r: number, alpha?: number }>} [cfg.highlights]
  * @param {(t: number) => string} [cfg.labelOf] formats a y tick's raw value; default 1dp of the raw value
  * @param {number} [cfg.floor] raises the y-domain's lower bound past the data minimum; actors below it clamp to the floor, dimmed, same as anyone past vMax
@@ -38,7 +40,7 @@ function filmsScatter(nodes, w, h, cfg) {
 	const attrs = new Float64Array(ATTR_SIZE);
 	const values = nodes.map((n) => cfg.yOf(n));
 	const [vMin, vMax] = scatterDomain(nodes, values, cfg);
-	const pad = (vMax - vMin) * 0.04;
+	const pad = (vMax - vMin) * SCATTER_PAD;
 	const top = MARGIN + 8;
 	const bottom = plotBottom(h);
 	const yS = cfg.invert
@@ -109,15 +111,23 @@ function placeScatterDot(attrs, n, v, hi, w, h, yS, vMin, vMax) {
 	);
 }
 
-// y ticks at even metric steps, no gridlines
+// y ticks at the config's own values, else at even metric steps; no gridlines
 function scatterTicks(vMin, vMax, cfg, yS) {
-	const step = cfg.tickStep ?? 0.5;
 	const labelOf = cfg.labelOf ?? ((t) => t.toFixed(1));
-	const y = [];
+	return tickValues(vMin, vMax, cfg).map((t) => ({
+		pos: yS(t),
+		label: labelOf(t)
+	}));
+}
+
+function tickValues(vMin, vMax, cfg) {
+	if (cfg.ticks) return cfg.ticks.filter((t) => t >= vMin && t <= vMax);
+	const step = cfg.tickStep ?? 0.5;
+	const values = [];
 	for (let t = Math.ceil(vMin / step) * step; t <= vMax; t += step) {
-		y.push({ pos: yS(t), label: labelOf(t) });
+		values.push(t);
 	}
-	return y;
+	return values;
 }
 
 /**
@@ -250,27 +260,25 @@ const DEG_SCATTER_HIGHLIGHTS = new Map([
 	[KENDRICK, { rgb: CROWD, r: 5.5 }]
 ]);
 
-// raises the axis floor to a ~19-film costar average — below that isn't a
-// meaningful "big dog" costar anyway, and the true data minimum (~16) left
-// most of the range spent on actors nobody in the prose is pointing at.
-// Kendrick (47) still clears it comfortably, so she isn't pinned to the
-// floor. The ceiling gets a ~10% widening above the true data max (~61), so
-// the top of the range isn't crowded right up against Portman's dot either.
-const DEG_SCATTER_FLOOR = Math.log(20);
-const DEG_SCATTER_CEIL = Math.log(68);
+// the axis runs from a 10-film to a 100-film costar average, so its ends and
+// its ticks are round film counts. top50 is a mean log(films + 1), hence the
+// + 1. Below 10 isn't a meaningful "big dog" costar anyway — anyone there
+// clamps to the floor, dimmed — and the true data max (~61) sits well clear
+// of the ceiling, so Portman's dot isn't crowded against the top.
+const filmCountAt = (films) => Math.log(films + 1);
+const DEG_SCATTER_FLOOR = filmCountAt(10);
+const DEG_SCATTER_CEIL = filmCountAt(100);
+const DEG_SCATTER_TICKS = [10, 25, 50, 100].map(filmCountAt);
 
 /** @type {import("../layout-types.js").LayoutFn} */
 const layoutDegScatter = (nodes, w, h, _edges, params) =>
 	filmsScatter(nodes, w, h, {
 		yOf: (n) => n.top50,
-		// top50 is mean log(films + 1) of the 50 most prolific costars, so the
-		// plotted range is ~2-5. The 0.5 default was tuned for the retired
-		// log-degree metric's ~7-8 band and leaves too few ticks here.
-		tickStep: 0.25,
+		// ticks sit at round film counts in log space (that's the plotted scale)
+		ticks: DEG_SCATTER_TICKS,
 		highlights: withSearch(DEG_SCATTER_HIGHLIGHTS, params),
 		floor: DEG_SCATTER_FLOOR,
 		ceil: DEG_SCATTER_CEIL,
-		// ticks stay evenly spaced in log space (that's the plotted scale), but
 		// the label de-logs back to a film count — the raw log value on its own
 		// means nothing to a reader
 		labelOf: (t) => String(deLogFilms(t))

@@ -15,9 +15,6 @@ import {
 } from "../attr-buffer.js";
 import { introPosition, NETWORK_INTRO_RADIUS } from "../intro-geometry.js";
 import { HOP_RGB, CROWD, INK } from "../palette.js";
-import { NO_BLEED } from "../plot.js";
-import { parkHidden } from "../scatter-scales.js";
-import { writeFieldCrowd, galaxyBox } from "../sky.js";
 import { routesTo, routeActors, introDistance } from "../intro-routes.js";
 
 const INTRO_EDGE_ALPHA = 0.5;
@@ -191,22 +188,17 @@ function introDot(id, n, focus, routeNodes) {
 const edgeAlpha = (focus) =>
 	focus == null ? INTRO_EDGE_ALPHA : DIM_EDGE_ALPHA;
 
-// The full intro frame: the constellation, with every other node parked at the
-// scatter spot a later chapter wants it at (alpha 0).
-function buildNetworkAttrs(nodes, w, h, focus, bleed = NO_BLEED) {
+// The full intro frame: the constellation, with every other node hidden on
+// Bacon's dot — the one the sky grows out of. The only arrival out of here is
+// hopSeed's pull-back, whose own frames place the crowd from its frame 0, so
+// this spot is where an unseen dot sets off from, never where one appears.
+function buildNetworkAttrs(nodes, w, h, focus) {
 	const attrs = new Float64Array(ATTR_SIZE);
 	const introSet = new Set(INTRO_IDS);
+	const [bx, by] = introPosition(ANCHOR_ID, w, h);
 	for (const n of nodes) {
-		if (!introSet.has(n.id)) parkHidden(attrs, n, w, h);
+		if (!introSet.has(n.id)) set(attrs, n.id, bx, by, 2, CROWD, 0);
 	}
-	// hopSeed's field, parked (invisible) at full zoom — where the camera would
-	// have pushed it back out to. Without this the crowd is parked on the films
-	// scatter instead, and stepping back out of hopSeed drags 600 visible dots
-	// left across the canvas toward their film counts rather than letting the
-	// camera zoom back in over them. Same box hopSeed lands the field on
-	// (`galaxyBox`), so the park is that step's own geometry rather than one that
-	// merely looks like it from behind alpha 0.
-	writeFieldCrowd(attrs, w, h, 1, galaxyBox(w, h, bleed));
 	const pos = writeNetwork(attrs, nodes, w, h, focus);
 	return { attrs, pos };
 }
@@ -362,9 +354,9 @@ function clearedRoute(attrs, nodes, focus) {
  * back in one tween.
  * @type {import("../layout-types.js").LayoutFn}
  */
-function layoutNetworkIntro(nodes, w, h, _edges, params, bleed = NO_BLEED) {
+function layoutNetworkIntro(nodes, w, h, _edges, params) {
 	const focus = params?.focus ?? null;
-	const { attrs, pos } = buildNetworkAttrs(nodes, w, h, focus, bleed);
+	const { attrs, pos } = buildNetworkAttrs(nodes, w, h, focus);
 	const hits = buildHits(nodes, pos, focus);
 	const paramWalk = focus == null ? undefined : routeWalk(attrs, nodes, focus);
 	return { attrs, hits, delays: INTRO_DELAYS, paramWalk };

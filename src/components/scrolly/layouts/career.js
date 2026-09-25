@@ -4,7 +4,6 @@ import { SWEENEY, DENIRO, CHASE, HACKMAN, MIRREN } from "../cast.js";
 import { ANCHOR_ID } from "../nodes.js";
 import { CROWD, BLUE } from "../palette.js";
 import { MARGIN, plotBottom, lin } from "../plot.js";
-import { scatterPosition } from "../scatter-scales.js";
 import {
 	SEARCH_DOT_R,
 	SEARCH_RGB,
@@ -197,9 +196,9 @@ function careerLayout(cast, showCohort) {
 					...careerDot(marked, 2, CROWD, 0.22)
 				);
 			} else {
-				// no career age known — park hidden at the distance-scatter spot
-				const [x, y] = scatterPosition(n, w, h);
-				set(attrs, n.id, x, y, 2, CROWD, 0);
+				// no career age known: hidden on the plot's origin, the corner the
+				// simulation next door starts its runs from
+				set(attrs, n.id, xS(0), yS(0), 2, CROWD, 0);
 			}
 		}
 		TRAIL_META.forEach((_meta, t) => {

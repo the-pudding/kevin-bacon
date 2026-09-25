@@ -34,6 +34,7 @@ and the measurements that were taken — lives in `notes/design/`.
 | `scrolly/Stage.svelte`                                               | The layout shell: the canvas box, the rank ladder's placement and fade-in latch, the active step's panel, the title card with its fade, the nav cue on step 0, the dev tuners' mount, the prose column, `StepProgress` and `TapNav`. Renders the steps as `children(layout)`.                                                                                                                                                                                                                                                |
 | `scrolly/step-registry.svelte.js`                                    | `createStepRegistry({ navigate })`: the wizard. Registrations in document order, the step index (kept in `?step=N`, dev only), `go`/`advance`/`skip`/`next`/`prev`/`exit`, gate (with `onnext`) and `skipback` resolution, the bar's `chapters`/`currentChapter`/`dotSteps`/`dotStep`, and the `advanceon` watcher.                                                                                                                                                                                                          |
 | `scrolly/arrivals.js`                                                | `prepareArrival(move)`: what a move does to the story before the destination renders — un-landing the beat, the rank panel's handoff, the reset on leaving the rank chapter backwards, and per-state arrival rules (the hop chart's anchor, quiz, simulation, Gen Z draw-on).                                                                                                                                                                                                                                                |
+| `scrolly/arrival-marks.js`                                           | What a state change does to the dots before anything travels: `parkLeavers` (a dot the arriving state hides fades where it stands) and `restateHidden` (a dot the departing state hides, and the reader cannot see, is moved onto its hidden spot there).                                                                                                                                                                                                                                                                    |
 | `scrolly/story.svelte.js`                                            | The shared interaction state, grouped by interaction (`intro`, `hops`, `rank`, `race`, `quiz`, `search`, `sim`) under four framework fields (`settled`, `settledStep`, `request`, `running`); `request(kind)`, `resetSimRace()`, `resetGenzLines()`, `resetHopAnchor()`.                                                                                                                                                                                                                                                     |
 | `scrolly/Step.svelte`, `Chapter.svelte`, `Splash.svelte`             | `Step` and `Splash` register one step each with the `"scrolly-steps"` context in document order. `Step` renders its prose while active; `Splash` renders nothing — `Stage` draws the title card from the registry so it can transition out. `Chapter` takes no step: it wraps a run of `<Step>`s and puts its `title` in the `"scrolly-chapter"` context, which each `Step` registers as `chapter`.                                                                                                                          |
 | `scrolly/TapNav.svelte`, `StepProgress.svelte`                       | The step driver (tap halves stacked, edge notches beside the prose, arrow keys always; all through `go()`) and the chapter progress bar (indicator only).                                                                                                                                                                                                                                                                                                                                                                    |
@@ -46,7 +47,7 @@ and the measurements that were taken — lives in `notes/design/`.
 | `scrolly/attr-buffer.js`                                             | The dot buffer's layout (`STRIDE`, `EDGE_BASE`, `ATTR_SIZE`, `DELAY_SIZE`), the writers `set`/`setEdge`, and `dissolve`.                                                                                                                                                                                                                                                                                                                                                                                                     |
 | `scrolly/trails.js`                                                  | Trail slots (`TRAIL_META`, `RACE_SLOT`, `SIM_SLOT`, …) and writers over a monotone-cubic curve (`monotoneSegments`, `curveYAt`, `clipSeries`, `sampleTrail`, `setTrail`, `setTrailPoints`, `collapseTrail`, `setTrailHighlight`).                                                                                                                                                                                                                                                                                            |
 | `scrolly/plot.js`, `palette.js`, `cast.js`                           | Plot geometry (`MARGIN`, `TITLE_BAND`, `plotBottom`, `lin`, `Bleed`); the canvas palette as rgb of the CSS tokens; who is who (named actors, `BY_RANK`, every chart's cast list).                                                                                                                                                                                                                                                                                                                                            |
-| `scrolly/rank-geometry.js`, `scatter-scales.js`, `intro-geometry.js` | The rank bar's dot lattice shared by canvas and HTML; the films scatters' shared scales and `parkHidden`; the intro constellation's fit and pull-back camera.                                                                                                                                                                                                                                                                                                                                                                |
+| `scrolly/rank-geometry.js`, `scatter-scales.js`, `intro-geometry.js` | The rank bar's dot lattice shared by canvas and HTML; the films scatters' shared scales (`scatterPosition`, and `scatterY`, which the race's frontier column shares); the intro constellation's fit and pull-back camera.                                                                                                                                                                                                                                                                                                    |
 | `scrolly/sky.js`, `galaxy-highlight.js`                              | The sky's volume and flow (`flowSpot`, `fieldSpot`, `writeFieldCrowd`, `makeFlight`, `galaxyBox`) and its one live clock; the title card's highlight beat (`withGalaxyHighlight`).                                                                                                                                                                                                                                                                                                                                           |
 | `scrolly/nodes.js`                                                   | `makeNodes()` → `{ nodes, edges }` from `src/data/scrolly-nodes.json`; `ANCHOR_ID`, `INTRO_IDS`, `hash01(id, salt)` and `dotHash` — deterministic per-node randomness, never `Math.random`.                                                                                                                                                                                                                                                                                                                                  |
 | `scrolly/layouts/*.js`                                               | One module per chart: `intro` (`networkIntro` — the constellation, two steps on it), `hop-bands` (`hopSeed`, `titleGalaxy` — the title card's sky, hopSeed's carried on — `hopBands` and `hopAnchor`, the cycling anchor), `rank`, `race`, `scatters`, `career`, `sim-race`. Each exports a `states` object; everything about one state is in its entry.                                                                                                                                                                     |
@@ -101,7 +102,7 @@ All dot state is one flat `Float64Array(ATTR_SIZE)`: `STRIDE = 7` values per nod
 from `EDGE_BASE` (slot 0 = draw progress 0–1, from the lower-hop end; slot 1 =
 alpha; slot 2 = how much of the line a highlighted route covers, 0–1, drawn from
 the OUTER end in, so a route reads as a walk to Bacon). Alpha carries
-visibility: hidden nodes get alpha 0 but still get _positions_, so a later fade-in never teleports. Trails are a second buffer of
+visibility: hidden nodes get alpha 0 but still get _positions_, and each is a designed hidden spot (see "Hidden spots" under Arrivals). Trails are a second buffer of
 `TRAIL_STRIDE = TRAIL_POINTS * 2 + 2` per slot — 48 vertices, alpha, and a 0–1
 ink channel the renderer blends toward `INK`. Every slot constant derives from
 the cast lists, so a cast can grow without touching an index.
@@ -164,6 +165,35 @@ Four ways a state's frame comes to be on screen, all landing on the same
 
 `contracts.spec.js` asserts the frame equalities for every declared entry,
 request and ambient; `goldens.spec.js` pins every state's static layout.
+
+**Hidden spots** (motion.md rule 14). Every layout places the dots it hides,
+and where it places them is designed: inside the canvas, and where a
+neighbouring step that shows them should bring them on from. There is no
+arrival declaration and no route: the departing state's layout IS the
+declaration. On a `state` or `entry` arrival the render effect restates every
+dot the departing layout hides, and the live frame cannot show, onto that
+layout's mark for it (`restateDeparting` → `restateHidden`), before the out
+beat; `parkLeavers` then keeps every dot the arriving state hides where the
+reader sees it, so it fades where it stands. A leaver therefore reaches its
+hidden spot one state change late, unseen, and works on a press mid-fade. A
+`params` change inside one state keeps that state's spots; `carry`, `snap`,
+`cold` and `popIn` start nothing from anywhere. The spots, by chart:
+
+| State                     | Where a hidden dot stands                                                                                   |
+| ------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `networkIntro`            | Bacon's dot (hopSeed's pull-back places the crowd from its frame 0, so this spot is never seen)             |
+| `hopSeed`, `titleGalaxy`  | the dots the sky hides: their row of Bacon's bands, on a clock-free spot (`writeLandedCrowd`)               |
+| `hopBands`                | where the title card's sky draws it (`layoutBandsOffSky`): a step back fades it in without travelling       |
+| `hopAnchor`               | its band row (`placeHidden`), which the rank bar's convergence pours in from                                |
+| `rankFocus`, `rankReveal` | hops 1–4 on their bar dot, everyone else on Bacon's dot; bare, the whole bar is hidden in place             |
+| race steps                | the frontier column (`placeHiddenDots`); on `raceRecent`/`raceFull` a hidden contender stays on their curve |
+| `simRace`                 | the simulation's origin                                                                                     |
+| career steps              | the plot's origin (the actors with no career age)                                                           |
+| scatters                  | `scatterPosition`, the chart's own scale                                                                    |
+
+`contracts.spec.js` walks every state change the reader can make, both ways,
+with the arrival rules applied, and holds every dot an arrival brings onto the
+canvas to its departing spot, on the canvas.
 
 ### The render effect
 
@@ -386,13 +416,18 @@ the prose for exactly this.
 1. Pick the chart's module under `layouts/` (or add one for a new chart). Write
    `layoutFoo(nodes, w, h, edges, params, bleed)`: fill a
    `Float64Array(ATTR_SIZE)` through `set()`, return `{ attrs }` plus whatever
-   furniture it needs.
+   furniture it needs. Place every dot it hides as deliberately as the ones it
+   draws (see "Hidden spots"): inside the canvas, where the step either side
+   should bring it on from. An entry's frames must place them the same way, or
+   its last leg will not land on the layout.
 2. Add one entry to the module's `states` object:
    `foo: { layout: layoutFoo, labels?, params?, revealFrom?, entry?, requests?, ambient?, overlay? }`.
    A new module is spread into the registry in `states.js`.
 3. Use it: `<Step state="foo"><p>…</p></Step>` in `Index.svelte`.
 4. `npx vitest run -u` writes its golden; add a row to `notes/tween-checklist.md`
-   and run `npm run stale` for its neighbours.
+   and run `npm run stale` for its neighbours. The hidden-spots walk in
+   `contracts.spec.js` picks the new step up from `Index.svelte` and fails on
+   any dot it brings in from off the canvas.
 
 Use `hash01(n.id, <salt>)` for per-node scatter or jitter, with an unused salt.
 Taken: 3–8 across layouts, 9 in `tween.js`, 14 in `writeFieldCrowd`'s trickle,
@@ -415,7 +450,7 @@ is required because a stale path would silently rebuild from the wrong inputs.
 Node rows: ids 0–14 the curated intro graph, then the full hop tree, then the
 actors the later chapters plot; each row joins films, avg distance and rank with
 the scatter metrics and predicted distances (null where a metric does not exist
-— layouts park non-participants hidden, `parkHidden`). `scrolly-nodes.json` also carries `searchPool` (the actors the search offers:
+— a layout hides a dot it has no metric for, on its designed hidden spot). `scrolly-nodes.json` also carries `searchPool` (the actors the search offers:
 everyone sdokb scores as recognisable — `data/recognizable-actors.json`, via
 `npm run fetch-recognizable` — unioned with everyone the story itself names or
 draws, minus anyone the charts cannot place. Fame has to be borrowed

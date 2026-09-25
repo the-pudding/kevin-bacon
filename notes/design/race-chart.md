@@ -402,8 +402,10 @@ resting frame carries no race line at all — which is what the pan's last frame
 lands on. The leg gets there through the ordinary `shown` mechanism
 (`{from: the whole cast, to: ∅}`), so the crown fades out over the first third
 while it is still on the plot rather than being cut off the moment the window
-leaves it. As on every race step the 224 stay parked on their own curves at alpha
-0, so nothing flies in from off the plot when the reader steps away.
+leaves it. The 224 then stand hidden in the frontier column (`placeHiddenDots`,
+motion.md rule 14), so the chart either side of this step — the quiz behind it,
+the careers ahead — brings them on out of the race's leading edge rather than
+from wherever their curves ran off the plot.
 
 **A backdrop fills the window the pan lands on.** Retiring the race cast leaves
 the plot empty between the pan and the reader's press, which reads as a bug and
@@ -443,9 +445,10 @@ projection ends at the same x, so 99 line-ends were not 99 positions but one
 99-high wall at the strip's far edge — with the marks the step is about buried
 inside it. The five are `SIM_LABEL_IDS`, the ones the simulation named and the
 reader has just been watching, so the same people carry the same names across the
-step change. The other 94 are not retracted: they stay on their own projection
-curves at alpha 0, the rule every race step follows, so nothing travels across
-the canvas when the reader steps back onto the chart. One consequence to know:
+step change. The other 94 are not retracted: their lines stay on their own
+projection curves at alpha 0, and their dots stand hidden in the frontier column
+(`placeHiddenDots`, motion.md rule 14), which is where the simulation behind
+this step brings them back on from. One consequence to know:
 the five are chosen by WIN SHARE, and that is not the order of the projected
 finish — id 10949 lands second-nearest the centre and is not drawn. It was
 already unmarked before; the field standing behind the marks used to say so.

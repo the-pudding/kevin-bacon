@@ -1,9 +1,6 @@
 // The films scatters' shared scales: the fixed log-films x axis every variant
-// plots against, the avg-distance range, and the park spot a node holds when
-// the current state does not place it.
+// plots against, and the avg-distance range.
 import rawNodes from "$data/scrolly-nodes.json";
-import { set } from "./attr-buffer.js";
-import { CROWD } from "./palette.js";
 import { MARGIN, lin, plotBottom } from "./plot.js";
 
 // fixed film-count x-scale shared by every films-scatter variant so dots only
@@ -21,28 +18,52 @@ export const FILM_LOG_MIN = Math.log(FILM_MIN_SHOWN);
 
 export const FILM_LOG_MAX = Math.max(...FILM_LOGS);
 
+// px the x axis's left end is held in from MARGIN, so the 5-film column and its
+// tick clear the y tick labels (.tick-y, indented 1.1rem past the axis title)
+// instead of printing under and through them
+const FILM_X_INSET = 24;
+
+const filmX = (logFilms, w) =>
+	lin(logFilms, FILM_LOG_MIN, FILM_LOG_MAX, MARGIN + FILM_X_INSET, w - MARGIN);
+
 // inverts top50's log(films + 1) build transform back to a plain film count.
 // The raw log value means nothing to a reader, so everything that surfaces
 // top50 — the degScatter axis and its labels, the Gen Z breakdown — shows the
 // de-logged count instead, and shares this so they all read the same number.
 export const deLogFilms = (t) => Math.round(Math.exp(t) - 1);
 
-export const AVG_MIN = Math.min(...rawNodes.nodes.map((n) => n[4]));
+/** the share of a films scatter's y domain left clear at each end of the plot */
+export const SCATTER_PAD = 0.04;
 
-export const AVG_MAX = Math.max(...rawNodes.nodes.map((n) => n[4]));
+// the avg-distance scatter's y domain, from the plotted actors only — the same
+// range filmsScatter fits, so this y is exactly where scatterCenters draws a
+// dot, and the race's hidden spots (the frontier column, layouts/race.js) send
+// the crowd across to it without a vertical slide. The whole corpus's range
+// (sub-floor actors reach 4.79 against the plotted 3.14) squashed that y into
+// the top of the plot, and every scatter arrival slid down from above.
+const SHOWN_AVGS = rawNodes.nodes
+	.filter((n) => n[3] >= FILM_MIN_SHOWN)
+	.map((n) => n[4]);
 
-/** distance-vs-films position — also the park spot for hidden latecomers */
+const AVG_MIN = Math.min(...SHOWN_AVGS);
+
+const AVG_MAX = Math.max(...SHOWN_AVGS);
+
+const AVG_PAD = (AVG_MAX - AVG_MIN) * SCATTER_PAD;
+
+/** the height the avg-distance scatter draws actor `id` at, by id */
+export const scatterY = (id, h) =>
+	lin(
+		rawNodes.nodes[id][4],
+		AVG_MIN - AVG_PAD,
+		AVG_MAX + AVG_PAD,
+		MARGIN + 8,
+		plotBottom(h)
+	);
+
+/** distance-vs-films position: where the avg-distance scatter draws an actor */
 export function scatterPosition(n, w, h) {
-	return [
-		lin(
-			Math.log(Math.max(1, n.films)),
-			FILM_LOG_MIN,
-			FILM_LOG_MAX,
-			MARGIN,
-			w - MARGIN
-		),
-		lin(n.avgDistance, AVG_MIN, AVG_MAX, MARGIN + 8, plotBottom(h))
-	];
+	return [filmX(Math.log(Math.max(1, n.films)), w), scatterY(n.id, h)];
 }
 
 // nice round film counts to tick the shared log axis at, filtered to whatever
@@ -55,25 +76,8 @@ const FILM_AXIS_COUNTS = [5, 10, 20, 50, 100, 200];
 export function filmAxisTicks(w) {
 	return FILM_AXIS_COUNTS.filter((f) => Math.log(f) <= FILM_LOG_MAX).map(
 		(f) => ({
-			pos: lin(Math.log(f), FILM_LOG_MIN, FILM_LOG_MAX, MARGIN, w - MARGIN),
+			pos: filmX(Math.log(f), w),
 			label: String(f)
 		})
 	);
-}
-
-/**
- * Hidden park spot for any node not placed by the current state: its position
- * on the distance-vs-films scatter (alpha 0), so it fades in where a later
- * scatter chapter will want it and rides one tween into place.
- *
- * That is the ARRIVAL case, and it is the only one this still serves. A dot the
- * reader can currently SEE is parked where it stands instead, by ScrollyVisual's
- * parkLeavers, which overrides this spot on the way out — otherwise a departing
- * crowd is lerped to a scatter it is invisible at, in full view, which is what
- * sent the career crowd climbing off the top of the plot. A dot that has never
- * been drawn is untouched and still lands here.
- */
-export function parkHidden(attrs, n, w, h) {
-	const [x, y] = scatterPosition(n, w, h);
-	set(attrs, n.id, x, y, 2, CROWD, 0);
 }

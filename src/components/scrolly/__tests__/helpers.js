@@ -3,6 +3,8 @@
 // — built the way ScrollyVisual builds them, from the state's selector over the
 // story's resting defaults.
 import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
+import { parseSteps } from "../../../../scripts/stale-checklist.js";
 import { makeNodes } from "../nodes.js";
 import { STATES, STATE_PARAMS } from "../states.js";
 import { story } from "../story.svelte.js";
@@ -82,6 +84,37 @@ export function published(s, groups = {}) {
  */
 export function layoutParamsFor(state, stepParams, s = story) {
 	return STATE_PARAMS[state]?.(s, stepParams) ?? stepParams ?? null;
+}
+
+/**
+ * The story's steps as the registry receives them — the state, the step's
+ * static params and `skipback` — read off Index.svelte's <Step> list. A step's
+ * params are an object literal of plain values, read as JSON once its keys are
+ * quoted; anything richer fails the parse rather than being guessed at.
+ * @returns {{ state: string, params?: Object, skipback: boolean }[]}
+ */
+export function storySteps() {
+	const source = readFileSync(
+		new URL("../../Index.svelte", import.meta.url),
+		"utf8"
+	);
+	return parseSteps(source).map(({ state, attrs }) => {
+		const literal = attrs.match(/\bparams=\{(\{[^}]*\})\}/)?.[1];
+		return {
+			state,
+			params: literal
+				? JSON.parse(literal.replace(/(\w+):/g, '"$1":'))
+				: undefined,
+			skipback: /\bskipback\b/.test(attrs)
+		};
+	});
+}
+
+/** where a backward move from step `i` lands: `skipback` steps are passed through */
+export function backFrom(steps, i) {
+	let dest = i - 1;
+	while (dest > 0 && steps[dest].skipback) dest -= 1;
+	return dest;
 }
 
 /** one layout call, at one box, with the params ScrollyVisual would pass */

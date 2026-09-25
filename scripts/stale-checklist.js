@@ -32,7 +32,7 @@ const STAGE_PANELS = {
 	RankBars: ["rankFocus", "rankReveal", "raceRecent"]
 };
 
-/** @typedef {{ state: string, body: string }} StepTag */
+/** @typedef {{ state: string, attrs: string, body: string }} StepTag */
 
 /**
  * Reads one tag from `<Name` to its closing `>`, past any `{…}` attribute value
@@ -72,8 +72,9 @@ function snippetsOf(markup) {
 
 /**
  * The story's steps in document order — what the registry receives — each with
- * the markup it renders (its prose and the panel snippet it names), so a panel
- * component can be traced to the steps that mount it.
+ * its tag's attribute text and the markup it renders (its prose and the panel
+ * snippet it names), so a panel component can be traced to the steps that
+ * mount it.
  * @param {string} source Index.svelte
  * @returns {StepTag[]}
  */
@@ -89,7 +90,7 @@ export function parseSteps(source) {
 		const close = selfClosing ? end : markup.indexOf(`</${m[1]}>`, end);
 		const panel = attrs.match(/\bpanel=\{(\w+)\}/)?.[1];
 		const body = markup.slice(end, close) + (snippets[panel] ?? "");
-		steps.push({ state, body });
+		steps.push({ state, attrs, body });
 	}
 	return steps;
 }

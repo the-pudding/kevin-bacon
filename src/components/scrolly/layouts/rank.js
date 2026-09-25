@@ -1,6 +1,6 @@
 import { ANCHOR_ID, hash01 } from "../nodes.js";
 import { ATTR_SIZE, set } from "../attr-buffer.js";
-import { HOP_RGB, HOP_DOT_ALPHA, INK } from "../palette.js";
+import { CROWD, HOP_RGB, HOP_DOT_ALPHA, INK } from "../palette.js";
 import { MARGIN } from "../plot.js";
 import {
 	RANK_BAR_H,
@@ -8,7 +8,6 @@ import {
 	hopDotSlots,
 	hopFractions
 } from "../rank-geometry.js";
-import { parkHidden } from "../scatter-scales.js";
 
 // ---------------------------------------------------------------------------
 // Rank chapter (present): the canvas's only job now is the handoff from
@@ -24,7 +23,7 @@ import { parkHidden } from "../scatter-scales.js";
 const BACON_Y = MARGIN + 40;
 
 /** @type {import("../layout-types.js").LayoutFn} */
-function layoutRank(nodes, w, h, _edges, params) {
+function layoutRank(nodes, w, _h, _edges, params) {
 	const attrs = new Float64Array(ATTR_SIZE);
 	// RankBars reports the box its centered row's bar actually occupies
 	// (story.rank.focusBar) — the canvas bar tweens to meet it there, not a fixed
@@ -42,19 +41,22 @@ function layoutRank(nodes, w, h, _edges, params) {
 	const slots = hopDotSlots(hopFractions(ANCHOR_ID), maxBarW);
 	// stepping back out of the race, the ladder is rebuilt over the canvas
 	// rather than landing on a bar the canvas has built first: the race cast
-	// leaves, and nothing is drawn under the panel's fade-in (story.rank.bareCanvas)
-	if (params?.bare) {
-		for (const n of nodes) parkHidden(attrs, n, w, h);
-		return { attrs };
-	}
-	for (const n of nodes) {
-		if (inBar(n)) placeInBar(attrs, n, slots, x0, baconY);
-		else if (n.id !== ANCHOR_ID) parkHidden(attrs, n, w, h);
-	}
+	// leaves, and nothing is drawn under the panel's fade-in (story.rank.bareCanvas).
+	// Bare, the bar is still where every dot stands, hidden.
+	const shown = params?.bare ? 0 : 1;
 	// Bacon himself sits in the gutter to the left of the bar (the row's own
 	// left padding, once the panel lands), flush against its start
 	const BACON_R = 7;
-	set(attrs, ANCHOR_ID, x0 - BACON_R - 2, baconY, BACON_R, INK, 1);
+	const bx = x0 - BACON_R - 2;
+	// Everyone the bar does not hold stands hidden on Bacon's dot, so the rows
+	// a step back onto the hop chart shows grow out of his bar, as the forward
+	// step poured them into it, and the race cast the rank handoff shows sets
+	// off from it too.
+	for (const n of nodes) {
+		if (inBar(n)) placeInBar(attrs, n, slots, x0, baconY, shown);
+		else set(attrs, n.id, bx, baconY, RANK_DOT_D / 2, CROWD, 0);
+	}
+	set(attrs, ANCHOR_ID, bx, baconY, BACON_R, INK, shown);
 	// no hop key on the canvas: this bar is only ever on screen for the length of
 	// the arrival tween before the panel covers it, and the hop-bands step just
 	// before it establishes the colours. The key the rank chapter does owe the
@@ -71,10 +73,11 @@ function layoutRank(nodes, w, h, _edges, params) {
 // of the bar, it freezes the whole rank scene where it stands, fades it out in
 // place, and draws the chart on fresh (see the draw-on entry in
 // layouts/race.js), so excluding them bought nothing and cost the bar 18% of
-// its hop-1 dots. Everyone else parks off-canvas (hidden), ready for whichever
-// chapter picks them up next, instead of jittering around as background noise.
+// its hop-1 dots. Everyone else waits hidden on Bacon's dot rather than
+// jittering around as background noise.
 const inBar = (n) => n.hop >= 1 && n.hop <= 4;
-function placeInBar(attrs, n, slots, x0, baconY) {
+/** `shown` 0 hides the dot on its bar spot (the bare canvas) */
+function placeInBar(attrs, n, slots, x0, baconY, shown) {
 	const dots = slots[n.hop - 1];
 	const dot = dots[Math.floor(hash01(n.id, 6) * dots.length)];
 	set(
@@ -86,7 +89,7 @@ function placeInBar(attrs, n, slots, x0, baconY) {
 		HOP_RGB[n.hop],
 		// the same alpha the hopBands crowd arrives wearing: these dots pack
 		// several hundred actors onto each other, so the overlap has to read
-		HOP_DOT_ALPHA
+		HOP_DOT_ALPHA * shown
 	);
 }
 
