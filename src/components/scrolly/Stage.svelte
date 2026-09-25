@@ -1091,12 +1091,19 @@
 	   below gives: a transform would capture the departing copy's `position:
 	   fixed`. #scrolly is centred in the viewport, so centred in it is centred
 	   on the screen. Two classes, so it outranks that rule's `right: auto` and
-	   `align-items` without depending on source order. */
+	   `align-items` without depending on source order.
+
+	   The inline padding holds the words off the chart's edges on a phone,
+	   where the box is narrower than the measure. Content-box, so the
+	   measure the width and max-width set (here and beside) is still
+	   --prose-w past a phone, and only the box grows around it. */
 	.scrolly-steps.over {
 		top: 0;
 		right: 0;
+		box-sizing: content-box;
 		max-width: var(--prose-w);
 		margin-inline: auto;
+		padding-inline: var(--16px);
 		align-items: center;
 	}
 
