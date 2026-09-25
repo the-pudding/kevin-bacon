@@ -1,83 +1,94 @@
-# Handoff: Fix the pre-existing contrast failures and gate the axe scan
+# Handoff: Build a typography decision system for "Gen Z's Kevin Bacon"
 
 ## Starting Prompt
 
-Goal: clear the colour-contrast failures that `npm run a11y` finds in the
-rendered story, then add the scan to the quality gates and CI so the design
-sprint (colours, fonts, then a permanent dark theme) can't regress contrast.
+Goal: turn a survey of the fonts used on 14 recent Pudding stories into a
+typography decision system for this story. The system should say which family
+each role uses, when a story earns a font outside the house set, and how that
+choice becomes tokens. The survey only informs the decisions. It does not
+decide them. Owen makes the call.
 
-Context: commit 3add09d moved every colour and font into Style Dictionary role
-tokens (`properties/role/*.json`, guide in `notes/design/tokens.md`). Two
-contrast checks came with it:
+Context: last session I fetched the HTML and CSS of 14 pudding.cool stories and
+read their `@font-face` rules and font tokens. The results are under "Key
+Context" below. This story already uses the house set: Atlas Grotesk (sans),
+Tiempos Text (serif) and Atlas Typewriter (mono). They're wired as
+`font.*` primitives, then eight `type.*` roles (prose, heading, ui, chart,
+annotation, callout, chip, dev).
 
-- `src/styles/__tests__/contrast.spec.js` checks the token pairs and is gated.
-- `scripts/a11y-scan.js` (`npm run a11y`) runs axe-core's `color-contrast`
-  rule on every step at the mobile and desktop boxes, on a dev server. It is
-  NOT gated yet, because of the failures below.
+Constraints:
 
-Last full scan: the only reader-facing failure is **step 6** (the rank ladder,
-`RankBars.svelte`). Every row not yet "known" sits at `opacity: 0.35` over
-`--chart-rank-row` (gray-700), which measures 1.89:1 (#bcbcbc on white)
-against a 4.5:1 requirement. That's 50 nodes at desktop and 24 at mobile:
-`.label`, `.avg`, `.share`. The CSS comment says the fade "exists to hide
-who's who" until a name is out, so it is a deliberate design device, not an
-accident.
+- Every family is a token. Primitives go in `properties/primitive/font.json`,
+  roles in `properties/role/type.json`, faces in `src/styles/font.css`. Rebuild
+  with `npm run style`. Components read `--type-*` only, and lint enforces it
+  (`notes/design/tokens.md`).
+- Owen writes the prose. Build structure and options, not reader-facing copy.
+- A font change can change text metrics. The canvas box must not move
+  (memory: kevin-bacon-canvas-box-must-not-move). Measure before and after.
+- Changing canvas text (chart, annotation, callout, chip) is a canvas change.
+  Stale the affected rows in `notes/tween-checklist.md` (`npm run stale`).
+- No commits without Owen's say-so.
 
-Do first:
+First steps:
 
-1. Read `RankBars.svelte` around `.rows li` / `.known` / `@keyframes row-in`
-   and `notes/design/interactions.md` to see what the dim is for: are the
-   names meant to be unreadable (a guessing game) or just de-emphasised?
-2. Take the options to Owen before changing anything. Candidates:
-   - raise the resting opacity/colour to clear 4.5:1;
-   - de-emphasise with weight or size instead of alpha;
-   - keep hidden names out of the text (masked or aria-hidden placeholders)
-     so no unreadable text is exposed.
-     Never suppress, exclude or allow-list the nodes in the scan.
-3. Once fixed, run `npm run a11y` across the whole story and confirm 0
-   violations. Then wire it in: add a full-mode step to
-   `scripts/run-ci-quality-gates.sh` (not `--local`: about 2.5 min), and add
-   `npx playwright install --with-deps chromium` before the gate step in
-   `.github/workflows/ci-quality-gates.yml`.
-4. Any change to RankBars or its tokens stales rows in
-   `notes/tween-checklist.md` (`npm run stale`). Read the `npm run sheet`
-   contact sheets for the rank steps against `notes/design/motion.md` before
-   calling the motion fine. Only Owen marks rows `[x]`.
-
-Constraints: Node 24 via
-`export PATH=$HOME/.nvm/versions/node/v24.13.1/bin:$PATH`; pnpm; commit only
-when Owen asks, by path, on main; never `rm` (ask Owen); dev server only for
-`?step=N`.
+1. Read `notes/design/tokens.md`, `properties/role/type.json` and
+   `notes/storyboard.md` for the story's tone.
+2. Draft the decision system as a note in `notes/design/` (for example
+   `typography.md`). It should cover: a role → family table, rules for when a
+   story gets a signature font (the survey shows one swapped-in family per
+   story, usually a display or themed face), licence and hosting rules
+   (house fonts load from pudding.cool; others need a licence or must be
+   OFL/Google fonts), and how to verify a change (`npm run gates`, contrast,
+   box measurement).
+3. Ask Owen before proposing any concrete font swap. Treat it as a design
+   decision, not a default.
 
 ## Relevant Files
 
-- `src/components/scrolly/RankBars.svelte`: the failing rows (`.rows li`
-  opacity 0.35, `.known`, the `row-in` keyframes, `.share`, `.footnote`).
-- `properties/role/chart.json`: `chart.rank-row`, `rank-row-focus`,
-  `footnote`, and their contrast declarations. The token spec doesn't know
-  about the 0.35 opacity, which is why it passed.
-- `scripts/a11y-scan.js`: the scan (`--steps 6` for a fast loop,
-  `--settle`, `--box`).
-- `scripts/run-ci-quality-gates.sh` and
-  `.github/workflows/ci-quality-gates.yml`: where the gate goes.
-- `notes/design/tokens.md`: the token groups and the contrast metadata
-  contract.
-- `notes/design/interactions.md`: the rank chapter's interaction rules.
-- `notes/tween-checklist.md`: the rows to stale.
+- `properties/primitive/font.json` — the three family stacks and `tracking.mono`
+- `properties/role/type.json` — the eight type roles and what each covers
+- `src/styles/font.css` — the `@font-face` rules (self-hosted from pudding.cool)
+- `notes/design/tokens.md` — the token architecture and the lint rules on fonts
+- `notes/storyboard.md` — the story's content and tone, which should drive any
+  choice of signature font
+- `notes/design/title-card.md` — the splash title (the heading role), the
+  likeliest place for a display font
 
 ## Key Context
 
-- The dev tuners (`scrolly/dev/*`, `TapZonesDev`) are marked `data-dev-only`
-  and excluded from the scan, because production never ships them. Their
-  failures (`.edge` labels, the tap-zones toggle) are not reader-facing.
-- axe also reports many "unresolved" nodes (bgOverlap, imgNode: text over the
-  canvas). Those are expected. They're covered by the token pairs, and the
-  text over the canvas carries the stacked `--text-halo`.
-- The scan only sees resting states opened by URL. In-step states (quiz
-  verdicts, an open search, a guessed rank row) aren't driven, so check those
-  by hand or script them if the fix touches them.
-- Token exemptions (hop-band hues, crowd grey, quiz-card border, …) were
-  written by the previous session and haven't been reviewed by Owen yet.
-  They're not failures, but worth his read.
-- Opacity applied in CSS or JS isn't visible to the token contrast spec. Only
-  the rendered scan catches alpha-dimmed text, so the rendered gate matters.
+The survey reads the HTML and CSS only. It misses computed styles and any
+font set from JavaScript or drawn on a canvas. "Body text" is the family the
+body-text token points to.
+
+| Story                     | Body text | Sans          | Serif        | Mono                          | Signature                                  |
+| ------------------------- | --------- | ------------- | ------------ | ----------------------------- | ------------------------------------------ |
+| mow (2026/06)             | serif     | Atlas Grotesk | Tiempos Text | system                        | —                                          |
+| essential-words (2026/07) | serif     | Source Sans 3 | Tiempos Text | Atlas Typewriter              | Tiempos Headline (likely, token undefined) |
+| ethical-champions         | sans      | Atlas Grotesk | —            | Atlas Typewriter (also forms) | —                                          |
+| menu-story                | serif     | EB Garamond   | EB Garamond  | Courier Prime                 | EB Garamond + Courier Prime (themed)       |
+| love-story                | serif     | Atlas Grotesk | Tiempos Text | system                        | —                                          |
+| kpop-generations          | sans      | ABC Diatype   | Tiempos Text | system                        | ABC Maxi Plus (h2 display)                 |
+| similes                   | serif     | Atlas Grotesk | Tiempos Text | system                        | —                                          |
+| ivf                       | sans      | Atlas Grotesk | Canela       | system                        | Canela (display serif)                     |
+| happy-map                 | serif     | Atlas Grotesk | Tiempos Text | system                        | Playpen Sans (handwriting)                 |
+| womens-sizing             | serif     | Atlas Grotesk | system serif | system (mono-heavy)           | —                                          |
+| motifs                    | sans      | Atlas Grotesk | Tiempos Text | system                        | —                                          |
+| democracy                 | serif     | Atlas Grotesk | Iowan first  | JetBrains Mono                | JetBrains Mono                             |
+| walk                      | serif     | Atlas Grotesk | Tiempos Text | system                        | —                                          |
+| onions                    | serif     | Atlas Grotesk | Tiempos Text | system                        | —                                          |
+
+Findings:
+
+- The house set (Atlas Grotesk, Tiempos Text, Atlas Typewriter) is the default.
+  Most stories keep it and change at most one family.
+- A story's typographic personality usually comes from one swapped-in font
+  used in a single role: a display face for headings (Canela, ABC Maxi Plus,
+  Tiempos Headline), a handwriting face (Playpen Sans), or a themed pair
+  (EB Garamond + Courier Prime).
+- The serif/sans split for body text is roughly 2:1 in favour of serif.
+  Data-heavy stories lean on mono for labels.
+- Licensing: EB Garamond, Courier Prime, Playpen Sans, JetBrains Mono and
+  Source Sans/Serif/Code are free (OFL, Google Fonts). Atlas, Tiempos, Canela
+  and ABC Diatype/Maxi are commercial. The house fonts are served from
+  `pudding.cool/assets/fonts/`.
+- Unused faces are common (essential-words ships the whole Source family
+  unwired). The system should say to load only what's used.
