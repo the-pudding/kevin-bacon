@@ -23,8 +23,11 @@ export const FILM_LOG_MAX = Math.max(...FILM_LOGS);
 // instead of printing under and through them
 const FILM_X_INSET = 24;
 
+/** px from the canvas's left edge to the films scatters' left plot edge */
+export const FILM_X_LEFT = MARGIN + FILM_X_INSET;
+
 const filmX = (logFilms, w) =>
-	lin(logFilms, FILM_LOG_MIN, FILM_LOG_MAX, MARGIN + FILM_X_INSET, w - MARGIN);
+	lin(logFilms, FILM_LOG_MIN, FILM_LOG_MAX, FILM_X_LEFT, w - MARGIN);
 
 // inverts top50's log(films + 1) build transform back to a plain film count.
 // The raw log value means nothing to a reader, so everything that surfaces
@@ -66,18 +69,59 @@ export function scatterPosition(n, w, h) {
 	return [filmX(Math.log(Math.max(1, n.films)), w), scatterY(n.id, h)];
 }
 
-// nice round film counts to tick the shared log axis at, filtered to whatever
-// falls inside the fixed FILM_LOG_MIN/MAX range — a corpus rebuild that
-// shrinks the data below one of these just drops that tick rather than
-// clamping it into the plot
-const FILM_AXIS_COUNTS = [5, 10, 20, 50, 100, 200];
+/**
+ * An axis's ticks from a tier of raw values: every `major` is labelled, every
+ * `minor` is an unlabelled mark between them. Majors come first, so a reader
+ * of the array meets the labels before the in-between marks.
+ * @param {{ major: number[], minor: number[] }} tier
+ * @param {(v: number) => number} toPos
+ * @param {(v: number) => string} labelOf
+ * @returns {import("./layout-types.js").Tick[]}
+ */
+export const markedTicks = (tier, toPos, labelOf) => [
+	...tier.major.map((v) => ({
+		pos: toPos(v),
+		label: labelOf(v),
+		mark: /** @type {const} */ ("major")
+	})),
+	...tier.minor.map((v) => ({
+		pos: toPos(v),
+		label: "",
+		mark: /** @type {const} */ ("minor")
+	}))
+];
+
+// the canvas width at which the log axis has room to label 30 as well; the
+// same 900px the race chart writes its years in full from
+const FILM_AXIS_WIDE_W = 900;
+
+// round film counts to tick the shared log axis at: labels on the 1-2-5
+// series, marks on the integer multiples within each decade (so none between
+// 10 and 20). Filtered to whatever falls inside the fixed FILM_LOG_MIN/MAX
+// range — a corpus rebuild that shrinks the data below one of these just drops
+// that tick rather than clamping it into the plot
+const FILM_AXIS = {
+	narrow: {
+		major: [5, 10, 20, 50, 100, 200],
+		minor: [6, 7, 8, 9, 30, 40, 60, 70, 80, 90]
+	},
+	wide: {
+		major: [5, 10, 20, 30, 50, 100, 200],
+		minor: [6, 7, 8, 9, 40, 60, 70, 80, 90]
+	}
+};
+
+const inFilmAxis = (f) => Math.log(f) <= FILM_LOG_MAX;
 
 /** x ticks every films-scatter shares: same log scale as scatterPosition's x */
 export function filmAxisTicks(w) {
-	return FILM_AXIS_COUNTS.filter((f) => Math.log(f) <= FILM_LOG_MAX).map(
-		(f) => ({
-			pos: filmX(Math.log(f), w),
-			label: String(f)
-		})
+	const tier = FILM_AXIS[w >= FILM_AXIS_WIDE_W ? "wide" : "narrow"];
+	return markedTicks(
+		{
+			major: tier.major.filter(inFilmAxis),
+			minor: tier.minor.filter(inFilmAxis)
+		},
+		(f) => filmX(Math.log(f), w),
+		String
 	);
 }

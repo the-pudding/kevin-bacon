@@ -15,6 +15,9 @@
  * @property {number} [alpha] 0-1 opacity; omitted = fully opaque. Only the
  *   future strip's years use it, fading toward the horizon with the block they
  *   sit under (see raceFutureTicks)
+ * @property {"major"|"minor"} [mark] draws a tick mark on the plot's edge:
+ *   short for a "minor" (which carries an empty label), longer for a
+ *   labelled "major". Omitted = no mark, as on the race chart
  *
  * @typedef {Object} Note
  * @property {number} x px
@@ -113,7 +116,9 @@
  * @property {Float64Array} [trails] TRAIL_SIZE polyline vertices + alpha +
  *   highlight per trail; omitted = trails fade out in place
  * @property {Float64Array} [trailDelays] per-trail start delays in ms
- * @property {{ x?: Tick[], y?: Tick[], xBase?: number, yBase?: number }} [axes]
+ * @property {{ x?: Tick[], y?: Tick[], xBase?: number, yBase?: number, yMarkX?: number }} [axes]
+ *   `yMarkX` is the px x of the plot's left edge, which the y ticks' marks
+ *   end against; omitted = no y marks
  * @property {Note[]} [notes]
  * @property {RaceCallout|null} [callout] the race chart's one live callout — the
  *   most present of the moments its step marks; null when none is on camera

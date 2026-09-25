@@ -738,7 +738,7 @@
 	/** @type {import("./annotations.js").TrackedLabel[]} */
 	let tracked = $state.raw([]);
 	// static per-state chart furniture (ticks/callouts/legend) from the layout result
-	/** @type {{ axes?: { x?: import("./layout-types.js").Tick[], y?: import("./layout-types.js").Tick[], xBase?: number, yBase?: number }, notes?: import("./states.js").Note[], callout?: import("./layout-types.js").RaceCallout|null, band?: import("./layout-types.js").FutureBand|null, legend?: import("./layout-types.js").LegendItem[], legendY?: number, hits?: import("./layout-types.js").Hit[] } | null} */
+	/** @type {{ axes?: { x?: import("./layout-types.js").Tick[], y?: import("./layout-types.js").Tick[], xBase?: number, yBase?: number, yMarkX?: number }, notes?: import("./states.js").Note[], callout?: import("./layout-types.js").RaceCallout|null, band?: import("./layout-types.js").FutureBand|null, legend?: import("./layout-types.js").LegendItem[], legendY?: number, hits?: import("./layout-types.js").Hit[] } | null} */
 	let decor = $state(null);
 	/**
 	 * The arriving chart's furniture waits for the beat. What is leaving fades
@@ -2436,32 +2436,55 @@
 		     `notes` is for, but it rides `callout` in the frame writer's payload
 		     instead so that it pans. Anything else on the race chart belongs there
 		     too. -->
+		<!-- a tick with a `mark` (the scatters) also draws a mark on the plot's
+		     edge, and a minor one is ONLY its mark: its label is empty, so it
+		     mounts no <p> at all -->
 		{#each set.decor?.axes?.x ?? [] as tick}
-			<p
-				class="tick tick-x fade-in"
-				aria-hidden="true"
-				style="left: {tick.pos}px; {set.decor.axes.xBase != null
-					? `top: ${set.decor.axes.xBase}px`
-					: ''}"
-			>
-				<!-- the strip's years recede toward the horizon with the block above
+			{#if tick.label}
+				<p
+					class="tick tick-x fade-in"
+					aria-hidden="true"
+					style="left: {tick.pos}px; {set.decor.axes.xBase != null
+						? `top: ${set.decor.axes.xBase}px`
+						: ''}"
+				>
+					<!-- the strip's years recede toward the horizon with the block above
 					     them (raceFutureTicks); historical years carry no alpha and render
 					     flat. On an inner span so it MULTIPLIES with .fade-in's mount
 					     animation rather than being outranked by it — that animation
 					     targets opacity on the <p> with fill-mode `both`. -->
-				<span style={tick.alpha != null ? `opacity: ${tick.alpha}` : null}
-					>{tick.label}</span
-				>
-			</p>
+					<span style={tick.alpha != null ? `opacity: ${tick.alpha}` : null}
+						>{tick.label}</span
+					>
+				</p>
+			{/if}
+			{#if tick.mark && set.decor.axes.xBase != null}
+				<span
+					class="tick-mark tick-mark-x fade-in"
+					class:minor={tick.mark === "minor"}
+					aria-hidden="true"
+					style="left: {tick.pos}px; top: {set.decor.axes.xBase}px"
+				></span>
+			{/if}
 		{/each}
 		{#each set.decor?.axes?.y ?? [] as tick}
-			<p
-				class="tick tick-y fade-in"
-				aria-hidden="true"
-				style="top: {tick.pos}px"
-			>
-				{tick.label}
-			</p>
+			{#if tick.label}
+				<p
+					class="tick tick-y fade-in"
+					aria-hidden="true"
+					style="top: {tick.pos}px"
+				>
+					{tick.label}
+				</p>
+			{/if}
+			{#if tick.mark && set.decor.axes.yMarkX != null}
+				<span
+					class="tick-mark tick-mark-y fade-in"
+					class:minor={tick.mark === "minor"}
+					aria-hidden="true"
+					style="left: {set.decor.axes.yMarkX}px; top: {tick.pos}px"
+				></span>
+			{/if}
 		{/each}
 		<!-- the callout: the moment the step is about, stated on the plot itself
 		     rather than behind a click. ONE at a time, and the layout has already
@@ -3103,6 +3126,36 @@
 		/* indented past the rotated axis title (.y-label sits in the x: 0 column) */
 		left: 1.1rem;
 		transform: translateY(-50%);
+	}
+
+	/* a scatter tick's mark (Tick.mark), in the tick labels' colour. Both axes'
+	   marks start a few px off the plot and reach away from it, so a minor is a
+	   shorter major on the same edge: x marks hang from just under the plot
+	   down toward their label (anchored at xBase, the label row's top), y marks
+	   reach left from just outside the plot's left edge (anchored at yMarkX) */
+	.tick-mark {
+		position: absolute;
+		background: var(--color-gray-500, #888);
+	}
+
+	.tick-mark-x {
+		width: 1px;
+		height: 5px;
+		transform: translate(-50%, -7px);
+	}
+
+	.tick-mark-x.minor {
+		height: 3px;
+	}
+
+	.tick-mark-y {
+		width: 5px;
+		height: 1px;
+		transform: translate(calc(-100% - 4px), -50%);
+	}
+
+	.tick-mark-y.minor {
+		width: 3px;
 	}
 
 	.note {

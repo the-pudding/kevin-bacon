@@ -8,7 +8,9 @@ import {
 	scatterPosition,
 	deLogFilms,
 	filmAxisTicks,
+	markedTicks,
 	FILM_MIN_SHOWN,
+	FILM_X_LEFT,
 	SCATTER_PAD
 } from "../scatter-scales.js";
 import {
@@ -29,8 +31,7 @@ import {
  * @param {Object} cfg
  * @param {(n: import("../nodes.js").ActorNode) => number|null} cfg.yOf
  * @param {boolean} [cfg.invert] smaller value = higher up (avg-distance charts)
- * @param {number} [cfg.tickStep] y ticks at even steps of the metric (default 0.5)
- * @param {number[]} [cfg.ticks] y ticks at these raw metric values instead of even steps; any outside the domain are dropped
+ * @param {TickTier[]} cfg.yTiers the y axis's ticks by plot height, shortest first; the tallest tier the plot reaches applies
  * @param {Map<number, { rgb: number[], r: number, alpha?: number }>} [cfg.highlights]
  * @param {(t: number) => string} [cfg.labelOf] formats a y tick's raw value; default 1dp of the raw value
  * @param {number} [cfg.floor] raises the y-domain's lower bound past the data minimum; actors below it clamp to the floor, dimmed, same as anyone past vMax
@@ -54,8 +55,9 @@ function filmsScatter(nodes, w, h, cfg) {
 		attrs,
 		axes: {
 			xBase: bottom + 10,
+			yMarkX: FILM_X_LEFT,
 			x: filmAxisTicks(w),
-			y: scatterTicks(vMin, vMax, cfg, yS)
+			y: scatterTicks(vMin, vMax, cfg, yS, bottom - top)
 		}
 	};
 }
@@ -111,23 +113,43 @@ function placeScatterDot(attrs, n, v, hi, w, h, yS, vMin, vMax) {
 	);
 }
 
-// y ticks at the config's own values, else at even metric steps; no gridlines
-function scatterTicks(vMin, vMax, cfg, yS) {
-	const labelOf = cfg.labelOf ?? ((t) => t.toFixed(1));
-	return tickValues(vMin, vMax, cfg).map((t) => ({
-		pos: yS(t),
-		label: labelOf(t)
-	}));
-}
+/**
+ * A y axis's ticks at one plot height: the raw metric values to label and to
+ * mark between them, each given the domain so a stepped tier can fill it.
+ * @typedef {Object} TickTier
+ * @property {number} minH px of plot height from which this tier applies
+ * @property {(vMin: number, vMax: number) => number[]} major labelled values
+ * @property {(vMin: number, vMax: number) => number[]} minor unlabelled marks; any that land on a major are dropped
+ */
 
-function tickValues(vMin, vMax, cfg) {
-	if (cfg.ticks) return cfg.ticks.filter((t) => t >= vMin && t <= vMax);
-	const step = cfg.tickStep ?? 0.5;
+// a tier's values at every multiple of `step` inside the domain. Counted in
+// whole steps and rounded, so 0.1-steps land on 2.3 and not 2.3000000000000003
+// and a minor on a major's value is recognisably the same number
+const stepped = (step) => (vMin, vMax) => {
 	const values = [];
-	for (let t = Math.ceil(vMin / step) * step; t <= vMax; t += step) {
-		values.push(t);
+	for (let k = Math.ceil(vMin / step - 1e-9); k * step <= vMax + 1e-9; k++) {
+		values.push(Math.round(k * step * 1e6) / 1e6);
 	}
 	return values;
+};
+
+// a tier's values from a fixed list, dropping any outside the domain
+const listed = (list) => (vMin, vMax) =>
+	list.filter((t) => t >= vMin - 1e-9 && t <= vMax + 1e-9);
+
+// the tallest tier this plot height reaches; tiers are listed shortest first
+const tierFor = (tiers, plotH) =>
+	tiers.reduce((hit, tier) => (plotH >= tier.minH ? tier : hit), tiers[0]);
+
+// y ticks, labelled on the tier's majors and marked on its minors; no gridlines
+function scatterTicks(vMin, vMax, cfg, yS, plotH) {
+	const labelOf = cfg.labelOf ?? ((t) => t.toFixed(1));
+	const tier = tierFor(cfg.yTiers, plotH);
+	const major = tier.major(vMin, vMax);
+	const minor = tier
+		.minor(vMin, vMax)
+		.filter((t) => !major.some((m) => Math.abs(m - t) < 1e-9));
+	return markedTicks({ major, minor }, yS, labelOf);
 }
 
 /**
@@ -143,10 +165,19 @@ const withSearch = (highlights, params) => {
 	return new Map(highlights).set(id, { rgb: SEARCH_RGB, r: SEARCH_DOT_R });
 };
 
+// the remoteness axis's ticks: labels every 0.5 on a short plot, every 0.2
+// once there is room, and marks down to every 0.05 on a tall (beside-prose) one
+const AVG_TIERS = [
+	{ minH: 0, major: stepped(0.5), minor: stepped(0.1) },
+	{ minH: 300, major: stepped(0.2), minor: stepped(0.1) },
+	{ minH: 500, major: stepped(0.2), minor: stepped(0.05) }
+];
+
 const avgScatter = (nodes, w, h, highlights, params) =>
 	filmsScatter(nodes, w, h, {
 		yOf: (n) => n.avgDistance,
 		invert: true, // lower average distance = better connected = up
+		yTiers: AVG_TIERS,
 		highlights: withSearch(highlights, params)
 	});
 
@@ -261,21 +292,34 @@ const DEG_SCATTER_HIGHLIGHTS = new Map([
 ]);
 
 // the axis runs from a 10-film to a 100-film costar average, so its ends and
-// its ticks are round film counts. top50 is a mean log(films + 1), hence the
-// + 1. Below 10 isn't a meaningful "big dog" costar anyway — anyone there
+// its ticks are round film counts: labels on the 1-2-5 series, marks on the
+// decade's other multiples of 10, and 30 labelled too on a tall plot. top50
+// is a mean log(films + 1), hence the + 1. Below 10 isn't a meaningful "big dog" costar anyway — anyone there
 // clamps to the floor, dimmed — and the true data max (~61) sits well clear
 // of the ceiling, so Portman's dot isn't crowded against the top.
 const filmCountAt = (films) => Math.log(films + 1);
 const DEG_SCATTER_FLOOR = filmCountAt(10);
 const DEG_SCATTER_CEIL = filmCountAt(100);
-const DEG_SCATTER_TICKS = [10, 25, 50, 100].map(filmCountAt);
+const filmCounts = (films) => listed(films.map(filmCountAt));
+const DEG_SCATTER_TIERS = [
+	{
+		minH: 0,
+		major: filmCounts([10, 20, 50, 100]),
+		minor: filmCounts([30, 40, 60, 70, 80, 90])
+	},
+	{
+		minH: 500,
+		major: filmCounts([10, 20, 30, 50, 100]),
+		minor: filmCounts([40, 60, 70, 80, 90])
+	}
+];
 
 /** @type {import("../layout-types.js").LayoutFn} */
 const layoutDegScatter = (nodes, w, h, _edges, params) =>
 	filmsScatter(nodes, w, h, {
 		yOf: (n) => n.top50,
 		// ticks sit at round film counts in log space (that's the plotted scale)
-		ticks: DEG_SCATTER_TICKS,
+		yTiers: DEG_SCATTER_TIERS,
 		highlights: withSearch(DEG_SCATTER_HIGHLIGHTS, params),
 		floor: DEG_SCATTER_FLOOR,
 		ceil: DEG_SCATTER_CEIL,
