@@ -132,3 +132,44 @@ export function screenSpan(w, bleed) {
 		Math.min(right - left, SCREEN_CHART_MAX_W) / 2 - SCREEN_CHART_EDGE;
 	return [cx - half, cx + half];
 }
+
+/**
+ * An axis's values at every multiple of `step` inside [vMin, vMax]. Counted in
+ * whole steps and rounded, so 0.1-steps land on 2.3 and not
+ * 2.3000000000000003 and a minor on a major's value is recognisably the same
+ * number.
+ * @param {number} step
+ * @returns {(vMin: number, vMax: number) => number[]}
+ */
+export const stepped = (step) => (vMin, vMax) => {
+	const values = [];
+	for (let k = Math.ceil(vMin / step - 1e-9); k * step <= vMax + 1e-9; k++) {
+		values.push(Math.round(k * step * 1e6) / 1e6);
+	}
+	return values;
+};
+
+/**
+ * An axis's ticks from a tier of raw values: every `major` is labelled, every
+ * `minor` is an unlabelled mark between them, and a minor that lands on a
+ * major is dropped. Majors come first, so a reader of the array meets the
+ * labels before the in-between marks.
+ * @param {{ major: number[], minor: number[] }} tier
+ * @param {(v: number) => number} toPos
+ * @param {(v: number) => string} labelOf
+ * @returns {import("./layout-types.js").Tick[]}
+ */
+export const markedTicks = (tier, toPos, labelOf) => [
+	...tier.major.map((v) => ({
+		pos: toPos(v),
+		label: labelOf(v),
+		mark: /** @type {const} */ ("major")
+	})),
+	...tier.minor
+		.filter((v) => !tier.major.some((m) => Math.abs(m - v) < 1e-9))
+		.map((v) => ({
+			pos: toPos(v),
+			label: "",
+			mark: /** @type {const} */ ("minor")
+		}))
+];

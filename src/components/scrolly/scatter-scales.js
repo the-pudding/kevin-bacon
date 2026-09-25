@@ -1,7 +1,7 @@
 // The films scatters' shared scales: the fixed log-films x axis every variant
 // plots against, and the avg-distance range.
 import rawNodes from "$data/scrolly-nodes.json";
-import { MARGIN, lin, plotBottom } from "./plot.js";
+import { MARGIN, lin, markedTicks, plotBottom } from "./plot.js";
 
 // fixed film-count x-scale shared by every films-scatter variant so dots only
 // travel vertically when the y-metric changes. Floored at 5 films: below that
@@ -19,8 +19,8 @@ export const FILM_LOG_MIN = Math.log(FILM_MIN_SHOWN);
 export const FILM_LOG_MAX = Math.max(...FILM_LOGS);
 
 // px the x axis's left end is held in from MARGIN, so the 5-film column and its
-// tick clear the y tick labels (.tick-y, indented 1.1rem past the axis title)
-// instead of printing under and through them
+// tick clear the y tick labels (.tick-y, right-aligned to this edge) and the
+// rotated axis title left of them instead of printing under and through them
 const FILM_X_INSET = 24;
 
 /** px from the canvas's left edge to the films scatters' left plot edge */
@@ -71,28 +71,6 @@ export const scatterY = (id, h) =>
 export function scatterPosition(n, w, h) {
 	return [filmX(Math.log(Math.max(1, n.films)), w), scatterY(n.id, h)];
 }
-
-/**
- * An axis's ticks from a tier of raw values: every `major` is labelled, every
- * `minor` is an unlabelled mark between them. Majors come first, so a reader
- * of the array meets the labels before the in-between marks.
- * @param {{ major: number[], minor: number[] }} tier
- * @param {(v: number) => number} toPos
- * @param {(v: number) => string} labelOf
- * @returns {import("./layout-types.js").Tick[]}
- */
-export const markedTicks = (tier, toPos, labelOf) => [
-	...tier.major.map((v) => ({
-		pos: toPos(v),
-		label: labelOf(v),
-		mark: /** @type {const} */ ("major")
-	})),
-	...tier.minor.map((v) => ({
-		pos: toPos(v),
-		label: "",
-		mark: /** @type {const} */ ("minor")
-	}))
-];
 
 // the canvas width at which the log axis has room to label 30 as well; the
 // same 900px the race chart writes its years in full from

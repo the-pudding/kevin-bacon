@@ -3,7 +3,7 @@ import { ATTR_SIZE, set } from "../attr-buffer.js";
 import { SWEENEY, DENIRO, CHASE, HACKMAN, MIRREN } from "../cast.js";
 import { ANCHOR_ID } from "../nodes.js";
 import { CROWD, CAREER } from "../palette.js";
-import { MARGIN, plotBottom, lin } from "../plot.js";
+import { MARGIN, plotBottom, lin, markedTicks, stepped } from "../plot.js";
 import {
 	SEARCH_DOT_R,
 	SEARCH_RGB,
@@ -109,6 +109,9 @@ const COHORT = story.careers.cohort.map((series, i) => {
 });
 const COHORT_BY_SLOT = new Map(COHORT.map((c) => [c.slot, c]));
 
+// px from the canvas's left edge to the plot's left edge (career age 0)
+const CAREER_LEFT = MARGIN + 14;
+
 /**
  * The scales every career state and entry choreography shares, so an animated
  * frame lands exactly on the static layout. Domain comes from the background
@@ -139,7 +142,7 @@ function careerFrame(nodes, w, h) {
 		ageMax,
 		filmsMax,
 		bottom,
-		xS: (a) => lin(a, 0, ageMax, MARGIN + 14, w - MARGIN - 6),
+		xS: (a) => lin(a, 0, ageMax, CAREER_LEFT, w - MARGIN - 6),
 		yS: (f) => lin(f, 0, filmsMax, bottom, top) // more films = up
 	};
 }
@@ -153,6 +156,22 @@ function careerFrame(nodes, w, h) {
  */
 const careerDot = (marked, r, rgb, alpha) =>
 	marked ? [SEARCH_DOT_R, SEARCH_RGB, 1] : [r, rgb, alpha];
+
+// nice even film-count steps (prototype tick strategy), labelled from the first
+// step up (no 0 tick) and marked between at the step's round fractions
+const FILMS_MINOR = { 5: 1, 20: 5, 50: 10 };
+
+function filmsTicks(filmsMax, yS) {
+	const step = filmsMax <= 30 ? 5 : filmsMax <= 100 ? 20 : 50;
+	return markedTicks(
+		{
+			major: stepped(step)(step, filmsMax),
+			minor: stepped(FILMS_MINOR[step])(FILMS_MINOR[step], filmsMax)
+		},
+		yS,
+		String
+	);
+}
 
 function careerLayout(cast, showCohort) {
 	const heroKey = cast.named[0][0];
@@ -228,18 +247,15 @@ function careerLayout(cast, showCohort) {
 				collapseTrail(trails, t, forkX, forkY, 0);
 			}
 		});
-		// nice even film-count steps (prototype tick strategy), no 0 tick
-		const yStep = filmsMax <= 30 ? 5 : filmsMax <= 100 ? 20 : 50;
-		const y = [];
-		for (let f = yStep; f <= filmsMax; f += yStep) {
-			y.push({ pos: yS(f), label: String(f) });
-		}
 		const axes = {
-			x: [0, 10, 20, 30, 40, 50]
-				.filter((a) => a <= ageMax)
-				.map((a) => ({ pos: xS(a), label: String(a) })),
+			x: markedTicks(
+				{ major: stepped(10)(0, ageMax), minor: stepped(5)(0, ageMax) },
+				xS,
+				String
+			),
 			xBase: bottom + 10,
-			y
+			yMarkX: CAREER_LEFT,
+			y: filmsTicks(filmsMax, yS)
 		};
 		return { attrs, trails, trailDelays, axes };
 	};

@@ -294,7 +294,16 @@ above them rather than staying crisp under a dissolving right edge. Ticks carry
 an optional `alpha` for it; the historical years set none and render flat. It is
 applied to an inner `<span>` so it multiplies with `.fade-in`'s mount animation
 instead of being outranked by it — that animation targets `opacity` on the `<p>`
-with `fill-mode: both`, the same trap the callout documents.
+with `fill-mode: both`, the same trap the callout documents. Each year's tick
+mark fades with it, through `filter: opacity()` on the mark itself for the same
+reason.
+
+**Tick marks.** Every year carries a major mark under the plot (no minors: a
+year is the finest unit the axis has), and the y ladder marks the next finer
+round rung between its labels (`RACE_Y_MINOR`), so the minors slide with the
+labels on a pan. The y labels are right-aligned to their marks at the plot's
+left edge, which is why `racePlot`'s `left` is `MARGIN + 24`, the scatters'
+edge: a two-decimal label needs that room to clear the rotated axis title.
 
 **The tail is measured in PX, not years** (`RACE_FUTURE_TAIL_PX`), and it is
 short — 24px. A whole year of it (76px) left a visible gap between the plot's

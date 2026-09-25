@@ -2553,9 +2553,11 @@
 		     `notes` is for, but it rides `callout` in the frame writer's payload
 		     instead so that it pans. Anything else on the race chart belongs there
 		     too. -->
-		<!-- a tick with a `mark` (the scatters) also draws a mark on the plot's
+		<!-- a tick with a `mark` (every chart's) also draws a mark on the plot's
 		     edge, and a minor one is ONLY its mark: its label is empty, so it
-		     mounts no <p> at all -->
+		     mounts no <p> at all. A future-strip year's mark fades with its label:
+		     `filter: opacity()` rather than `opacity`, which .fade-in's mount
+		     animation owns on the same element (see the label's inner span) -->
 		{#each set.decor?.axes?.x ?? [] as tick}
 			{#if tick.label}
 				<p
@@ -2580,7 +2582,10 @@
 					class="tick-mark tick-mark-x fade-in"
 					class:minor={tick.mark === "minor"}
 					aria-hidden="true"
-					style="left: {tick.pos}px; top: {set.decor.axes.xBase}px"
+					style="left: {tick.pos}px; top: {set.decor.axes
+						.xBase}px; {tick.alpha != null
+						? `filter: opacity(${tick.alpha})`
+						: ''}"
 				></span>
 			{/if}
 		{/each}
@@ -2589,12 +2594,12 @@
 				<p
 					class="tick tick-y fade-in"
 					aria-hidden="true"
-					style="top: {tick.pos}px"
+					style="left: {set.decor.axes.yMarkX}px; top: {tick.pos}px"
 				>
 					{tick.label}
 				</p>
 			{/if}
-			{#if tick.mark && set.decor.axes.yMarkX != null}
+			{#if tick.mark}
 				<span
 					class="tick-mark tick-mark-y fade-in"
 					class:minor={tick.mark === "minor"}
@@ -3242,12 +3247,14 @@
 	}
 
 	.tick-y {
-		/* indented past the rotated axis title (.y-label sits in the x: 0 column) */
-		left: 1.1rem;
-		transform: translateY(-50%);
+		/* right-aligned to the plot's left edge (anchored at yMarkX), ending
+		   clear of the tick marks there: the mark's 5px, its 4px gap off the
+		   plot, and 3px of air */
+		transform: translate(calc(-100% - 12px), -50%);
+		white-space: nowrap;
 	}
 
-	/* a scatter tick's mark (Tick.mark), in the tick labels' colour. Both axes'
+	/* a tick's mark (Tick.mark), in the tick labels' colour. Both axes'
 	   marks start a few px off the plot and reach away from it, so a minor is a
 	   shorter major on the same edge: x marks hang from just under the plot
 	   down toward their label (anchored at xBase, the label row's top), y marks

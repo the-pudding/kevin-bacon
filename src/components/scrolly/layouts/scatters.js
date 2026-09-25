@@ -4,12 +4,11 @@ import { ATTR_SIZE, set } from "../attr-buffer.js";
 import { SLJ, CAGE, idOf } from "../cast.js";
 import { LEFT, drain } from "../drain.js";
 import { CROWD, QUIZ_RIGHT, QUIZ_WRONG } from "../palette.js";
-import { MARGIN, plotBottom, lin } from "../plot.js";
+import { MARGIN, plotBottom, lin, markedTicks, stepped } from "../plot.js";
 import {
 	scatterPosition,
 	deLogFilms,
 	filmAxisTicks,
-	markedTicks,
 	FILM_MIN_SHOWN,
 	FILM_X_LEFT,
 	SCATTER_PAD
@@ -123,17 +122,6 @@ function placeScatterDot(attrs, n, v, hi, w, h, yS, vMin, vMax) {
  * @property {(vMin: number, vMax: number) => number[]} minor unlabelled marks; any that land on a major are dropped
  */
 
-// a tier's values at every multiple of `step` inside the domain. Counted in
-// whole steps and rounded, so 0.1-steps land on 2.3 and not 2.3000000000000003
-// and a minor on a major's value is recognisably the same number
-const stepped = (step) => (vMin, vMax) => {
-	const values = [];
-	for (let k = Math.ceil(vMin / step - 1e-9); k * step <= vMax + 1e-9; k++) {
-		values.push(Math.round(k * step * 1e6) / 1e6);
-	}
-	return values;
-};
-
 // a tier's values from a fixed list, dropping any outside the domain
 const listed = (list) => (vMin, vMax) =>
 	list.filter((t) => t >= vMin - 1e-9 && t <= vMax + 1e-9);
@@ -146,11 +134,11 @@ const tierFor = (tiers, plotH) =>
 function scatterTicks(vMin, vMax, cfg, yS, plotH) {
 	const labelOf = cfg.labelOf ?? ((t) => t.toFixed(1));
 	const tier = tierFor(cfg.yTiers, plotH);
-	const major = tier.major(vMin, vMax);
-	const minor = tier
-		.minor(vMin, vMax)
-		.filter((t) => !major.some((m) => Math.abs(m - t) < 1e-9));
-	return markedTicks({ major, minor }, yS, labelOf);
+	return markedTicks(
+		{ major: tier.major(vMin, vMax), minor: tier.minor(vMin, vMax) },
+		yS,
+		labelOf
+	);
 }
 
 /**

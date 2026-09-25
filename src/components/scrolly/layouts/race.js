@@ -20,7 +20,14 @@ import {
 	NETWORK_INTRO_RADIUS
 } from "../intro-geometry.js";
 import { INK, CROWD } from "../palette.js";
-import { MARGIN, plotBottom, lin, NO_BLEED } from "../plot.js";
+import {
+	MARGIN,
+	plotBottom,
+	lin,
+	markedTicks,
+	stepped,
+	NO_BLEED
+} from "../plot.js";
 import { avgDistanceOf } from "../scatter-scales.js";
 import { ALPHA_SEEN } from "../render.js";
 import {
@@ -804,7 +811,9 @@ function curveExit(segs, to, from, vMin, vMax) {
 // every dot it places inside this rectangle, but the tweener that carries the
 // reader between two race steps does not (see ScrollyVisual's drawScene).
 export function racePlot(w, h) {
-	const left = MARGIN + 14;
+	// the films scatters' left edge (FILM_X_LEFT): room for a two-decimal y
+	// label right-aligned to its tick mark, clear of the rotated axis title
+	const left = MARGIN + 24;
 	const innerRight = w - MARGIN - 6;
 	return {
 		top: MARGIN + 10,
@@ -1462,7 +1471,9 @@ function raceFutureTicks(cam, frontier, full) {
 			pos,
 			label: raceTickLabel(yr, full),
 			year: yr,
-			alpha: 1 - (1 - FUTURE_TICK_HORIZON_ALPHA) * ((yr - RACE_DATA_END) / span)
+			alpha:
+				1 - (1 - FUTURE_TICK_HORIZON_ALPHA) * ((yr - RACE_DATA_END) / span),
+			mark: /** @type {const} */ ("major")
 		});
 	}
 	return out.reverse();
@@ -1511,6 +1522,16 @@ function raceFutureBand(cam, frontier, labelInside = false) {
 	};
 }
 
+// each y ladder rung's unlabelled marks: the next finer round rung
+const RACE_Y_MINOR = {
+	0.01: 0.005,
+	0.02: 0.01,
+	0.05: 0.01,
+	0.1: 0.05,
+	0.2: 0.1,
+	0.5: 0.1
+};
+
 /**
  * The y ladder for one frame. Ticks sit on round values and SLIDE, exactly as
  * the x ticks travel with their years — the same fixed-scale logic. Spacing the
@@ -1520,19 +1541,21 @@ function raceFutureBand(cam, frontier, labelInside = false) {
  *
  * The ladder runs down to hundredths because the band is only ~0.037 tall
  * padded: round tenths would leave most cameras with a single label, or none.
- * Same idiom as the sim race's Y_STEP.
+ * Same idiom as the sim race's Y_STEP. Unlabelled marks sit on the next finer
+ * round rung between them (RACE_Y_MINOR) and slide with them.
  */
 function raceYTicks(yS, vMin, vMax) {
 	const step =
 		[0.01, 0.02, 0.05, 0.1, 0.2].find((s) => (vMax - vMin) / s <= 5) ?? 0.5;
 	const dec = step < 0.1 ? 2 : 1;
-	const y = [];
-	// stepped on an integer multiplier rather than by repeated addition, so the
-	// tick values stay exactly on the round numbers they label
-	for (let k = Math.ceil(vMin / step - 1e-9); k * step <= vMax + 1e-9; k++) {
-		y.push({ pos: yS(k * step), label: (k * step).toFixed(dec) });
-	}
-	return y;
+	return markedTicks(
+		{
+			major: stepped(step)(vMin, vMax),
+			minor: stepped(RACE_Y_MINOR[step])(vMin, vMax)
+		},
+		yS,
+		(v) => v.toFixed(dec)
+	);
 }
 
 // x (year) + y (avg distance) tick furniture for one frame — shared by the
@@ -1566,7 +1589,12 @@ function raceAxes(
 	// contender's career age 40, not a calendar year). The block's own label is
 	// what says which way time runs.
 	if (!xTicks) {
-		return { x: [], xBase: cam.bottom + 10, y: raceYTicks(yS, vMin, vMax) };
+		return {
+			x: [],
+			xBase: cam.bottom + 10,
+			yMarkX: cam.left,
+			y: raceYTicks(yS, vMin, vMax)
+		};
 	}
 	// The historical axis stops where the DATA stops. This used to run to the
 	// step's timeline end (raceMaxPlayhead), which is what put 2026-2030 on the
@@ -1584,7 +1612,12 @@ function raceAxes(
 		// not a special case (see raceFutureTicks). `year` rides along because a
 		// label is lossy — anything keying off a particular year reads this,
 		// never the text.
-		x.push({ pos, label: raceTickLabel(yr, full), year: yr });
+		x.push({
+			pos,
+			label: raceTickLabel(yr, full),
+			year: yr,
+			mark: /** @type {const} */ ("major")
+		});
 	}
 	const y = raceYTicks(yS, vMin, vMax);
 	// the strip's years join the historical ones in one array, so they inherit
@@ -1601,6 +1634,7 @@ function raceAxes(
 	return {
 		x: [...x, ...(futureTicks ? raceFutureTicks(cam, frontier, full) : [])],
 		xBase: cam.bottom + 10,
+		yMarkX: cam.left,
 		y
 	};
 }
@@ -2501,7 +2535,7 @@ function writeFields(attrsBuf, trailBuf, frame, cam, yS, vMin, vMax) {
  * cast across a phase, so the final frame's visibility matches the static state
  * it settles onto instead of everyone popping at the settle. Omitted → the
  * frame's own visible set at full strength, everyone else hidden.
- * @returns {{axes: {x: import("../layout-types.js").Tick[], xBase:number, y: import("../layout-types.js").Tick[]}, callout: import("../layout-types.js").RaceCallout|null, band: import("../layout-types.js").FutureBand|null, frontier: number, cam: ReturnType<typeof raceCamera>, yS: (v:number)=>number, visible: Set<number>, lead: number}}
+ * @returns {{axes: {x: import("../layout-types.js").Tick[], xBase:number, yMarkX:number, y: import("../layout-types.js").Tick[]}, callout: import("../layout-types.js").RaceCallout|null, band: import("../layout-types.js").FutureBand|null, frontier: number, cam: ReturnType<typeof raceCamera>, yS: (v:number)=>number, visible: Set<number>, lead: number}}
  */
 export function writeRaceSweepFrame(
 	attrsBuf,

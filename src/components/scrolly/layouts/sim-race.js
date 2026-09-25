@@ -4,7 +4,7 @@ import { ATTR_SIZE, set } from "../attr-buffer.js";
 import { SIM_SERIES, SIM_LABEL_N, SIM_LABEL_IDS } from "../cast.js";
 import { RIGHT, drain } from "../drain.js";
 import { CROWD, INK } from "../palette.js";
-import { MARGIN, plotBottom, lin } from "../plot.js";
+import { MARGIN, plotBottom, lin, markedTicks, stepped } from "../plot.js";
 import {
 	TRAIL_SIZE,
 	TRAIL_POINTS,
@@ -88,6 +88,10 @@ const SIM_Y_MAX =
 // vertical middle (see ScrollyVisual's overlay), so a denser scale puts a tick
 // label right behind it
 const Y_STEP = [200, 400, 500, 1000].find((s) => SIM_Y_MAX / s <= 3);
+// the unlabelled marks between those ticks, on round win counts
+const Y_MINOR = { 200: 100, 400: 100, 500: 100, 1000: 250 }[Y_STEP];
+// the unlabelled marks between the run-count ticks at either width
+const X_MINOR = 1000;
 
 const NARROW = 520;
 // the dot's own radius, so the last run's mark sits inside the canvas rather
@@ -111,12 +115,22 @@ function simAxes(w, plot, xS, yS) {
 		w < NARROW
 			? [0, SIM_N_SIMS / 2, SIM_N_SIMS]
 			: [0, 2000, 4000, 6000, 8000, SIM_N_SIMS];
-	const y = [];
-	for (let v = 0; v <= SIM_Y_MAX; v += Y_STEP) y.push(v);
 	return {
-		x: xRuns.map((r) => ({ pos: xS(r), label: runLabel(r) })),
+		x: markedTicks(
+			{ major: xRuns, minor: stepped(X_MINOR)(0, SIM_N_SIMS) },
+			xS,
+			runLabel
+		),
 		xBase: plot.bottom + 10,
-		y: y.map((v) => ({ pos: yS(v), label: String(v) }))
+		yMarkX: plot.left,
+		y: markedTicks(
+			{
+				major: stepped(Y_STEP)(0, SIM_Y_MAX),
+				minor: stepped(Y_MINOR)(0, SIM_Y_MAX)
+			},
+			yS,
+			String
+		)
 	};
 }
 
