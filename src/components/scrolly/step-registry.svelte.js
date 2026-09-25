@@ -1,7 +1,7 @@
 // The step registry: the story's wizard. Every <Step> and <Splash> registers
 // itself here in document order as it mounts, and the reader's
 // navigation — the tap halves and the arrow keys (TapNav), a step's own
-// control (StartButton, GuessRank, the quizzes' Skip) and a gated step carrying
+// control (StartButton, GuessRank and its Skip) and a gated step carrying
 // the reader on itself (`advanceon`, watched by Index) — all move `current`
 // through it. The active step is kept in the URL (?step=N) so each tab keeps
 // its own place
@@ -263,11 +263,12 @@ export function createStepRegistry({ navigate }) {
 		advance: () => {
 			if (value < configs.length - 1) value += 1;
 		},
-		// The pair quiz's Skip: the reader declining the question rather than
-		// answering it. A forward move like go()'s, through the arrival rules —
-		// the quiz is the last step of its chapter, and the step after it has an
-		// arrival of its own — with the departing gate waived, because the press
-		// is the reader saying they would rather not.
+		// The pair quiz's `onnext`: the reader's Next on an unfinished quiz,
+		// declining the question rather than answering it. A forward move like
+		// go()'s, through the arrival rules — the quiz is the last step of its
+		// chapter, and the step after it has an arrival of its own — with the
+		// departing gate waived, because the press is the reader saying they
+		// would rather not.
 		skip: () => {
 			if (value < configs.length - 1) move(value + 1);
 		},

@@ -161,8 +161,9 @@ behind every letter, where a name at the edge of a cloud mostly does not.
    Refused as a way _around_ the step, never as a way _through_ it (2026-09-24:
    no step may hold a reader who would rather not take part). On the three
    Start steps the reader's Next makes the Start press itself (`onnext`), so
-   Next and the button are one press. Each quiz carries a **Skip**, which
-   leaves the question unanswered and moves on. The gutter is disabled only
+   Next and the button are one press. The rank guess carries a **Skip**, and
+   on the pair quiz the reader's Next is the skip (`onnext`): both leave the
+   question unanswered and move on. The gutter is disabled only
    while a tap there could not do anything: a quiz step, a Start step still
    arriving, or a Start step whose animation is playing.
 
@@ -196,7 +197,7 @@ behind every letter, where a name at the edge of a cloud mostly does not.
 
    `advance()` on the `"scrolly-steps"` context deliberately bypasses `go()`,
    which is exactly what lets a gated step's own control out through its own
-   gate. `skip()` is the pair quiz's Skip: a forward move through the arrival
+   gate. `skip()` is the pair quiz's `onnext`: a forward move through the arrival
    rules like `go()`'s (the quiz's successor opens a chapter and has an arrival
    of its own, which `advance()` would miss), with the gate waived.
 
@@ -219,10 +220,10 @@ behind every letter, where a name at the edge of a cloud mostly does not.
      travel again.
    - **Step 20, the pair quiz** (`gate` opens on completion; **no** `skipback`).
      The one gate the reader's own Next walks through: the quiz has no single
-     completing press, so answering the last pair is what unblocks it. Skip,
-     beside the pair counter, leaves at any pair through `skip()`; the pairs
-     already answered stay answered, and it is hidden (not removed, so the
-     card keeps its height) once there is nothing left to ask. Prev
+     completing press, so answering the last pair is what unblocks it. The
+     reader's Next leaves at any pair through `skip()` (`onnext`); the pairs
+     already answered stay answered. There is no Skip button: it was the same
+     press as Next, and was removed 2026-09-25. Prev
      stays open throughout, and `states.js`'s `quizDone` is the single
      predicate both the gate and `PairQuiz`'s own starting cursor read — a quiz
      with nothing left to ask must be a step the gate lets the reader

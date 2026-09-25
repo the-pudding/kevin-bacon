@@ -656,9 +656,9 @@
 				</Step>
 				<!-- the one gate the reader's own Next walks through once it opens:
 		     the quiz has no single completing press, so finishing the last
-		     pair is what unblocks it — or the quiz's Skip, which leaves it
-		     through the registry's skip() at any pair, and which the reader's
-		     Next presses for them while the gate is shut (`onnext`). Stepping back to 20
+		     pair is what unblocks it — or the reader's Next, which leaves it
+		     through the registry's skip() at any pair while the gate is shut
+		     (`onnext`). Stepping back to 20
 		     stays open, and `quizDone` is the same predicate PairQuiz seeds
 		     itself from, so
 		     the gate can never hold the reader on a quiz with nothing left

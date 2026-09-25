@@ -94,8 +94,8 @@
 		     remounts it (`picks`), which is what hands the reader an empty box
 		     for the next name.
 
-		     Skip shares the input's line, as the same `story` Button as the pair
-		     quiz's Skip and the StartButtons. -->
+		     Skip shares the input's line, as the same `story` Button as the
+		     StartButtons. -->
 		<div class="ask">
 			<div class="search">
 				{#key picks}

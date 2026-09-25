@@ -237,7 +237,7 @@ has one — and calls `prepareArrival({ to, from, forward, back })`
 with the destination's state _before_ the step changes, so a component that
 mounts with the step reads the right story at mount. `advance()` bypasses the
 gate: it is how a gated step's own control lets the reader out. `skip()` waives
-it too but keeps the arrival rules: it is the pair quiz's Skip.
+it too but keeps the arrival rules: it is the pair quiz's `onnext`.
 `step-registry.spec.js` covers the moves and the bar's derivations below.
 
 ### Chapters and the progress bar
@@ -386,10 +386,10 @@ the answer out, and each owns the way out of its step: the reader's Next is
 refused (`gate`), a backward move passes through the step (`skipback`), and the
 step's own control — or the animation it starts (`advanceon`) — moves the reader
 on. None of them holds a reader who would rather not take part: on the Start
-steps the reader's Next presses Start (`onnext`), and each quiz has a Skip. The
+steps the reader's Next presses Start (`onnext`), and on each quiz it skips. The
 rank guess (`GuessRank` → `advance()`, Skip included), the race rewind (its
 press advances), the pair quiz (the one gate the reader's own Next walks
-through, on `quizDone`; Skip → `skip()`), the Gen Z draw-on and the simulation
+through, on `quizDone`; before that, Next → `skip()`), the Gen Z draw-on and the simulation
 replay (both `advanceon` on the field the run publishes). The progress bar merges a gated step and its payoff
 into one line. The arrival rules re-arm each of them on the way back in
 (`arrivals.js`). The full agreement, with its history: `notes/design/interactions.md`.
