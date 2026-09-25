@@ -242,7 +242,7 @@ exports[`layout goldens > degScatter {"searchId":null} @stacked 1`] = `
 
 exports[`layout goldens > hopAnchor {"anchorId":0,"arriving":false} @beside 1`] = `
 {
-  "attrs": "4dee1530948853e9",
+  "attrs": "d24cd8813c5231ad",
   "decor": "e6d8412e00a64407",
   "delays": "81adf7d1bf8819f7",
   "trailDelays": null,
@@ -272,9 +272,9 @@ exports[`layout goldens > hopAnchor {"anchorId":0,"arriving":false} @stacked 1`]
 
 exports[`layout goldens > hopAnchor {"anchorId":105,"arriving":false} @beside 1`] = `
 {
-  "attrs": "e48dfa3df4720879",
+  "attrs": "e1235735d23e91e4",
   "decor": "489e57921ba2afbc",
-  "delays": "ba0fed6c93851e3e",
+  "delays": "f8bc069d2e84086c",
   "trailDelays": null,
   "trails": null,
 }
@@ -302,9 +302,9 @@ exports[`layout goldens > hopAnchor {"anchorId":105,"arriving":false} @stacked 1
 
 exports[`layout goldens > hopAnchor {"anchorId":105,"arriving":true} @beside 1`] = `
 {
-  "attrs": "c5c22cfd75beaedc",
+  "attrs": "9b3202e0dbe81b8f",
   "decor": "489e57921ba2afbc",
-  "delays": "ba0fed6c93851e3e",
+  "delays": "f8bc069d2e84086c",
   "trailDelays": null,
   "trails": null,
 }
@@ -332,7 +332,7 @@ exports[`layout goldens > hopAnchor {"anchorId":105,"arriving":true} @stacked 1`
 
 exports[`layout goldens > hopBands null @beside 1`] = `
 {
-  "attrs": "4dee1530948853e9",
+  "attrs": "d24cd8813c5231ad",
   "decor": "e6d8412e00a64407",
   "delays": "81adf7d1bf8819f7",
   "trailDelays": null,
@@ -362,7 +362,7 @@ exports[`layout goldens > hopBands null @stacked 1`] = `
 
 exports[`layout goldens > hopSeed null @beside 1`] = `
 {
-  "attrs": "fd41f052acf098e7",
+  "attrs": "5f6dc69651d305d8",
   "decor": "bf21a9e8fbc5a384",
   "delays": null,
   "trailDelays": null,
@@ -392,11 +392,11 @@ exports[`layout goldens > hopSeed null @stacked 1`] = `
 
 exports[`layout goldens > networkIntro {"focus":3} @beside 1`] = `
 {
-  "attrs": "346aefd43819a33f",
-  "decor": "0796d37cb912cc4e",
+  "attrs": "5c9746d35afc22e1",
+  "decor": "d05ae7ffdc3cae20",
   "delays": "3af643a145dbf304",
   "paramWalk": {
-    "clear": "48e8877e9b5ce4cd",
+    "clear": "37a13b745c073b3f",
     "fadeMs": 400,
     "labelAt": [],
     "ms": 701,
@@ -443,8 +443,8 @@ exports[`layout goldens > networkIntro {"focus":3} @stacked 1`] = `
 
 exports[`layout goldens > networkIntro {"focus":null} @beside 1`] = `
 {
-  "attrs": "c2b145a6a2562736",
-  "decor": "16236ae855f2a329",
+  "attrs": "3ba086016ba5f0c3",
+  "decor": "b2d4b14b84f928d7",
   "delays": "3af643a145dbf304",
   "trailDelays": null,
   "trails": null,
@@ -473,7 +473,7 @@ exports[`layout goldens > networkIntro {"focus":null} @stacked 1`] = `
 
 exports[`layout goldens > outro {"playhead":2006} @beside 1`] = `
 {
-  "attrs": "c5f510cb970e6a6e",
+  "attrs": "6e5763f584abd2e6",
   "decor": "bf21a9e8fbc5a384",
   "delays": null,
   "trailDelays": null,
@@ -503,7 +503,7 @@ exports[`layout goldens > outro {"playhead":2006} @stacked 1`] = `
 
 exports[`layout goldens > outro null @beside 1`] = `
 {
-  "attrs": "d83b1ea3c9a2a4a6",
+  "attrs": "bcb7f921c13e18c6",
   "decor": "bf21a9e8fbc5a384",
   "delays": null,
   "trailDelays": null,
@@ -1373,7 +1373,7 @@ exports[`layout goldens > simRace {"runs":10000,"names":5} @stacked 1`] = `
 
 exports[`layout goldens > titleGalaxy null @beside 1`] = `
 {
-  "attrs": "fd41f052acf098e7",
+  "attrs": "5f6dc69651d305d8",
   "decor": "bf21a9e8fbc5a384",
   "delays": null,
   "trailDelays": null,

@@ -2,7 +2,7 @@
 // canvas, where each of the fifteen stands in it, and the camera pull-back
 // about Bacon that hopSeed lands on.
 import { ANCHOR_ID, INTRO_LAYOUT } from "./nodes.js";
-import { MARGIN } from "./plot.js";
+import { MARGIN, PLOT_BOTTOM_BESIDE, plotBottomFraction } from "./plot.js";
 
 export const NETWORK_INTRO_RADIUS = [16, 6, 6, 6, 6];
 
@@ -12,6 +12,17 @@ export const NETWORK_HOP_DELAY_MS = 250;
 // planarity survives axis scaling, and without it 320px viewports squash the
 // graph to ~200px tall with the name labels colliding
 export const INTRO_MAX_STRETCH = 1.6;
+
+// the share of the canvas's height the fit may fill. Stacked, the step card
+// owns the bottom; beside the prose nothing is over the canvas, so the graph
+// takes the column down to where the charts' plots end, less the caption's line
+const INTRO_BOTTOM_STACKED = 0.72;
+const INTRO_BOTTOM_BESIDE = 0.86;
+
+const introBottomFraction = () =>
+	plotBottomFraction() === PLOT_BOTTOM_BESIDE
+		? INTRO_BOTTOM_BESIDE
+		: INTRO_BOTTOM_STACKED;
 
 // px kept between the outermost dots and the canvas's side edges: half the
 // widest edge label ("Anya Taylor-Joy" at the labels' 0.75rem), since each name
@@ -26,7 +37,7 @@ const INTRO_X1 = Math.max(...INTRO_XS);
 
 /**
  * The intro fit: scales the baked intro layout into the top ~72% of the canvas
- * (per-axis, each capped at INTRO_MAX_STRETCH beyond uniform) and returns the
+ * (~86% beside the prose, see introBottomFraction; per-axis, each capped at INTRO_MAX_STRETCH beyond uniform) and returns the
  * anchor's fitted screen position plus the axis scales — the one frame every
  * intro-chapter layout hangs off (networkIntro at full size, hopSeed pulled
  * back, see introPosition's `scale`). Across, it fits and centres the dots'
@@ -35,7 +46,7 @@ const INTRO_X1 = Math.max(...INTRO_XS);
  */
 export function introFrame(w, h) {
 	const availW = w - INTRO_LABEL_INSET * 2;
-	const availH = h * 0.72 - MARGIN;
+	const availH = h * introBottomFraction() - MARGIN;
 	const sxRaw = availW / (INTRO_X1 - INTRO_X0);
 	const syRaw = availH / INTRO_LAYOUT.h;
 	const sx = Math.min(sxRaw, syRaw * INTRO_MAX_STRETCH);
