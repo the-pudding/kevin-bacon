@@ -71,11 +71,12 @@ evidence.
 - CSS animations and Svelte transitions are seeked to the same timeline, but
   one that starts between two frames is dated to the later frame. Use
   `--real-clock` for anything in HTML (see step 4).
-- Run against a static build served from a scratch directory, not a dev server:
-  every vite server and `npm run build` in this checkout share `.svelte-kit/`,
+- Sheets need a dev server: a production build ignores `?step` (gated on
+  `import.meta.env.DEV`), so a served `build/` opens every sheet on step 0.
+  Every vite server and `npm run build` in this checkout share `.svelte-kit/`,
   and a regeneration reloads the page under the sheet and swallows the press
-  ("!! landed on step N, not M"). Build once, serve `build/` with
-  `python3 -m http.server`, and pass `--url`; runs then go four-wide.
+  ("!! landed on step N, not M"). Run sheets one at a time, and never while a
+  build or another vite server is running in the checkout.
 - Reduced motion is not covered; check it by hand.
 - Whether a stagger *feels* right is still a judgement. The sheet shows the
   order; it does not show the pace between frames finer than the interval.
