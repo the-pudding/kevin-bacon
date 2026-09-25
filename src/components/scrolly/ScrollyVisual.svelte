@@ -2788,6 +2788,14 @@
 		pointer-events: none;
 	}
 
+	/* The departing copy is mounted fresh, so its children's .fade-in would
+	   replay from 0 under the wrapper's out-fade: the text blinked out, rose
+	   again and then popped off. It is already on screen at full strength; only
+	   the wrapper's fade plays. */
+	.layer.gone .fade-in {
+		animation: none;
+	}
+
 	/* Lifted over the tap halves. Free to do: the container is
 	   pointer-events:none and only .hit opts back in, so raising it hands the
 	   halves back everything except the actor targets themselves — which the
