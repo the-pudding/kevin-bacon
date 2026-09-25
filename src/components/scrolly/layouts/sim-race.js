@@ -102,7 +102,7 @@ const DOT_ROOM = 8;
 function simPlot(w, h) {
 	return {
 		top: MARGIN + 10,
-		bottom: plotBottom(h),
+		bottom: plotBottom(h, "sim"),
 		left: MARGIN + 22, // room for the win-count ticks
 		right: w - MARGIN - DOT_ROOM
 	};
@@ -270,6 +270,7 @@ const replay = {
 
 export const states = {
 	simRace: {
+		plot: "sim",
 		layout: layoutSimRace,
 		title: "Wins after 10,000 simulations",
 		// the contenders converge on the origin out of the career cloud on a

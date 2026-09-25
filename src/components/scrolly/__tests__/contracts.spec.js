@@ -354,7 +354,10 @@ describe("scatterY: every dot scatterCenters draws stands at its scatterY", () =
 			for (const n of nodes) {
 				const i = n.id * STRIDE;
 				if (attrs[i + 6] <= TOLERANCE) continue;
-				max = Math.max(max, Math.abs(attrs[i + 1] - scatterY(n.id, box.h)));
+				max = Math.max(
+					max,
+					Math.abs(attrs[i + 1] - scatterY(n.id, box.h, "scatter"))
+				);
 			}
 			expect(max).toBeLessThanOrEqual(TOLERANCE);
 		});

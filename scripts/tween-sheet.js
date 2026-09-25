@@ -40,6 +40,9 @@ import { startVite, waitForStory } from "./lib/story-page.js";
 
 const BOXES = {
 	mobile: { w: 375, h: 667, cols: 5, scale: 1 },
+	// a tall phone, where each chart group's px plot reserve (plot.js) gives
+	// the plot back more canvas than the 60% floor the mobile box sits on
+	tall: { w: 390, h: 844, cols: 5, scale: 1 },
 	desktop: { w: 1280, h: 800, cols: 3, scale: 0.5 },
 	wide: { w: 1440, h: 900, cols: 3, scale: 0.45 }
 };

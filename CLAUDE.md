@@ -11,7 +11,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Lint (Prettier check, then ESLint per `eslint.config.js`, then Stylelint per `stylelint.config.js`): `npm run lint`
 - Test (vitest): `npm run test`. Regenerate the layout goldens after an intentional layout change: `npx vitest run -u`
 - Stale the tween checklist's rows from the staged diff: `npm run stale` (`--check` only reports; the pre-commit gate runs it)
-- Contact sheet of one step transition, frame by frame on a faked clock: `npm run sheet -- <from> <to>` (both directions, mobile box; `--box desktop|wide`, `--click Start` for a gated step). Output under `sheets/`, gitignored. The `tween-sheet` skill is the workflow.
+- Contact sheet of one step transition, frame by frame on a faked clock: `npm run sheet -- <from> <to>` (both directions, mobile box; `--box tall|desktop|wide`, `--click Start` for a gated step). Output under `sheets/`, gitignored. The `tween-sheet` skill is the workflow.
 - All quality gates as CI runs them (lint, the design tokens' build check, svelte-check, vitest, the rendered contrast scan): `npm run gates`
 - WCAG colour contrast of the rendered page at every step (axe-core on a dev server): `npm run a11y` (`--box`, `--steps`)
 - Format: `npm run format`

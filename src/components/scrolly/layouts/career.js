@@ -137,7 +137,7 @@ function careerFrame(nodes, w, h) {
 		}
 	}
 	const top = MARGIN + 8;
-	const bottom = plotBottom(h);
+	const bottom = plotBottom(h, "career");
 	return {
 		ageMax,
 		filmsMax,
@@ -422,6 +422,7 @@ const CAREER_TITLE = "Film count by career age";
 
 export const states = {
 	careerTrio: {
+		plot: "career",
 		layout: careerLayout(TRIO, false),
 		title: CAREER_TITLE,
 		// One scene with careerBacon and careerMany. All three draw the same chart
@@ -449,6 +450,7 @@ export const states = {
 		overlay: CAREER_OVERLAY
 	},
 	careerBacon: {
+		plot: "career",
 		layout: careerLayout(BOUNDS, false),
 		title: CAREER_TITLE,
 		// one scene with the other two — see the note on careerTrio above
@@ -482,6 +484,7 @@ export const states = {
 		overlay: CAREER_OVERLAY
 	},
 	careerMany: {
+		plot: "career",
 		layout: careerLayout(TRIO, true),
 		title: CAREER_TITLE,
 		// one scene with the other two — see the note on careerTrio above

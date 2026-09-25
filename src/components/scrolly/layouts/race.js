@@ -817,7 +817,7 @@ export function racePlot(w, h) {
 	const innerRight = w - MARGIN - 6;
 	return {
 		top: MARGIN + 10,
-		bottom: plotBottom(h),
+		bottom: plotBottom(h, "race"),
 		left,
 		right: left + ((innerRight - left) * 2) / 3,
 		// The full inner width, gutter included — where the DATA's plot stops
@@ -3912,6 +3912,7 @@ const drawProjections = raceChoreography(
 
 export const states = {
 	raceRecent: {
+		plot: "race",
 		layout: raceLayout(RACE_RECENT_STEP, RACE_RECENT_YCAP),
 		title: "The center of Hollywood, over time",
 		// one scene with the other panning race steps: same title, same overlay, same
@@ -3932,6 +3933,7 @@ export const states = {
 		requests: { rewind }
 	},
 	raceFull: {
+		plot: "race",
 		layout: raceLayout(RACE_FULL_STEP, Infinity),
 		title: "The center of Hollywood, over time",
 		// one scene with the other panning race steps: same title, same overlay, same
@@ -3954,6 +3956,7 @@ export const states = {
 		entry: closeFuture
 	},
 	raceGenz: {
+		plot: "race",
 		// no yCap in the raceFull sense — a cap BELOW the field, so the race cast
 		// is off this step entirely and the Gen-Z lines have the plot to themselves
 		layout: raceLayout(RACE_GENZ_STEP, RACE_GENZ_YCAP),
@@ -3979,6 +3982,7 @@ export const states = {
 		requests: { genzLines: drawGenz }
 	},
 	raceClose: {
+		plot: "race",
 		layout: RACE_CLOSE_LAYOUT,
 		// not the chapter's shared title: two thirds of the ink on this chart is
 		// modelled, and the axis it is drawn on runs past the end of the record
@@ -4031,6 +4035,7 @@ export const states = {
 		ambient: { frames: makeFlight(layoutOutroGalaxy, FIELD_IDS) }
 	},
 	raceFuture: {
+		plot: "race",
 		// no yCap, same as raceFull: the whole cast, on a chart whose camera has
 		// run forward to the present with a fitted strip of future beside it
 		layout: raceLayout(RACE_FUTURE_STEP, Infinity),

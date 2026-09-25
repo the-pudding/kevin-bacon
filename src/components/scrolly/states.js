@@ -149,6 +149,17 @@ export const STATE_RACE = pick("race");
 export const STATE_SCENE = pick("scene");
 
 /**
+ * Which plot group a chart state draws to (plot.js's PLOT_RESERVE): the px it
+ * keeps clear at the canvas's foot for the step card, one height for every step
+ * in the group so a step change inside it leaves the plot where it is. The
+ * layout module passes the same name to `plotBottom`; this copy is the render
+ * path's, which places the HTML axis titles under the same floor. States with
+ * no axes declare none.
+ * @type {Partial<Record<LayoutState, import("./plot.js").PlotGroup>>}
+ */
+export const STATE_PLOT = pick("plot");
+
+/**
  * Per-state list of prior states the layout's `delays` choreography is
  * authored for. Arriving from any other state (e.g. stepping backwards)
  * skips the delays — one plain tween instead of replaying the reveal.

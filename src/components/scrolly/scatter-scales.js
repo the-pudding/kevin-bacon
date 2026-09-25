@@ -57,19 +57,25 @@ const AVG_PAD = (AVG_MAX - AVG_MIN) * SCATTER_PAD;
 /** actor `id`'s average distance: the remoteness the scatters and the race plot */
 export const avgDistanceOf = (id) => rawNodes.nodes[id][4];
 
-/** the height the avg-distance scatter draws actor `id` at, by id */
-export const scatterY = (id, h) =>
+/**
+ * the height the avg-distance scatter draws actor `id` at, by id, on the plot
+ * group `plot`
+ * @param {number} id
+ * @param {number} h
+ * @param {import("./plot.js").PlotGroup} plot
+ */
+export const scatterY = (id, h, plot) =>
 	lin(
 		avgDistanceOf(id),
 		AVG_MIN - AVG_PAD,
 		AVG_MAX + AVG_PAD,
 		MARGIN + 8,
-		plotBottom(h)
+		plotBottom(h, plot)
 	);
 
 /** distance-vs-films position: where the avg-distance scatter draws an actor */
-export function scatterPosition(n, w, h) {
-	return [filmX(Math.log(Math.max(1, n.films)), w), scatterY(n.id, h)];
+export function scatterPosition(n, w, h, plot) {
+	return [filmX(Math.log(Math.max(1, n.films)), w), scatterY(n.id, h, plot)];
 }
 
 // the canvas width at which the log axis has room to label 30 as well; the

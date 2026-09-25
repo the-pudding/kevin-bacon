@@ -13,6 +13,7 @@ import {
 	STATE_RACE,
 	STATE_TITLE,
 	STATE_SCENE,
+	STATE_PLOT,
 	OVERLAYS,
 	STATE_CURVE,
 	curveFor,
@@ -20,6 +21,7 @@ import {
 	isProseOver
 } from "../states.js";
 import { NODE_COUNT } from "../nodes.js";
+import { PLOT_RESERVE } from "../plot.js";
 import { BOXES, arrivalContext, layoutParamsFor, phasesOf } from "./helpers.js";
 
 const names = Object.keys(STATES);
@@ -230,5 +232,28 @@ describe("state registry", () => {
 
 	test("the prose lies over the hop chart and nothing else", () => {
 		expect(names.filter(isProseOver)).toEqual(["hopBands", "hopAnchor"]);
+	});
+
+	// A scene's axes stay mounted across its step changes, so its states have
+	// to share one plot floor too, or the axis titles would stay put while the
+	// plot they title moved under them.
+	test("states sharing a scene draw to the same plot group", () => {
+		for (const [state, scene] of Object.entries(STATE_SCENE)) {
+			const first = Object.keys(STATE_SCENE).find(
+				(s) => STATE_SCENE[s] === scene
+			);
+			expect(STATE_PLOT[state], `${scene}: ${state} plot`).toBe(
+				STATE_PLOT[first]
+			);
+		}
+	});
+
+	// The HTML axis titles are placed under the state's plot floor
+	// (ScrollyVisual's axisPlaces), which a state with no group does not have.
+	test("every state with axis titles names a real plot group", () => {
+		for (const name of names) {
+			if (!OVERLAYS[name]?.xLabel && !OVERLAYS[name]?.yLabel) continue;
+			expect(Object.keys(PLOT_RESERVE), name).toContain(STATE_PLOT[name]);
+		}
 	});
 });

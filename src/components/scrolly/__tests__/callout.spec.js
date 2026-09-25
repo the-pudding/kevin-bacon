@@ -5,7 +5,7 @@
 import { beforeEach, describe, expect, test } from "vitest";
 import { ATTR_SIZE } from "../attr-buffer.js";
 import { TRAIL_SIZE } from "../trails.js";
-import { PLOT_BOTTOM_STACKED, setPlotBottomFrac } from "../plot.js";
+import { setPlotBeside } from "../plot.js";
 import {
 	writeRaceSweepFrame,
 	racePanFrame,
@@ -37,9 +37,9 @@ function frameAt({ w, h }, playhead = REST, step = RACE_FULL_STEP) {
 	);
 }
 
-// the plot's own fraction of the canvas is module state on plot.js, and these
-// tests read the plot floor — so pin it rather than inherit whatever ran last
-beforeEach(() => setPlotBottomFrac(PLOT_BOTTOM_STACKED));
+// the plot's layout mode is module state on plot.js, and these tests read the
+// plot floor — so pin it rather than inherit whatever ran last
+beforeEach(() => setPlotBeside(false));
 
 describe("raceCallout", () => {
 	test("a step gets the chapter's callout while its moment is on the plot", () => {
@@ -111,7 +111,7 @@ describe("raceCallout", () => {
 		// Asserted over every playhead the reader can reach, at every box, rather
 		// than at the few the other tests happen to use.
 		for (const box of BOXES) {
-			setPlotBottomFrac(box.plotFrac);
+			setPlotBeside(box.beside);
 			const span = raceVisibleSpan(box.w, box.h);
 			for (let p = RACE_BAND_FIRST; p <= RACE_DATA_END; p += 0.25) {
 				// exclusive: a ring ON either edge has faded to nothing, and is not

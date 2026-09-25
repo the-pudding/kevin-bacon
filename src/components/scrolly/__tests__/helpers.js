@@ -9,12 +9,7 @@ import { makeNodes } from "../nodes.js";
 import { STATES, STATE_PARAMS } from "../states.js";
 import { story } from "../story.svelte.js";
 import { ATTR_SIZE } from "../attr-buffer.js";
-import {
-	NO_BLEED,
-	PLOT_BOTTOM_BESIDE,
-	PLOT_BOTTOM_STACKED,
-	setPlotBottomFrac
-} from "../plot.js";
+import { NO_BLEED, setPlotBeside } from "../plot.js";
 import { TRAIL_SIZE } from "../trails.js";
 import { RACE_DATA_END } from "../layouts/race.js";
 
@@ -32,21 +27,21 @@ export const BOXES = [
 		w: 375,
 		h: 560,
 		bleed: NO_BLEED,
-		plotFrac: PLOT_BOTTOM_STACKED
+		beside: false
 	},
 	{
 		name: "stacked",
 		w: 700,
 		h: 820,
 		bleed: { l: 370, r: 370 },
-		plotFrac: PLOT_BOTTOM_STACKED
+		beside: false
 	},
 	{
 		name: "beside",
 		w: 700,
 		h: 820,
 		bleed: { l: 20, r: 740 },
-		plotFrac: PLOT_BOTTOM_BESIDE
+		beside: true
 	}
 ];
 
@@ -119,7 +114,7 @@ export function backFrom(steps, i) {
 
 /** one layout call, at one box, with the params ScrollyVisual would pass */
 export function buildLayout(state, box, params = layoutParamsFor(state)) {
-	setPlotBottomFrac(box.plotFrac);
+	setPlotBeside(box.beside);
 	return STATES[state](nodes, box.w, box.h, edges, params, box.bleed);
 }
 

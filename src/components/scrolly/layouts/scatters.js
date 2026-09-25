@@ -36,6 +36,7 @@ import {
  * @param {(t: number) => string} [cfg.labelOf] formats a y tick's raw value; default 1dp of the raw value
  * @param {number} [cfg.floor] raises the y-domain's lower bound past the data minimum; actors below it clamp to the floor, dimmed, same as anyone past vMax
  * @param {number} [cfg.ceil] raises the y-domain's upper bound past the data maximum, widening headroom above the highest actor without clamping anyone
+ * @param {import("../plot.js").PlotGroup} cfg.plot the plot group whose floor the chart draws to (the state's `plot`)
  */
 function filmsScatter(nodes, w, h, cfg) {
 	const attrs = new Float64Array(ATTR_SIZE);
@@ -43,13 +44,13 @@ function filmsScatter(nodes, w, h, cfg) {
 	const [vMin, vMax] = scatterDomain(nodes, values, cfg);
 	const pad = (vMax - vMin) * SCATTER_PAD;
 	const top = MARGIN + 8;
-	const bottom = plotBottom(h);
+	const bottom = plotBottom(h, cfg.plot);
 	const yS = cfg.invert
 		? (v) => lin(v, vMin - pad, vMax + pad, top, bottom)
 		: (v) => lin(v, vMin - pad, vMax + pad, bottom, top);
 	for (const n of nodes) {
 		const hi = cfg.highlights?.get(n.id);
-		placeScatterDot(attrs, n, values[n.id], hi, w, h, yS, vMin, vMax);
+		placeScatterDot(attrs, n, values[n.id], hi, w, h, yS, vMin, vMax, cfg.plot);
 	}
 	return {
 		attrs,
@@ -94,8 +95,8 @@ const dotStyle = (hi) =>
  * the metric is missing (nothing to plot); a value past the domain clamps to
  * its edge, dimmed.
  */
-function placeScatterDot(attrs, n, v, hi, w, h, yS, vMin, vMax) {
-	const [sx, sy] = scatterPosition(n, w, h);
+function placeScatterDot(attrs, n, v, hi, w, h, yS, vMin, vMax, plot) {
+	const [sx, sy] = scatterPosition(n, w, h, plot);
 	if (v == null || (n.films < FILM_MIN_SHOWN && !hi)) {
 		set(attrs, n.id, sx, sy, 2, CROWD, 0);
 		return;
@@ -162,8 +163,9 @@ const AVG_TIERS = [
 	{ minH: 500, major: stepped(0.2), minor: stepped(0.05) }
 ];
 
-const avgScatter = (nodes, w, h, highlights, params) =>
+const avgScatter = (nodes, w, h, highlights, params, plot) =>
 	filmsScatter(nodes, w, h, {
+		plot,
 		yOf: (n) => n.avgDistance,
 		invert: true, // lower average distance = better connected = up
 		yTiers: AVG_TIERS,
@@ -219,14 +221,15 @@ const layoutScatterCenters = (nodes, w, h, _edges, params) => {
 				[PORTMAN, { rgb: CROWD, r: 5.5 }],
 				[KENDRICK, { rgb: CROWD, r: 5.5 }]
 			]),
-			params
+			params,
+			"scatter"
 		);
 	}
 	const highlights = new Map([[SLJ, { rgb: CROWD, r: 6 }]]);
 	// the film-count step names the runner-up as well, so he gets a mark of his
 	// own — subordinate to the subject, and only on that step
 	if (params?.showFilms) highlights.set(CAGE, { rgb: CROWD, r: 5 });
-	return avgScatter(nodes, w, h, highlights, params);
+	return avgScatter(nodes, w, h, highlights, params, "scatter");
 };
 
 // Is this pair on the chart? Either the reader has settled it, or they have
@@ -270,7 +273,7 @@ function layoutScatterQuiz(nodes, w, h, _edges, params) {
 		highlights.set(pair.a, { rgb: verdictRgb(pair, pair.a, picked), r: 5.5 });
 		highlights.set(pair.b, { rgb: verdictRgb(pair, pair.b, picked), r: 5.5 });
 	});
-	return avgScatter(nodes, w, h, highlights, params);
+	return avgScatter(nodes, w, h, highlights, params, "quiz");
 }
 
 // this step narrows the highlight to just the Portman/Kendrick pair from the
@@ -306,6 +309,7 @@ const DEG_SCATTER_TIERS = [
 /** @type {import("../layout-types.js").LayoutFn} */
 const layoutDegScatter = (nodes, w, h, _edges, params) =>
 	filmsScatter(nodes, w, h, {
+		plot: "scatter",
 		yOf: (n) => n.top50,
 		// ticks sit at round film counts in log space (that's the plotted scale)
 		yTiers: DEG_SCATTER_TIERS,
@@ -331,6 +335,7 @@ const AVG_OVERLAY = {
 export const states = {
 	scatterCenters: {
 		layout: layoutScatterCenters,
+		plot: "scatter",
 		title: "Films vs. remoteness",
 		labels: (params) =>
 			withSearchLabel(
@@ -386,6 +391,7 @@ export const states = {
 	},
 	scatterQuiz: {
 		layout: layoutScatterQuiz,
+		plot: "quiz",
 		title: "Films vs. remoteness",
 		// the step back off the Gen Z race is a plain tween the other way, and
 		// curves the same way scatterCenters does off the race: the same fan
@@ -419,6 +425,7 @@ export const states = {
 	},
 	degScatter: {
 		layout: layoutDegScatter,
+		plot: "scatter",
 		title: "Films vs. costar film count",
 		labels: (params) => withSearchLabel([PORTMAN, KENDRICK], params),
 		// this state hosts the costar-count search (step 20)

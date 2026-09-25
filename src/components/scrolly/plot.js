@@ -1,5 +1,5 @@
 // The plot's geometry on the canvas: the margin, the title band above the
-// box, the plot's share of the column (stacked under the prose or beside it),
+// box, each chart group's plot floor (stacked under the prose or beside it),
 // a linear scale, and the bleed the canvas element reaches past the column.
 
 export const MARGIN = 32;
@@ -19,36 +19,40 @@ export const MARGIN = 32;
  */
 export const TITLE_BAND = 26;
 
-// charts live in the top ~3/5 of the canvas — the step card owns the bottom,
-// and the x-axis ticks + axis label (drawn ~32px below this line) need to clear
-// the tallest step cards too, so keep the plot clear of the bottom ~40%.
+// Where each chart's plot stops, which is how much of the canvas's foot it
+// leaves to the step card and to its own x-axis furniture.
+//
+// STACKED, the step card lies over the canvas's bottom edge. The card is about
+// the same height in px on every phone — it is words at a fixed measure — while
+// the canvas runs from ~610px tall to ~900, so a share of the canvas is the
+// wrong unit: 40% was the tallest card's room on a short phone and a band of
+// empty canvas on a tall one. So each chart keeps a fixed px reserve instead,
+// sized to the tallest card among ITS steps, not the step on screen: the plot
+// is one height across the whole group, so a step change inside it leaves the
+// axes where they are (motion.md rule 7).
+//
+// A reserve is that card plus AXIS_ROOM, the room `xLabelTop` wants between the
+// plot floor and the card to keep the x-axis title at its home under the ticks.
+// The cards are the step card's box (`.scrolly-steps` child, the height
+// Stage.svelte's `cardHeight` reads), measured at rest at 360x640 — the
+// narrowest phone measured, where the lines wrap most. Re-measure a group after
+// editing its prose: a card that outgrows its reserve lifts the x-axis title
+// over the ticks rather than breaking, but it is no longer at home.
+//
+// PLOT_BOTTOM_MIN floors the plot at the share of the canvas every chart had
+// before the reserves, so on a short phone, where a reserve would cost the plot
+// height, it keeps exactly what it had and only a taller screen gains.
 //
 // BESIDE the prose (a wide viewport — see Stage.svelte's side-by-side rule) the
 // step card is not over the canvas at all, so the only thing left to clear is
 // the axis furniture and the plot takes nearly the whole column.
 //
-// It is a module variable rather than a seventh layout argument because
-// `plotBottom(h)` is read from ten layout modules and from the render path,
-// none of which are handed the page's layout mode — the same idiom
-// `raceTuning` uses for the race dials (layouts/race.js). ScrollyVisual owns the setter AND
-// puts the fraction in its layout cache key, which is what stops a chart built
-// for one mode being handed back in the other: `w` changes with the mode today,
-// so the key would usually miss anyway, but relying on that would make this a
-// coincidence rather than a rule.
-export const PLOT_BOTTOM_STACKED = 0.6;
-
-export const PLOT_BOTTOM_BESIDE = 0.86;
-
-let plotBottomFrac = PLOT_BOTTOM_STACKED;
-
-export const setPlotBottomFrac = (frac) => (plotBottomFrac = frac);
-
-export const plotBottomFraction = () => plotBottomFrac;
-
-export const plotBottom = (h) => h * plotBottomFrac;
-
-export const lin = (v, d0, d1, r0, r1) =>
-	r0 + ((v - d0) / (d1 - d0)) * (r1 - r0);
+// Which of the two modes the page is in is a module variable rather than a
+// seventh layout argument because `plotBottom(h, group)` is read from the layout
+// modules and from the render path, none of which are handed the page's layout
+// mode — the same idiom `raceTuning` uses for the race dials (layouts/race.js).
+// ScrollyVisual owns the setter AND puts the mode in its layout cache key, which
+// is what stops a chart built for one mode being handed back in the other.
 
 // Where the x-axis title sits, in canvas coordinates. The title's own home is
 // below the tick row; the lifted home is above it, over the bottom of the plot
@@ -58,10 +62,78 @@ const X_LABEL_LIFT = 14;
 // clear air kept between the title and the top of the step card
 const X_LABEL_CARD_GAP = 24;
 
+const AXIS_ROOM = X_LABEL_DROP + X_LABEL_CARD_GAP;
+
+/**
+ * The px each plot group keeps clear at the canvas's foot, stacked. A state
+ * names its group as `plot` in the registry (states.js); the layout module that
+ * draws it passes the same name to `plotBottom`.
+ */
+export const PLOT_RESERVE = {
+	// steps 8-11, 18, 19, 25: raceClose's card
+	race: 250 + AXIS_ROOM,
+	// steps 12-16: the costar-count pair step's card
+	scatter: 234 + AXIS_ROOM,
+	// step 17: the pair quiz, whose card carries the quiz's controls
+	quiz: 293 + AXIS_ROOM,
+	// steps 20-22: careerMany's card
+	career: 250 + AXIS_ROOM,
+	// steps 23-24
+	sim: 189 + AXIS_ROOM
+};
+
+/** @typedef {keyof typeof PLOT_RESERVE} PlotGroup */
+
+export const PLOT_BOTTOM_MIN = 0.6;
+
+export const PLOT_BOTTOM_BESIDE = 0.86;
+
+let plotBeside = false;
+
+export const setPlotBeside = (beside) => (plotBeside = beside);
+
+export const isPlotBeside = () => plotBeside;
+
+/**
+ * The floor as a share of the canvas alone, before any group's reserve: what
+ * every chart had before the reserves, and still the rect the sky's field crowd
+ * is authored across (sky.js's fieldBox), which carries no axis and belongs to
+ * no chart group.
+ * @param {number} h
+ * @param {boolean} beside
+ */
+export const shareBottomAt = (h, beside) =>
+	h * (beside ? PLOT_BOTTOM_BESIDE : PLOT_BOTTOM_MIN);
+
+/** @param {number} h */
+export const shareBottom = (h) => shareBottomAt(h, plotBeside);
+
+/**
+ * The plot floor for `group` on a canvas `h` tall, in either mode — the pure
+ * form, for a caller that tracks `beside` itself (ScrollyVisual's furniture).
+ * @param {number} h
+ * @param {PlotGroup} group
+ * @param {boolean} beside
+ */
+export const plotBottomAt = (h, group, beside) =>
+	beside
+		? shareBottomAt(h, true)
+		: Math.max(shareBottomAt(h, false), h - PLOT_RESERVE[group]);
+
+/**
+ * @param {number} h
+ * @param {PlotGroup} group
+ */
+export const plotBottom = (h, group) => plotBottomAt(h, group, plotBeside);
+
+export const lin = (v, d0, d1, r0, r1) =>
+	r0 + ((v - d0) / (d1 - d0)) * (r1 - r0);
+
 /**
  * The `top` of the x-axis title, given the canvas height, how much of the
  * canvas's bottom edge the step card covers (`overlayHeight` — zero beside the
- * prose), and the top of the tick row the layout drew (`axes.xBase`).
+ * prose), the top of the tick row the layout drew (`axes.xBase`) and the
+ * plot floor it drew it under (`plotBottom` for the state's group).
  *
  * TWO homes and nothing between them. On a long-prose step the card climbs up
  * the canvas and covers the title's own home under the ticks, so the title
@@ -81,9 +153,9 @@ const X_LABEL_CARD_GAP = 24;
  * their cards differ in height, so a continuous rule walked the title 16px on a
  * step change that is supposed to leave the furniture alone (motion.md rule 7).
  */
-export const xLabelTop = (h, cardHeight, xBase) =>
-	h - cardHeight - X_LABEL_CARD_GAP >= plotBottom(h) + X_LABEL_DROP
-		? plotBottom(h) + X_LABEL_DROP
+export const xLabelTop = (h, cardHeight, xBase, floor) =>
+	h - cardHeight - X_LABEL_CARD_GAP >= floor + X_LABEL_DROP
+		? floor + X_LABEL_DROP
 		: xBase - X_LABEL_LIFT;
 
 /**

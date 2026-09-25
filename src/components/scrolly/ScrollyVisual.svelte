@@ -43,6 +43,7 @@
 		STATES,
 		OVERLAYS,
 		STATE_SCENE,
+		STATE_PLOT,
 		STATE_LABELS,
 		STATE_TITLE,
 		STATE_LABEL_TEXT,
@@ -78,12 +79,10 @@
 	import {
 		MARGIN,
 		TITLE_BAND,
-		plotBottom,
-		plotBottomFraction,
+		plotBottomAt,
+		isPlotBeside,
 		xLabelTop,
-		setPlotBottomFrac,
-		PLOT_BOTTOM_BESIDE,
-		PLOT_BOTTOM_STACKED,
+		setPlotBeside,
 		NO_BLEED,
 		screenSpan
 	} from "./plot.js";
@@ -432,7 +431,7 @@
 		if (layoutParams?.playhead != null) {
 			return STATES[name](nodes, w, h, edges, layoutParams, bleed);
 		}
-		const key = `${name}:${w}:${h}:${bleed.l}:${bleed.r}:${plotBottomFraction()}:${JSON.stringify(layoutParams) ?? ""}`;
+		const key = `${name}:${w}:${h}:${bleed.l}:${bleed.r}:${isPlotBeside()}:${JSON.stringify(layoutParams) ?? ""}`;
 		let result = layoutCache.get(key);
 		if (!result) {
 			result = STATES[name](nodes, w, h, edges, layoutParams, bleed);
@@ -476,10 +475,7 @@
 		return {
 			decor: d,
 			overlay: OVERLAYS[name],
-			xTop,
-			yTop: yLabelTop,
-			hintTop: yHintTop,
-			hintBottom: yHintBottom,
+			...axisPlaces(d, name),
 			// raceFuture as well as raceFull: its arrival pan starts from raceFull's
 			// camera, so 1980 can be on the plot for the leg's first frames
 			infoTick: name === RACE_FULL_STATE || name === RACE_FUTURE_STATE,
@@ -685,7 +681,7 @@
 	// beside the box for the reason isResize gives: it scales every y the layouts
 	// write just as the box's own height does. 0 is not a fraction any layout can
 	// be built at, so the first run always counts as a change.
-	let prevPlotFrac = 0;
+	let prevBeside = false;
 
 	/**
 	 * Re-measure the column's offset in the viewport.
@@ -725,7 +721,7 @@
 		prevW = width;
 		prevH = height;
 		prevCanvasW = canvasWidth;
-		prevPlotFrac = plotFrac;
+		prevBeside = beside;
 	}
 
 	// live, so DevTools' emulation (and a reader changing the OS setting mid-story)
@@ -936,41 +932,49 @@
 		STATE_PARAMS[stateName]?.(story, params) ?? params ?? null
 	);
 	/**
-	 * The plot's share of the column, and the floor it puts on the chart — as
-	 * something Svelte can TRACK.
+	 * Where the HTML axis furniture of state `name` sits: under that state's own
+	 * plot floor (its `plot` group, see STATE_PLOT), in the page's layout mode.
 	 *
-	 * `plotBottom()` reads a module variable. The layout modules need it that way
-	 * (they are plain functions, and none of them is handed the page's layout
-	 * mode), and the layout cache coped by naming the fraction in its key. A
-	 * `$derived` cannot: a module variable is not a signal, so a derived that
-	 * called `plotBottom()` kept whatever fraction happened to be current when its
-	 * real dependency — `height` — last changed, and the axis furniture stayed
-	 * pinned to the stacked plot for the whole of a beside layout.
+	 * Per state rather than one derived for the live state, because the groups'
+	 * floors differ and a departing set is frozen AFTER the reader has moved on
+	 * (swapFurniture): read off the live state, the old chart's titles would jump
+	 * to the new chart's floor for the whole of their out-fade.
 	 *
-	 * So everything in THIS component goes through these two, and the setter in
-	 * the render effect is handed the same `plotFrac`: one expression, both
-	 * readers.
+	 * `beside` is the prop, not plot.js's module variable. A module variable is
+	 * not a signal, so a read of `plotBottom()` here kept whatever mode happened
+	 * to be current when its real dependency — `height` — last changed, and the
+	 * axis furniture stayed pinned to the stacked plot for the whole of a beside
+	 * layout. The render effect hands the setter the same `beside`.
+	 *
+	 * A state with no plot group draws no axis titles, and gets no places.
+	 * @param {Object | undefined} d the state's decor
+	 * @param {string} name
 	 */
-	const plotFrac = $derived(beside ? PLOT_BOTTOM_BESIDE : PLOT_BOTTOM_STACKED);
-	const plotFloor = $derived(height * plotFrac);
-	// vertical centre of the rotated y-axis title: every scatter/line layout maps
-	// its y-domain onto the full plot area (top ≈ MARGIN+8 → plotBottom), so the
-	// plot-area centre IS the axis centre
-	const yLabelTop = $derived(height ? (MARGIN + 8 + plotFloor) / 2 : 0);
-	// x-axis title sits just under the plot, but never behind the step card: on
-	// long-prose steps the card climbs into the plot and the title moves to the
-	// far side of the tick row instead, over the bottom of the plot (text-shadow
-	// keeps it legible over any dots it then overlaps). Which side it takes is
-	// the ONLY question — the two rows are a line apart, so there is no third
-	// place to put it and `plot.js` answers with one row or the other rather
-	// than a coordinate between them. See the note there for what a clamp did.
-	const xTop = $derived(
-		height ? xLabelTop(height, stepsHeight, decor?.axes?.xBase) : 0
-	);
-	// pinned homes for the "lower"/"higher" mini-labels — the same plot-rect
-	// top/bottom that yLabelTop above centres the axis title within
-	const yHintTop = $derived(height ? MARGIN + 8 : 0);
-	const yHintBottom = $derived(height ? plotFloor : 0);
+	function axisPlaces(d, name) {
+		const group = STATE_PLOT[name];
+		if (!height || !group)
+			return { xTop: 0, yTop: 0, hintTop: 0, hintBottom: 0 };
+		const floor = plotBottomAt(height, group, beside);
+		return {
+			// x-axis title sits just under the plot, but never behind the step card:
+			// on long-prose steps the card climbs into the plot and the title moves
+			// to the far side of the tick row instead, over the bottom of the plot
+			// (text-shadow keeps it legible over any dots it then overlaps). Which
+			// side it takes is the ONLY question — the two rows are a line apart, so
+			// there is no third place to put it and `plot.js` answers with one row
+			// or the other rather than a coordinate between them. See the note there
+			// for what a clamp did.
+			xTop: xLabelTop(height, stepsHeight, d?.axes?.xBase, floor),
+			// vertical centre of the rotated y-axis title: every scatter/line layout
+			// maps its y-domain onto the full plot area (top ≈ MARGIN+8 → floor), so
+			// the plot-area centre IS the axis centre
+			yTop: (MARGIN + 8 + floor) / 2,
+			// pinned homes for the "lower"/"higher" mini-labels — the same plot-rect
+			// top/bottom the y-axis title centres within
+			hintTop: MARGIN + 8,
+			hintBottom: floor
+		};
+	}
 	const labelIds = $derived.by(() => {
 		const spec = STATE_LABELS[stateName];
 		return new Set(
@@ -1723,7 +1727,7 @@
 	// labels. The stacker lifts the whole set off the plot floor for it.
 	function labelFloor() {
 		return raceStep?.tailPx !== undefined && height
-			? plotBottom(height) - 4
+			? plotBottomAt(height, STATE_PLOT[stateName], beside) - 4
 			: null;
 	}
 	/**
@@ -2063,9 +2067,9 @@
 	 * arrival a snap. A change of the measured box is one, and so is a move of
 	 * the column in the viewport (`moved`, see measureBleed).
 	 *
-	 * The plot's share of the column counts as well, box or no box: `plotBottom`
-	 * scales every y a layout writes, so the frame on screen is as wrong after a
-	 * bare flip of it as it is after the box changed height. That flip happens on
+	 * The plot's layout mode counts as well, box or no box: `plotBottom` scales
+	 * every y a layout writes, so the frame on screen is as wrong after a bare
+	 * flip of it as it is after the box changed height. That flip happens on
 	 * every cold load past the side-by-side breakpoint — `dimensions.width` is 0
 	 * until its effect runs, so the first layout is built stacked and `beside`
 	 * only turns true afterwards, with the measured box unmoved. Without this term
@@ -2080,7 +2084,7 @@
 			width !== prevW ||
 			height !== prevH ||
 			canvasWidth !== prevCanvasW ||
-			plotFrac !== prevPlotFrac
+			beside !== prevBeside
 		);
 	}
 
@@ -2092,12 +2096,12 @@
 	 * steps aside (scrubbing implies active, so this one guard covers both).
 	 */
 	function fitBox() {
-		// the plot's share of the column is a property of the PAGE's layout, not of
-		// any one state, so it is set here — once, before any layout is built —
-		// rather than threaded through ten layout modules. `beside` is a prop, so
+		// the plot's layout mode is a property of the PAGE's layout, not of any one
+		// state, so it is set here — once, before any layout is built — rather than
+		// threaded through the layout modules. `beside` is a prop, so
 		// the effect already re-runs when the breakpoint flips, and `isResize`
 		// is what stops that re-run being discarded as a no-op.
-		setPlotBottomFrac(plotFrac);
+		setPlotBeside(beside);
 		// where the column sits in the viewport, which the full-bleed layouts
 		// author their sky against
 		const resized = isResize(measureBleed());

@@ -14,7 +14,7 @@ import {
 } from "./intro-geometry.js";
 import { ANCHOR_ID, dotHash, hash01 } from "./nodes.js";
 import { CROWD } from "./palette.js";
-import { MARGIN, NO_BLEED, TITLE_BAND, plotBottom } from "./plot.js";
+import { MARGIN, NO_BLEED, TITLE_BAND, shareBottom } from "./plot.js";
 
 // the constellation's own crowd alpha: by the end of the pull-back the fifteen
 // are meant to be indistinguishable members of the field, which is the whole
@@ -104,13 +104,13 @@ const FIELD_KEEPOUT =
  * static frame and every animated one, and a scrub lands on the same frame the
  * animation would have drawn at that scale.
  */
-/** the field's rect: the plot area, which is the whole canvas above the step card */
-const fieldBox = (w, h) => [MARGIN, w - MARGIN, MARGIN, plotBottom(h)];
+/** the field's rect: the canvas above the step card, as a share of its height */
+const fieldBox = (w, h) => [MARGIN, w - MARGIN, MARGIN, shareBottom(h)];
 
 /**
  * A full-bleed state's rect: the whole bled canvas, edge to edge and from the
  * top of the screen down. A sky carries no chart, so nothing needs the margins
- * or the bottom 40% that `fieldBox` keeps clear — the crowd is the picture, and
+ * or the foot of the canvas that `fieldBox` keeps clear — the crowd is the picture, and
  * boxing it into the column reads as a rectangle of dots rather than a sky.
  *
  * `bleed` is how far the canvas extends past the 700px reading column on each
