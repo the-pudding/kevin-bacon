@@ -47,6 +47,10 @@ import {
 const HERO_ALPHA = 0.9;
 const COMPARISON_ALPHA = 0.55;
 const COHORT_ALPHA = 0.35;
+// `set`'s radius/colour/alpha for an unnamed dot in the background cloud, and
+// for the hero's mark
+const CLOUD_DOT = [2, CROWD, 0.22];
+const HERO_DOT = [5.5, CAREER, 1];
 
 /**
  * A cast is the hero first, then its comparisons, each
@@ -212,7 +216,7 @@ function careerLayout(cast, showCohort) {
 					n.id,
 					xS(n.careerAge),
 					yS(n.films),
-					...careerDot(marked, 2, CROWD, 0.22)
+					...careerDot(marked, ...CLOUD_DOT)
 				);
 			} else {
 				// no career age known: hidden on the plot's origin, the corner the
@@ -290,18 +294,10 @@ function lineDrawer(nodes, w, h) {
 		);
 		return tip;
 	};
-	/** the same growth with the actor's dot riding the tip */
-	const rideTip = (attrs, trails, line, e, dotAlpha) => {
+	/** the same growth with the actor's dot, drawn as `[r, rgb, alpha]`, riding the tip */
+	const rideTip = (attrs, trails, line, e, [r, rgb, alpha]) => {
 		const tip = growLine(trails, line, e, line.trailAlpha);
-		set(
-			attrs,
-			line.id,
-			xS(tip),
-			yS(curveYAt(line.segs, tip)),
-			5.5,
-			CAREER,
-			dotAlpha
-		);
+		set(attrs, line.id, xS(tip), yS(curveYAt(line.segs, tip)), r, rgb, alpha);
 	};
 	return { growLine, rideTip, xS, yS };
 }
@@ -322,11 +318,17 @@ const CAREER_ENTRY_MS = [1200, 1100];
  * at 16 films by career age 15); for the bounds it is within a film of it, so
  * nothing perceptibly moves when the second leg takes over.
  *
+ * `heroFromCloud` is for a hero who is a plain cloud dot on the chart being
+ * left (Bacon, arriving off the trio): leg 0 starts them in their cloud style,
+ * so the arrival carries them to the start of their line without lighting them
+ * up, and they grow into the hero's mark over the first HERO_LIGHT_UP of the
+ * draw-on, as their line starts.
+ *
  * The final leg at e=1 reproduces the static layout call for call (same
  * monotone segments, same sample window, same alphas), so the settle has
  * nothing left to move. See EntryAnim in states.js.
  */
-function careerEntry(cast) {
+function careerEntry(cast, heroFromCloud) {
 	const heroKey = cast.named[0][0];
 	return function careerEntryFrames(nodes, w, h) {
 		const { rideTip, xS, yS } = lineDrawer(nodes, w, h);
@@ -351,7 +353,13 @@ function careerEntry(cast) {
 		const comparisons = lines.slice(1).filter((line) => line.segs.length);
 		return (attrs, trails, phase, e) => {
 			if (phase === 0) {
-				rideTip(attrs, trails, hero, e, 1);
+				rideTip(
+					attrs,
+					trails,
+					hero,
+					e,
+					heroFromCloud ? heroLightUp(e) : HERO_DOT
+				);
 				// comparisons wait, invisible, where their own line begins
 				for (const line of comparisons) {
 					collapseTrail(trails, line.slot, line.start[0], line.start[1], 0);
@@ -359,12 +367,28 @@ function careerEntry(cast) {
 				}
 				return;
 			}
-			rideTip(attrs, trails, hero, 1, 1);
+			rideTip(attrs, trails, hero, 1, HERO_DOT);
 			for (const line of comparisons) {
-				rideTip(attrs, trails, line, e, COMPARISON_ALPHA * e);
+				rideTip(attrs, trails, line, e, [5.5, CAREER, COMPARISON_ALPHA * e]);
 			}
 		};
 	};
+}
+
+// share of leg 0 a heroFromCloud hero spends growing from a cloud dot into the
+// hero's mark
+const HERO_LIGHT_UP = 0.25;
+
+/** a heroFromCloud hero's dot `e` into leg 0: CLOUD_DOT at 0, HERO_DOT from HERO_LIGHT_UP on */
+function heroLightUp(e) {
+	const k = Math.min(1, e / HERO_LIGHT_UP);
+	const [r0, rgb0, a0] = CLOUD_DOT;
+	const [r1, rgb1, a1] = HERO_DOT;
+	return [
+		lin(k, 0, 1, r0, r1),
+		rgb0.map((c, i) => lin(k, 0, 1, c, rgb1[i])),
+		lin(k, 0, 1, a0, a1)
+	];
 }
 
 // one beat: the whole fan of futures opening out of her endpoint
@@ -441,7 +465,7 @@ export const states = {
 		revealFrom: ["raceGenz"],
 		entry: {
 			phases: CAREER_ENTRY_MS,
-			frames: careerEntry(TRIO),
+			frames: careerEntry(TRIO, false),
 			// each name lands with the line that earns it, rather than labelling a
 			// dot the reader hasn't been told anything about yet: nobody on the
 			// arrival, the hero with leg 0, the comparisons with leg 1
@@ -478,7 +502,7 @@ export const states = {
 		revealFrom: ["careerTrio"],
 		entry: {
 			phases: CAREER_ENTRY_MS,
-			frames: careerEntry(BOUNDS),
+			frames: careerEntry(BOUNDS, true),
 			labelsAfter: [[], [ANCHOR_ID], [HACKMAN, MIRREN]]
 		},
 		overlay: CAREER_OVERLAY
