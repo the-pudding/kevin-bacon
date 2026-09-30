@@ -6,3 +6,5 @@ build
 functions
 sheets
 .env
+.env.*
+!.env.example
