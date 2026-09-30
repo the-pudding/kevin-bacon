@@ -12,6 +12,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Test (vitest): `npm run test`. Regenerate the layout goldens after an intentional layout change: `npx vitest run -u`
 - Stale the tween checklist's rows from the staged diff: `npm run stale` (`--check` only reports; the pre-commit gate runs it)
 - Contact sheet of one step transition, frame by frame on a faked clock: `npm run sheet -- <from> <to>` (both directions, mobile box; `--box tall|desktop|wide`, `--click Start` for a gated step). Output under `sheets/`, gitignored. The `tween-sheet` skill is the workflow.
+- Share image (`og:image`/`twitter:image`): `npm run social` writes the canvas at step 0 to `static/assets/social.jpg`, 1200×630, framed by `scripts/social-image.css` (`--step N`, `--out <path>` to try another step without replacing it, `--url` to reuse a dev server)
 - All quality gates as CI runs them (lint, the design tokens' build check, svelte-check, vitest, the rendered contrast scan): `npm run gates`
 - WCAG colour contrast of the rendered page at every step (axe-core on a dev server): `npm run a11y` (`--box`, `--steps`)
 - Format: `npm run format`

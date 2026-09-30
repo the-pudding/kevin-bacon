@@ -15,6 +15,7 @@
 		"stale": "node scripts/stale-checklist.js",
 		"sheet": "node scripts/tween-sheet.js",
 		"a11y": "node scripts/a11y-scan.js",
+		"social": "node scripts/social-image.js",
 		"check": "svelte-check --tsconfig ./jsconfig.json",
 		"spellcheck": "cspell \"src/data/**\" \"notes/**\" \"README.md\" \"src/routes/**/*.svelte\" \"src/components/Index.svelte\" \"src/components/Meta.svelte\" \"src/components/results/*.svelte\"",
 		"format": "prettier --write .",
