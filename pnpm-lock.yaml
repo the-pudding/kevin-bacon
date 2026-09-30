@@ -129,6 +129,9 @@ importers:
       vite:
         specifier: ^8.0.13
         version: 8.0.13(esbuild@0.27.3)(yaml@2.9.0)
+      vite-plugin-qrcode:
+        specifier: ^0.4.1
+        version: 0.4.1(vite@8.0.13(esbuild@0.27.3)(yaml@2.9.0))
       vite-plugin-svgstring:
         specifier: ^1.0.0
         version: 1.0.0
@@ -3398,6 +3401,9 @@ packages:
     peerDependencies:
       browserslist: '>= 4.21.0'
 
+  uqr@0.1.3:
+    resolution: {integrity: sha512-0rjE8iEJe4YmT9TOhwsZtqCMRLc5DXZUI2UEYUUg63ikBkqqE5EYWaI0etFe/5KUcmcYwLih2RND1kq+hrUJXA==}
+
   uri-js@4.4.1:
     resolution: {integrity: sha512-7rKUyy33Q1yc98pQ1DAmLtwX109F7TIfWlW1Ydo8Wl1ii1SeHieeh0HHfPeL2fMXK6z0s8ecKs9frCuLJvndBg==}
 
@@ -3413,6 +3419,11 @@ packages:
 
   util@0.12.5:
     resolution: {integrity: sha512-kZf/K6hEIrWHI6XqOFUiiMa+79wE/D8Q+NCNAWclkyg3b4d2k7s0QGepNjiABc+aR3N1PAyHL7p6UcLY6LmrnA==}
+
+  vite-plugin-qrcode@0.4.1:
+    resolution: {integrity: sha512-t3gdCbn/a2HHLK3M8bUrQ+4c+I0YQGJ/STxAL9eI6TBnfdeM/CJr3HctvOb7UYhEtWxHs5xZWpz7kYnRd5w+rA==}
+    peerDependencies:
+      vite: '>=3'
 
   vite-plugin-svgstring@1.0.0:
     resolution: {integrity: sha512-dQeQBJVu+nTUrBTWIfgjXX1YHD/SxKVjpI77scXMCHUa8mbOmWHWNdzSJ3ZeOB3XMZCvggezKBEIm59SjmvRiQ==}
@@ -6641,6 +6652,8 @@ snapshots:
       escalade: 3.2.0
       picocolors: 1.1.1
 
+  uqr@0.1.3: {}
+
   uri-js@4.4.1:
     dependencies:
       punycode: 2.3.1
@@ -6663,6 +6676,11 @@ snapshots:
       is-generator-function: 1.1.2
       is-typed-array: 1.1.15
       which-typed-array: 1.1.20
+
+  vite-plugin-qrcode@0.4.1(vite@8.0.13(esbuild@0.27.3)(yaml@2.9.0)):
+    dependencies:
+      uqr: 0.1.3
+      vite: 8.0.13(esbuild@0.27.3)(yaml@2.9.0)
 
   vite-plugin-svgstring@1.0.0: {}
 
