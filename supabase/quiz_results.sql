@@ -1,8 +1,9 @@
 -- Crowd histograms for the two reader quizzes, plus the caller's own numbers.
 -- Re-runnable: unlike schema.sql (run-once DDL), this is `create or replace`.
 --
--- `security definer` because rank_guesses / pair_quiz_picks stay insert-only to
--- `anon` (see schema.sql): this is the ONLY read path, and it emits aggregates
+-- `security definer` because kevinbacon_rank_guesses /
+-- kevinbacon_pair_quiz_picks stay insert-only to `anon` (see schema.sql):
+-- this is the ONLY read path, and it emits aggregates
 -- plus the one session the caller names. Passing someone else's session id
 -- returns their two numbers — an unguessable v4 UUID holding no PII and no
 -- cross-session join key, so the exposure is a non-issue, noted here so it
@@ -22,14 +23,14 @@
 --   the count; note that created_at is INSERT order, not click order, since
 --   analytics.js's writes are fire-and-forget over independent requests.
 --
---   Only solvers are data points. A give-up is recorded (rank_guesses.gave_up)
---   but never counted: the chart and every percentage describe the readers
+--   Only solvers are data points. A give-up is recorded
+--   (kevinbacon_rank_guesses.gave_up) but never counted: the chart and every percentage describe the readers
 --   who finished, so a crowd of quitters can't swamp the histogram. A session
 --   with a correct row is a solver even if it also gave up. A session that
 --   gave up, or never finished, gets a null `you`, which hides its chart.
 --
---   Legacy rank_guesses.correct IS NULL is recoverable: "correct" there means
---   exactly "this actor is SLJ", so p_slj_actor_id reconstructs it. Called with
+--   Legacy kevinbacon_rank_guesses.correct IS NULL is recoverable: "correct"
+--   there means exactly "this actor is SLJ", so p_slj_actor_id reconstructs it. Called with
 --   p_slj_actor_id => null the fallback is simply off.
 --
 --   Pair score takes the FIRST row per (session_id, pair_index). A re-answer
@@ -37,8 +38,8 @@
 --   answer, so the second pick is contaminated. `id` makes the tiebreak
 --   deterministic when two rows share a timestamp.
 --
---   Legacy pair_quiz_picks.correct IS NULL is NOT recoverable — scoring needs
---   the rank comparison, which lives in src/data/scrolly-nodes.json and not
+--   Legacy kevinbacon_pair_quiz_picks.correct IS NULL is NOT recoverable —
+--   scoring needs the rank comparison, which lives in src/data/scrolly-nodes.json and not
 --   here. Those sessions drop out whole. Counting null as wrong would
 --   manufacture a spike at the low scores. A session that did not answer every
 --   pair is not a data point either, and gets a null `you`.
@@ -51,7 +52,7 @@
 --     (denominator takers). "So did Z% of readers" is a descriptive share the
 --     reader is part of.
 
-create or replace function public.quiz_results(
+create or replace function public.kevinbacon_quiz_results(
 	p_session_id uuid default null,
 	p_pair_count integer default 5,
 	p_slj_actor_id integer default null,
@@ -84,7 +85,7 @@ scored as (
 				and g.actor_id = p_slj_actor_id
 			)
 		) as is_slj
-	from public.rank_guesses g
+	from public.kevinbacon_rank_guesses g
 ),
 solved as (
 	select
@@ -144,7 +145,7 @@ rank_you as (
 pair_first as (
 	select distinct on (p.session_id, p.pair_index)
 		p.session_id, p.pair_index, p.correct
-	from public.pair_quiz_picks p
+	from public.kevinbacon_pair_quiz_picks p
 	-- QUIZ_PAIRS is derived at build time (src/components/scrolly/layouts/
 	-- scatters.js); if that data or its filter shifts, a stale-shaped session
 	-- drops out here rather than being silently mis-scored
@@ -221,18 +222,18 @@ select jsonb_build_object(
 $$;
 
 -- per-signature, so a later argument change needs an explicit
--- `drop function public.quiz_results(uuid, integer, integer, integer)` (create
--- or replace cannot change an argument list) and these two lines re-run
-revoke all on function public.quiz_results(uuid, integer, integer, integer) from public;
-grant execute on function public.quiz_results(uuid, integer, integer, integer) to anon, authenticated;
+-- `drop function public.kevinbacon_quiz_results(uuid, integer, integer,
+-- integer)` (create or replace cannot change an argument list) and these two lines re-run
+revoke all on function public.kevinbacon_quiz_results(uuid, integer, integer, integer) from public;
+grant execute on function public.kevinbacon_quiz_results(uuid, integer, integer, integer) to anon, authenticated;
 
 -- both CTEs group by session_id over a full scan otherwise; the second index is
 -- also exactly the `distinct on` sort key, which turns that node into an index
 -- scan
-create index if not exists rank_guesses_session_idx
-	on public.rank_guesses (session_id);
-create index if not exists pair_quiz_picks_session_idx
-	on public.pair_quiz_picks (session_id, pair_index, created_at);
+create index if not exists kevinbacon_rank_guesses_session_idx
+	on public.kevinbacon_rank_guesses (session_id);
+create index if not exists kevinbacon_pair_quiz_picks_session_idx
+	on public.kevinbacon_pair_quiz_picks (session_id, pair_index, created_at);
 
 -- without this the first .rpc() call fails with PGRST202 "not found in the
 -- schema cache", which looks for all the world like a missing grant
