@@ -4,7 +4,13 @@
 // Pure over (ctx, buffers): it reads nothing reactive and owns no state beyond
 // the scratch collections it reuses so a frame allocates nothing.
 import { STRIDE, EDGE_BASE } from "./attr-buffer.js";
-import { EDGE_GREY, EDGE_HIGHLIGHT, FOCUS, INK } from "./palette.js";
+import {
+	ANCHOR_HALO,
+	EDGE_GREY,
+	EDGE_HIGHLIGHT,
+	FOCUS,
+	INK
+} from "./palette.js";
 import { TITLE_BAND } from "./plot.js";
 import { TRAIL_STRIDE, TRAIL_POINTS, TRAIL_META } from "./trails.js";
 
@@ -78,23 +84,128 @@ export function clearCanvas(ctx, w, h, bleed) {
 	ctx.clearRect(-bleed.l, -TITLE_BAND, w + bleed.l + bleed.r, h + TITLE_BAND);
 }
 
+// every trail slot in its own order: drawTrails' paint order without one given
+const SLOT_ORDER = TRAIL_META.map((_, t) => t);
+
+// actor id -> the solid [r, g, b] their dot takes this frame: their line's
+// colour (rankShades). Empty unless a style ranks the lines.
+const dotTints = new Map();
+
+/**
+ * A dot's rgb: its line's, where the frame tints it (dotTints), else its own.
+ * Ink dots (the leader, the named Gen-Z cast) keep their own. Written into
+ * `out` rather than returned, since drawDots asks this of every dot.
+ * @param {Float32Array} attrs @param {number} i @param {number[]} out
+ */
+function dotRgb(attrs, i, out) {
+	const tint = dotTints.size ? dotTints.get(i / STRIDE) : undefined;
+	const ink =
+		attrs[i + 3] === INK[0] &&
+		attrs[i + 4] === INK[1] &&
+		attrs[i + 5] === INK[2];
+	const src = tint && !ink ? tint : null;
+	out[0] = src ? src[0] : attrs[i + 3];
+	out[1] = src ? src[1] : attrs[i + 4];
+	out[2] = src ? src[2] : attrs[i + 5];
+	return out;
+}
+const rgbScratch = [0, 0, 0];
+
+// Each slot's rank this frame among the lines on screen, 0 at the top to 1 at
+// the bottom (rankShades); -1 for a line that is not ranked.
+const ranks = new Float32Array(TRAIL_META.length);
+const ranked = [];
+
+/**
+ * Every ranked line's place among the lines on screen: the order is 2025's
+ * (most remote first), so the first drawn is the lowest ranked, at 1, and the
+ * last the highest, at 0. Ranked on screen rather than against the whole cast,
+ * so the handful a step shows spans the range. See rankedStroke for what a
+ * rank buys.
+ * @param {Float32Array} trailAttrs
+ * @param {readonly number[] | undefined} order
+ * @param {{ shadeSlots?: ReadonlySet<number> } | null | undefined} style
+ */
+function rankShades(trailAttrs, order, style) {
+	ranks.fill(-1);
+	dotTints.clear();
+	if (!order || !style?.shadeSlots) return;
+	ranked.length = 0;
+	for (const t of order) {
+		const alpha = trailAttrs[t * TRAIL_STRIDE + TRAIL_POINTS * 2];
+		if (style.shadeSlots.has(t) && alpha > 0.008) ranked.push(t);
+	}
+	const n = ranked.length;
+	for (let i = 0; i < n; i++) ranks[ranked[i]] = n < 2 ? 0 : 1 - i / (n - 1);
+	// each ranked line's actor's dot, in the colour the line reads as: its rgb
+	// at its resting alpha, laid over the halo colour (the plot's ground), so
+	// the dot is solid and still matches it
+	for (const t of ranked) {
+		const [rgb, a] = rankedStroke(t, TRAIL_META[t].rgb, style.full, style);
+		dotTints.set(
+			TRAIL_META[t].id,
+			rgb.map((c, k) => Math.round(c * a + style.rgb[k] * (1 - a)))
+		);
+	}
+}
+
+/**
+ * A ranked line's colour and alpha: from `style.top` (an rgb and the alpha it
+ * is drawn at) for the highest ranked, down to its own colour taken
+ * `style.shade` of the way toward the halo's at its own alpha for the lowest,
+ * evenly between. The alpha is scaled rather than set, so a line fading in or
+ * out still fades in proportion. Unranked lines are returned as they came.
+ * @returns {[number[], number]}
+ */
+function rankedStroke(t, own, alpha, style) {
+	const r = style ? ranks[t] : -1;
+	if (r < 0) return [own, alpha];
+	const bottom = own.map((c, k) => c + (style.rgb[k] - c) * style.shade);
+	const rgb = bottom.map((c, k) =>
+		Math.round(style.top.rgb[k] + (c - style.top.rgb[k]) * r)
+	);
+	const lift = style.top.alpha / style.full;
+	return [rgb, Math.min(1, alpha * (lift + (1 - lift) * r))];
+}
+
+// how much wider than its line a trail's halo is, both sides together
+const HALO_SPREAD = 2;
+
 /**
  * One trail polyline. `hi` (0-1) blends its TRAIL_META colour toward `toward`
- * and thickens it — INK is the whole of how the race chart marks whoever is
- * leading at its camera, FOCUS the line a hovered callout is about.
+ * — INK is the whole of how the race chart marks whoever is leading at its
+ * camera, at the field's own width; FOCUS, the line a hovered callout is about,
+ * also thickens by up to half a pixel.
+ *
+ * With a `halo`, the same path is stroked first in the halo's colour, two
+ * pixels wider (a pixel each side), so the line parts any line drawn before it
+ * where the two cross.
+ * The halo fades with its line: solid for a line at `halo.full` alpha or more,
+ * so a line fading out does not leave a dark groove where it was. The line's
+ * own colour is taken toward the halo's by its shade (rankShades) first.
+ * @param {{ rgb: number[], full: number } | null} [halo]
  */
-function strokeTrail(ctx, trailAttrs, t, alpha, hi, toward = INK) {
+function strokeTrail(ctx, trailAttrs, t, alpha, hi, toward = INK, halo = null) {
 	const base = t * TRAIL_STRIDE;
-	const { rgb, width: lw } = TRAIL_META[t];
-	ctx.strokeStyle = hi
-		? `rgba(${rgb.map((c, k) => Math.round(c + (toward[k] - c) * hi)).join(", ")}, ${alpha})`
-		: `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, ${alpha})`;
-	ctx.lineWidth = lw + hi * 0.5;
+	const { rgb: own, width: lw } = TRAIL_META[t];
+	const [rgb, lineAlpha] = hi
+		? [own, alpha]
+		: rankedStroke(t, own, alpha, halo);
+	const width = toward === FOCUS ? lw + hi * 0.5 : lw;
 	ctx.beginPath();
 	ctx.moveTo(trailAttrs[base], trailAttrs[base + 1]);
 	for (let k = 1; k < TRAIL_POINTS; k++) {
 		ctx.lineTo(trailAttrs[base + k * 2], trailAttrs[base + k * 2 + 1]);
 	}
+	if (halo) {
+		ctx.strokeStyle = `rgba(${halo.rgb[0]}, ${halo.rgb[1]}, ${halo.rgb[2]}, ${Math.min(1, alpha / halo.full)})`;
+		ctx.lineWidth = width + HALO_SPREAD;
+		ctx.stroke();
+	}
+	ctx.strokeStyle = hi
+		? `rgba(${rgb.map((c, k) => Math.round(c + (toward[k] - c) * hi)).join(", ")}, ${alpha})`
+		: `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, ${lineAlpha})`;
+	ctx.lineWidth = width;
 	ctx.stroke();
 }
 
@@ -110,28 +221,32 @@ function strokeTrail(ctx, trailAttrs, t, alpha, hi, toward = INK) {
  * @param {CanvasRenderingContext2D} ctx
  * @param {Float32Array} trailAttrs
  * @param {ReadonlySet<number>} [focus] trail slots drawn in FOCUS
+ * @param {{ rgb: number[], full: number, shade?: number, top?: { rgb: number[], alpha: number }, shadeSlots?: ReadonlySet<number> } | null} [halo]
+ *   a band behind every line (see strokeTrail), and with `shadeSlots`, each of
+ *   those lines graded by rank from `top` down to `shade` (rankedStroke)
+ * @param {readonly number[] | null} [order] every trail slot, in the order to
+ *   paint them (the race chart's RACE_PAINT_ORDER); slot order without one
  */
-export function drawTrails(ctx, trailAttrs, focus = NO_FOCUS) {
+export function drawTrails(ctx, trailAttrs, focus = NO_FOCUS, halo, order) {
 	inkedTrails.length = 0;
 	focusedTrails.length = 0;
-	for (let t = 0; t < TRAIL_META.length; t++) {
+	rankShades(trailAttrs, order, halo);
+	for (const t of order ?? SLOT_ORDER) {
 		const base = t * TRAIL_STRIDE;
 		const alpha = trailAttrs[base + TRAIL_POINTS * 2];
 		if (alpha <= 0.008) continue;
 		const hi = trailAttrs[base + TRAIL_POINTS * 2 + 1];
 		if (focus.has(t)) focusedTrails.push(t);
 		else if (hi > ALPHA_SEEN) inkedTrails.push(t);
-		else strokeTrail(ctx, trailAttrs, t, alpha, 0);
+		else strokeTrail(ctx, trailAttrs, t, alpha, 0, INK, halo);
 	}
+	// the leader's line is solid white, not the field's 0.35: its alpha rises
+	// to 1 with the highlight, so a lead changing hands mid-pan still blends
 	for (const t of inkedTrails) {
 		const base = t * TRAIL_STRIDE;
-		strokeTrail(
-			ctx,
-			trailAttrs,
-			t,
-			trailAttrs[base + TRAIL_POINTS * 2],
-			trailAttrs[base + TRAIL_POINTS * 2 + 1]
-		);
+		const alpha = trailAttrs[base + TRAIL_POINTS * 2];
+		const hi = trailAttrs[base + TRAIL_POINTS * 2 + 1];
+		strokeTrail(ctx, trailAttrs, t, alpha + (1 - alpha) * hi, hi, INK, halo);
 	}
 	for (const t of focusedTrails) {
 		strokeTrail(
@@ -140,7 +255,8 @@ export function drawTrails(ctx, trailAttrs, focus = NO_FOCUS) {
 			t,
 			trailAttrs[t * TRAIL_STRIDE + TRAIL_POINTS * 2],
 			1,
-			FOCUS
+			FOCUS,
+			halo
 		);
 	}
 	ctx.lineWidth = 1;
@@ -233,16 +349,40 @@ function edgeLine(attrs, target, start, [from, to], i, liveEnds) {
 	];
 }
 
+// How many exact-colour buckets a frame may open before solid dots fall back
+// to the quantised ones: a colour tween across a large solid crowd would
+// otherwise turn one fill into one per dot.
+const EXACT_BUCKETS_MAX = 64;
+let exactBuckets = 0;
+
 /**
- * The fill a dot joins: one per quantised (rgb, alpha), made on first use.
+ * The fill a dot joins: one per quantised (rgb, alpha), made on first use. A
+ * fully opaque dot gets its exact colour at alpha 1 instead: quantised, a
+ * solid #6a636f came out a flat grey (104, 104, 104) at 0.97, which is neither
+ * the colour nor solid (the race chart's field dots, raceDotSpec).
  * @param {Float32Array} attrs
  * @param {number} i the dot's base index
  * @param {number} alpha
  */
 function dotBucket(attrs, i, alpha) {
-	const rB = attrs[i + 3] >> 4;
-	const gB = attrs[i + 4] >> 4;
-	const bB = attrs[i + 5] >> 4;
+	const [r0, g0, b0] = dotRgb(attrs, i, rgbScratch);
+	if (alpha >= 1 && exactBuckets < EXACT_BUCKETS_MAX) {
+		const r = r0 | 0;
+		const g = g0 | 0;
+		const b = b0 | 0;
+		// above every quantised key (those stop at 0xffff)
+		const key = 0x1000000 + ((r << 16) | (g << 8) | b);
+		let bucket = dotBuckets.get(key);
+		if (!bucket) {
+			bucket = { path: new Path2D(), style: `rgb(${r}, ${g}, ${b})` };
+			dotBuckets.set(key, bucket);
+			exactBuckets++;
+		}
+		return bucket;
+	}
+	const rB = r0 >> 4;
+	const gB = g0 >> 4;
+	const bB = b0 >> 4;
 	const aB = alpha >= 1 ? 15 : (alpha * 16) | 0;
 	const key = (rB << 12) | (gB << 8) | (bB << 4) | aB;
 	let bucket = dotBuckets.get(key);
@@ -287,6 +427,7 @@ function circleMeetsView(x, y, r, view) {
  */
 export function drawDots(ctx, attrs, skip, focus, view) {
 	dotBuckets.clear();
+	exactBuckets = 0;
 	focusedDots.length = 0;
 	for (let i = 0; i < EDGE_BASE; i += STRIDE) {
 		const alpha = attrs[i + 6];
@@ -323,15 +464,50 @@ export function drawDots(ctx, attrs, skip, focus, view) {
 	}
 }
 
+// The halo behind Bacon's dot: #fce5ff45, the token's rgb at 0x45 / 255, out
+// to this many of his own radii — a ratio, so it shrinks with the pull-back
+// camera instead of staying a fixed ring round a shrinking dot.
+const ANCHOR_HALO_ALPHA = 0.27;
+const ANCHOR_HALO_SCALE = 1.6;
+
+/**
+ * The halo behind the anchor's dot, drawn under the dots from his live frame so
+ * it grows in, travels and shrinks with him. `level` (0–1) is how much of it
+ * the state asks for: ScrollyVisual eases it between the states that draw it
+ * (hasAnchorHalo) and the rest, so it fades on the step change instead of
+ * popping. It cannot key off his colour — he is the same white on the hop and
+ * rank charts as on the opening network.
+ * @param {CanvasRenderingContext2D} ctx
+ * @param {Float32Array} attrs
+ * @param {number} i the anchor's base index
+ * @param {number} level
+ */
+export function drawAnchorHalo(ctx, attrs, i, level) {
+	const alpha = ANCHOR_HALO_ALPHA * attrs[i + 6] * level;
+	if (!(alpha > ALPHA_SEEN)) return;
+	ctx.fillStyle = `rgba(${ANCHOR_HALO.join(", ")}, ${alpha})`;
+	ctx.beginPath();
+	ctx.arc(attrs[i], attrs[i + 1], attrs[i + 2] * ANCHOR_HALO_SCALE, 0, TAU);
+	ctx.fill();
+}
+
 /**
  * A thin leader from each dot to a name that has been visibly nudged off the
  * dot's own y (see annotations.js), mirroring the reference's stub line.
+ *
+ * By default in the dot's own colour at 0.4 of the name's alpha, over the dot.
+ * A chart can hand its own `style` instead: one colour at a fixed `alpha` for
+ * every name showing at `full` alpha or more, scaled down below that, so a
+ * leader still fades with its name rather than popping; and with `under`, each
+ * dot is painted again over its leader, so the line runs from behind it (which
+ * only reads as "behind" on a solid dot).
  * @param {CanvasRenderingContext2D} ctx
  * @param {Float32Array} attrs
  * @param {{ id: number, x: number, y: number, r: number, labelAlpha: number, labelOffset: number }[]} labels
  * @param {Record<number, "left" | "right">} dirs
+ * @param {{ rgb: number[], alpha: number, full: number, under?: boolean }} [style]
  */
-export function drawLabelLeaders(ctx, attrs, labels, dirs) {
+export function drawLabelLeaders(ctx, attrs, labels, dirs, style) {
 	ctx.lineWidth = 1;
 	for (const t of labels) {
 		if (Math.abs(t.labelOffset) <= 0.5) continue;
@@ -339,10 +515,22 @@ export function drawLabelLeaders(ctx, attrs, labels, dirs) {
 		const dir = dirs[t.id];
 		const gap = 4;
 		const lx = dir === "right" ? t.x + t.r + gap : t.x - t.r - gap;
-		ctx.strokeStyle = `rgba(${attrs[i + 3]}, ${attrs[i + 4]}, ${attrs[i + 5]}, ${t.labelAlpha * 0.4})`;
+		ctx.strokeStyle = style
+			? `rgba(${style.rgb[0]}, ${style.rgb[1]}, ${style.rgb[2]}, ${style.alpha * Math.min(1, t.labelAlpha / style.full)})`
+			: `rgba(${attrs[i + 3]}, ${attrs[i + 4]}, ${attrs[i + 5]}, ${t.labelAlpha * 0.4})`;
 		ctx.beginPath();
 		ctx.moveTo(t.x + (dir === "right" ? t.r : -t.r), t.y);
 		ctx.lineTo(lx, t.y + t.labelOffset);
 		ctx.stroke();
+	}
+	if (!style?.under) return;
+	for (const t of labels) {
+		if (Math.abs(t.labelOffset) <= 0.5) continue;
+		const i = t.id * STRIDE;
+		const [r, g, b] = dotRgb(attrs, i, rgbScratch);
+		ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${attrs[i + 6]})`;
+		ctx.beginPath();
+		ctx.arc(attrs[i], attrs[i + 1], attrs[i + 2], 0, TAU);
+		ctx.fill();
 	}
 }

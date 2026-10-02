@@ -3,19 +3,20 @@
 	import { untrack } from "svelte";
 	import { MediaQuery } from "svelte/reactivity";
 	import { fade } from "svelte/transition";
-	import { makeNodes } from "./nodes.js";
+	import { ANCHOR_ID, makeNodes } from "./nodes.js";
 	import { createFrameLoop, createTweener, easeCubicInOut } from "./tween.js";
 	import { skyFlight } from "./sky.js";
 	import { createChoreographer } from "./choreographer.js";
 	import { createRaceCamera } from "./race-camera.js";
 	import { parkLeavers, restateHidden } from "./arrival-marks.js";
-	import { rgb } from "./palette.js";
+	import { LINE_HALO, rgb } from "./palette.js";
 	import {
 		ALPHA_SEEN,
 		clearCanvas,
 		drawTrails,
 		drawEdges,
 		drawDots,
+		drawAnchorHalo,
 		drawLabelLeaders
 	} from "./render.js";
 	import {
@@ -37,8 +38,11 @@
 		racePanFrame,
 		RACE_CAST,
 		RACE_DOT_MAX_R,
-		RACE_LABEL_TOP
+		RACE_LABEL_TOP,
+		RACE_PAINT_ORDER,
+		RACE_SHADED_SLOTS
 	} from "./layouts/race.js";
+	import { MARK_INK } from "$styles/tokens.js";
 	import {
 		STATES,
 		OVERLAYS,
@@ -57,6 +61,7 @@
 		curveFor,
 		entryFor,
 		isProseOver,
+		hasAnchorHalo,
 		STATE_REQUESTS,
 		STATE_AMBIENT,
 		STATE_TRACKED
@@ -464,6 +469,19 @@
 	 */
 	const titleShiftFor = (name) =>
 		isProseOver(name) ? (labelBleed.r - labelBleed.l) / 2 : 0;
+	/**
+	 * ...except that a chart the prose lies over (the hop bands) titles itself
+	 * flush with its own left edge instead: the span it draws across, in this
+	 * box's px — negative where the chart reaches past the box into the bleed,
+	 * which is why this is a position and not `text-align` inside the box. Null
+	 * for every other state, which keeps the centred title.
+	 * @returns {[number, number] | null} the span's left edge and its width
+	 */
+	const titleSpanFor = (name) => {
+		if (!isProseOver(name) || !width) return null;
+		const [x0, x1] = screenSpan(width, labelBleed);
+		return [x0, x1 - x0];
+	};
 
 	/** the static chart furniture a layout hands the template */
 	/**
@@ -791,6 +809,23 @@
 	let titleState = $state(null);
 	const shownTitle = $derived(titleState && STATE_TITLE[titleState]);
 	const shownTitleShift = $derived(titleState ? titleShiftFor(titleState) : 0);
+	const shownTitleSpan = $derived(titleState ? titleSpanFor(titleState) : null);
+	// The chart title, measured, for the one thing that has to clear it: an
+	// upright y-axis title (.y-title-top) sits beside the title's first line,
+	// so when the title wraps (a phone) it drops by the lines below that, and
+	// a gap. One line drops nothing.
+	/** @type {HTMLElement | undefined} */
+	let titleEl = $state();
+	let titleHeight = $state(0);
+	const titleOverrun = $derived.by(() => {
+		if (!titleEl || !titleHeight) return 0;
+		const range = document.createRange();
+		range.selectNodeContents(titleEl);
+		const lines = new Set(
+			[...range.getClientRects()].map((r) => Math.round(r.top))
+		).size;
+		return lines > 1 ? (titleHeight * (lines - 1)) / lines + 8 : 0;
+	});
 	// tappable chart regions (layout `hits` + the state's `pick`): rendered as
 	// transparent buttons over the canvas, so a pick is keyboard- and
 	// screen-reader-reachable without any canvas hit-testing
@@ -801,6 +836,27 @@
 	let camPanning = $state(false);
 	/** the furniture the state the reader is ON wants drawn */
 	const arriving = $derived(furnitureSet(decor, stateName));
+
+	// The y tick labels' left edge, for the upright y-axis title (.y-title-top)
+	// to line up with. The labels are right-aligned against the axis (.tick-y),
+	// so that edge sits as far left as the widest label reaches, which CSS
+	// cannot hand to a sibling: measured instead, again whenever the labels'
+	// text changes (a pan slides them, which moves nothing sideways) and when
+	// an arriving chart's held furniture is let in — until then its ticks are
+	// not in the DOM, and a measure taken then reads 0 and would stand.
+	/** @type {HTMLElement | undefined} */
+	let overlayEl = $state();
+	let yTickW = $state(0);
+	const yTickKey = $derived(
+		(decor?.axes?.y ?? []).map((t) => t.label ?? "").join("|")
+	);
+	$effect(() => {
+		yTickKey;
+		width;
+		furnitureHeld;
+		const els = overlayEl?.querySelectorAll(".layer:not(.gone) .tick-y") ?? [];
+		yTickW = Math.max(0, ...[...els].map((e) => e.offsetWidth));
+	});
 	/** how long the departing furniture keeps its place before it goes. The HTML
 	 *  twin of DEPART_FADE_MS: decluttering, not a beat the reader watches. */
 	const DECOR_OUT_MS = 220;
@@ -818,6 +874,54 @@
 	// exemption list, because two rules cover the rest: a scene that has not
 	// changed is not swapped at all, and a frame that publishes furniture owns it.
 	const sceneOf = (name) => STATE_SCENE[name] ?? name;
+	// the race chart's charts (the "race" scene and raceClose, on a scene of its
+	// own). Its field dots are solid (raceDotSpec), so their alpha can no longer
+	// set their names': a field name is drawn at RACE_FIELD_LABEL_ALPHA of its
+	// dot's alpha, and an ink dot's (the leader's, the named Gen-Z cast) at its
+	// own. The leaders from names to dots are white at 0.6 for a name at rest,
+	// fading with it below that, and run from behind the dot.
+	const RACE_CHARTS = new Set(["race", "raceClose"]);
+	const RACE_FIELD_LABEL_ALPHA = 0.65;
+	// the background-coloured band behind each of its lines, solid for a line at
+	// the field's 0.35 or more (see render.js's strokeTrail)...
+	// ...and the lines themselves graded by their rank in 2025: the highest
+	// near-white (white at 0.75, short of the leader's solid white), the lowest
+	// their own grey at the field's 0.35 taken 40% of the way to that colour
+	const RACE_LINE_HALO = {
+		rgb: LINE_HALO,
+		full: 0.35,
+		shade: 0.4,
+		top: { rgb: MARK_INK, alpha: 0.75 },
+		shadeSlots: RACE_SHADED_SLOTS
+	};
+	const RACE_LEADER = {
+		rgb: MARK_INK,
+		alpha: 0.6,
+		full: RACE_FIELD_LABEL_ALPHA,
+		under: true
+	};
+	/** @param {Float32Array} attrs @param {number} id */
+	const isInk = (attrs, id) => {
+		const i = id * STRIDE;
+		return (
+			attrs[i + 3] === MARK_INK[0] &&
+			attrs[i + 4] === MARK_INK[1] &&
+			attrs[i + 5] === MARK_INK[2]
+		);
+	};
+	/**
+	 * On a race chart, takes each field name down to RACE_FIELD_LABEL_ALPHA of
+	 * its dot's alpha, in place. Whether the frame is a race chart's is the answer.
+	 * @param {Float32Array} attrs
+	 * @param {{ id: number, labelAlpha: number }[]} labels
+	 */
+	function dimRaceFieldLabels(attrs, labels) {
+		if (!RACE_CHARTS.has(sceneOf(stateName))) return false;
+		for (const t of labels) {
+			if (!isInk(attrs, t.id)) t.labelAlpha *= RACE_FIELD_LABEL_ALPHA;
+		}
+		return true;
+	}
 	// the active state's race descriptor — its camera extent and the actors the
 	// step is about — or undefined off the race chapter, whose presence is what
 	// makes a step pannable
@@ -1742,11 +1846,43 @@
 		if (!settled) frameLoop.request();
 	}
 
+	// How much of Bacon's halo the frame draws (drawAnchorHalo's `level`): eased
+	// from wherever it stood toward the arriving state's (hasAnchorHalo) over
+	// HALO_FADE_MS from the step change. A clock of its own rather than a
+	// tweened channel — the attr buffer has none to spare — so the halo's fade
+	// is not the arrival's; it is short enough to finish inside any arrival,
+	// which is what keeps a frame drawing while it runs.
+	const HALO_FADE_MS = 400;
+	let haloFrom = 0;
+	let haloTo = 0;
+	let haloAt = -Infinity;
+	/** @param {number} now */
+	function haloLevel(now) {
+		const t = Math.min(1, (now - haloAt) / HALO_FADE_MS);
+		return haloFrom + (haloTo - haloFrom) * easeCubicInOut(t);
+	}
+	$effect(() => {
+		const to = hasAnchorHalo(stateName) ? 1 : 0;
+		untrack(() => {
+			const now = performance.now();
+			haloFrom = haloLevel(now);
+			haloTo = to;
+			haloAt = now;
+		});
+	});
+
 	function drawScene() {
 		if (!ctx) return;
 		const attrs = tweener.current;
 		clearCanvas(ctx, width, height, bleed);
-		drawTrails(ctx, trailTweener.current, focusSlots);
+		const raceLines = RACE_CHARTS.has(sceneOf(stateName));
+		drawTrails(
+			ctx,
+			trailTweener.current,
+			focusSlots,
+			raceLines ? RACE_LINE_HALO : null,
+			raceLines ? RACE_PAINT_ORDER : null
+		);
 		drawEdges(
 			ctx,
 			attrs,
@@ -1762,6 +1898,12 @@
 			ctx.rect(-bleed.l, -TITLE_BAND, width + bleed.l + bleed.r, clip);
 			ctx.clip();
 		}
+		drawAnchorHalo(
+			ctx,
+			attrs,
+			ANCHOR_ID * STRIDE,
+			haloLevel(performance.now())
+		);
 		drawDots(ctx, attrs, dotCull(attrs), focusDots, [
 			-bleed.l,
 			-TITLE_BAND,
@@ -1787,6 +1929,7 @@
 			gate: entryLabels,
 			held
 		});
+		const race = dimRaceFieldLabels(attrs, nextTracked);
 		const { moved, dirs, settled } = stacker.stack(
 			nextTracked,
 			labelDirs,
@@ -1794,7 +1937,7 @@
 		);
 		if (moved.length > 0) {
 			relaxLabels(settled);
-			drawLabelLeaders(ctx, attrs, moved, dirs);
+			drawLabelLeaders(ctx, attrs, moved, dirs, race ? RACE_LEADER : undefined);
 		}
 		if (!sameSides(frameDirs, dirs)) frameDirs = dirs;
 		labelBleed = bleed;
@@ -2398,9 +2541,12 @@
 	<!-- The clip spans the CANVAS (see labelBleed); the box inside it puts the
 	     origin every label transform is written against back on the COLUMN's top
 	     left corner, which is where the layouts author. -->
+	<!-- data-chart names the chart on screen (its scene, or its state where it
+	     has none), so a rule can be scoped to one chart's labels -->
 	<div
 		class="annotations"
 		aria-hidden="true"
+		data-chart={sceneOf(stateName)}
 		style="left: {-labelBleed.l}px; right: {-labelBleed.r}px; --label-fade: {LABEL_FADE_MS}ms"
 	>
 		<div
@@ -2523,13 +2669,31 @@
 				{set.overlay.xLabel}
 			</p>
 		{/if}
-		{#if set.overlay?.yLabel}
+		{#if set.overlay?.yTitleTop}
+			<!-- upright at the top of the axis, left-aligned with the y tick labels
+			     (yTickW; the 12px is .tick-y's offset off the axis): the hint over the
+			     title, the first line level with the top tick. Not above the plot:
+			     the chart title holds that strip, and where it wraps (a phone) this
+			     drops below it (titleOverrun) -->
+			<p
+				class="y-title-top fade-in"
+				aria-hidden="true"
+				style="left: {(set.decor?.axes?.yMarkX ?? 0) -
+					12 -
+					yTickW}px; top: {set.hintTop + titleOverrun}px"
+			>
+				{#if set.overlay.yTopLabel}
+					<span class="y-title-hint">{set.overlay.yTopLabel}</span>
+				{/if}
+				<span class="y-title-name">{set.overlay.yLabel}</span>
+			</p>
+		{:else if set.overlay?.yLabel}
 			<!-- centre the axis title on the graph's y-axis extent, not the tall canvas -->
 			<p class="y-label fade-in" aria-hidden="true" style="top: {set.yTop}px">
 				{set.overlay.yLabel}
 			</p>
 		{/if}
-		{#if set.overlay?.yTopLabel}
+		{#if set.overlay?.yTopLabel && !set.overlay.yTitleTop}
 			<p
 				class="y-hint y-hint-top fade-in"
 				aria-hidden="true"
@@ -2741,7 +2905,7 @@
 			</ul>
 		{/if}
 	{/snippet}
-	<div class="overlay" style="--plot-margin: {MARGIN}px">
+	<div class="overlay" bind:this={overlayEl} style="--plot-margin: {MARGIN}px">
 		<!-- The arriving layer carries no transition of its own: its children
 		     already fade in with .fade-in, and an opacity transition on this
 		     wrapper would form a stacking context that the 1980 tick's own z-lift
@@ -2763,8 +2927,13 @@
 			{#key shownTitle}
 				<p
 					class="chart-title fade-in"
+					bind:this={titleEl}
+					bind:clientHeight={titleHeight}
+					class:flush={shownTitleSpan}
 					aria-hidden="true"
 					style="--title-shift: {shownTitleShift}px"
+					style:--title-left={shownTitleSpan && `${shownTitleSpan[0]}px`}
+					style:--title-span={shownTitleSpan && `${shownTitleSpan[1]}px`}
 					out:fade|global={furnitureOut}
 				>
 					{shownTitle}
@@ -2862,9 +3031,11 @@
 		will-change: transform, opacity;
 		padding: 0 3px;
 		font-family: var(--type-chart-family);
+		text-transform: uppercase;
 		letter-spacing: var(--type-chart-tracking);
 		/* NODE_LABEL_PX in layouts/intro.js is this line box */
-		font-size: var(--12px);
+		font-size: 0.8rem;
+		letter-spacing: 1px;
 		line-height: 1.2;
 		white-space: nowrap;
 		color: var(--chart-node-label);
@@ -2876,6 +3047,15 @@
 		   (see nameSwap). The transition rides --dot-alpha as it always did. */
 		opacity: calc(var(--dot-alpha, 1) * var(--name-alpha, 1));
 		transition: opacity var(--label-fade) ease;
+	}
+
+	/* the race chart's names (the "race" scene and raceClose, which closes it
+	   on a scene of its own) */
+	.annotations:is([data-chart="race"], [data-chart="raceClose"]) .node-label {
+		letter-spacing: 0;
+		text-shadow: none;
+		text-transform: none;
+		font-size: 14px;
 	}
 
 	.pulse-wrap {
@@ -3001,13 +3181,17 @@
 	.overlay p {
 		position: absolute;
 		margin: 0;
-		font-family: var(--type-annotation-family);
+		font-family: var(--font-sans);
 		letter-spacing: var(--type-annotation-tracking);
-		font-size: 0.75rem;
-		color: var(--annotation-text);
+		font-size: 14px;
+		font-weight: 400;
+		text-align: left;
+		color: #fff;
+		letter-spacing: 1px;
+		-webkit-font-smoothing: antialiased;
 	}
 
-	.chart-title {
+	p.chart-title {
 		/* .scrolly-visual (this component's containing box) is already offset
 		   down by --title-band, clearing the progress bar above it; the title
 		   sits a little further down still (--chart-title-top, Stage.svelte) */
@@ -3023,6 +3207,11 @@
 		text-align: center;
 		font-weight: 600;
 		color: var(--chart-title);
+		font-family: var(--font-mono);
+		letter-spacing: -0.5px;
+		color: #fff;
+		-webkit-font-smoothing: antialiased;
+		font-size: 1.2rem;
 	}
 
 	/* A searchable step puts ActorSearch's glyph (1.75rem, at the plot's right
@@ -3030,6 +3219,22 @@
 	   centred and wraps before it reaches the glyph. */
 	:global(.scrolly-visual:has(.search__glyph)) .chart-title {
 		max-width: calc(100% - 2 * (var(--plot-margin) + 1.75rem));
+	}
+
+	/* Flush with the chart's own left edge (titleSpanFor): placed at the span's
+	   left in px, and capped at the span's width rather than the box's, since
+	   the chart is wider than the box it is titled in. */
+	.chart-title.flush {
+		left: var(--title-left);
+		transform: none;
+		max-width: var(--title-span);
+		text-align: left;
+	}
+
+	/* ...and short of the search glyph at the span's right end, with the same
+	   0.5rem of air the glyph keeps from its own edge */
+	:global(.scrolly-visual:has(.search__glyph)) .chart-title.flush {
+		max-width: calc(var(--title-span) - 1.75rem - 0.5rem);
 	}
 
 	.x-label {
@@ -3332,6 +3537,35 @@
 		transform: rotate(180deg);
 	}
 
+	/* the upright alternative to .y-label + .y-hint-top (overlay `yTitleTop`):
+	   one block, its first line centred on the plot's top edge, where the top
+	   tick's label is centred too */
+	.y-title-top {
+		/* painted over the y ticks' marks and labels, which come after it in
+		   the markup and can slide under it in a pan */
+		z-index: 1;
+		transform: translateY(-0.6em);
+		line-height: 1.2;
+		white-space: nowrap;
+		text-shadow: none;
+		display: block;
+		font-weight: 600;
+		-webkit-font-smoothing: antialiased;
+		font-size: 14px;
+		letter-spacing: 0;
+	}
+
+	.y-title-top span {
+		display: block;
+	}
+
+	.y-title-hint {
+		font-size: 12px;
+		font-weight: 600;
+		color: rgba(255, 255, 255, 0.65);
+		text-shadow: none;
+	}
+
 	.y-hint-bottom {
 		/* anchors its bottom edge to the plot's bottom edge, growing upward,
 		   mirroring y-hint-top's default top-anchored growth */
@@ -3387,5 +3621,6 @@
 		transform: translateY(-50%);
 		white-space: nowrap;
 		text-shadow: var(--text-halo);
+		font-weight: 600;
 	}
 </style>

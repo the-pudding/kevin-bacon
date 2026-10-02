@@ -1,7 +1,7 @@
 {
 	"mark": {
 		"ink": {
-			"value": "{color.ink}",
+			"value": "{color.white}",
 			"comment": "a named dot, the anchor, the leader",
 			"contrast": { "against": "surface.page", "min": 3 }
 		},
@@ -22,8 +22,27 @@
 			"comment": "network links at rest",
 			"contrast": { "against": "surface.page", "min": 3 }
 		},
+		"network-ink": {
+			"value": "{color.white}",
+			"comment": "the opening network's anchor, the actors on a lit route and the route's line: light, to read against the dark page",
+			"contrast": { "against": "surface.page", "min": 3 }
+		},
+		"anchor-halo": {
+			"value": "{color.lilac}",
+			"comment": "the disc behind Bacon's dot in the opening network, drawn at ANCHOR_HALO_ALPHA (render.js): the canvas palette carries rgb only",
+			"contrast": {
+				"exempt": "a decorative glow behind a dot that is itself drawn and named"
+			}
+		},
+		"network-dim": {
+			"value": "{color.ash}",
+			"comment": "the opening network's actors off a lit route: recessed by colour, opaque, so no link shows through",
+			"contrast": {
+				"exempt": "context, not content: the lit route is what the step reads, and it is named"
+			}
+		},
 		"edge-highlight": {
-			"value": "{mark.ink}",
+			"value": "{mark.network-ink}",
 			"contrast": { "against": "surface.page", "min": 3 }
 		},
 		"search": {
@@ -37,45 +56,57 @@
 			"contrast": { "against": "surface.page", "min": 3 }
 		},
 		"hop-1": {
-			"value": "{category.red}",
+			"value": "{color.hop-1}",
 			"contrast": {
 				"exempt": "every hop band is named by its row label (hop-N-label); the dot hue is not the only cue"
 			}
 		},
 		"hop-2": {
-			"value": "{category.blue}",
+			"value": "{color.hop-2}",
 			"contrast": {
 				"exempt": "every hop band is named by its row label (hop-N-label); the dot hue is not the only cue"
 			}
 		},
 		"hop-3": {
-			"value": "{category.cyan}",
+			"value": "{color.hop-3}",
 			"contrast": {
 				"exempt": "every hop band is named by its row label (hop-N-label); the dot hue is not the only cue"
 			}
 		},
 		"hop-4": {
-			"value": "{category.gray}",
+			"value": "{color.hop-4}",
 			"contrast": {
 				"exempt": "every hop band is named by its row label (hop-N-label); the dot hue is not the only cue"
 			}
 		},
 		"hop-1-label": {
-			"value": "{category.red-dark}",
-			"comment": "a hop row's label: its dots' hue, darkened to text weight",
+			"value": "{color.hop-1-label}",
+			"comment": "a hop row's label, in a pale tint of its own for the dark page",
 			"contrast": { "against": "surface.page", "min": 4.5 }
 		},
 		"hop-2-label": {
-			"value": "{category.blue-dark}",
+			"value": "{color.hop-2-label}",
 			"contrast": { "against": "surface.page", "min": 4.5 }
 		},
 		"hop-3-label": {
-			"value": "{category.cyan-dark}",
+			"value": "{color.hop-3-label}",
 			"contrast": { "against": "surface.page", "min": 4.5 }
 		},
 		"hop-4-label": {
-			"value": "{category.gray-dark}",
+			"value": "{color.hop-4-label}",
 			"contrast": { "against": "surface.page", "min": 4.5 }
+		},
+		"race-field": {
+			"value": "{color.slate-mauve}",
+			"comment": "the race chart's field dots: everyone but the leader, solid so a leader line can run behind them (raceDotSpec)",
+			"contrast": { "against": "surface.page", "min": 3 }
+		},
+		"line-halo": {
+			"value": "{color.aubergine}",
+			"comment": "the band drawn behind each race chart line, so a line crossing another parts it (render.js's drawTrails)",
+			"contrast": {
+				"exempt": "the background colour, drawn behind a line to part it from the ones it crosses; it carries nothing to read"
+			}
 		},
 		"trail-accent": {
 			"value": "{category.red}",

@@ -56,7 +56,7 @@ describe("createTweener", () => {
 		expect(queue.size).toBe(0);
 	});
 
-	test("windows chain groups linearly, with no stall at the join", () => {
+	test("windows chain groups, each eased in and out across its own share", () => {
 		const { tw } = make();
 		const done = vi.fn();
 		tw.to(
@@ -67,8 +67,11 @@ describe("createTweener", () => {
 			done,
 			Float64Array.of(0, 0.5, 0.5, 1)
 		);
-		// each group runs linearly through its half: the first is half done a
-		// quarter of the way in, and hands over to the second at the half
+		// each group eases through its half: slow off the mark, half done a
+		// quarter of the way in, and landed as it hands over at the half
+		tick(12.5);
+		expect(tw.current[0]).toBeCloseTo(easeCubicInOut(0.25), 6);
+		expect(tw.current[0]).toBeLessThan(0.25);
 		tick(25);
 		expect(tw.current[0]).toBeCloseTo(0.5, 6);
 		expect(tw.current[1]).toBe(0);

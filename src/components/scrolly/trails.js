@@ -29,12 +29,13 @@ export const TRAIL_STRIDE = TRAIL_POINTS * 2 + 2;
 /** @type {{ id: number|null, rgb: number[], width: number }[]} */
 export const TRAIL_META = [
 	// The race chart carries no hue at all: every line is the same grey at the
-	// same width. The one actor set apart from the field is whoever LEADS at the
-	// camera's right edge, and they are set apart in ink (the trail highlight
+	// same 1.5px. The one actor set apart from the field is whoever LEADS at the
+	// camera's right edge, and they are set apart in solid white at that same
+	// width (the trail highlight
 	// channel above, written per frame by writeRaceSweepFrame) — nobody is
 	// identified BY a colour, one is identified as being in front. A per-actor
 	// palette would in any case be unworkable with a cast of hundreds.
-	...RACE_IDS.map((id) => ({ id, rgb: CROWD, width: 1 })),
+	...RACE_IDS.map((id) => ({ id, rgb: CROWD, width: 1.5 })),
 	// career chapter: red hero trajectory, grey comparison lines (the dots are
 	// blue marks — see layouts/career.js)
 	{ id: SWEENEY, rgb: TRAIL_ACCENT, width: 1.5 },
@@ -53,9 +54,8 @@ export const TRAIL_META = [
 	// the same reason — emphasis is which lines the step labels, not a palette of
 	// 99 hues
 	...SIM_SERIES.map((id) => ({ id, rgb: CROWD, width: 1 })),
-	// the Gen-Z step's backdrop field. Grey and 1px like everything else on that
-	// chart — what sets it back is alpha, written per frame by the writer, not a
-	// colour or a weight here
+	// the Gen-Z step's backdrop field. Grey, and 1px against the contenders'
+	// 1.5 — what sets it back is mostly alpha, written per frame by the writer
 	...BACKDROP_IDS.map((id) => ({ id, rgb: CROWD, width: 1 })),
 	{ id: null, rgb: CROWD, width: 1 } // reference rule (prediction diagonal, Gen Z number line)
 ];

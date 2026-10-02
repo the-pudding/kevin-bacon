@@ -16,8 +16,8 @@
 	 * @typedef {{ overlayHeight: number, width: number, height: number, visual: ScrollyVisual | undefined }} StageLayout
 	 */
 
-	/** @type {{ steps: ReturnType<typeof import("./step-registry.svelte.js").createStepRegistry>, dimensions: { width: number, height: number }, children: import("svelte").Snippet<[StageLayout]> }} */
-	let { steps, dimensions, children } = $props();
+	/** @type {{ steps: ReturnType<typeof import("./step-registry.svelte.js").createStepRegistry>, dimensions: { width: number, height: number }, floor?: (state: import("./states.js").VisualState, box: { width: number, height: number }) => number | null, children: import("svelte").Snippet<[StageLayout]> }} */
+	let { steps, dimensions, floor, children } = $props();
 
 	import { onMount } from "svelte";
 	import { MediaQuery } from "svelte/reactivity";
@@ -31,10 +31,10 @@
 	import ChevronLeft from "@lucide/svelte/icons/chevron-left";
 	import ChevronRight from "@lucide/svelte/icons/chevron-right";
 	import PointerIcon from "./PointerIcon.svelte";
-	import PuddingLogo from "./PuddingLogo.svelte";
+	import PuddingLogo from "../Header.svelte";
 	import { story } from "./story.svelte.js";
-	import { isProseOver, isRankState } from "./states.js";
-	import { TITLE_BAND } from "./plot.js";
+	import { STATE_PLOT, isProseOver, isRankState } from "./states.js";
+	import { TITLE_BAND, chartFloor } from "./plot.js";
 	import {
 		CARD_IN_MS,
 		CARD_IN_DELAY_MS,
@@ -111,6 +111,35 @@
 		cardHeight = stepsHeight;
 	});
 
+	// Where the step's chart ends, in canvas coordinates, when the card sits
+	// under it (stacked, not over the chart) — or null when there is no such
+	// edge: the sky and the other full-bleed states, where the dots run to the
+	// screen's foot. A plot group's comes from its reserve (chartFloor); a state
+	// whose chart ends in a DOM panel (the tour caption) is answered by `floor`,
+	// which Index.svelte supplies because it owns that panel.
+	const floorY = $derived.by(() => {
+		if (beside || proseOver || !visualHeight) return null;
+		const own = floor?.(currentState, {
+			width: visualWidth,
+			height: visualHeight
+		});
+		if (own != null) return own;
+		const group = STATE_PLOT[currentState];
+		return group ? chartFloor(visualHeight, group) : null;
+	});
+	// How far the card is raised off the screen's foot: half of the space its
+	// chart leaves under it that the card does not fill, which centres it in that
+	// space. Zero where there is no chart edge, and where the card already fills
+	// the space (a short phone), so it never climbs into the chart. The canvas
+	// box runs to the screen's foot, so its height less the floor IS that space.
+	// Applied as the box's `bottom` rather than a height the grid centres in:
+	// `stepsHeight` has to go on measuring the card, not the space.
+	const cardLift = $derived(
+		floorY == null
+			? 0
+			: Math.max(0, Math.round((visualHeight - floorY - cardHeight) / 2))
+	);
+
 	// How much of the canvas's bottom edge the step card actually covers. Stacked,
 	// that is the card's own height and half a dozen things are measured off it —
 	// the over-canvas panels, the tour caption's floor, the x-axis title. Beside
@@ -119,7 +148,13 @@
 	// dodging a card that is not there leaves a band of empty canvas under it.
 	// Over a chart the prose lies over it covers nothing that chart dodges
 	// either: the chart runs under the words on purpose.
-	const overlayHeight = $derived(beside || proseOver ? 0 : cardHeight);
+	//
+	// The card is not always AT the bottom edge, though: see `cardLift` above,
+	// which raises it off the edge, and is counted in so every one of those
+	// clearances is taken off the card's real top.
+	const overlayHeight = $derived(
+		beside || proseOver ? 0 : cardHeight + cardLift
+	);
 
 	// The rank panel outlives the rank chapter by one step: raceRecent keeps it
 	// mounted so its bars can collapse into the race chart's own dots (see
@@ -302,16 +337,20 @@
 
 {#snippet navCue()}
 	<span class="nav-cue-body">
-		<span class="nav-cue-row on-wide">
-			<strong>Click to continue</strong>
-			<span class="nav-cue-icon"><PointerIcon /></span>
-		</span>
-		<span class="nav-cue-row on-narrow">
-			<strong>Tap to continue</strong>
-			<span class="nav-cue-icon"><PointerIcon /></span>
-		</span>
+		<!-- beside the prose a click on the screen is not a step (TapNav), so
+		     only the keys are offered there -->
+		{#if !beside}
+			<span class="nav-cue-row on-wide">
+				<strong>Click to continue</strong>
+				<span class="nav-cue-icon"><PointerIcon /></span>
+			</span>
+			<span class="nav-cue-row on-narrow">
+				<strong>Tap to continue</strong>
+				<span class="nav-cue-icon"><PointerIcon /></span>
+			</span>
+		{/if}
 		<span class="nav-keys on-wide">
-			Or use the keyboard
+			{beside ? "Use" : "Or use"} the keyboard
 			<span class="key"><ChevronLeft /></span>
 			<span class="key"><ChevronRight /></span>
 		</span>
@@ -329,6 +368,11 @@
 			PROSE_IN_MS +
 			NAV_CUE_BEAT_MS}ms; --cue-rise: {PROSE_RISE_PX}px"
 	>
+		<div
+			class="intro-wash"
+			class:shown={steps.current < 4 && !steps.exited}
+			aria-hidden="true"
+		></div>
 		<!-- The prose and the step controls come BEFORE the canvas in the
 		     document, though they paint over it (the z ladder below, not source
 		     order, decides that): a keyboard or screen-reader reader meets the
@@ -340,15 +384,16 @@
 			<div
 				class="scrolly-steps"
 				class:over={proseOver}
+				style:bottom={cardLift ? `${cardLift}px` : null}
 				bind:clientHeight={stepsHeight}
 				aria-live="polite"
 			>
 				{@render children(layout)}
-				<!-- step 0's nav cue, stacked: a row of its own under the prose.
-				     Mounted for the whole of the step rather than when it shows,
-				     so the row is already there when the prose lands and the words
-				     never shift up to make room for it. -->
-				{#if steps.current === 0 && !beside}
+				<!-- step 0's nav cue: a row of its own under the prose, stacked
+				     or beside (keys only, there). Mounted for the whole of the step
+				     rather than when it shows, so the row is already there when the
+				     prose lands and the words never shift up to make room for it. -->
+				{#if steps.current === 0}
 					<div
 						class="nav-cue in-card"
 						class:shown={!steps.held}
@@ -480,10 +525,10 @@
 					</div>
 				{/if}
 				<!-- How to move, for a screen reader, on step 0. The visible cue is
-				     stacked-only (in the card, above): beside the prose there are no
-				     tap halves to teach, and the next notch's chevron pans instead (TapNav). -->
+				     in the card, above, and beside the prose it is the keys alone: there
+				     are no tap halves to teach, and the next notch's chevron pans (TapNav). -->
 				{#if steps.current === 0}
-					<p class="sr-only">
+					<p class="sr-only nav-instruction">
 						{#if beside}
 							Use the Previous and Next buttons at the edges of the screen, or
 							the left and right arrow keys, to navigate through the story.
@@ -592,6 +637,36 @@
 		   canvas's own MARGIN-based top clearance — is set inline above, from
 		   TITLE_BAND in plot.js: the render path needs the same number,
 		   and canvas can't read CSS custom properties. */
+	}
+
+	/* Step 0's backdrop: a plum wash at the top of the screen running down into
+	   the page's own colour, behind everything (first in the layout, no
+	   z-index). A layer faded by opacity rather than a background swapped on
+	   the body, because a gradient cannot transition to a flat colour — the
+	   page is already surface.page underneath, so fading this out IS the
+	   transition to it. Fixed, so it covers the viewport and not just the
+	   column: the canvas bleeds past the column, and so must what it sits on. */
+	.intro-wash {
+		position: fixed;
+		inset: 0;
+		pointer-events: none;
+		background: linear-gradient(
+			to bottom,
+			var(--surface-wash) 359px,
+			var(--surface-page) 487px
+		);
+		opacity: 0;
+		transition: opacity 600ms ease;
+	}
+
+	.intro-wash.shown {
+		opacity: 1;
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.intro-wash {
+			transition: none;
+		}
 	}
 
 	/* Full-height, stable canvas: its size must NOT track the step text height,
@@ -774,34 +849,39 @@
 		   background would punch a rectangle out of the sky it is meant to be
 		   inside */
 		text-shadow: var(--text-halo);
+		color: #fbeffc;
+		-webkit-font-smoothing: antialiased;
+		font-family: 'Atlas Typewriter';
+		letter-spacing: -2px;
+		font-size: 6rem;
 	}
 
 	/* The Pudding's wordmark, pinned to the top of the screen rather than
 	   stacked into the centred card, so however many lines the title wraps to
 	   the two never meet. Wide (600x247) rather than the
 	   compact mark, so it is sized by width with a cap for wide viewports
-	   rather than a fixed height. pointer-events: none for the same reason
-	   .splash-card is — it is decorative, not a control. */
+	   rather than a fixed height.
+
+	   The wordmark is a link (to pudding.cool, Header.svelte), so it has to
+	   beat the tap halves, which cover the whole screen at --z-tap: it sits at
+	   --z-tap-above with the other controls that must. The row itself spans
+	   the screen's width, so it stays transparent to presses and only the link
+	   opts back in — a tap beside the logo is still a step. */
 	.splash-logo {
 		position: absolute;
 		top: max(1.5rem, 6%);
 		left: 0;
 		right: 0;
+		z-index: var(--z-tap-above);
 		display: flex;
 		justify-content: center;
 		pointer-events: none;
-		/* two soft layers, not --text-halo: that halo is tuned for solid letters,
-		   and on this wordmark's thin, close-set script strokes it just merges
-		   into a visible white blob instead of a halo. */
-		filter: drop-shadow(0 0 6px var(--surface-holdout))
-			drop-shadow(0 0 6px var(--surface-holdout));
 	}
 
-	.splash-logo :global(svg) {
-		width: 40vw;
-		max-width: 11rem;
-		height: auto;
+	.splash-logo :global(a) {
+		pointer-events: auto;
 	}
+
 
 	/* The standfirst, between the title and the byline: the serif again, so it
 	   reads as part of the title rather than as the byline's small print, but
@@ -811,6 +891,7 @@
 	.splash-subtitle {
 		max-width: 32rem;
 		margin: 1rem 0 0;
+		-webkit-font-smoothing: antialiased;
 		font-family: var(--type-heading-family);
 		font-size: var(--20px);
 		line-height: 1.35;
@@ -828,12 +909,14 @@
 	   over rather than just being painted under them. */
 	.splash-byline {
 		margin: 0.5rem 0 0;
-		font-family: var(--type-ui-family);
-		font-size: var(--16px);
 		letter-spacing: 0.02em;
 		color: var(--prose-fg);
 		text-shadow: var(--text-halo);
 		z-index: var(--z-tap-above);
+		text-transform: uppercase;
+		font-size: 0.8rem;
+		opacity: 0.9;
+		color: #fad6ff;
 	}
 
 	.splash-byline :global(a) {
@@ -846,11 +929,11 @@
 		pointer-events: auto;
 	}
 
-	/* Where the tap goes, on step 0, stacked only (beside the prose the next
-	   notch's chevron pans instead — TapNav): a hand-cursor icon, "click"/"tap to
+	/* Where the tap goes, on step 0: a hand-cursor icon, "click"/"tap to
 	   continue" (ported like-for-like from The Pudding's pop-love-songs
 	   Tap.svelte) and, past 40rem, the keyboard alternative spelled out as two
-	   key glyphs. The whole screen answers a tap on step 0 (see TapNav's
+	   key glyphs. Beside the prose only the keys are shown — a click there is
+	   not a step, and the next notch's chevron pans as well (TapNav). The whole screen answers a tap on step 0 (see TapNav's
 	   atStart branch), so the cue does not have to sit over any one half of it.
 
 	   It is the last thing to arrive on the step: mounted with the step, held
@@ -861,6 +944,9 @@
 	   cardFade.js). */
 	.nav-cue {
 		width: max-content;
+		position: fixed;
+		right: 2rem;
+		bottom: 0;
 		max-width: 70%;
 		font-family: var(--type-ui-family);
 		font-weight: 700;
@@ -912,14 +998,21 @@
 		padding-bottom: var(--16px);
 	}
 
-	/* the rows the nudge moves — an element of their own, so the nudge's
-	   transform never fights the rise on the cue itself */
+	/* .sr-only is absolute but leaves its offsets auto, so this paragraph kept
+	   its static position below the fold — clipped out of sight but still in
+	   the page's scroll height, which scrolled step 0 by a line. Pinned to the
+	   top of its box instead. */
+	.nav-instruction {
+		top: 0;
+		left: 0;
+	}
+
 	.nav-cue-body {
 		display: flex;
 		flex-direction: column;
 		align-items: flex-end;
 		gap: 0.375rem;
-		animation: nav-nudge 2.6s ease-in-out infinite;
+		-webkit-font-smoothing: antialiased;
 	}
 
 	.nav-cue strong {
@@ -938,7 +1031,7 @@
 	   width of its flex item instead of its own size. Height stays auto so the
 	   doodle keeps its own (taller than wide) proportions. */
 	.nav-cue-icon :global(svg) {
-		width: 1rem;
+		width: 1.5rem;
 		height: auto;
 	}
 
@@ -953,15 +1046,16 @@
 
 	.nav-keys .key {
 		display: flex;
-		padding: 2px;
-		border: 1px solid var(--surface-border);
-		border-radius: 4px;
-		background: var(--surface-raised);
+		padding: 4px;
+		border-radius: 2px;
+		background: var(--control-key-cap);
 	}
 
 	.nav-keys .key :global(svg) {
 		width: 0.625rem;
 		height: 0.625rem;
+		stroke: var(--control-key-glyph);
+		stroke-width: 5px;
 	}
 
 	/* The cold-load reveal (see SPLASH_REVEAL_MS in cardFade.js for why this
@@ -1029,25 +1123,6 @@
 		}
 	}
 
-	/* a nudge, not a bounce: the row leans the way the story goes and settles
-	   back, so it reads as a direction rather than as something demanding a tap */
-	@keyframes nav-nudge {
-		0%,
-		100% {
-			transform: translateX(0);
-		}
-
-		50% {
-			transform: translateX(5px);
-		}
-	}
-
-	@media (prefers-reduced-motion: reduce) {
-		.nav-cue-body {
-			animation: none;
-		}
-	}
-
 	.scrolly-steps {
 		position: absolute;
 		left: 0;
@@ -1083,7 +1158,7 @@
 	   the hop bands), at every width: the whole box top to bottom and the words
 	   centred in it, at no more than the prose measure and centred across. The
 	   chart runs under the words (edge to edge and down to the box's foot) and
-	   the prose's halo (`proseHalo`, Step.svelte) is what keeps them legible. The canvas box does not move
+	   the frosted plate under each paragraph (below) is what keeps them legible. The canvas box does not move
 	   for any of it: the chart reaches the screen's edges by drawing into the
 	   bleed, so only the prose changes place.
 
@@ -1105,6 +1180,23 @@
 		margin-inline: auto;
 		padding-inline: var(--16px);
 		align-items: center;
+	}
+
+	/* the prose over the chart sits on one frosted plate, behind the whole
+	   copy rather than each paragraph: the page colour, part transparent,
+	   with the chart behind it blurred (backdrop-filter, not filter, which
+	   would blur the words) */
+	.scrolly-steps.over :global(.step-prose) {
+		padding: 0.5rem var(--12px);
+		border-radius: 6px;
+		background: var(--surface-frost);
+		backdrop-filter: blur(3px);
+		line-height: 1.3;
+	}
+
+	/* the last paragraph's bottom margin would sit inside the plate */
+	.scrolly-steps.over :global(.step-prose > p:last-child) {
+		margin-bottom: 0;
 	}
 
 	/* An InfoTerm trigger sits inline and lands wherever the line wraps puts it,

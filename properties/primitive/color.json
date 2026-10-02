@@ -54,6 +54,66 @@
 		"yellow": {
 			"value": "oklch(0.8897 0.1781 108.83)"
 		},
+		"hop-1": {
+			"value": "#ffffff",
+			"comment": "the hop chart's one-movie dots"
+		},
+		"hop-2": {
+			"value": "#a35061",
+			"comment": "the hop chart's two-movie dots"
+		},
+		"hop-3": {
+			"value": "#089cb0",
+			"comment": "the hop chart's three-movie dots"
+		},
+		"hop-4": {
+			"value": "#3fec73",
+			"comment": "the hop chart's four-movie dots"
+		},
+		"hop-1-label": {
+			"value": "#fff5bb",
+			"comment": "the hop chart's one-movie row label"
+		},
+		"hop-2-label": {
+			"value": "#fab7c4",
+			"comment": "the hop chart's two-movie row label"
+		},
+		"hop-3-label": {
+			"value": "#c9ebff",
+			"comment": "the hop chart's three-movie row label"
+		},
+		"hop-4-label": {
+			"value": "#c7ffdb",
+			"comment": "the hop chart's four-movie row label"
+		},
+		"lavender": {
+			"value": "#e6bfff",
+			"comment": "the progress bar's unlit lines, at 0x4a alpha"
+		},
+		"lilac": {
+			"value": "#fce5ff",
+			"comment": "the pale pink-violet of the halo behind Bacon's dot"
+		},
+		"slate-mauve": {
+			"value": "#6a636f",
+			"comment": "the race chart's field dots, solid"
+		},
+		"ash": {
+			"value": "#a7a7a7",
+			"comment": "the opening network's actors off a lit route"
+		},
+		"aubergine": {
+			"value": "#13051d",
+			"comment": "the raised surfaces on the dark page: panels, cards, chips, key caps"
+		},
+		"plum": {
+			"value": "#1a051d",
+			"comment": "the top of step 0's wash"
+		},
+		"night": {
+			"value": "#111111",
+			"comment": "the dark page"
+		},
 		"ink": {
 			"value": "#222222",
 			"comment": "the canvas's near-black: dots, routes and the rings drawn over them"

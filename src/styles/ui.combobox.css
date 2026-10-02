@@ -8,7 +8,7 @@
    design languages for one gesture. */
 [data-combobox-input] {
 	width: 100%;
-	border: 1px solid var(--surface-border);
+	/* border: 1px solid var(--surface-border); */
 	border-radius: var(--radius-md);
 	min-height: var(--48px);
 	padding: 0.5rem;

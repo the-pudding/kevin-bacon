@@ -184,8 +184,11 @@ describe("drawTrails", () => {
 		drawTrails(ctx, trails);
 		const strokes = calls.filter(([op]) => op === "stroke");
 		expect(strokes.length).toBe(2);
-		// the plain line first at its own width, the inked one last, thickened
+		// the plain line first at its own width and alpha; the inked one last,
+		// at its own width too, and solid: its alpha rises to 1 with the ink
 		expect(strokes[0][2]).toBe(TRAIL_META[0].width);
-		expect(strokes[1][2]).toBe(TRAIL_META[1].width + 0.5);
+		expect(strokes[0][1]).toMatch(/, 0\.5\)$/);
+		expect(strokes[1][2]).toBe(TRAIL_META[1].width);
+		expect(strokes[1][1]).toMatch(/, 1\)$/);
 	});
 });

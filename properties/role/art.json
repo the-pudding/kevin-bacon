@@ -10,8 +10,14 @@
 			"comment": "the splash cue's hand-cursor doodle",
 			"contrast": { "exempt": "a decorative doodle beside the cue's text" }
 		},
+		"pointer-tick": {
+			"value": "{color.red}",
+			"comment": "the three tap lines around the doodle's fingertip, solid orange",
+			"contrast": { "exempt": "a decorative doodle beside the cue's text" }
+		},
 		"pointer-ink": {
-			"value": "{color.black}",
+			"value": "{color.white}",
+			"comment": "black only separated the icon from a white page; the page is dark now, and at the tick marks' size the outline ring covers the whole shape, so a dark ink there reads as invisible instead of an edge",
 			"contrast": { "exempt": "a decorative doodle beside the cue's text" }
 		}
 	}

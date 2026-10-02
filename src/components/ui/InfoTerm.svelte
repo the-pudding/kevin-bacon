@@ -28,21 +28,33 @@
 
 	// same phone breakpoint PairQuiz lays out against. The page is prerendered, so
 	// the server has no viewport to measure — it renders the popover's trigger,
-	// which is the same <button> either way, and the real query resolves on hydrate
+	// which is the same <span> either way, and the real query resolves on hydrate
 	const sheet = new MediaQuery("(max-width: 30rem)", false);
 </script>
 
 <!-- trigger and body are authored once and rendered into whichever primitive is
      active, so the two presentations cannot drift apart -->
 {#snippet term()}{@render children?.()}{/snippet}
+<!-- a <span>, not the <button> bits-ui would render: a button is one atomic
+     box that never breaks across lines (display: inline does not change that),
+     so a long term jumped whole to the next line and left a ragged gap. The
+     triggers already handle Enter and Space; the role and tabindex are what a
+     span needs on top to be a button to a keyboard and a screen reader. -->
+{#snippet trigger(props)}<span {...props} role="button" tabindex="0"
+		>{@render term()}</span
+	>{/snippet}
 {#snippet body()}{@render info?.()}{/snippet}
 
+<!-- the Trigger closes straight onto the Portal: whitespace between the two
+     renders as a space after the term, before whatever punctuation follows it
+     in the sentence ("actors ,") -->
 {#if sheet.current}
 	<Dialog.Root bind:open>
 		<Dialog.Trigger class="bits-infoterm {className}" {...restProps}>
-			{@render term()}
-		</Dialog.Trigger>
-		<Dialog.Portal>
+			{#snippet child({ props })}
+				{@render trigger(props)}
+			{/snippet}
+		</Dialog.Trigger><Dialog.Portal>
 			<Dialog.Overlay data-infoterm-scrim />
 			<Dialog.Content data-infoterm-panel data-infoterm-sheet>
 				<header data-infoterm-head>
@@ -60,9 +72,10 @@
 {:else}
 	<Popover.Root bind:open>
 		<Popover.Trigger class="bits-infoterm {className}" {...restProps}>
-			{@render term()}
-		</Popover.Trigger>
-		<Popover.Portal>
+			{#snippet child({ props })}
+				{@render trigger(props)}
+			{/snippet}
+		</Popover.Trigger><Popover.Portal>
 			<Popover.Content
 				data-infoterm-panel
 				side="top"

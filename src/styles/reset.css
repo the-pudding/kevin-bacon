@@ -53,7 +53,7 @@ textarea {
 	border: none;
 	font-family: var(--type-ui-family);
 	font-size: inherit;
-	outline: 1px solid var(--surface-border);
+	outline: 2px solid var(--control-input-outline);
 	padding: 8px;
 }
 
@@ -115,19 +115,24 @@ input[type="range"] {
 button:focus,
 a:focus,
 a[role="button"]:focus,
-input:focus,
-select:focus,
-textarea:focus {
+span[role="button"]:focus,
+select:focus {
 	outline: 2px solid var(--control-focus);
 	outline-offset: 2px;
+}
+
+/* a text field keeps its own outline when focused rather than taking the
+   focus ring above: the caret is what marks it as the active field */
+input:focus,
+textarea:focus {
+	outline: 2px solid var(--control-input-outline);
 }
 
 button:focus:not(:focus-visible),
 a:focus:not(:focus-visible),
 a[role="button"]:focus:not(:focus-visible),
-input:focus:not(:focus-visible),
-select:focus:not(:focus-visible),
-textarea:focus:not(:focus-visible) {
+span[role="button"]:focus:not(:focus-visible),
+select:focus:not(:focus-visible) {
 	outline: 2px solid transparent;
 }
 
@@ -169,18 +174,22 @@ tfoot {
 
 ::-moz-placeholder {
 	color: var(--control-input-placeholder);
+	-webkit-font-smoothing: antialiased;
 }
 
 :-ms-input-placeholder {
 	color: var(--control-input-placeholder);
+	-webkit-font-smoothing: antialiased;
 }
 
 ::-ms-input-placeholder {
 	color: var(--control-input-placeholder);
+	-webkit-font-smoothing: antialiased;
 }
 
 ::placeholder {
 	color: var(--control-input-placeholder);
+	-webkit-font-smoothing: antialiased;
 }
 
 ::-moz-selection {

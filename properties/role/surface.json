@@ -1,17 +1,26 @@
 {
 	"surface": {
 		"page": {
-			"value": "{color.white}",
+			"value": "{color.night}",
 			"comment": "the page and the canvas behind the dot field"
 		},
+		"wash": {
+			"value": "{color.plum}",
+			"comment": "the top of step 0's gradient, which runs down into surface.page (Stage.svelte's .intro-wash)"
+		},
 		"raised": {
-			"value": "{color.white}",
+			"value": "{color.aubergine}",
 			"comment": "panels, cards, menus, chips and key caps laid over the page"
 		},
 		"halo": {
 			"value": "{surface.page}",
 			"modify": { "alpha": 0.7 },
 			"comment": "one layer of --text-halo, the hold-out behind text over the dot field"
+		},
+		"frost": {
+			"value": "{surface.page}",
+			"modify": { "alpha": 0.5 },
+			"comment": "the plate behind prose laid over a chart (proseOver), blurred through with backdrop-filter so the chart shows faintly behind the words"
 		},
 		"holdout": {
 			"value": "{surface.page}",

@@ -28,15 +28,15 @@
 			"contrast": { "against": "surface.page", "min": 3 }
 		},
 		"pulse-ring": {
-			"value": "{color.ink}",
-			"modify": { "alpha": 0.45 },
+			"value": "{color.white}",
+			"modify": { "alpha": 0.9 },
 			"contrast": {
 				"exempt": "a transient attention pulse round a dot that is already drawn"
 			}
 		},
 		"hit-pressed": {
-			"value": "{color.ink}",
-			"modify": { "alpha": 0.05 },
+			"value": "{color.white}",
+			"modify": { "alpha": 0.1 },
 			"contrast": {
 				"exempt": "a pressed-state tint; aria-pressed and the dot's own change carry the state"
 			}

@@ -11,7 +11,7 @@
 		"button": {
 			"primary": {
 				"bg": {
-					"value": "{color.gray-900}",
+					"value": "{color.white}",
 					"comment": "a filled button: the default and story variants, the plain <button>, skip-to-main",
 					"contrast": {
 						"against": "surface.page",
@@ -19,7 +19,7 @@
 					}
 				},
 				"fg": {
-					"value": "{color.white}",
+					"value": "{color.night}",
 					"contrast": [
 						{
 							"against": "control.button.primary.bg",
@@ -36,13 +36,13 @@
 					]
 				},
 				"hover": {
-					"value": "{color.gray-900}",
+					"value": "{color.white}",
 					"modify": {
-						"lighten": 0.2
+						"lighten": -0.1
 					}
 				},
 				"hover-plain": {
-					"value": "{color.gray-900}",
+					"value": "{color.white}",
 					"modify": {
 						"lighten": -0.1
 					},
@@ -131,10 +131,20 @@
 					"min": 4.5
 				}
 			},
-			"placeholder": {
-				"value": "{color.gray-500}",
+			"outline": {
+				"value": "{color.white}",
+				"modify": { "alpha": 0.2 },
+				"comment": "a text input's outline, at rest and focused (reset.css)",
 				"contrast": {
-					"against": "control.input.bg",
+					"exempt": "the input is identified by its placeholder and the box it sits in; the outline is not the only cue"
+				}
+			},
+			"placeholder": {
+				"value": "{color.white}",
+				"modify": { "alpha": 0.8 },
+				"comment": "an input's placeholder; the story's inputs are comboboxes on surface.raised (ui.combobox.css)",
+				"contrast": {
+					"against": "surface.raised",
 					"min": 4.5
 				}
 			}
@@ -195,22 +205,43 @@
 		},
 		"progress": {
 			"track": {
-				"value": "{color.gray-200}",
-				"comment": "a step still to come in the progress bar",
+				"value": "{color.lavender}",
+				"modify": { "alpha": 0.29 },
+				"comment": "a step still to come in the progress bar: #e6bfff4a",
 				"contrast": {
 					"exempt": "the bar's position is also announced as text to assistive tech"
 				}
 			},
 			"past": {
-				"value": "{color.gray-400}",
+				"value": "{color.lavender}",
+				"modify": { "alpha": 0.29 },
+				"comment": "a step already passed: the same as the track, so only the lit line stands out",
 				"contrast": {
 					"exempt": "the bar's position is also announced as text to assistive tech"
 				}
 			},
 			"current": {
-				"value": "{prose.fg}",
+				"value": "{color.white}",
 				"contrast": {
 					"against": "surface.page",
+					"min": 3
+				}
+			}
+		},
+		"key": {
+			"cap": {
+				"value": "{color.white}",
+				"comment": "step 0's arrow-key caps, under \"use the keyboard\" (Stage.svelte's .nav-keys)",
+				"contrast": {
+					"against": "surface.page",
+					"min": 3
+				}
+			},
+			"glyph": {
+				"value": "{color.ink}",
+				"comment": "the chevron on a key cap",
+				"contrast": {
+					"against": "control.key.cap",
 					"min": 3
 				}
 			}

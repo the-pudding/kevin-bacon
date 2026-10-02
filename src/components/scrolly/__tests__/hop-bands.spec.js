@@ -109,10 +109,16 @@ function visible(attrs) {
 	return dots;
 }
 
-/** the visible crowd split by the row colour it is drawn in, hop 1 first */
-function bands(attrs) {
+/**
+ * the visible crowd split by the row colour it is drawn in, hop 1 first — the
+ * anchor left out, whose white is the one-movie row's white too
+ * @param {Float64Array} attrs
+ * @param {number} anchorId
+ */
+function bands(attrs, anchorId) {
 	const rows = [1, 2, 3, 4].map(() => []);
 	for (const dot of visible(attrs)) {
+		if (dot.id === anchorId) continue;
 		const i = dot.id * STRIDE;
 		const hop = HOP_RGB.findIndex(
 			(rgb, k) =>
@@ -127,9 +133,9 @@ function bands(attrs) {
 }
 
 /** every visible crowd dot by id, with the row it is drawn in */
-const rowsById = (attrs) =>
+const rowsById = (attrs, anchorId) =>
 	new Map(
-		bands(attrs).flatMap((band, row) =>
+		bands(attrs, anchorId).flatMap((band, row) =>
 			band.map((dot) => [dot.id, { ...dot, row }])
 		)
 	);
@@ -167,7 +173,7 @@ describe("hop bands pack as a scatter", () => {
 		const shownOnBacon = new Set(
 			visible(anchored(box, ANCHOR_ID)).map((d) => d.id)
 		);
-		const rowsOnBacon = rowsById(anchored(box, ANCHOR_ID));
+		const rowsOnBacon = rowsById(anchored(box, ANCHOR_ID), ANCHOR_ID);
 
 		for (const anchorId of ANCHORS) {
 			const attrs = anchored(box, anchorId);
@@ -180,12 +186,12 @@ describe("hop bands pack as a scatter", () => {
 			});
 
 			test(`${label}: every crowd dot is the same size`, () => {
-				for (const band of bands(attrs))
+				for (const band of bands(attrs, anchorId))
 					for (const dot of band) expect(dot.r).toBe(CROWD_DOT_R);
 			});
 
 			test(`${label}: each row stands clear of the next`, () => {
-				const rows = bands(attrs).filter((band) => band.length > 0);
+				const rows = bands(attrs, anchorId).filter((band) => band.length > 0);
 				for (let k = 1; k < rows.length; k++) {
 					const above = Math.max(...rows[k - 1].map((d) => d.y));
 					const below = Math.min(...rows[k].map((d) => d.y));
@@ -206,7 +212,7 @@ describe("hop bands pack as a scatter", () => {
 			// Bacon moves a dot only if a cut passed it, and then straight up or
 			// down into the next row, never across it
 			test(`${label}: a turn from Bacon moves only the dots changing rows`, () => {
-				for (const [id, dot] of rowsById(attrs)) {
+				for (const [id, dot] of rowsById(attrs, anchorId)) {
 					if (id === anchorId || id === ANCHOR_ID) continue;
 					const before = rowsOnBacon.get(id);
 					expect(dot.x).toBe(before.x);
@@ -222,7 +228,7 @@ describe("hop bands pack as a scatter", () => {
 		// on Bacon each row holds its sample share of the dots on show, to
 		// within the rounding bandCuts does
 		test(`${box.name}: on Bacon each row holds its share of the sample`, () => {
-			const rows = bands(anchored(box, ANCHOR_ID));
+			const rows = bands(anchored(box, ANCHOR_ID), ANCHOR_ID);
 			const total = rows.reduce((sum, band) => sum + band.length, 0);
 			const sample = [1, 2, 3, 4].map(
 				(hop) => nodes.filter((n) => n.hop === hop).length

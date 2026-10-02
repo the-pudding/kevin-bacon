@@ -359,10 +359,8 @@
 		flex-direction: column;
 		gap: 0.5rem;
 		padding: 0.625rem;
-		border: 1px solid var(--surface-border);
 		border-radius: var(--radius-md);
 		background: var(--surface-raised);
-		box-shadow: 0 6px 24px var(--surface-shadow);
 		pointer-events: auto;
 		/* the canvas states carry a halo on their prose; a control is a solid
 		   object and does not want one */

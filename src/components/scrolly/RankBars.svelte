@@ -615,10 +615,11 @@
 		   rows of two different heights would scatter them. */
 		padding: 0.3rem 0 2rem;
 		font-family: var(--type-chart-family);
-		letter-spacing: var(--type-chart-tracking);
-		font-size: 0.75rem;
+		/* letter-spacing: var(--type-chart-tracking); */
+		font-size: 1rem;
 		color: var(--chart-rank-row-muted);
 		transition: color 0.25s ease;
+		-webkit-font-smoothing: antialiased;
 	}
 
 	/* everyone but Bacon starts invisible and fades in, arriving with the step's
@@ -645,7 +646,7 @@
 	   reads at full strength. A colour, not an alpha, so the token contrast spec
 	   sees what the reader sees */
 	.rows li.known {
-		color: var(--chart-rank-row);
+		color: rgba(255, 255, 255, .72);
 		animation: none;
 	}
 
@@ -698,7 +699,7 @@
 	/* a hidden actor's lattice stays faint beside the named rows. Alpha is fine
 	   here, unlike on the row's text: the svg is decoration, not something read */
 	.rows li:not(.known) .dots {
-		opacity: 0.35;
+		opacity: 0.9;
 	}
 
 	/* The focused row's hop key, laid over the strip's own box so it costs the
@@ -725,9 +726,10 @@
 		min-width: max-content;
 		font-family: var(--type-chart-family);
 		letter-spacing: var(--type-chart-tracking);
-		font-size: var(--12px);
 		text-align: center;
 		white-space: nowrap;
+		font-size: 14px;
+	    -webkit-font-smoothing: antialiased;
 	}
 
 	/* the outer bands sit against the ends of the bar, so their labels do too —

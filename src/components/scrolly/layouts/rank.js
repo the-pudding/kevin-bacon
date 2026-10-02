@@ -1,7 +1,7 @@
 import { ANCHOR_ID, hash01 } from "../nodes.js";
 import { ATTR_SIZE, set } from "../attr-buffer.js";
 import { RIGHT, drain } from "../drain.js";
-import { CROWD, HOP_RGB, HOP_DOT_ALPHA, INK } from "../palette.js";
+import { CROWD, HOP_RGB, hopDotAlpha, INK } from "../palette.js";
 import { MARGIN } from "../plot.js";
 import {
 	RANK_BAR_H,
@@ -90,7 +90,7 @@ function placeInBar(attrs, n, slots, x0, baconY, shown) {
 		HOP_RGB[n.hop],
 		// the same alpha the hopBands crowd arrives wearing: these dots pack
 		// several hundred actors onto each other, so the overlap has to read
-		HOP_DOT_ALPHA * shown
+		hopDotAlpha(n.id) * shown
 	);
 }
 

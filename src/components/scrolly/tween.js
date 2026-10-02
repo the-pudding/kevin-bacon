@@ -41,12 +41,17 @@ function delayProgress(delay, elapsed, duration) {
 	return t;
 }
 
-/** a group covering its `windows` share of the tween's time, linearly; returns the tween's raw progress */
+/**
+ * a group covering its `windows` share of the tween's time, eased in and out
+ * across that share on the same cubic as every other group — each window its
+ * own ease, so a chain of them keeps its hand-over times and a line eases into
+ * the node it ends on; returns the tween's raw progress
+ */
 function windowProgress(windows, g, share) {
 	const t = clamp01(share);
 	const from = windows[g * 2];
 	const to = windows[g * 2 + 1];
-	progress.eased = clamp01((t - from) / (to - from));
+	progress.eased = easeCubicInOut(clamp01((t - from) / (to - from)));
 	progress.faded = progress.eased;
 	return t;
 }
@@ -190,11 +195,12 @@ export function createFrameLoop(draw) {
  * from a deterministic hash scaled by `jitter` (0 = in unison).
  *
  * `windows` (two per group: `[from, to]`, shares 0–1 of the tween's time)
- * runs each group LINEARLY over its own stretch of the tween instead. Chained windows ([0, .5] then [.5, 1]) make one motion carried by
- * several groups at a constant rate — the second picks up at exactly the speed
- * the first hands over at, where two delayed tweens would each ease out and in
- * and stall at the join. Alpha rides the group's window with everything else;
- * there is no lead to take inside a stretch that short.
+ * runs each group over its own stretch of the tween instead, eased in and out
+ * across that stretch. Chained windows ([0, .5] then [.5, 1]) hand over at
+ * exactly the authored share, so a multi-leg motion (the route walk) keeps its
+ * timing, and each leg eases into the node it lands on before the next sets
+ * off from it. Alpha rides the group's window with everything else; there is
+ * no lead to take inside a stretch that short.
  *
  * `bows` (two per group: an x and a y offset) bends a group's first two values
  * off the straight line onto a cubic Bézier that sweeps in at the end: two

@@ -474,6 +474,17 @@ const STATE_PROSE_HALO = pick("proseHalo");
 export const isProseHalo = (s) => !!s && STATE_PROSE_HALO[s] === true;
 
 /**
+ * States that draw the halo behind Bacon's dot (render.js's drawAnchorHalo):
+ * the opening network. ScrollyVisual fades it in and out on the step change
+ * rather than switching it, and it rides his dot's own alpha and radius.
+ * @type {Record<string, boolean>}
+ */
+const STATE_ANCHOR_HALO = pick("anchorHalo");
+
+/** @param {string | null | undefined} s */
+export const hasAnchorHalo = (s) => !!s && STATE_ANCHOR_HALO[s] === true;
+
+/**
  * Per-state override of where a node's label sits relative to its dot:
  * `"left"` / `"right"` place it beside the dot (vertically centred) instead of
  * the default below-and-centred. Keyed by node id. Used to de-clutter tight

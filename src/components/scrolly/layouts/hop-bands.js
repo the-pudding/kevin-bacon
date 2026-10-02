@@ -19,7 +19,7 @@ import {
 	PULLBACK_ZOOM,
 	introPosition
 } from "../intro-geometry.js";
-import { CROWD, HOP_INK, HOP_RGB, HOP_DOT_ALPHA } from "../palette.js";
+import { CROWD, HOP_INK, HOP_RGB, hopDotAlpha } from "../palette.js";
 import { MARGIN, NO_BLEED, screenSpan } from "../plot.js";
 import { hopFractions, hopShareLabels } from "../rank-geometry.js";
 import { SEARCH_DOT_R } from "../search.js";
@@ -272,7 +272,11 @@ function placeAnchor(attrs, id, f, arriving) {
 // `seed` parks every node at its band position but invisible — what sits
 // behind hopSeed's zoomed-out network, so the fifteen the network draws are the
 // only actors with any distance left to travel there
-const bandAlpha = (f) => (f.seed ? 0 : HOP_DOT_ALPHA);
+/**
+ * @param {{ seed: boolean }} f
+ * @param {number} id
+ */
+const bandAlpha = (f, id) => (f.seed ? 0 : hopDotAlpha(id));
 
 /**
  * The dots on show in seat order: the dot at index k sits in seat k, whichever
@@ -347,7 +351,7 @@ function seatCrowd(attrs, delays, seated, cuts, f) {
 			bandOffset(band) + y,
 			CROWD_DOT_R,
 			HOP_RGB[band],
-			bandAlpha(f)
+			bandAlpha(f, id)
 		);
 		delays[id] = bandDelay(id, band);
 	});
@@ -797,8 +801,10 @@ export const states = {
 		// stepping back in from hopBands is one plain tween
 		revealFrom: ["networkIntro"],
 		entry: { phases: [PULLBACK_ZOOM_MS], frames: zoomOutFrames },
-		// the sky fills the screen, under the prose too (see isProseHalo)
-		proseHalo: true,
+		// the sky fills the screen, under the prose too, and there is no chart
+		// for the words to sit under or beside, so they lie over it centred on
+		// the screen, at every width, on a frosted plate (see isProseOver)
+		proseOver: true,
 		// once the pull-back stops, the sky it stopped in front of keeps moving, so
 		// the beat rests on something alive rather than on a still photograph.
 		// The fifteen move with it: by the time the camera lands they have been
@@ -852,11 +858,10 @@ export const states = {
 		// two scenes, 4 <-> 5 blanked the legend for a whole tween.
 		scene: "hops",
 		// The bands span the whole screen (see bandFrame), so the prose lies
-		// over them rather than beside them — Stage.svelte reads this — and the
-		// prose carries the halo to stay legible over the rows (see isProseHalo).
+		// over them rather than beside them, on a frosted plate that keeps it
+		// legible over the rows — Stage.svelte reads this (see isProseOver).
 		proseOver: true,
-		proseHalo: true,
-		title: "The four degrees of Kevin Bacon",
+		title: "The Four Degrees of Kevin Bacon",
 		labels: [ANCHOR_ID],
 		// The cascade is authored for the forward arrival off the title card's
 		// sky (hopSeed's, carried on), where the crowd is spread across the plot
@@ -883,7 +888,6 @@ export const states = {
 		revealFrom: [],
 		scene: "hops",
 		proseOver: true,
-		proseHalo: true,
 		// Static: it does not need to carry the anchor's name, because the
 		// anchor's dot is the only labelled thing on the chart and it is 60px
 		// above this line — and a title that changed on every turn of the cycle

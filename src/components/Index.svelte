@@ -144,6 +144,30 @@
 		const floor = height - overlayHeight - routeHeight - ROUTE_GAP;
 		return Math.min(introBottom(width, height) + ROUTE_GAP, floor);
 	}
+	// The caption's height before it has ever been measured: two lines at its
+	// 1rem / 1.2, what it takes on a phone. It is not rendered until the reveal
+	// has settled, and the step card is centred off the caption from the first
+	// frame, so without a stand-in the card would drop by half a caption the
+	// moment it first appears.
+	const ROUTE_HEIGHT_GUESS = 2 * 16 * 1.2;
+	// Where the constellation's chart ends, for Stage to centre the step card
+	// under: the foot of the tour caption at its own home under the lowest name,
+	// plus the same gap again as clear air under it,
+	// whether or not it is showing yet, so the card does not move when it
+	// arrives. Other states answer null and Stage takes their plot group's.
+	/**
+	 * @param {string} state
+	 * @param {{ width: number, height: number }} box
+	 */
+	function chartFloor(state, { width, height }) {
+		if (state !== "networkIntro") return null;
+		return (
+			introBottom(width, height) +
+			ROUTE_GAP +
+			(routeHeight || ROUTE_HEIGHT_GUESS) +
+			ROUTE_GAP
+		);
+	}
 	// Gated on `settled`, which for this state means the walk is over: it is
 	// written by ScrollyVisual's settle() at the END of the pop-in, i.e. the
 	// instant the second layer of lines lands. Nothing should point at an actor
@@ -257,7 +281,7 @@
 </script>
 
 <svelte:boundary onerror={(e) => console.error(e)}>
-	<Stage {steps} {dimensions}>
+	<Stage {steps} {dimensions} floor={chartFloor}>
 		{#snippet children(layout)}
 			<!-- shared over-canvas panels live here, beside the <Step>s rather
 		     than inside one — a snippet declared directly inside a
@@ -458,7 +482,6 @@
 					<p>
 						No doubt, he's well connected. With
 						<InfoTerm>
-							our dataset of 169,000 actors
 							{#snippet info()}
 								<p>
 									The corpus is the IMDb top 10,000 English-language feature
@@ -476,9 +499,9 @@
 									>, who got a role in the 2018 film Tolkien, putting him two
 									movies away from Kevin Bacon!
 								</p>
-							{/snippet}
-						</InfoTerm>, you can get from any Hollywood actor to Kevin Bacon in
-						four movies or fewer, a.k.a. the <b>four</b> degrees of Kevin Bacon.
+							{/snippet}our dataset of 169,000 actors</InfoTerm
+						>, you can get from any Hollywood actor to Kevin Bacon in four
+						movies or fewer, a.k.a. the <b>four</b> degrees of Kevin Bacon.
 					</p>
 				</Step>
 				<Step
@@ -928,6 +951,7 @@
 	   tour moves on, and re-running this animation every few seconds would flash. */
 	.route {
 		position: absolute;
+		-webkit-font-smoothing: antialiased;
 		left: 0;
 		right: 0;
 		margin: 0;
@@ -937,7 +961,7 @@
 		font-family: var(--type-chart-family);
 		letter-spacing: var(--type-chart-tracking);
 		/* matches .node-label in ScrollyVisual */
-		font-size: var(--12px);
+		font-size: 1rem;
 		line-height: 1.2;
 		/* the caption lies over the layout's tap halves; only the term inside it
 		   is meant to catch a click */
@@ -946,6 +970,10 @@
 		   the tap halves for free — same idiom as .hits and .quiz */
 		z-index: var(--z-tap-above);
 		animation: panel-in 0.4s ease both;
+	}
+
+	.route strong {
+		-webkit-font-smoothing: antialiased;
 	}
 
 	.route :global(.bits-infoterm) {

@@ -34,6 +34,36 @@
 	--color-green: oklch(0.6506 0.0971 191.52);
 	--color-red: oklch(0.677 0.2117 30.54);
 	--color-yellow: oklch(0.8897 0.1781 108.83);
+	/** the hop chart's one-movie dots */
+	--color-hop-1: #ffffff;
+	/** the hop chart's two-movie dots */
+	--color-hop-2: #a35061;
+	/** the hop chart's three-movie dots */
+	--color-hop-3: #089cb0;
+	/** the hop chart's four-movie dots */
+	--color-hop-4: #3fec73;
+	/** the hop chart's one-movie row label */
+	--color-hop-1-label: #fff5bb;
+	/** the hop chart's two-movie row label */
+	--color-hop-2-label: #fab7c4;
+	/** the hop chart's three-movie row label */
+	--color-hop-3-label: #c9ebff;
+	/** the hop chart's four-movie row label */
+	--color-hop-4-label: #c7ffdb;
+	/** the progress bar's unlit lines, at 0x4a alpha */
+	--color-lavender: #e6bfff;
+	/** the pale pink-violet of the halo behind Bacon's dot */
+	--color-lilac: #fce5ff;
+	/** the race chart's field dots, solid */
+	--color-slate-mauve: #6a636f;
+	/** the opening network's actors off a lit route */
+	--color-ash: #a7a7a7;
+	/** the raised surfaces on the dark page: panels, cards, chips, key caps */
+	--color-aubergine: #13051d;
+	/** the top of step 0's wash */
+	--color-plum: #1a051d;
+	/** the dark page */
+	--color-night: #111111;
 	/** the canvas's near-black: dots, routes and the rings drawn over them */
 	--color-ink: #222222;
 	/** network links at rest */
@@ -76,15 +106,18 @@
 	--annotation-callout-mark: var(--color-gray-700);
 	/** an annotation arrow's line and head */
 	--annotation-arrow: var(--color-gray-600);
-	--annotation-pulse-ring: rgba(34, 34, 34, 0.45);
-	--annotation-hit-pressed: rgba(34, 34, 34, 0.05);
+	--annotation-pulse-ring: rgba(255, 255, 255, 0.9);
+	--annotation-hit-pressed: rgba(255, 255, 255, 0.1);
 	/** The Pudding's wordmark on the title card */
 	--art-wordmark: var(--color-black);
 	/** the splash cue's hand-cursor doodle */
 	--art-pointer-fill: var(--color-white);
-	--art-pointer-ink: var(--color-black);
+	/** the three tap lines around the doodle's fingertip, solid orange */
+	--art-pointer-tick: var(--color-red);
+	/** black only separated the icon from a white page; the page is dark now, and at the tick marks' size the outline ring covers the whole shape, so a dark ink there reads as invisible instead of an edge */
+	--art-pointer-ink: var(--color-white);
 	/** an actor's name beside their dot */
-	--chart-node-label: var(--color-gray-900);
+	--chart-node-label: var(--color-white);
 	--chart-title: var(--color-gray-800);
 	/** axis tick labels, including the race chart's 1980 tick */
 	--chart-tick: var(--color-gray-500);
@@ -116,25 +149,34 @@
 	/** the focus ring */
 	--control-focus: var(--color-gray-500);
 	/** a filled button: the default and story variants, the plain <button>, skip-to-main */
-	--control-button-primary-bg: var(--color-gray-900);
-	--control-button-primary-fg: var(--color-white);
-	--control-button-primary-hover: oklch(0.405 0 0);
+	--control-button-primary-bg: var(--color-white);
+	--control-button-primary-fg: var(--color-night);
+	--control-button-primary-hover: oklch(0.9 0 0);
 	/** reset.css's hover for a plain <button> */
-	--control-button-primary-hover-plain: oklch(0.105 0 0);
+	--control-button-primary-hover-plain: oklch(0.9 0 0);
 	--control-button-secondary-bg: var(--color-gray-500);
 	--control-button-secondary-fg: var(--color-white);
 	--control-button-secondary-hover: oklch(0.356 0 0);
 	--control-input-bg: var(--color-gray-50);
 	--control-input-fg: var(--color-gray-900);
-	--control-input-placeholder: var(--color-gray-500);
+	/** a text input's outline, at rest and focused (reset.css) */
+	--control-input-outline: rgba(255, 255, 255, 0.2);
+	/** an input's placeholder; the story's inputs are comboboxes on surface.raised (ui.combobox.css) */
+	--control-input-placeholder: rgba(255, 255, 255, 0.8);
 	/** a pair-quiz card before its verdict */
 	--control-card-border: var(--color-gray-400);
 	--control-card-hover-border: var(--color-gray-900);
 	/** a search result chip */
 	--control-chip-border: var(--color-gray-900);
-	/** a step still to come in the progress bar */
-	--control-progress-track: var(--color-gray-200);
-	--control-progress-past: var(--color-gray-400);
+	/** a step still to come in the progress bar: #e6bfff4a */
+	--control-progress-track: rgba(230, 191, 255, 0.29);
+	/** a step already passed: the same as the track, so only the lit line stands out */
+	--control-progress-past: rgba(230, 191, 255, 0.29);
+	--control-progress-current: var(--color-white);
+	/** step 0's arrow-key caps, under "use the keyboard" (Stage.svelte's .nav-keys) */
+	--control-key-cap: var(--color-white);
+	/** the chevron on a key cap */
+	--control-key-glyph: var(--color-ink);
 	/** the dev tuners' active state and markers */
 	--dev-accent: var(--color-red);
 	--dev-accent-fg: var(--color-white);
@@ -142,22 +184,32 @@
 	--dev-tap-prev: rgba(59, 130, 246, 0.08);
 	--dev-tap-next: rgba(239, 68, 68, 0.08);
 	/** a named dot, the anchor, the leader */
-	--mark-ink: var(--color-ink);
+	--mark-ink: var(--color-white);
 	/** the background crowd every chart is drawn against */
 	--mark-crowd: var(--category-gray);
 	/** the race line and dot a hovered callout refers to */
 	--mark-focus: var(--color-ink);
 	/** network links at rest */
 	--mark-edge: var(--color-edge);
-	--mark-hop-1: var(--category-red);
-	--mark-hop-2: var(--category-blue);
-	--mark-hop-3: var(--category-cyan);
-	--mark-hop-4: var(--category-gray);
-	/** a hop row's label: its dots' hue, darkened to text weight */
-	--mark-hop-1-label: var(--category-red-dark);
-	--mark-hop-2-label: var(--category-blue-dark);
-	--mark-hop-3-label: var(--category-cyan-dark);
-	--mark-hop-4-label: var(--category-gray-dark);
+	/** the opening network's anchor, the actors on a lit route and the route's line: light, to read against the dark page */
+	--mark-network-ink: var(--color-white);
+	/** the disc behind Bacon's dot in the opening network, drawn at ANCHOR_HALO_ALPHA (render.js): the canvas palette carries rgb only */
+	--mark-anchor-halo: var(--color-lilac);
+	/** the opening network's actors off a lit route: recessed by colour, opaque, so no link shows through */
+	--mark-network-dim: var(--color-ash);
+	--mark-hop-1: var(--color-hop-1);
+	--mark-hop-2: var(--color-hop-2);
+	--mark-hop-3: var(--color-hop-3);
+	--mark-hop-4: var(--color-hop-4);
+	/** a hop row's label, in a pale tint of its own for the dark page */
+	--mark-hop-1-label: var(--color-hop-1-label);
+	--mark-hop-2-label: var(--color-hop-2-label);
+	--mark-hop-3-label: var(--color-hop-3-label);
+	--mark-hop-4-label: var(--color-hop-4-label);
+	/** the race chart's field dots: everyone but the leader, solid so a leader line can run behind them (raceDotSpec) */
+	--mark-race-field: var(--color-slate-mauve);
+	/** the band drawn behind each race chart line, so a line crossing another parts it (render.js's drawTrails) */
+	--mark-line-halo: var(--color-aubergine);
 	/** the Sweeney and Bacon race lines */
 	--mark-trail-accent: var(--category-red);
 	--mark-quiz-right: var(--category-green);
@@ -165,7 +217,7 @@
 	/** the career chart's highlighted actor */
 	--mark-career: var(--category-blue);
 	/** body copy, the splash card, the nav cue, credits */
-	--prose-fg: var(--color-gray-900);
+	--prose-fg: var(--color-white);
 	/** the splash title and the credits' headings */
 	--prose-heading: var(--color-gray-900);
 	/** secondary copy: captions, hints, placeholders */
@@ -173,9 +225,11 @@
 	--prose-link: var(--color-black);
 	--prose-link-hover: var(--color-black);
 	/** the page and the canvas behind the dot field */
-	--surface-page: var(--color-white);
+	--surface-page: var(--color-night);
+	/** the top of step 0's gradient, which runs down into surface.page (Stage.svelte's .intro-wash) */
+	--surface-wash: var(--color-plum);
 	/** panels, cards, menus, chips and key caps laid over the page */
-	--surface-raised: var(--color-white);
+	--surface-raised: var(--color-aubergine);
 	/** selected text, a highlighted option, a slider track */
 	--surface-selection: var(--color-gray-300);
 	/** the <mark> element */
@@ -193,7 +247,7 @@
 	/** form controls, the byline, the nav cue */
 	--type-ui-family: var(--font-sans);
 	/** graph labels and data readouts: names, legends, ranks, results, the scrubber year, the route listing */
-	--type-chart-family: var(--font-mono);
+	--type-chart-family: var(--font-sans);
 	--type-chart-tracking: var(--tracking-mono);
 	/** over-canvas notes */
 	--type-annotation-family: var(--font-mono);
@@ -204,26 +258,29 @@
 	--type-chip-family: var(--font-mono);
 	--type-chip-tracking: var(--tracking-mono);
 	--type-dev-family: var(--font-mono);
-	--chart-result-track: rgba(255, 255, 255, 0.78);
+	--chart-result-track: rgba(17, 17, 17, 0.78);
 	/** the outline and ghost variants */
 	--control-button-quiet-fg: var(--prose-fg);
 	/** the prev/next notches beside the prose */
 	--control-button-notch-fg: var(--prose-fg);
-	--control-button-notch-hover: oklch(0.95 0 0);
+	--control-button-notch-hover: oklch(
+		0.106 0.05293622775575161 309.21509081502626
+	);
 	--control-slider-thumb: var(--control-button-primary-bg);
 	--control-slider-thumb-border: var(--surface-raised);
 	--control-slider-track: var(--surface-selection);
 	--control-slider-track-active: var(--prose-muted);
-	--control-progress-current: var(--prose-fg);
 	/** the race scrubber's accent-color */
 	--control-scrubber: var(--control-button-primary-bg);
-	--mark-edge-highlight: var(--mark-ink);
+	--mark-edge-highlight: var(--mark-network-ink);
 	/** the dot a search result flies to, and its DOM twin in the search box */
 	--mark-search: var(--mark-ink);
 	/** the anchor of the hop bands */
 	--mark-hop-0: var(--mark-ink);
 	/** one layer of --text-halo, the hold-out behind text over the dot field */
-	--surface-halo: rgba(255, 255, 255, 0.7);
+	--surface-halo: rgba(17, 17, 17, 0.7);
+	/** the plate behind prose laid over a chart (proseOver), blurred through with backdrop-filter so the chart shows faintly behind the words */
+	--surface-frost: rgba(17, 17, 17, 0.5);
 	/** the solid rings and glows that part a mark or logo from the field behind it */
 	--surface-holdout: var(--surface-page);
 }

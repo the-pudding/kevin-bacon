@@ -2,8 +2,9 @@
    One rule set covers both presentations: a tethered popover at desktop widths,
    a bottom sheet on a phone (see InfoTerm.svelte). */
 
-/* the term itself. reset.css gives a bare <button> the filled primary styling,
-   so this has to strip back to plain inline text before underlining it */
+/* the term itself: a <span role="button"> (see InfoTerm.svelte for why not a
+   <button>), whose focus ring reset.css gives it with the other controls. The
+   resets below are kept so a <button> trigger would still read as plain text */
 .bits-infoterm {
 	background: none;
 	border: 0;

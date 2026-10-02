@@ -14,10 +14,12 @@ import {
 	setEdge
 } from "../attr-buffer.js";
 import { introPosition, NETWORK_INTRO_RADIUS } from "../intro-geometry.js";
-import { HOP_RGB, CROWD, INK } from "../palette.js";
+import { CROWD, NETWORK_DIM, NETWORK_INK } from "../palette.js";
 import { routesTo, routeActors, introDistance } from "../intro-routes.js";
 
-const INTRO_EDGE_ALPHA = 0.5;
+// the links at rest: high enough that the lines growing out during the reveal
+// read against the dark page
+const INTRO_EDGE_ALPHA = 0.85;
 
 // The reveal is by DISTANCE. Bacon is already on screen; then everybody one
 // movie away arrives as the six lines grow out to them, and then everybody two
@@ -73,15 +75,15 @@ const FOCUS_RADIUS = 10; // the picked actor
 const ROUTE_RADIUS = 7; // the hub(s) their route passes through
 // Everyone off the route: recessed, not erased — the constellation is still the
 // point of the step, so the crowd keeps its dots. Weight carries the emphasis
-// (the route goes ink and thick against the crowd's grey), so this only has to
-// push them back, not hide them.
-const DIM_ALPHA = 0.6;
+// (the route goes light and thick against the crowd's grey), so this only has to
+// push them back, not hide them. Pushed back by colour (NETWORK_DIM), not by
+// alpha: a translucent dot shows the links running under it.
 // Every link with a route lit, the route's own included: the route is the ink
 // drawn OVER its links (render.js's drawEdges), so the line under it stays as
 // quiet as the rest and the ink is the only thing that travels.
-const DIM_EDGE_ALPHA = 0.2; // enough that the network still reads as connected
+const DIM_EDGE_ALPHA = 0.6; // enough that the network still reads as connected
 // one movie's leg of a route walk, so a two-movie route takes twice as long as
-// a one-movie one and the line travels at the same pace on both
+// a one-movie one and each leg takes the same time
 const ROUTE_LEG_MS = 700;
 // the route being left fades out over this, all of it — the parts it shares
 // with the new route included — and the new one waits out the gap after
@@ -164,24 +166,25 @@ export function writeNetwork(
 
 /**
  * How one of the fifteen is drawn. With nothing picked out, the anchor in his
- * own colour and the rest as crowd; with a route lit, its actors in ink — the
+ * own colour and the rest as crowd; with a route lit, its actors in NETWORK_INK — the
  * subject the biggest dot on it (routeActors includes the focused actor, so one
- * branch covers both) — and everyone else dimmed, their name labels with them,
- * since a label rides its dot's alpha.
+ * branch covers both) — and everyone else recessed to NETWORK_DIM, still
+ * opaque. Their names need no dimming: with a route lit, only the
+ * route's actors are labelled (the state's `labels`).
  */
 function introDot(id, n, focus, routeNodes) {
 	const r = NETWORK_INTRO_RADIUS[n.hop];
 	if (focus == null || id === ANCHOR_ID) {
-		return { r, rgb: id === ANCHOR_ID ? HOP_RGB[0] : CROWD, alpha: 1 };
+		return { r, rgb: id === ANCHOR_ID ? NETWORK_INK : CROWD, alpha: 1 };
 	}
 	if (routeNodes.has(id)) {
 		return {
 			r: id === focus ? FOCUS_RADIUS : ROUTE_RADIUS,
-			rgb: INK,
+			rgb: NETWORK_INK,
 			alpha: 1
 		};
 	}
-	return { r, rgb: CROWD, alpha: DIM_ALPHA };
+	return { r, rgb: NETWORK_DIM, alpha: 1 };
 }
 
 /** a link's alpha: the constellation's own at rest, dimmed with a route lit */
@@ -274,9 +277,9 @@ const INTRO_DELAYS = buildIntroDelays();
  * over `fadeMs`): the one being left fades out where it lies, ALL of it, since
  * a co-star or a line it shares with the new route would otherwise sit there
  * lit while the new route draws into it. Then, after ROUTE_GAP_MS on the bare
- * network, the line travels from the actor in to Bacon, one movie per leg, at
- * a constant rate and straight on through every co-star between (see the
- * tweener's `windows`). The lines leaving the actor all draw at once — every
+ * network, the line travels from the actor in to Bacon, one movie per leg,
+ * each leg eased in and out, landing on every co-star between before the next
+ * leg leaves it (see the tweener's `windows`). The lines leaving the actor all draw at once — every
  * co-star they reach Bacon through, Margot Robbie's three included — and the
  * lines from those co-stars on to Bacon pick up where they land. A co-star
  * inks up and grows with the line arriving at it, the reveal's own rule, and
@@ -369,6 +372,8 @@ export const states = {
 	// at all and the tour never restarts (see notes/scrolly-framework.md).
 	networkIntro: {
 		layout: layoutNetworkIntro,
+		// the halo behind Bacon's dot, on this state alone (see hasAnchorHalo)
+		anchorHalo: true,
 		// Only the actor being talked about and the actors their route runs through
 		// keep their names: the sentence in the card names them, so the chart has to
 		// agree, and fourteen labels around one highlighted route is just noise. The

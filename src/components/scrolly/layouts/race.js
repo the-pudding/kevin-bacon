@@ -19,7 +19,8 @@ import {
 	introPosition,
 	NETWORK_INTRO_RADIUS
 } from "../intro-geometry.js";
-import { INK, CROWD } from "../palette.js";
+import { INK, CROWD, RACE_FIELD } from "../palette.js";
+import { easeCubicInOut } from "../tween.js";
 import {
 	MARGIN,
 	plotBottom,
@@ -186,6 +187,46 @@ const BACKDROP_RANGE = new Map(
 		return [id, [s[0][0], s.at(-1)[0]]];
 	})
 );
+
+/**
+ * The order the race chart paints its lines in (render.js's drawTrails), as
+ * trail slots: every slot no race line uses first, in its own order; then the
+ * Gen-Z backdrop, beneath everything it sits behind; then the race cast and the
+ * Gen-Z contenders together, most remote in 2025 first and most central last,
+ * so where two lines cross, the one higher on the chart is drawn over the
+ * other (and its halo parts the one below). The leader is drawn over all of it
+ * in a pass of its own regardless.
+ *
+ * Read off each series' last point, which is 2025 for every one of them (the
+ * race cast is asserted to end there above).
+ */
+export const RACE_PAINT_ORDER = (() => {
+	const last = (series) => series.at(-1)[1];
+	const byRemoteness = (rows) =>
+		rows.sort((a, b) => b[1] - a[1]).map(([slot]) => slot);
+	const backdrop = byRemoteness(
+		BACKDROP_IDS.map((id) => [
+			BACKDROP_SLOT.get(id),
+			last(story.backdropSeries[id])
+		])
+	);
+	const lines = byRemoteness([
+		...RACE_IDS.map((id) => [RACE_SLOT.get(id), last(story.raceSeries[id])]),
+		...SIM_SERIES.map((id) => [SIM_SLOT.get(id), last(story.genzSeries[id])])
+	]);
+	const placed = new Set([...backdrop, ...lines]);
+	const rest = TRAIL_META.map((_, t) => t).filter((t) => !placed.has(t));
+	return [...rest, ...backdrop, ...lines];
+})();
+
+/**
+ * The slots whose lines darken with their rank (the race cast's and the Gen-Z
+ * contenders', not the backdrop's): see render.js's rankShades.
+ */
+export const RACE_SHADED_SLOTS = new Set([
+	...RACE_IDS.map((id) => RACE_SLOT.get(id)),
+	...SIM_SERIES.map((id) => SIM_SLOT.get(id))
+]);
 
 // fractional year of an ISO date, so an era boundary mid-year lands between two
 // of the annual data points rather than snapping to January
@@ -536,7 +577,7 @@ const RACE_Y_FIXED_FADE = 2000;
 /** the window's bottom edge (the HIGHER avg distance of the two) */
 export const RACE_Y_FIXED_MAX = 2.2;
 /** its top edge, and the shipped value of the dev slider below */
-export const RACE_Y_FIXED_MIN = 2.05;
+export const RACE_Y_FIXED_MIN = 2.07;
 
 // The first year a camera can put on its right edge: every step's playhead is
 // clamped to at least this by raceFloorPlayhead, and the band is read at the
@@ -1723,7 +1764,7 @@ function raceAxes(
 export function raceDotSpec(lead = false) {
 	return lead
 		? { r: 4, rgb: INK, alpha: 1 }
-		: { r: 3, rgb: CROWD, alpha: 0.55 };
+		: { r: 3, rgb: RACE_FIELD, alpha: 1 };
 }
 
 /**
@@ -1739,10 +1780,10 @@ export const RACE_DOT_MAX_R = GENZ_NAMED_DOT.r;
 
 /**
  * ...and the backdrop field's, which has to sit UNDER both. Three depths on one
- * monochrome chart, separated by alpha and radius alone: the backdrop at 0.3,
- * the 92 unnamed contenders at raceDotSpec's 0.55, the seven named in ink. A
- * hue for any of them would break the chapter's rule and would not read as depth
- * anyway — receding is what distance looks like.
+ * monochrome chart, separated by tone and radius alone: the backdrop at 0.3, the
+ * 92 unnamed contenders in raceDotSpec's solid field colour, the seven named in
+ * ink. A hue for any of them would break the chapter's rule and would not read
+ * as depth anyway — receding is what distance looks like.
  */
 const BACKDROP_DOT = { r: 2.5, rgb: CROWD, alpha: 0.3 };
 /** ...and its line, likewise half the contenders' 0.35 */
@@ -2690,19 +2731,20 @@ function raceLayout(step, yCap = Infinity) {
 	};
 }
 
+// The y-axis title stands upright at the top of the axis, under its "more
+// central" hint, rather than turned along it (`yTitleTop`, ScrollyVisual's
+// .y-title-top). No bottom hint: the arrow on the top one says which way is which.
 const CLOSE_OVERLAY = {
 	yLabel: "Remoteness",
-	yTopLabel: "more central →",
-	yBottomLabel: "← less central"
+	yTitleTop: true,
+	yTopLabel: "↑ more central"
 };
 
 const OVERLAY = {
 	xLabel: "Year",
 	yLabel: "Remoteness",
-	// these render inside writing-mode: vertical-rl + rotate(180deg) (see
-	// ScrollyVisual's .y-hint), which visually rotates → to ↑ and ← to ↓
-	yTopLabel: "more central →",
-	yBottomLabel: "← less central"
+	yTitleTop: true,
+	yTopLabel: "↑ more central"
 };
 
 // optional runtime override of the camera ({ playhead }); null while idle, so
@@ -3521,6 +3563,9 @@ const shownAlpha = (shown) => (e) => (id) =>
  * @property {(e: number) => Object} frame the RaceFrame at eased progress e
  * @property {number} yCap
  * @property {(e: number) => (id: number) => number} [alpha]
+ * @property {(p: number) => number} [ease] the leg's own easing over its linear
+ *   progress, in place of the choreographer's shared sweep ease. The lines'
+ *   draw-ons take cubic in-out; the camera's pans keep the sweep's.
  */
 
 /** one frame of a leg into the live buffers; what it returns is what ScrollyVisual publishes */
@@ -3560,7 +3605,11 @@ function raceChoreography(plan, fields = {}) {
 		phases: (ctx) => plan(ctx).map((leg) => leg.ms),
 		frames: (_nodes, w, h, _edges, _params, _bleed, ctx) => {
 			const legs = plan(ctx);
-			return (attrs, trails, i, e) => writeLeg(attrs, trails, w, h, legs[i], e);
+			return (attrs, trails, i, e, ms) => {
+				const leg = legs[i];
+				const eased = leg.ease ? leg.ease(Math.min(1, ms / leg.ms)) : e;
+				return writeLeg(attrs, trails, w, h, leg, eased);
+			};
 		}
 	};
 }
@@ -3669,6 +3718,7 @@ const drawOn = raceChoreography(
 			{
 				ms: sweepMs(ctx.w, ctx.h),
 				frame: entryFrame(RACE_RECENT_STEP),
+				ease: easeCubicInOut,
 				yCap: RACE_RECENT_YCAP,
 				alpha: arrive
 			}
@@ -3872,7 +3922,12 @@ const drawGenz = raceChoreography(
 	(ctx) => {
 		const restP = raceMaxPlayhead(ctx.w, ctx.h, RACE_GENZ_STEP);
 		return [
-			{ ms: scaled(GENZ_DRAW_MS), frame: genzDrawFrame(restP), yCap: Infinity }
+			{
+				ms: scaled(GENZ_DRAW_MS),
+				frame: genzDrawFrame(restP),
+				ease: easeCubicInOut,
+				yCap: Infinity
+			}
 		];
 	},
 	{
@@ -3899,6 +3954,7 @@ const drawProjections = raceChoreography(
 			{
 				ms: scaled(CLOSE_DRAW_MS),
 				frame: closeDrawFrame(restP),
+				ease: easeCubicInOut,
 				yCap: RACE_CLOSE_YCAP
 			}
 		];

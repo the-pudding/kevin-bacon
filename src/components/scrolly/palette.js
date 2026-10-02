@@ -3,6 +3,7 @@
 // canvas can't read CSS custom properties, and the one alpha a packed crowd is
 // drawn at.
 import {
+	MARK_ANCHOR_HALO,
 	MARK_CAREER,
 	MARK_CROWD,
 	MARK_EDGE,
@@ -14,11 +15,16 @@ import {
 	MARK_HOP_3,
 	MARK_HOP_4,
 	MARK_INK,
+	MARK_LINE_HALO,
+	MARK_NETWORK_DIM,
+	MARK_NETWORK_INK,
 	MARK_QUIZ_RIGHT,
 	MARK_QUIZ_WRONG,
+	MARK_RACE_FIELD,
 	MARK_SEARCH,
 	MARK_TRAIL_ACCENT
 } from "$styles/tokens.js";
+import { hash01 } from "./nodes.js";
 
 // What a hop crowd's dots are drawn at wherever they are packed tightly enough
 // to overlap — the hopBands rows and the rank ladder's strips both. At this
@@ -26,7 +32,16 @@ import {
 // dense band shows its own density instead of flattening into a solid block.
 // Shared so the ladder inherits the chart it dissolves out of; the anchor and
 // anything drawn as a single node stay opaque.
+//
+// HOP_DOT_ALPHA is the floor, and what the ladder's SVG strips (RankBars) are
+// drawn at, one opacity per path. A canvas dot takes hopDotAlpha instead: its
+// own alpha between the floor and 1, from the actor's id, so the rows read as
+// a field of varied dots and every dot keeps its own across frames and steps.
 export const HOP_DOT_ALPHA = 0.5;
+
+/** @param {number} id */
+export const hopDotAlpha = (id) =>
+	HOP_DOT_ALPHA + (1 - HOP_DOT_ALPHA) * hash01(id, 31);
 
 /** `rgb(r, g, b)` from a palette triple, for DOM that mirrors a canvas mark */
 export const rgb = (c) => `rgb(${c.join(", ")})`;
@@ -55,6 +70,10 @@ export const INK = MARK_INK;
 
 // the background crowd every chart is drawn against
 export const CROWD = MARK_CROWD;
+/** the band behind each race chart line (drawTrails' halo) */
+export const LINE_HALO = MARK_LINE_HALO;
+/** the race chart's field dots, drawn solid (raceDotSpec) */
+export const RACE_FIELD = MARK_RACE_FIELD;
 
 // the Sweeney and Bacon race lines
 export const TRAIL_ACCENT = MARK_TRAIL_ACCENT;
@@ -66,13 +85,23 @@ export const QUIZ_WRONG = MARK_QUIZ_WRONG;
 // the career chart's highlighted actor
 export const CAREER = MARK_CAREER;
 
+// the opening network's anchor and a lit route's actors (see intro.js)
+export const NETWORK_INK = MARK_NETWORK_INK;
+
+// the disc behind Bacon's dot in the opening network (see drawAnchorHalo)
+export const ANCHOR_HALO = MARK_ANCHOR_HALO;
+
+// the opening network's actors off a lit route (see intro.js)
+export const NETWORK_DIM = MARK_NETWORK_DIM;
+
 // network links at rest
 export const EDGE_GREY = MARK_EDGE;
 
 // A highlighted link, and the actor a highlight is about (see setEdge's
-// `highlight`). Ink, not a colour: step 1 is the only user, and the route it
-// picks out already reads against the crowd's grey through weight and
-// darkness alone — a hue there would be the story's only decorative colour.
+// `highlight`). NETWORK_INK, not a hue: the opening network is the only user,
+// and the route it picks out already reads against the crowd's grey through
+// weight and lightness alone — a hue there would be the story's only
+// decorative colour.
 export const EDGE_HIGHLIGHT = MARK_EDGE_HIGHLIGHT;
 
 // The race line a hovered callout refers to (see drawTrails' `focus`). The

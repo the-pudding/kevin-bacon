@@ -31,8 +31,13 @@ describe("routeWalk", () => {
 		}
 		for (const id of routeActors(margot)) {
 			if (id === ANCHOR_ID || id === margot) continue;
-			// dimmed with the crowd, where the landed frame has them at full
-			expect(clear[id * STRIDE + 6]).toBeLessThan(attrs[id * STRIDE + 6]);
+			// dimmed with the crowd, where the landed frame has them lit — by
+			// colour, darker toward the page, and still opaque so no link shows
+			// through
+			const i = id * STRIDE;
+			const lum = (a) => a[i + 3] + a[i + 4] + a[i + 5];
+			expect(lum(clear)).toBeLessThan(lum(attrs));
+			expect(clear[i + 6]).toBe(1);
 		}
 	});
 

@@ -17,7 +17,7 @@
 		},
 		"chart": {
 			"family": {
-				"value": "{font.mono}",
+				"value": "{font.sans}",
 				"comment": "graph labels and data readouts: names, legends, ranks, results, the scrubber year, the route listing"
 			},
 			"tracking": { "value": "{tracking.mono}" }

@@ -126,6 +126,17 @@ export const plotBottomAt = (h, group, beside) =>
  */
 export const plotBottom = (h, group) => plotBottomAt(h, group, plotBeside);
 
+/**
+ * Where a plot group's chart ends, stacked, in canvas coordinates: the plot
+ * floor, the x-axis title's own home under the ticks, and the clear air the
+ * title keeps above the step card — the whole of the reserve that is not the
+ * card. Stage.svelte centres the step card in what is left below it.
+ * @param {number} h
+ * @param {PlotGroup} group
+ */
+export const chartFloor = (h, group) =>
+	plotBottomAt(h, group, false) + AXIS_ROOM;
+
 export const lin = (v, d0, d1, r0, r1) =>
 	r0 + ((v - d0) / (d1 - d0)) * (r1 - r0);
 

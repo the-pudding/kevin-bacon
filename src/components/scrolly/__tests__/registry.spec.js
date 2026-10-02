@@ -230,8 +230,10 @@ describe("state registry", () => {
 		}
 	});
 
-	test("the prose lies over the hop chart and nothing else", () => {
-		expect(names.filter(isProseOver)).toEqual(["hopBands", "hopAnchor"]);
+	test("the prose lies over the pull-back's sky and the hop chart, and nothing else", () => {
+		expect(names.filter(isProseOver).sort()).toEqual(
+			["hopAnchor", "hopBands", "hopSeed"].sort()
+		);
 	});
 
 	// A scene's axes stay mounted across its step changes, so its states have
