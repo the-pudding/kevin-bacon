@@ -167,6 +167,24 @@
 	// no top fade while the list is at the top — nothing is cut off up there,
 	// so the fade would just blur the first row for no reason
 	let atTop = $state(true);
+	// The list's edge fades (.rows' mask): FADE_SHARE of the list's own height,
+	// and never less than FADE_ROWS rows, so a fade always runs through whole
+	// rows rather than clipping the edge of one. The row pitch is measured the
+	// way publishRows measures it, again whenever the list or the bar width
+	// (which reflows a row) changes.
+	const FADE_SHARE = 0.15;
+	const FADE_ROWS = 2;
+	let rowPitch = $state(0);
+	$effect(() => {
+		listHeight;
+		barWidth;
+		const rowEls = list?.querySelectorAll("li");
+		if (rowEls && rowEls.length >= 2)
+			rowPitch = rowEls[1].offsetTop - rowEls[0].offsetTop;
+	});
+	const fade = $derived(
+		Math.max(listHeight * FADE_SHARE, rowPitch * FADE_ROWS)
+	);
 	let scrolledByReader = false;
 	// the row the effect below last centered on, so it re-centers only when the
 	// focus actually moves. Without it, any re-run after the reader has scrolled
@@ -476,6 +494,7 @@
 		aria-label="Top {RANK_TOP_N} actors by remoteness"
 		class:at-top={atTop}
 		class:entered
+		style:--fade={fade ? `${fade}px` : null}
 		bind:this={list}
 		bind:clientHeight={listHeight}
 		onscroll={() => {
@@ -576,19 +595,21 @@
 		padding: 0.5rem 1rem;
 		overflow-y: auto;
 		flex: 1;
-		--fade-top: 1.5rem;
+		/* --fade is set inline from the list's height and its row pitch (see
+		   FADE_SHARE); 1.5rem until the first measure lands */
+		--fade-top: var(--fade, 1.5rem);
 		mask-image: linear-gradient(
 			to bottom,
 			transparent,
 			currentcolor var(--fade-top),
-			currentcolor calc(100% - 1.5rem),
+			currentcolor calc(100% - var(--fade, 1.5rem)),
 			transparent
 		);
 		-webkit-mask-image: linear-gradient(
 			to bottom,
 			transparent,
 			currentcolor var(--fade-top),
-			currentcolor calc(100% - 1.5rem),
+			currentcolor calc(100% - var(--fade, 1.5rem)),
 			transparent
 		);
 	}
@@ -646,13 +667,13 @@
 	   reads at full strength. A colour, not an alpha, so the token contrast spec
 	   sees what the reader sees */
 	.rows li.known {
-		color: rgba(255, 255, 255, .72);
+		color: rgba(255, 255, 255, 1);
 		animation: none;
 	}
 
 	.rows li.focus {
 		font-weight: bold;
-		color: var(--chart-rank-row-focus);
+		color: #fff;
 	}
 
 	@keyframes row-in {
@@ -729,7 +750,7 @@
 		text-align: center;
 		white-space: nowrap;
 		font-size: 14px;
-	    -webkit-font-smoothing: antialiased;
+		-webkit-font-smoothing: antialiased;
 	}
 
 	/* the outer bands sit against the ends of the bar, so their labels do too —

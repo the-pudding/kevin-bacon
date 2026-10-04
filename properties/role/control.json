@@ -246,6 +246,14 @@
 				}
 			}
 		},
+		"scrollbar": {
+			"thumb": {
+				"value": "{color.white}",
+				"modify": { "alpha": 0.4 },
+				"comment": "a scroll container's thumb, on a transparent track: the rank list, the InfoTerm panel (app.css)",
+				"contrast": { "against": "surface.raised", "min": 3 }
+			}
+		},
 		"scrubber": {
 			"value": "{control.button.primary.bg}",
 			"comment": "the race scrubber's accent-color",

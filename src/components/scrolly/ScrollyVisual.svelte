@@ -1087,9 +1087,13 @@
 	});
 	// per-node label placement overrides ("left"/"right" beside the dot instead
 	// of the default below-and-centred) for the state the reader is ARRIVING on
+	// a function spec is handed the step's params and the visual's width, for a
+	// side that only fits a wide enough box (scatters.js's pairLabelDirs)
 	const labelDirs = $derived.by(() => {
 		const spec = STATE_LABEL_DIRS[stateName];
-		return (typeof spec === "function" ? spec(layoutParams) : spec) ?? {};
+		return (
+			(typeof spec === "function" ? spec(layoutParams, width) : spec) ?? {}
+		);
 	});
 	/**
 	 * ...and the side each name is actually DRAWN on this frame, which the
@@ -2536,6 +2540,31 @@
 	     chart shows instead, in the prose column (Step's `alt`). What stays
 	     reachable is what is not just the chart restated: the race callout's
 	     note, the actor targets (.hits) and the step's panel. -->
+	<!-- Under the canvas: the future block's box (decor.band), so the lines and
+	     dots are drawn over it rather than shaded by it. The canvas is cleared to
+	     transparent every frame, so what is under it shows wherever nothing is
+	     drawn. Clipped and placed exactly as .annotations is, so the box sits
+	     where the label above it expects. -->
+	<div
+		class="annotations underlay"
+		aria-hidden="true"
+		style="left: {-labelBleed.l}px; right: {-labelBleed.r}px"
+	>
+		<div
+			class="annotation-origin"
+			style="left: {labelBleed.l}px; width: {width}px"
+		>
+			{#if decor?.band && !furnitureHeld}
+				{@const b = decor.band}
+				<div class="band fade-in">
+					<span
+						class="band-box"
+						style="left: {b.x}px; top: {b.y}px; width: {b.width}px; height: {b.height}px"
+					></span>
+				</div>
+			{/if}
+		</div>
+	</div>
 	<canvas bind:this={canvas} bind:clientWidth={canvasWidth} aria-hidden="true"
 	></canvas>
 	<!-- The clip spans the CANVAS (see labelBleed); the box inside it puts the
@@ -2557,9 +2586,10 @@
 		     node labels, which is what lets it carry a shaded fill: the names sit
 		     beside their dots to the right, so with the column pinned at the left they
 		     render INSIDE the block, and `.overlay` (where this first lived) paints
-		     over `.annotations` — a fill there hid every one of them. Here the wash
-		     goes under the names and under the ticks, and only over the canvas, whose
-		     ink to the right of the present is nothing at all.
+		     over `.annotations` — a fill there hid every one of them. Its box now
+		     sits lower still, in .underlay under the canvas, so the lines and dots
+		     that run into the future are drawn over the wash rather than tinted by
+		     it; only the label stays up here, over them.
 
 		     It rides the frame writer's per-frame payload next to `axes` and
 		     `callout` rather than the `notes` slot, per the rule on the overlay
@@ -2579,12 +2609,9 @@
 		     so that rule survives intact. -->
 			{#if decor?.band && !furnitureHeld}
 				{@const b = decor.band}
+				<!-- the box itself is drawn in .underlay, under the canvas; only its
+				     label is up here, over the lines -->
 				<div class="band fade-in">
-					<span
-						class="band-box"
-						aria-hidden="true"
-						style="left: {b.x}px; top: {b.y}px; width: {b.width}px; height: {b.height}px"
-					></span>
 					{#if b.label}
 						<p
 							class="band-label fade-in"
@@ -3031,11 +3058,11 @@
 		will-change: transform, opacity;
 		padding: 0 3px;
 		font-family: var(--type-chart-family);
-		text-transform: uppercase;
 		letter-spacing: var(--type-chart-tracking);
 		/* NODE_LABEL_PX in layouts/intro.js is this line box */
-		font-size: 0.8rem;
-		letter-spacing: 1px;
+		font-size: 14px;
+		-webkit-font-smoothing: antialiased;
+		/* letter-spacing: 1px; */
 		line-height: 1.2;
 		white-space: nowrap;
 		color: var(--chart-node-label);
@@ -3182,12 +3209,11 @@
 		position: absolute;
 		margin: 0;
 		font-family: var(--font-sans);
-		letter-spacing: var(--type-annotation-tracking);
+		letter-spacing: 0;
 		font-size: 14px;
 		font-weight: 400;
 		text-align: left;
 		color: #fff;
-		letter-spacing: 1px;
 		-webkit-font-smoothing: antialiased;
 	}
 
@@ -3306,14 +3332,13 @@
 
 	.band-box {
 		position: absolute;
-		border: 2px dashed var(--chart-band-edge);
 		/* --category-yellow at 13%. A wash rather than nothing: the block reads as
 		   ground the chart has no data for, and an outline alone left it looking like
 		   an empty frame drawn over the plot. It can be this faint and still register
-		   because it is a large area — and it HAS to be faint, and has to sit in the
-		   annotations layer under the names, because this step's ten names render
-		   inside it. */
-		background: var(--chart-band-fill);
+		   because it is a large area — and it HAS to be faint, because this step's
+		   ten names render inside it. It is drawn under the canvas (.underlay), so
+		   the lines and dots inside it are drawn over it. */
+		background: #29201e;
 		/* The right-edge fade, and it works on the border too: a mask applies to the
 		   element's whole rendered box, so the top and bottom rules fade out along
 		   their length and the RIGHT rule disappears entirely — which is exactly the
@@ -3345,10 +3370,12 @@
 	.band-label {
 		position: absolute;
 		margin: 0;
-		font-family: var(--type-chart-family);
-		font-size: 0.75rem;
-		letter-spacing: var(--type-chart-tracking);
-		color: var(--chart-band-label);
+		font-family: var(--font-mono);
+		font-size: 14px;
+		text-transform: uppercase;
+		letter-spacing: 1px;
+		-webkit-font-smoothing: antialiased;
+		color: #ffe021;
 		white-space: nowrap;
 		/* it sits just inside the box, and can crowd the border on a narrow strip,
 		   so it needs the same legibility halo the ticks carry */
@@ -3367,7 +3394,7 @@
 		position: absolute;
 		width: 11px;
 		height: 11px;
-		border: 1.5px solid var(--annotation-callout-mark);
+		border: 1.5px solid #fff;
 		border-radius: 50%;
 		/* the halo the rest of the chart furniture uses, so the ring reads where it
 		   sits: over the two lines it is pointing at */
@@ -3397,7 +3424,7 @@
 	}
 
 	.arrow-line {
-		stroke: var(--annotation-arrow);
+		stroke: #fff;
 		stroke-width: 1;
 	}
 
@@ -3409,10 +3436,10 @@
 	}
 
 	.arrow-head {
-		fill: var(--annotation-arrow);
+		fill: #fff;
 		/* its own halo, same reason as the line's — and paint-order keeps the
 		   stroke behind the fill so it haloes the head instead of thinning it */
-		stroke: var(--surface-holdout);
+		stroke: #fff;
 		stroke-width: 1.5;
 		paint-order: stroke fill;
 	}
@@ -3429,12 +3456,20 @@
 	   silently wins. */
 	.overlay p.callout-note {
 		font-family: var(--type-callout-family);
-		font-size: var(--12px);
-		line-height: 1.35;
-		color: var(--annotation-callout-note);
+		font-size: 13px;
+		line-height: 1.2;
+		color: #fff;
+		background: rgba(19, 5, 29, 0.5);
+		text-shadow:
+			0px 0px 2px #13051d,
+			0px 1px 2px #13051d,
+			0px -1px 2px #13051d,
+			-1px -1px 2px #13051d,
+			1px -1px 2px #13051d,
+			-1px 1px 2px #13051d;
 		/* three or four lines sitting over the chasing field, which would
 		   otherwise show through the counters */
-		text-shadow: var(--text-halo);
+		/* text-shadow: var(--text-halo); */
 	}
 
 	/* A note ABOVE its ring is positioned by its bottom edge: the payload's `top`
@@ -3495,7 +3530,7 @@
 
 	.note {
 		font-size: 0.75rem;
-		color: var(--annotation-note);
+		color: #fff;
 		white-space: nowrap;
 		text-shadow: var(--text-halo);
 	}
@@ -3561,8 +3596,8 @@
 
 	.y-title-hint {
 		font-size: 12px;
-		font-weight: 600;
-		color: rgba(255, 255, 255, 0.65);
+		font-weight: 500;
+		color: rgba(255, 255, 255, 0.9);
 		text-shadow: none;
 	}
 

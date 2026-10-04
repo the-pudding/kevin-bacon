@@ -7,6 +7,14 @@
 /* Colours, fonts and type roles are design tokens: properties/, built into
    variables.css by `npm run style`. See notes/design/tokens.md. */
 :root {
+	/* the page is dark: the browser's own controls and scrollbars take their
+	   dark versions, and every scroll container (the rank list, the InfoTerm
+	   panel) a thumb in the theme on a clear track. Both inherit, so this
+	   reaches all of them; color-scheme is the fallback where scrollbar-color
+	   is not read. scrollbar-width does not inherit: see the rule below */
+	color-scheme: dark;
+	scrollbar-color: var(--control-scrollbar-thumb) transparent;
+
 	/* z-index */
 	--z-bottom: -1;
 	--z-base: 1;
@@ -117,6 +125,12 @@
 
 	/* "1" second duration */
 	--1s: 1ms;
+}
+
+/* every scroll container's bar thin (scrollbar-width is not inherited, so it
+   cannot ride :root with scrollbar-color above) */
+* {
+	scrollbar-width: thin;
 }
 
 @media screen and (prefers-reduced-motion: no-preference) {

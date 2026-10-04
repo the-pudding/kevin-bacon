@@ -282,7 +282,7 @@
 		--chip-h: var(--48px); /* the minimum tap target on mobile */
 		--chip-gap: 0.75rem;
 		display: flex;
-		flex-direction: column;
+		align-items: center;
 		gap: 0.5rem;
 		margin-top: 0.75rem;
 		/* The same 16px every prose step leaves under its last line — `p` carries
@@ -297,7 +297,6 @@
 		/* Margin, not padding: this block takes pointer events back (below), and
 		   padding is inside the element's own hit box — the inset would swallow
 		   the very presses it exists to keep clear. */
-		margin-inline: var(--control-inset);
 		pointer-events: auto;
 		/* the prose column carries a halo for the full-bleed states (see
 		   .scrolly-steps); a control is a solid object and does not want one */
@@ -312,20 +311,25 @@
 	.quiz__done {
 		margin: 0;
 		font-family: var(--type-chip-family);
-		letter-spacing: var(--type-chip-tracking);
-		font-size: 0.75rem;
+		/* letter-spacing: var(--type-chip-tracking); */
+		font-size: 14px;
 		line-height: 1.4;
-		color: var(--prose-muted);
+		color: #fff;
+		-webkit-font-smoothing: antialiased;
 	}
 
 	.quiz__status {
 		min-height: 1.4em;
+		font-family: var(--font-sans);
+		font-weight: 600;
+		margin-right: 10px;
 	}
 
 	.quiz__cards {
 		display: flex;
-		flex-direction: column;
+		flex-direction: row;
 		gap: var(--chip-gap);
+		align-items: center;
 		min-height: calc(2 * var(--chip-h) + var(--chip-gap));
 	}
 
@@ -345,8 +349,10 @@
 		background: var(--surface-raised);
 		color: var(--prose-fg);
 		cursor: pointer;
+		height: 48px;
 		/* the WAAPI flight drives transform/colour; keep it compositor-friendly */
 		will-change: transform;
+		-webkit-font-smoothing: antialiased;
 	}
 
 	/* A picked chip is disabled at once — it is showing an answer now, not

@@ -253,6 +253,20 @@ const verdictRgb = (pair, id, picked) =>
 // them out of the beside-dot vertical decollision pool — with five pairs
 // crowding the cloud, only Theron/Rogen/Robbie/Franco/Murphy/DiCaprio need
 // beside-dot placement; the rest read fine underneath.
+// The pair steps' two names (scatterCenters' showPair steps and degScatter),
+// beside their dots like the film-count step's rather than hung below them, so
+// the names keep one placement through the chapter.
+const PAIR_LABEL_DIRS = { [PORTMAN]: "left", [KENDRICK]: "left" };
+// ...where they fit. scatterCenters' pair names carry their metric ("Natalie
+// Portman · 97 of the top 250", ~230px), and left of their dots they cross the
+// y axis's labels below a visual this wide (measured 2026-10-04: 26px clear at
+// 468, crossing by ~428); there they hang below their dots as they used to.
+// degScatter's ("· 57") fit beside at every width and take PAIR_LABEL_DIRS as is.
+const PAIR_SIDE_MIN_W = 460;
+/** @param {number} [w] the visual's width */
+const pairLabelDirs = (w) =>
+	w != null && w < PAIR_SIDE_MIN_W ? {} : PAIR_LABEL_DIRS;
+
 export const QUIZ_LABEL_DIRS = {
 	[QUIZ_IDS[0]]: "right", // Charlize Theron (49 films)
 	[QUIZ_IDS[1]]: "right", // Seth Rogen (48 films)
@@ -321,15 +335,14 @@ const layoutDegScatter = (nodes, w, h, _edges, params) =>
 		labelOf: (t) => String(deLogFilms(t))
 	});
 
-// the y-axis direction is conveyed by the pinned "more central"/"less central"
-// mini-labels (see ScrollyVisual's .y-hint), not by an arrow in the title
+// The y-axis title as the race chart has it (race.js's OVERLAY): upright at the
+// top of the axis under its "↑ more central" hint (`yTitleTop`, ScrollyVisual's
+// .y-title-top), with no bottom hint — the arrow says which way is which.
 const AVG_OVERLAY = {
 	xLabel: "Film count (log scale)",
 	yLabel: "Remoteness",
-	// these render inside writing-mode: vertical-rl + rotate(180deg) (see
-	// ScrollyVisual's .y-hint), which visually rotates → to ↑ and ← to ↓
-	yTopLabel: "more central →",
-	yBottomLabel: "← less central"
+	yTitleTop: true,
+	yTopLabel: "↑ more central"
 };
 
 export const states = {
@@ -345,18 +358,18 @@ export const states = {
 		// the step's own params, plus the reader's actor — this state hosts the
 		// remoteness search (steps 15-19)
 		params: withSearchParams(),
-		// the pair labels carry their metric, so they're too wide to sit beside
-		// their dots at the right edge of the cloud — they hang below (clamped)
-		// on the pair step. On the film-count step, SLJ and Cage's dots sit close
+		// the pair steps put their two names beside their dots too where they
+		// fit (pairLabelDirs), so the names keep one placement through the
+		// chapter. On the film-count step, SLJ and Cage's dots sit close
 		// together at the crowded top-right corner, so the default below/clamped
 		// placement can shove one label onto the other dot. "right" clips off the
 		// canvas edge (their dots already sit at the far-right data extent, with
 		// no room left), so they go "left" instead — beside their dots but toward
 		// the open cloud, where the decollider keeps them vertically apart (same
 		// mechanism QUIZ_LABEL_DIRS uses for its pairs)
-		labelDirs: (params) =>
+		labelDirs: (params, w) =>
 			params?.showPair
-				? {}
+				? pairLabelDirs(w)
 				: { ...QUIZ_LABEL_DIRS, [SLJ]: "left", [CAGE]: "left" },
 		// this state's three shapes are the film-count step, the avg-distance
 		// pair step, and the costar-count pair step — each puts its own metric
@@ -430,9 +443,8 @@ export const states = {
 		labels: (params) => withSearchLabel([PORTMAN, KENDRICK], params),
 		// this state hosts the costar-count search (step 20)
 		params: withSearchParams(),
-		// no labelDirs entry for either id: they fall back to hanging below the
-		// dot, which is what "only these two" calls for once the crowd is gone
-		labelDirs: {},
+		// beside their dots, as on the scatter before it (PAIR_LABEL_DIRS)
+		labelDirs: PAIR_LABEL_DIRS,
 		// names carry the de-logged film count, same number the axis itself now
 		// shows, so Portman's dot reads as "Natalie Portman · 54" rather than
 		// just her name

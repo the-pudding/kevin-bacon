@@ -97,8 +97,8 @@
 			}
 		},
 		"readout": {
-			"value": "{color.gray-900}",
-			"comment": "the race scrubber's year",
+			"value": "{color.white}",
+			"comment": "the race scrubber's year, over its thumb",
 			"contrast": {
 				"against": "surface.page",
 				"min": 4.5

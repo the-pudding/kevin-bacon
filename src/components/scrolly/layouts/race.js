@@ -612,9 +612,10 @@ export const raceTuning = {
 	/**
 	 * px between consecutive years. The one dial for axis density: a horizontal
 	 * 4-digit `.tick` label (0.65rem) is ~24px, so this leaves clear space
-	 * between neighbouring years. Paired with the name-gutter fraction in
-	 * racePlot — those two decide how many years a phone can show at once, so
-	 * buying more padding here costs visible years.
+	 * between neighbouring years. Paired with the name gutter in racePlot
+	 * (RACE_NAME_GUTTER, capped at a third of the width) — those two decide how
+	 * many years a box can show at once, so buying more padding here costs
+	 * visible years.
 	 */
 	pxPerYear: 76,
 	/**
@@ -844,9 +845,22 @@ function curveExit(segs, to, from, vMin, vMax) {
 	return null;
 }
 
-// The plot rectangle. The plot spans only the left 2/3 of the inner width — the
-// right third is a gutter reserved for the actor name labels (which sit beside
-// the right-edge dots), so names never clip off the canvas.
+// The plot rectangle. The plot stops short of the inner width's right edge by a
+// gutter reserved for the actor name labels (which sit beside the right-edge
+// dots), so names never clip off the canvas.
+//
+// The gutter is sized to the names, not to the box: the longest name a race
+// step can label, at the labels' own type (ScrollyVisual's race .node-label:
+// 14px Atlas Grotesk, no tracking, 3px of padding a side), measured 2026-10-04
+// as "Matthew McConaughey" at 165px — plus the largest race dot's radius
+// (RACE_DOT_MAX_R, the named Gen-Z dot), the label's 4px off its dot, and a
+// pixel to spare. A constant, because the layouts run in Node (the goldens)
+// where there is no font to measure: re-measure it if the label type changes.
+// The plot never ends left of the two-thirds edge it replaced, so a phone keeps
+// the plot it had, and wider boxes give the plot what the names were not
+// using. The gutter runs to the column's edge with no margin past it: it is
+// the margin.
+const RACE_NAME_GUTTER = 176;
 //
 // Exported because the DRAW pass needs it too: the frame writer below keeps
 // every dot it places inside this rectangle, but the tweener that carries the
@@ -856,15 +870,25 @@ export function racePlot(w, h) {
 	// label right-aligned to its tick mark, clear of the rotated axis title
 	const left = MARGIN + 24;
 	const innerRight = w - MARGIN - 6;
+	// The names run to the column's own right edge, `w`, not to innerRight: the
+	// gutter IS the right margin, so the longest name ends flush with the prose
+	// under the chart rather than a further margin short of it. Never left of
+	// the two-thirds edge the chart always had: below ~508px a name cannot fit
+	// either way, and a phone keeps exactly the plot it had (the max is
+	// continuous, so a resize across the crossover does not jump).
+	const right = Math.max(
+		left + ((innerRight - left) * 2) / 3,
+		w - RACE_NAME_GUTTER
+	);
 	return {
 		top: MARGIN + 10,
 		bottom: plotBottom(h, "race"),
 		left,
-		right: left + ((innerRight - left) * 2) / 3,
+		right,
 		// The full inner width, gutter included — where the DATA's plot stops
 		// reserving room for names. raceFuture's future strip runs out to here
 		// instead of to `right`: its dot column is pinned at the left, so the
-		// right-hand third that exists to keep right-edge names off the canvas
+		// right-hand gutter that exists to keep right-edge names off the canvas
 		// edge is empty on that step, and the strip is the one thing with any use
 		// for it. Nothing about the data's own geometry reads this — the camera,
 		// the y fit, the dots and the trails all stop at `right`.

@@ -55,7 +55,7 @@
 	   its outer edge up — a tap there is meant to be a step. */
 	.start-button {
 		display: flex;
-		justify-content: center;
+		justify-content: flex-start;
 		margin-top: 0.75rem;
 		/* the same 16px every prose step leaves under its last line, which sat
 		   flush on the screen's edge without it — see PairQuiz's .quiz */
@@ -63,7 +63,7 @@
 		/* Margin, not padding: this row takes pointer events back (below), and
 		   padding is inside the element's own hit box — the inset would swallow
 		   the very presses it exists to keep clear. */
-		margin-inline: var(--control-inset);
+		margin-inline: 0;
 		pointer-events: auto;
 	}
 </style>

@@ -325,7 +325,7 @@
 		border: 0;
 		border-radius: var(--radius-sm);
 		background: none;
-		color: var(--prose-muted);
+		color: rgba(255,255,255,.8);
 		cursor: pointer;
 		pointer-events: auto;
 	}

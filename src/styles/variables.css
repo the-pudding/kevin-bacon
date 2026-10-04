@@ -136,8 +136,8 @@
 	--chart-rank-row-muted: var(--color-gray-500);
 	--chart-rank-row-focus: var(--color-gray-900);
 	--chart-footnote: var(--color-gray-500);
-	/** the race scrubber's year */
-	--chart-readout: var(--color-gray-900);
+	/** the race scrubber's year, over its thumb */
+	--chart-readout: var(--color-white);
 	/** the quiz results chart's caption */
 	--chart-result-label: var(--color-gray-500);
 	/** a results bucket's name */
@@ -177,6 +177,8 @@
 	--control-key-cap: var(--color-white);
 	/** the chevron on a key cap */
 	--control-key-glyph: var(--color-ink);
+	/** a scroll container's thumb, on a transparent track: the rank list, the InfoTerm panel (app.css) */
+	--control-scrollbar-thumb: rgba(255, 255, 255, 0.4);
 	/** the dev tuners' active state and markers */
 	--dev-accent: var(--color-red);
 	--dev-accent-fg: var(--color-white);

@@ -489,8 +489,9 @@ export const hasAnchorHalo = (s) => !!s && STATE_ANCHOR_HALO[s] === true;
  * `"left"` / `"right"` place it beside the dot (vertically centred) instead of
  * the default below-and-centred. Keyed by node id. Used to de-clutter tight
  * clusters (e.g. the quiz pairs). A function form reads the step's params, for
- * states whose labels move between steps.
- * @type {Partial<Record<LayoutState, Record<number, "left" | "right"> | ((params?: Object) => Record<number, "left" | "right">)>>}
+ * states whose labels move between steps, and the visual's width, for a side
+ * that only fits a wide enough box.
+ * @type {Partial<Record<LayoutState, Record<number, "left" | "right"> | ((params?: Object, width?: number) => Record<number, "left" | "right">)>>}
  */
 export const STATE_LABEL_DIRS = pick("labelDirs");
 

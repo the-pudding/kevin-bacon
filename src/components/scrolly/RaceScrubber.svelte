@@ -28,6 +28,12 @@
 	const sliderMin = $derived(Math.floor(cam?.panMin ?? 0));
 	const sliderMax = $derived(Math.ceil(cam?.panMax ?? 0));
 	const sliderValue = $derived(Math.round(value));
+	// how far along the track the thumb sits, 0-1, for the year riding over it
+	const sliderAt = $derived(
+		sliderMax > sliderMin
+			? (sliderValue - sliderMin) / (sliderMax - sliderMin)
+			: 0
+	);
 
 	/** @type {HTMLElement | undefined} */
 	let surface = $state();
@@ -83,20 +89,27 @@
 			onpointercancel={endDrag}
 		></div>
 		<div class="control">
-			<output class="year">{Math.round(value)}</output>
-			<!-- min/max before value: a value set first is clamped to the default
-			     0–100 domain before the real bounds arrive -->
-			<input
-				type="range"
-				class="race-slider"
-				aria-label="Year"
-				min={sliderMin}
-				max={sliderMax}
-				step="1"
-				value={sliderValue}
-				oninput={onSlide}
-				onchange={onCommit}
-			/>
+			<!-- the track's two ends, as years; the range already exposes them to
+			     AT as its min and max -->
+			<span class="bound" aria-hidden="true">{sliderMin}</span>
+			<div class="track" style:--at={sliderAt}>
+				<!-- the year chosen, riding over the thumb -->
+				<output class="year">{sliderValue}</output>
+				<!-- min/max before value: a value set first is clamped to the default
+				     0–100 domain before the real bounds arrive -->
+				<input
+					type="range"
+					class="race-slider"
+					aria-label="Year"
+					min={sliderMin}
+					max={sliderMax}
+					step="1"
+					value={sliderValue}
+					oninput={onSlide}
+					onchange={onCommit}
+				/>
+			</div>
+			<span class="bound" aria-hidden="true">{sliderMax}</span>
 		</div>
 	</div>
 {/if}
@@ -142,6 +155,17 @@
 	   a press on the year readout or the row's padding still reaches the half
 	   underneath. Same idiom as Index's .route and ScrollyVisual's .hits: a
 	   pointer-events:none container, lifted, whose one child opts in. */
+	/* the range and the year over its thumb. --at is the thumb's share of the
+	   way along (sliderAt); --thumb is the native thumb's width, which the
+	   browser keeps inside the track, so its centre runs from half a thumb in at
+	   one end to half a thumb in at the other */
+	.track {
+		--thumb: 16px;
+		position: relative;
+		flex: 1 1 auto;
+		min-width: 0;
+		display: flex;
+	}
 	.race-slider {
 		flex: 1 1 auto;
 		min-width: 0;
@@ -153,14 +177,23 @@
 		pointer-events: auto;
 	}
 	.year {
-		flex: none;
+		position: absolute;
+		left: calc(var(--thumb) / 2 + var(--at) * (100% - var(--thumb)));
+		/* just clear of the thumb, over the track's centre line */
+		bottom: calc(50% + var(--thumb) / 2 + 2px);
+		transform: translateX(-50%);
 		white-space: nowrap;
 		font-family: var(--type-chart-family);
-		letter-spacing: var(--type-chart-tracking);
 		font-variant-numeric: tabular-nums;
 		font-size: 0.9rem;
 		color: var(--chart-readout);
-		min-width: 4ch;
-		text-align: right;
+		pointer-events: none;
+	}
+	.bound {
+		flex: none;
+		font-family: var(--type-chart-family);
+		font-variant-numeric: tabular-nums;
+		font-size: 14px;
+		color: #9e9e9e;
 	}
 </style>
