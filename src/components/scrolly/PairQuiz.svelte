@@ -323,6 +323,7 @@
 		font-family: var(--font-sans);
 		font-weight: 600;
 		margin-right: 10px;
+		min-width: 70px;
 	}
 
 	.quiz__cards {
@@ -368,7 +369,7 @@
 	}
 
 	.quiz__card:not(:disabled):hover {
-		border-color: var(--control-card-hover-border);
+		border-color: #228833;
 	}
 
 	/* Absolutely placed rather than laid out beside the name, so the name is

@@ -54,6 +54,8 @@
 	--color-lavender: #e6bfff;
 	/** the pale pink-violet of the halo behind Bacon's dot */
 	--color-lilac: #fce5ff;
+	/** the Gen-Z step's dots that carry no line */
+	--color-deep-mauve: #372c3f;
 	/** the race chart's field dots, solid */
 	--color-slate-mauve: #6a636f;
 	/** the opening network's actors off a lit route */
@@ -208,6 +210,8 @@
 	--mark-hop-2-label: var(--color-hop-2-label);
 	--mark-hop-3-label: var(--color-hop-3-label);
 	--mark-hop-4-label: var(--color-hop-4-label);
+	/** a race chart dot drawn without its line: the race cast and the backdrop once the Gen-Z field's lines are up (race.js's unlinedDot) */
+	--mark-race-unlined: var(--color-deep-mauve);
 	/** the race chart's field dots: everyone but the leader, solid so a leader line can run behind them (raceDotSpec) */
 	--mark-race-field: var(--color-slate-mauve);
 	/** the band drawn behind each race chart line, so a line crossing another parts it (render.js's drawTrails) */

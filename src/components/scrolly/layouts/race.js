@@ -19,7 +19,7 @@ import {
 	introPosition,
 	NETWORK_INTRO_RADIUS
 } from "../intro-geometry.js";
-import { INK, CROWD, RACE_FIELD } from "../palette.js";
+import { INK, CROWD, RACE_FIELD, RACE_UNLINED } from "../palette.js";
 import { easeCubicInOut } from "../tween.js";
 import {
 	MARGIN,
@@ -1719,7 +1719,10 @@ function raceAxes(
  * into the chart. raceStepVisible, raceAnchorAt and raceBandAt all clamp at
  * RACE_DATA_END, so a frontier past it changes nothing they compute.
  * @property {boolean} [futureTicks] emit the strip's own year labels (default
- * true). raceGenz turns them off — see raceAxes.
+ * true).
+ * @property {boolean} [fieldLines] draw the race cast's and the backdrop's
+ * lines (default true). raceGenz turns them off and keeps their dots, so the
+ * only lines on that step are the Gen-Z field's.
  * @property {number} [yOpen] the camera's y travel, 0 = the chapter's own
  * window, 1 = the Gen-Z window below it (see raceWindowYFit). A camera
  * parameter, not a step's, which is what keeps the axis rule pure.
@@ -1810,6 +1813,30 @@ export const RACE_DOT_MAX_R = GENZ_NAMED_DOT.r;
  * as depth anyway — receding is what distance looks like.
  */
 const BACKDROP_DOT = { r: 2.5, rgb: CROWD, alpha: 0.3 };
+
+/**
+ * A dot whose line the step does not draw (RaceFrame.fieldLines false: the race
+ * cast and the backdrop on raceGenz), taken toward a solid RACE_UNLINED as the
+ * Gen-Z field's lines draw in — `g` is that draw-in's progress, so step 18
+ * (nothing drawn yet) keeps its dots and step 19 lands on the solid colour.
+ * Written into `out`, one per kind of dot, so a frame allocates nothing.
+ * @param {{ r: number, rgb: number[], alpha: number }} dot
+ * @param {number} g
+ * @param {{ r: number, rgb: number[], alpha: number }} out
+ */
+function unlinedDot(dot, g, out) {
+	if (g <= 0) return dot;
+	out.r = dot.r;
+	out.alpha = dot.alpha + (1 - dot.alpha) * g;
+	for (let k = 0; k < 3; k++)
+		out.rgb[k] = dot.rgb[k] + (RACE_UNLINED[k] - dot.rgb[k]) * g;
+	return out;
+}
+const UNLINED_CAST = { r: 0, rgb: [0, 0, 0], alpha: 0 };
+const UNLINED_BACKDROP = { r: 0, rgb: [0, 0, 0], alpha: 0 };
+/** how far a frame's lineless dots are taken to RACE_UNLINED (unlinedDot) */
+const unlinedShare = (frame) =>
+	frame.fieldLines === false ? Number(frame.genz) || 0 : 0;
 /** ...and its line, likewise half the contenders' 0.35 */
 const BACKDROP_TRAIL_ALPHA = 0.18;
 
@@ -2020,11 +2047,20 @@ const GENZ_ARRIVE_LEAD = 0.06;
  * @param {(v: number) => number} yS
  * @param {number} vMin @param {number} vMax
  */
-function writeBackdropLines(attrsBuf, trailBuf, cam, yS, vMin, vMax) {
+function writeBackdropLines(
+	attrsBuf,
+	trailBuf,
+	cam,
+	yS,
+	vMin,
+	vMax,
+	lineAlpha = BACKDROP_TRAIL_ALPHA,
+	dot = BACKDROP_DOT
+) {
 	const a = ACTOR;
 	a.xS = cam.xS;
-	a.dot = BACKDROP_DOT;
-	a.lineAlpha = BACKDROP_TRAIL_ALPHA;
+	a.dot = dot;
+	a.lineAlpha = lineAlpha;
 	a.ink = 0;
 	a.minX = -Infinity;
 	a.fastHide = true;
@@ -2477,9 +2513,10 @@ function writeCast(
 		revealRight - (revealRight - cam.camLeft) * (frame.reveal ?? 1);
 	const a = ACTOR;
 	a.xS = cam.xS;
-	a.lineAlpha = 0.35;
+	a.lineAlpha = frame.fieldLines === false ? 0 : 0.35;
 	a.minX = revealFrom;
 	a.fastHide = animated;
+	const g = unlinedShare(frame);
 	for (let i = 0; i < RACE_IDS.length; i++) {
 		const id = RACE_IDS[i];
 		if (projecting && CLOSE_OWNED.has(id)) continue;
@@ -2492,7 +2529,7 @@ function writeCast(
 		a.m = lineMs[i];
 		a.endYr = Math.min(cam.playhead, de, e1);
 		a.from = Math.max(cam.camLeft, ds);
-		a.dot = raceDotSpec(id === lead);
+		a.dot = unlinedDot(raceDotSpec(id === lead), g, UNLINED_CAST);
 		a.ink = id === lead ? 1 : 0;
 		writeActorLine(attrsBuf, trailBuf, yS, vMin, vMax, a);
 	}
@@ -2563,7 +2600,16 @@ function raceFloorV(frame, cam, vMax) {
  */
 function writeFields(attrsBuf, trailBuf, frame, cam, yS, vMin, vMax) {
 	if (frame.backdrop) {
-		writeBackdropLines(attrsBuf, trailBuf, cam, yS, vMin, vMax);
+		writeBackdropLines(
+			attrsBuf,
+			trailBuf,
+			cam,
+			yS,
+			vMin,
+			vMax,
+			frame.fieldLines === false ? 0 : BACKDROP_TRAIL_ALPHA,
+			unlinedDot(BACKDROP_DOT, unlinedShare(frame), UNLINED_BACKDROP)
+		);
 	}
 	if (frame.genz) {
 		writeGenzLines(attrsBuf, trailBuf, cam, yS, vMin, vMax, frame.genz);
@@ -2969,8 +3015,10 @@ export const RACE_GENZ_STEP = {
 	backdrop: true,
 	// ...through the plot's bottom edge, dots included
 	enterBelow: true,
-	// the strip keeps its block and its label, but not its years — see raceAxes
-	futureTicks: false,
+	// the strip keeps its years here, as on raceFuture
+	// the race cast's and the backdrop's lines are not drawn, only their dots:
+	// the lines on this step are the Gen-Z field's, drawn on the reader's press
+	fieldLines: false,
 	highlight: GENZ_NAMED_IDS
 };
 

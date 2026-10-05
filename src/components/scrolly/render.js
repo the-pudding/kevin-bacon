@@ -35,6 +35,7 @@ const inkedTrails = [];
 const focusedTrails = [];
 // ...and the dots drawn over the rest, likewise
 /** @type {number[]} */
+const lateDots = [];
 const focusedDots = [];
 // A focused dot's least radius: the race leader's (raceDotSpec), so the actor a
 // hovered callout is about reads as the leader does.
@@ -424,32 +425,26 @@ function circleMeetsView(x, y, r, view) {
  * @param {ReadonlySet<number>} focus base indices of the dots drawn in FOCUS
  * @param {readonly [number, number, number, number]} view the drawable rect,
  *   [left, top, right, bottom] — the one clearCanvas clears
+ * @param {ReadonlyMap<number, number>} [late] base index -> layer (1, 2, …):
+ *   dots drawn in passes of their own after the rest, layer by layer, so each
+ *   layer sits on top of the one before (the Gen-Z field over the crowd it
+ *   arrives into, and the named contenders over the field)
  */
-export function drawDots(ctx, attrs, skip, focus, view) {
+export function drawDots(ctx, attrs, skip, focus, view, late) {
 	dotBuckets.clear();
 	exactBuckets = 0;
 	focusedDots.length = 0;
+	for (const layer of lateDots) layer.length = 0;
 	for (let i = 0; i < EDGE_BASE; i += STRIDE) {
-		const alpha = attrs[i + 6];
-		if (alpha <= ALPHA_SEEN) continue;
+		if (attrs[i + 6] <= ALPHA_SEEN) continue;
 		if (skip && skip(i)) continue;
-		if (focus.has(i)) {
-			focusedDots.push(i);
-			continue;
-		}
-		const x = attrs[i];
-		const y = attrs[i + 1];
-		const r = attrs[i + 2];
-		if (!circleMeetsView(x, y, r, view)) continue;
-		const bucket = dotBucket(attrs, i, alpha);
-		// moveTo before arc so consecutive circles aren't joined by a chord
-		bucket.path.moveTo(x + r, y);
-		bucket.path.arc(x, y, r, 0, TAU);
+		const layer = late?.get(i);
+		if (focus.has(i)) focusedDots.push(i);
+		else if (layer) holdLate(i, layer);
+		else addDot(attrs, i, view);
 	}
-	for (const { path, style } of dotBuckets.values()) {
-		ctx.fillStyle = style;
-		ctx.fill(path);
-	}
+	fillBuckets(ctx);
+	fillLate(ctx, attrs, view);
 	ctx.fillStyle = `rgb(${FOCUS.join(", ")})`;
 	for (const i of focusedDots) {
 		ctx.beginPath();
@@ -461,6 +456,43 @@ export function drawDots(ctx, attrs, skip, focus, view) {
 			TAU
 		);
 		ctx.fill();
+	}
+}
+
+/** one dot into its colour's bucket, unless it lies wholly outside `view` */
+function addDot(attrs, i, view) {
+	const x = attrs[i];
+	const y = attrs[i + 1];
+	const r = attrs[i + 2];
+	if (!circleMeetsView(x, y, r, view)) return;
+	const bucket = dotBucket(attrs, i, attrs[i + 6]);
+	// moveTo before arc so consecutive circles aren't joined by a chord
+	bucket.path.moveTo(x + r, y);
+	bucket.path.arc(x, y, r, 0, TAU);
+}
+
+/** hold a `late` dot back for its layer's pass */
+function holdLate(i, layer) {
+	while (lateDots.length < layer) lateDots.push([]);
+	lateDots[layer - 1].push(i);
+}
+
+/** drawDots' later passes: each layer of `late` dots, over everything before it */
+function fillLate(ctx, attrs, view) {
+	for (const layer of lateDots) {
+		if (!layer.length) continue;
+		dotBuckets.clear();
+		exactBuckets = 0;
+		for (const i of layer) addDot(attrs, i, view);
+		fillBuckets(ctx);
+	}
+}
+
+/** fill every bucket opened since the last clear, in the order they opened */
+function fillBuckets(ctx) {
+	for (const { path, style } of dotBuckets.values()) {
+		ctx.fillStyle = style;
+		ctx.fill(path);
 	}
 }
 

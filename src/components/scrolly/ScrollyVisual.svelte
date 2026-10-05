@@ -4,6 +4,7 @@
 	import { MediaQuery } from "svelte/reactivity";
 	import { fade } from "svelte/transition";
 	import { ANCHOR_ID, makeNodes } from "./nodes.js";
+	import { GENZ_NAMED_IDS, SIM_SERIES } from "./cast.js";
 	import { createFrameLoop, createTweener, easeCubicInOut } from "./tween.js";
 	import { skyFlight } from "./sky.js";
 	import { createChoreographer } from "./choreographer.js";
@@ -881,6 +882,20 @@
 	// own. The leaders from names to dots are white at 0.6 for a name at rest,
 	// fading with it below that, and run from behind the dot.
 	const RACE_CHARTS = new Set(["race", "raceClose"]);
+	// Dots painted after the rest, in layers (render.js's drawDots `late`): the
+	// named Gen-Z contenders on top wherever they are drawn, and on raceGenz the
+	// rest of the Gen-Z field between them and the crowd it arrives into.
+	/** @param {number[]} ids @param {number} layer */
+	const layerOf = (ids, layer) =>
+		ids.map((id) => /** @type {[number, number]} */ ([id * STRIDE, layer]));
+	const NAMED_LAYERS = new Map(layerOf(GENZ_NAMED_IDS, 1));
+	const GENZ_LAYERS = new Map([
+		...layerOf(SIM_SERIES, 1),
+		...layerOf(GENZ_NAMED_IDS, 2)
+	]);
+	const lateDots = $derived(
+		stateName === "raceGenz" ? GENZ_LAYERS : NAMED_LAYERS
+	);
 	const RACE_FIELD_LABEL_ALPHA = 0.65;
 	// the background-coloured band behind each of its lines, solid for a line at
 	// the field's 0.35 or more (see render.js's strokeTrail)...
@@ -1908,12 +1923,14 @@
 			ANCHOR_ID * STRIDE,
 			haloLevel(performance.now())
 		);
-		drawDots(ctx, attrs, dotCull(attrs), focusDots, [
-			-bleed.l,
-			-TITLE_BAND,
-			width + bleed.r,
-			height
-		]);
+		drawDots(
+			ctx,
+			attrs,
+			dotCull(attrs),
+			focusDots,
+			[-bleed.l, -TITLE_BAND, width + bleed.r, height],
+			lateDots
+		);
 		if (clip) ctx.restore();
 		// held names (see labelHolds) are still waiting out their lag; drawScene
 		// runs every frame of the arrival tween, which always outlasts the hold, so

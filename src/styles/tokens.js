@@ -18,6 +18,7 @@ export const MARK_HOP_1_LABEL = [255, 245, 187];
 export const MARK_HOP_2_LABEL = [250, 183, 196];
 export const MARK_HOP_3_LABEL = [201, 235, 255];
 export const MARK_HOP_4_LABEL = [199, 255, 219];
+export const MARK_RACE_UNLINED = [55, 44, 63];
 export const MARK_RACE_FIELD = [106, 99, 111];
 export const MARK_LINE_HALO = [19, 5, 29];
 export const MARK_TRAIL_ACCENT = [238, 102, 119];

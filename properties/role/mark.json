@@ -96,6 +96,13 @@
 			"value": "{color.hop-4-label}",
 			"contrast": { "against": "surface.page", "min": 4.5 }
 		},
+		"race-unlined": {
+			"value": "{color.deep-mauve}",
+			"comment": "a race chart dot drawn without its line: the race cast and the backdrop once the Gen-Z field's lines are up (race.js's unlinedDot)",
+			"contrast": {
+				"exempt": "context, not content: the lineless crowd behind the Gen-Z field, which no reading depends on"
+			}
+		},
 		"race-field": {
 			"value": "{color.slate-mauve}",
 			"comment": "the race chart's field dots: everyone but the leader, solid so a leader line can run behind them (raceDotSpec)",

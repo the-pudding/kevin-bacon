@@ -240,7 +240,7 @@
 		translate: 0 -50%;
 		z-index: var(--z-tap-above);
 		display: flex;
-		width: calc(var(--notch-w) + var(--notch-bleed));
+		width: calc(40px + var(--notch-bleed));
 		height: calc(2 * var(--notch-w));
 	}
 
@@ -253,11 +253,11 @@
 	}
 
 	.notch.prev :global(.bits-button) {
-		padding-left: var(--notch-bleed);
+		/* padding-left: var(--notch-bleed); */
 	}
 
 	.notch.next {
-		right: calc(-1 * var(--notch-bleed));
+		/* right: calc(-1 * var(--notch-bleed)); */
 	}
 
 	.notch.next :global(.bits-button) {

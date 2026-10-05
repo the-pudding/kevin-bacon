@@ -94,6 +94,10 @@
 			"value": "#fce5ff",
 			"comment": "the pale pink-violet of the halo behind Bacon's dot"
 		},
+		"deep-mauve": {
+			"value": "#372c3f",
+			"comment": "the Gen-Z step's dots that carry no line"
+		},
 		"slate-mauve": {
 			"value": "#6a636f",
 			"comment": "the race chart's field dots, solid"

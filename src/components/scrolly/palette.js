@@ -21,6 +21,7 @@ import {
 	MARK_QUIZ_RIGHT,
 	MARK_QUIZ_WRONG,
 	MARK_RACE_FIELD,
+	MARK_RACE_UNLINED,
 	MARK_SEARCH,
 	MARK_TRAIL_ACCENT
 } from "$styles/tokens.js";
@@ -72,6 +73,8 @@ export const INK = MARK_INK;
 export const CROWD = MARK_CROWD;
 /** the band behind each race chart line (drawTrails' halo) */
 export const LINE_HALO = MARK_LINE_HALO;
+/** a race chart dot shown without its line (race.js's unlinedDot) */
+export const RACE_UNLINED = MARK_RACE_UNLINED;
 /** the race chart's field dots, drawn solid (raceDotSpec) */
 export const RACE_FIELD = MARK_RACE_FIELD;
 
