@@ -80,8 +80,6 @@
 	--color-ink: #222222;
 	/** network links at rest */
 	--color-edge: #787878;
-	--color-debug-blue: rgb(59 130 246);
-	--color-debug-red: rgb(239 68 68);
 	--12px: 0.75rem;
 	--14px: 0.875rem;
 	--16px: 1rem;
@@ -195,12 +193,6 @@
 	--control-key-glyph: var(--color-ink);
 	/** a scroll container's thumb, on a transparent track: the rank list, the InfoTerm panel (app.css) */
 	--control-scrollbar-thumb: rgba(255, 255, 255, 0.4);
-	/** the dev tuners' active state and markers */
-	--dev-accent: var(--color-red);
-	--dev-accent-fg: var(--color-white);
-	--dev-grid: var(--color-gray-200);
-	--dev-tap-prev: rgba(59, 130, 246, 0.08);
-	--dev-tap-next: rgba(239, 68, 68, 0.08);
 	/** a named dot, the anchor, the leader */
 	--mark-ink: var(--color-white);
 	/** the background crowd every chart is drawn against */
@@ -282,7 +274,6 @@
 	/** quiz cards, search chips and the search box's readouts */
 	--type-chip-family: var(--font-mono);
 	--type-chip-tracking: var(--tracking-mono);
-	--type-dev-family: var(--font-mono);
 	--chart-result-track: rgba(19, 5, 29, 0.78);
 	/** the outline and ghost variants */
 	--control-button-quiet-fg: var(--prose-fg);

@@ -20,9 +20,8 @@
 	--z-base: 1;
 	--z-top: 10;
 	/* the story's tap gutters, the step card that lies over them, and the
-	   controls that must stay reachable through both. Above --z-top because the
-	   race chart's dev tuners sit at 5 and .tick-1980 at 1 — see the z ladder
-	   comment in Stage.svelte */
+	   controls that must stay reachable through both. Above --z-top because
+	   .tick-1980 sits at 1 — see the z ladder comment in Stage.svelte */
 	--z-tap: 20;
 	--z-card: 21;
 	--z-tap-above: 22;

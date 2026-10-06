@@ -135,11 +135,10 @@ describe("affectedSteps", () => {
 		}
 	});
 
-	test("chrome, dev tuners, tests and files outside the framework stale nothing", () => {
+	test("chrome, tests and files outside the framework stale nothing", () => {
 		for (const file of [
 			"src/components/scrolly/TapNav.svelte",
 			"src/components/scrolly/Step.svelte",
-			"src/components/scrolly/dev/RaceSpeedDev.svelte",
 			"src/components/scrolly/__tests__/goldens.spec.js",
 			"src/components/Index.svelte",
 			"notes/tween-checklist.md"

@@ -11,8 +11,7 @@
 #scrolly .tap-half,
 #scrolly .notch,
 #scrolly .step-progress,
-#scrolly .search,
-#scrolly [data-dev-only] {
+#scrolly .search {
 	opacity: 0;
 }
 

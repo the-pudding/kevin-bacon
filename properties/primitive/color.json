@@ -145,12 +145,6 @@
 		"edge": {
 			"value": "#787878",
 			"comment": "network links at rest"
-		},
-		"debug-blue": {
-			"value": "rgb(59 130 246)"
-		},
-		"debug-red": {
-			"value": "rgb(239 68 68)"
 		}
 	}
 }

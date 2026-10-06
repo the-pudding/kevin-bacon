@@ -54,13 +54,6 @@
 	import ChevronLeft from "@lucide/svelte/icons/chevron-left";
 	import ChevronRight from "@lucide/svelte/icons/chevron-right";
 	import { createTap } from "./tap.js";
-	// DEV-ONLY: paints the halves with a light, very-low-opacity tint while
-	// scrolly/dev/TapZonesDev.svelte's HUD toggle is on, so their extent —
-	// full viewport width, edge to edge — can be checked visually.
-	// tapZonesDev.visible is always false in a production build (the toggle
-	// that could flip it never mounts there), so this import costs a dead
-	// read, not a dead component.
-	import { tapZonesDev } from "./dev/tapZones.svelte.js";
 
 	/** @type {{ beside: boolean }} */
 	let { beside } = $props();
@@ -141,7 +134,6 @@
 	<button
 		type="button"
 		class="tap-half prev"
-		class:debug-visible={tapZonesDev.visible}
 		aria-label={atStart ? "Continue" : "Previous step"}
 		onpointerdown={tap.down}
 		onclick={(e) => onTap(e, "prev")}
@@ -150,7 +142,6 @@
 	<button
 		type="button"
 		class="tap-half next"
-		class:debug-visible={tapZonesDev.visible}
 		aria-label="Next step"
 		disabled={held}
 		onpointerdown={tap.down}
@@ -210,17 +201,6 @@
 
 	.tap-half:disabled {
 		cursor: default;
-	}
-
-	/* DEV-ONLY debug tint (see tapZones.svelte.js / TapZonesDev.svelte). Light
-	   and very low opacity, so it marks the region without hiding the canvas
-	   or prose underneath; the two halves get different hues so "prev" and
-	   "next" read apart at a glance. */
-	.tap-half.debug-visible.prev {
-		background: var(--dev-tap-prev);
-	}
-	.tap-half.debug-visible.next {
-		background: var(--dev-tap-next);
 	}
 
 	/* The notches, beside the prose: fixed to the viewport's edges, vertically

@@ -49,9 +49,6 @@
 				"comment": "quiz cards, search chips and the search box's readouts"
 			},
 			"tracking": { "value": "{tracking.mono}" }
-		},
-		"dev": {
-			"family": { "value": "{font.mono}" }
 		}
 	}
 }

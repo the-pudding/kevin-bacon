@@ -93,7 +93,6 @@
 		screenSpan
 	} from "./plot.js";
 	import { story } from "./story.svelte.js";
-	import { tuning } from "./dev/tuning.svelte.js";
 
 	// undefined until the <Step> registry has populated (first client render)
 	/** @type {{ state: import("./states.js").VisualState, step?: number, params?: Object, stepsHeight?: number, coldStart?: boolean, beside?: boolean }} */
@@ -444,23 +443,6 @@
 			layoutCache.set(key, result);
 		}
 		return result;
-	}
-	// DEV only: the tuning revision the cache was last valid for (see
-	// dropStaleLayouts). Always 0 in a build, where the tuners don't exist.
-	let lastTuningRev = 0;
-	/**
-	 * DEV: the race tuners (scrolly/dev) edit `raceTuning` inside layouts/race.js,
-	 * which the layout cache can't see. Read their revision FIRST in the render
-	 * effect — before any early return, so the dependency is registered on every
-	 * run — and drop the cached layouts whenever it moves. The result is what lets
-	 * the no-op guard let such a run through: the tables changed and the SAME
-	 * state, params and box need a rebuild.
-	 */
-	function dropStaleLayouts() {
-		if (!import.meta.env.DEV || tuning.rev === lastTuningRev) return false;
-		lastTuningRev = tuning.rev;
-		layoutCache.clear();
-		return true;
 	}
 	/**
 	 * How far a state's title moves off the column's centre onto the screen's:
@@ -2119,9 +2101,8 @@
 	 * straight onto the state, since this is not their first-ever view and the
 	 * pop-in reads as an empty chart on faint states; everyone else gets the
 	 * grow-in. After that a resize or reduced
-	 * motion snaps, a declared entry plays, a state change tweens, a params
-	 * change retargets, and a run that rebuilt the same layout (a dev tuner's
-	 * edit) holds the frame.
+	 * motion snaps, a declared entry plays, a state change tweens, and a params
+	 * change retargets.
 	 */
 	function firstPaintKind() {
 		if (coldStart) return "cold";
@@ -2339,11 +2320,8 @@
 	 * start that onDone is the ONLY call to `settle()`, so the 900ms entry tween
 	 * would be snapped away at birth.
 	 */
-	const unchanged = (box, cacheDropped, paramsKey) =>
-		!box.resized &&
-		!cacheDropped &&
-		stateName === prevState &&
-		paramsKey === prevParamsKey;
+	const unchanged = (box, paramsKey) =>
+		!box.resized && stateName === prevState && paramsKey === prevParamsKey;
 
 	/**
 	 * The arrival's own clock. Node slots are the state's authored reveal, where
@@ -2514,7 +2492,6 @@
 	}
 
 	$effect(() => {
-		const cacheDropped = dropStaleLayouts();
 		// canvasWidth is in here with the rest: it sizes the backing store, so a tick
 		// where it has not been measured yet would hand the store a width of 0 and
 		// blank the canvas until the next resize
@@ -2537,7 +2514,7 @@
 		// waiting. `beat` is load-bearing — the identity-only re-runs this guard
 		// exists for must NOT land, or a publish mid-arrival would release the
 		// words early.
-		if (unchanged(box, cacheDropped, paramsKey)) {
+		if (unchanged(box, paramsKey)) {
 			landBeat(beat);
 			return;
 		}

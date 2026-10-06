@@ -14,9 +14,7 @@
 // cannot see the canvas's marks, and where text lies over the canvas it may be
 // unable to resolve the background — those nodes are "incomplete" and listed,
 // not failed. The token pairs in src/styles/__tests__/contrast.spec.js cover
-// both. The dev server mounts the dev tuners (scrolly/dev/, marked
-// `data-dev-only`), which a production build never ships, so they are left out
-// of the scan. Exits 1 on any violation.
+// both. Exits 1 on any violation.
 import { readFileSync } from "node:fs";
 import { parseArgs } from "node:util";
 import { chromium } from "playwright";
@@ -74,7 +72,6 @@ async function scan(browser, base, box, step, settle) {
 		await page.waitForTimeout(settle);
 		const result = await new AxeBuilder({ page })
 			.withRules(["color-contrast"])
-			.exclude("[data-dev-only]")
 			.analyze();
 		const nodes = (list) => list.flatMap((rule) => rule.nodes).map(describe);
 		return {

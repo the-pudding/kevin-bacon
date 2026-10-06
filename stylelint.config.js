@@ -4,7 +4,7 @@
 // token files, and a token read never carries a fallback: it is always
 // defined, and a fallback would be a second, silently stale copy of it.
 const TOKEN =
-	"(color|category|font|tracking|surface|prose|chart|annotation|mark|control|art|dev|type)-|[0-9]+px";
+	"(color|category|font|tracking|surface|prose|chart|annotation|mark|control|art|type)-|[0-9]+px";
 
 /** @type {import("stylelint").Config} */
 export default {

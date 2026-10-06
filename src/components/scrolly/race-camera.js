@@ -14,7 +14,7 @@
 import {
 	racePanBounds,
 	raceRestPlayhead,
-	raceTuning,
+	RACE_PX_PER_YEAR,
 	RACE_RECENT_EXTENT,
 	RACE_DATA_END
 } from "./layouts/race.js";
@@ -95,7 +95,7 @@ export function createRaceCamera(story) {
 				story.race.view = cam.hold();
 			}
 			story.race.cam = {
-				pxPerYear: raceTuning.pxPerYear,
+				pxPerYear: RACE_PX_PER_YEAR,
 				playhead: cam.playhead,
 				...bounds
 			};

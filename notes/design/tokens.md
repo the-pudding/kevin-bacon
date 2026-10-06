@@ -22,8 +22,7 @@ component names a colour or a font family directly; lint refuses it.
 | `mark`       | the canvas: crowd, ink, focus, edges, hop bands and their label inks, trails, quiz verdicts, career                                 |
 | `control`    | buttons (per variant, with explicit hovers), inputs, switch, slider, quiz cards, search chips, the progress bar, focus ring         |
 | `art`        | the wordmark and the pointer doodle                                                                                                 |
-| `dev`        | the dev tuners (never shipped)                                                                                                      |
-| `type`       | font family and tracking per role: prose, heading, ui, chart, annotation, callout, chip, dev                                        |
+| `type`       | font family and tracking per role: prose, heading, ui, chart, annotation, callout, chip                                             |
 
 A role token can carry `modify`: `{ "alpha": n }` (a translucent version of
 its reference) or `{ "lighten": n }` (an OKLCH lightness shift, used for
@@ -77,8 +76,8 @@ every pair, and fails if a role outside `surface.*` states nothing.
 `npm run a11y` (`scripts/a11y-scan.js`) runs axe-core's `color-contrast` rule
 on every step at the mobile and desktop boxes, on a dev server. It cannot see
 the canvas, and it reports text over the canvas whose background it can't
-resolve as unresolved rather than failed; the token pairs cover both. The dev
-tuners are marked `data-dev-only` and left out. It is a CI gate (full mode of
+resolve as unresolved rather than failed; the token pairs cover both. It is a
+CI gate (full mode of
 `scripts/run-ci-quality-gates.sh`), not a pre-commit one: it takes about 2.5
 minutes. It is the only check that sees alpha applied in CSS or JS, so dim text
 with a muted role token rather than `opacity` — the token spec then checks the

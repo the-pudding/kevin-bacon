@@ -13,8 +13,8 @@
 // mounted by Stage.svelte across the rank chapter and raceRecent); anything else
 // under src/components/scrolly/ that draws — the buffers, the visual and its
 // modules, the state registry — stales the whole table, as does the canvas's
-// generated palette (src/styles/tokens.js, the mark.* colour tokens); navigation chrome, the
-// dev tuners and the tests stale nothing. A change to Index.svelte is checked
+// generated palette (src/styles/tokens.js, the mark.* colour tokens); navigation chrome
+// and the tests stale nothing. A change to Index.svelte is checked
 // against the table's numbering, since a <Step> added, removed or reordered
 // renumbers every row after it. Only Owen signs a row off ([x]); this only ever
 // takes a mark back to [!].
@@ -138,7 +138,7 @@ export function affectedSteps(file, steps, statesOf) {
 	const rel = file.slice(SCROLLY.length);
 	const layout = rel.match(/^layouts\/([\w-]+)\.js$/);
 	if (layout) return stepsOn(statesOf(layout[1]), steps);
-	if (rel.startsWith("dev/") || rel.startsWith("__tests__/")) return new Set();
+	if (rel.startsWith("__tests__/")) return new Set();
 	const component = rel.match(/^(\w+)\.svelte$/)?.[1];
 	return component ? componentSteps(component, steps) : "all";
 }

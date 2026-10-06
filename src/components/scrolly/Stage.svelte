@@ -2,7 +2,7 @@
 	// @ts-check
 	/**
 	 * The story's stage: the canvas, everything laid over it (the rank ladder,
-	 * the active step's panel, the title card, the dev tuners) and the
+	 * the active step's panel, the title card) and the
 	 * prose column with its navigation. Index.svelte writes the story — the
 	 * <Step>s and their prose — into `children`, which renders in the prose
 	 * column with the stage's measurements (`layout`) for the pieces the prose
@@ -260,24 +260,6 @@
 		rankTap.tap(e, e.clientX < box.left + box.width / 2 ? "prev" : "next");
 	}
 
-	// The race chart's dev tuners (scrolly/dev). Pulled in dynamically rather
-	// than imported at the top so a production build drops them entirely:
-	// `import.meta.env.DEV` is substituted with `false`, the branch goes dead,
-	// and nothing references the chunk. A static import survives tree-shaking
-	// (the compiled block and its CSS still land in the bundle), which is why
-	// this isn't just an {#if} in the markup.
-	let devTuners = $state(null);
-	// The tap-zones debug toggle (scrolly/dev/TapZonesDev.svelte): a light,
-	// low-opacity tint over TapNav's halves, on/off from a HUD button fixed to
-	// the viewport. Same dynamic-import-under-DEV treatment as devTuners, and
-	// mounted alongside it so a production build drops both the same way.
-	let devTapZones = $state(null);
-	onMount(async () => {
-		if (!import.meta.env.DEV) return;
-		devTuners = await import("./dev/Tuners.svelte");
-		devTapZones = await import("./dev/TapZonesDev.svelte");
-	});
-
 	// Flips one tick after hydration — see SPLASH_REVEAL_MS in cardFade.js
 	// for why the splash's cold-load reveal rides this rather than `in:fade`.
 	let mounted = $state(false);
@@ -456,8 +438,8 @@
 				/>
 			{/if}
 			{#if !steps.exited}
-				<!-- The rank ladder, mounted here rather than as a step's panel (the
-			     way the dev tuners below are) because it has to OUTLIVE the step
+				<!-- The rank ladder, mounted here rather than as a step's panel
+			     because it has to OUTLIVE the step
 			     change into raceRecent: that arrival is the handoff, where its bars
 			     collapse into the race chart's own dots while the canvas underneath
 			     is parked on a copy of them. A per-step panel is torn down and
@@ -554,16 +536,6 @@
 						{/if}
 					</p>
 				{/if}
-				<!-- dev-only race tuners. Mounted outside the step registry so they span
-			     the whole race chapter and keep their values installed across step
-			     changes; they render nothing until story.race.cam exists, i.e. off
-			     the race chapter. -->
-				{#if devTuners}
-					<devTuners.default />
-				{/if}
-				{#if devTapZones}
-					<devTapZones.default />
-				{/if}
 			{/if}
 		</div>
 		{#if !steps.exited}
@@ -624,8 +596,7 @@
 	           InfoTerm triggers) opt back in.
 	     22    --z-tap-above: what must beat BOTH — .hits, .route, the search,
 	           the scrubber's .control, .tick-1980, the progress bar, the rank
-	           ladder (which forwards its taps; see onRankTap), the dev-only
-	           race tuners
+	           ladder (which forwards its taps; see onRankTap)
 	     100+  InfoTerm's scrim and panel, untouched */
 	.scrolly-layout {
 		position: relative;

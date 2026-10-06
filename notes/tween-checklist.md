@@ -67,7 +67,7 @@ rules it applies:
   `Stage.svelte`, `states.js`, the story store, the registry and arrival rules
   → the whole table.
 - **navigation chrome** (`TapNav`, `StepProgress`, `Step`, `Chapter`,
-  `Splash`), the dev tuners and the tests → nothing.
+  `Splash`) and the tests → nothing.
 - **the `<Step>` list** in `Index.svelte` (a step added, removed or reordered)
   → renumber the table; the check fails until it matches. Stale the neighbours of
   the edit by hand — the script cannot see which step moved.

@@ -50,7 +50,7 @@ export const TITLE_BAND = 26;
 // Which of the two modes the page is in is a module variable rather than a
 // seventh layout argument because `plotBottom(h, group)` is read from the layout
 // modules and from the render path, none of which are handed the page's layout
-// mode — the same idiom `raceTuning` uses for the race dials (layouts/race.js).
+// mode.
 // ScrollyVisual owns the setter AND puts the mode in its layout cache key, which
 // is what stops a chart built for one mode being handed back in the other.
 

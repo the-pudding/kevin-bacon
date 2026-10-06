@@ -6,9 +6,8 @@
 // through it. The active step is kept in the URL (?step=N) so each tab keeps
 // its own place
 // across refreshes, independently of every other tab on the origin — in dev
-// only, the same `import.meta.env.DEV` gate as the race tuners: a production
-// build neither reads the param nor writes it, so every reader starts at the
-// top.
+// only, behind `import.meta.env.DEV`: a production build neither reads the
+// param nor writes it, so every reader starts at the top.
 //
 // Created once by Index.svelte, which puts it in the "scrolly-steps" context
 // for the components to read. Runes, so it is created inside a component's
