@@ -604,8 +604,8 @@
 					alt="The chart runs on past 2025 into an empty shaded block labelled the future."
 				>
 					<p>
-						Now apply this to the future. How might we predict who will take the
-						crown from Samuel L. Jackson?
+						Now apply this to the <span class="future">future</span>. How might
+						we predict who will take the crown from Samuel L. Jackson?
 					</p>
 
 					<p>
@@ -1048,5 +1048,11 @@
 		text-transform: uppercase;
 		letter-spacing: 0.03em;
 		opacity: 0.7;
+	}
+
+	/* "future" in the prose that introduces the race chart's future strip, in
+	   the strip label's own yellow (chart.future) */
+	.future {
+		color: var(--chart-future);
 	}
 </style>

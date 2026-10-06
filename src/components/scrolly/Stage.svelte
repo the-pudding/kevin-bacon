@@ -337,20 +337,18 @@
 
 {#snippet navCue()}
 	<span class="nav-cue-body">
-		<!-- beside the prose a click on the screen is not a step (TapNav), so
-		     only the keys are offered there -->
-		{#if !beside}
-			<span class="nav-cue-row on-wide">
-				<strong>Click to continue</strong>
-				<span class="nav-cue-icon"><PointerIcon /></span>
-			</span>
-			<span class="nav-cue-row on-narrow">
-				<strong>Tap to continue</strong>
-				<span class="nav-cue-icon"><PointerIcon /></span>
-			</span>
-		{/if}
+		<!-- beside the prose the cue sits under the next notch (.nav-cue.beside),
+		     so "click" there is a click on the arrow it is under -->
+		<span class="nav-cue-row on-wide">
+			<strong>Click to continue</strong>
+			<span class="nav-cue-icon"><PointerIcon /></span>
+		</span>
+		<span class="nav-cue-row on-narrow">
+			<strong>Tap to continue</strong>
+			<span class="nav-cue-icon"><PointerIcon /></span>
+		</span>
 		<span class="nav-keys on-wide">
-			{beside ? "Use" : "Or use"} the keyboard
+			Or use the keyboard
 			<span class="key"><ChevronLeft /></span>
 			<span class="key"><ChevronRight /></span>
 		</span>
@@ -389,11 +387,11 @@
 				aria-live="polite"
 			>
 				{@render children(layout)}
-				<!-- step 0's nav cue: a row of its own under the prose, stacked
-				     or beside (keys only, there). Mounted for the whole of the step
-				     rather than when it shows, so the row is already there when the
-				     prose lands and the words never shift up to make room for it. -->
-				{#if steps.current === 0}
+				<!-- step 0's nav cue, stacked: a row of its own under the prose.
+				     Mounted for the whole of the step rather than when it shows,
+				     so the row is already there when the prose lands and the words
+				     never shift up to make room for it. -->
+				{#if steps.current === 0 && !beside}
 					<div
 						class="nav-cue in-card"
 						class:shown={!steps.held}
@@ -405,6 +403,20 @@
 				{/if}
 			</div>
 			<TapNav {beside} />
+			<!-- ...and beside the prose: at the next notch, and over it in the
+			     paint order. Out here rather than in the card, because the card
+			     (.scrolly-steps, --z-card) is a stacking context the notches
+			     (--z-tap-above) sit above whatever z-index is set inside it. -->
+			{#if steps.current === 0 && beside}
+				<div
+					class="nav-cue beside"
+					class:shown={!steps.held}
+					aria-hidden="true"
+					out:fade={cardOut}
+				>
+					{@render navCue()}
+				</div>
+			{/if}
 		{/if}
 		<div
 			class="scrolly-visual"
@@ -525,8 +537,7 @@
 					</div>
 				{/if}
 				<!-- How to move, for a screen reader, on step 0. The visible cue is
-				     in the card, above, and beside the prose it is the keys alone: there
-				     are no tap halves to teach, and the next notch's chevron pans (TapNav). -->
+				     in the card, above, and beside the prose under the next notch (TapNav). -->
 				{#if steps.current === 0}
 					<p class="sr-only nav-instruction">
 						{#if beside}
@@ -851,7 +862,7 @@
 		text-shadow: var(--text-halo);
 		color: #fbeffc;
 		-webkit-font-smoothing: antialiased;
-		font-family: 'Atlas Typewriter';
+		font-family: "Atlas Typewriter";
 		letter-spacing: -2px;
 		font-size: 6rem;
 	}
@@ -881,7 +892,6 @@
 	.splash-logo :global(a) {
 		pointer-events: auto;
 	}
-
 
 	/* The standfirst, between the title and the byline: the serif again, so it
 	   reads as part of the title rather than as the byline's small print, but
@@ -932,8 +942,8 @@
 	/* Where the tap goes, on step 0: a hand-cursor icon, "click"/"tap to
 	   continue" (ported like-for-like from The Pudding's pop-love-songs
 	   Tap.svelte) and, past 40rem, the keyboard alternative spelled out as two
-	   key glyphs. Beside the prose only the keys are shown — a click there is
-	   not a step, and the next notch's chevron pans as well (TapNav). The whole screen answers a tap on step 0 (see TapNav's
+	   key glyphs. Beside the prose it sits under the next notch (.nav-cue.beside),
+	   where a click on the screen is not a step but a click on the notch is. The whole screen answers a tap on step 0 (see TapNav's
 	   atStart branch), so the cue does not have to sit over any one half of it.
 
 	   It is the last thing to arrive on the step: mounted with the step, held
@@ -963,6 +973,19 @@
 	.nav-cue.shown {
 		opacity: 1;
 		transform: none;
+	}
+
+	/* Beside the prose: just under the next notch (TapNav's .notch.next, fixed
+	   to the viewport's right edge and centred on its height, 2 × --notch-w
+	   tall), right-aligned a little in from the screen edge, rather than in the
+	   bottom-right corner. */
+	.nav-cue.beside {
+		top: calc(50% + var(--notch-w, 1.75rem) + -0.55rem);
+		bottom: auto;
+		right: 0.75rem;
+		/* over the notch it overlaps, and transparent to the presses meant for
+		   it (pointer-events: none, on .nav-cue) */
+		z-index: calc(var(--z-tap-above) + 1);
 	}
 
 	/* A keyframe animation rather than a transition: the cue can be created

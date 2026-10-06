@@ -812,20 +812,37 @@
 	const shownTitleShift = $derived(titleState ? titleShiftFor(titleState) : 0);
 	const shownTitleSpan = $derived(titleState ? titleSpanFor(titleState) : null);
 	// The chart title, measured, for the one thing that has to clear it: an
-	// upright y-axis title (.y-title-top) sits beside the title's first line,
-	// so when the title wraps (a phone) it drops by the lines below that, and
-	// a gap. One line drops nothing.
+	// upright y-axis title (.y-title-top) sits level with the title's first
+	// line, so wherever it would run in under the title — a wrapped title on a
+	// phone, or a long axis title ("Costar film count average (log scale)")
+	// beside a one-line chart title on a narrower column — it drops to just
+	// below the title instead, and likewise below a tick label it would print
+	// over. A short one beside a clear axis drops nothing.
 	/** @type {HTMLElement | undefined} */
 	let titleEl = $state();
 	let titleHeight = $state(0);
 	const titleOverrun = $derived.by(() => {
-		if (!titleEl || !titleHeight) return 0;
-		const range = document.createRange();
-		range.selectNodeContents(titleEl);
-		const lines = new Set(
-			[...range.getClientRects()].map((r) => Math.round(r.top))
-		).size;
-		return lines > 1 ? (titleHeight * (lines - 1)) / lines + 8 : 0;
+		titleHeight;
+		width;
+		stateName;
+		if (!titleEl || !overlayEl || !yTitleW) return 0;
+		// its resting top: the plot's top edge (hintTop), less its 0.6em lift
+		const rest = MARGIN + 8 - yTitleLift;
+		const o = overlayEl.getBoundingClientRect();
+		const t = titleEl.getBoundingClientRect();
+		// read once per measure, not per frame: the axis' x holds still in a pan
+		const yMarkX = untrack(() => decor?.axes?.yMarkX ?? 0);
+		const left = yMarkX - 12 - yTickW;
+		// below the chart title where it would run in under it, then below any
+		// tick label wherever that leaves it (the spans run top to bottom, so
+		// one pass steps past each in turn)
+		let top =
+			left + yTitleW + 8 <= t.left - o.left
+				? rest
+				: Math.max(rest, t.bottom - o.top + 6);
+		for (const [a, b] of yTickSpans)
+			if (a < top + yTitleH && b > top) top = b + 4;
+		return top - rest;
 	});
 	// tappable chart regions (layout `hits` + the state's `pick`): rendered as
 	// transparent buttons over the canvas, so a pick is keyboard- and
@@ -848,6 +865,13 @@
 	/** @type {HTMLElement | undefined} */
 	let overlayEl = $state();
 	let yTickW = $state(0);
+	// ...and the upright title's own width and lift, and how far down a tick
+	// label it would rest on reaches (titleOverrun)
+	let yTitleW = $state(0);
+	let yTitleLift = $state(0);
+	let yTitleH = $state(0);
+	/** the y tick labels' [top, bottom], in the overlay's coordinates @type {[number, number][]} */
+	let yTickSpans = $state([]);
 	const yTickKey = $derived(
 		(decor?.axes?.y ?? []).map((t) => t.label ?? "").join("|")
 	);
@@ -855,9 +879,31 @@
 		yTickKey;
 		width;
 		furnitureHeld;
+		stateName;
 		const els = overlayEl?.querySelectorAll(".layer:not(.gone) .tick-y") ?? [];
 		yTickW = Math.max(0, ...[...els].map((e) => e.offsetWidth));
+		const title = /** @type {HTMLElement | null | undefined} */ (
+			overlayEl?.querySelector(".layer:not(.gone) .y-title-top")
+		);
+		yTitleW = title?.offsetWidth ?? 0;
+		yTitleLift = title ? parseFloat(getComputedStyle(title).fontSize) * 0.6 : 0;
+		yTitleH = title?.offsetHeight ?? 0;
+		yTickSpans = overlayEl ? tickSpans(els) : [];
 	});
+	/**
+	 * The y tick labels' vertical spans, top to bottom, in the overlay's
+	 * coordinates, for the upright title to step clear of (titleOverrun).
+	 * @param {Iterable<Element>} ticks
+	 * @returns {[number, number][]}
+	 */
+	function tickSpans(ticks) {
+		const o = /** @type {HTMLElement} */ (overlayEl).getBoundingClientRect()
+			.top;
+		return [...ticks]
+			.map((e) => e.getBoundingClientRect())
+			.map((r) => /** @type {[number, number]} */ ([r.top - o, r.bottom - o]))
+			.sort((a, b) => a[0] - b[0]);
+	}
 	/** how long the departing furniture keeps its place before it goes. The HTML
 	 *  twin of DEPART_FADE_MS: decluttering, not a beat the reader watches. */
 	const DECOR_OUT_MS = 220;
@@ -3392,7 +3438,7 @@
 		text-transform: uppercase;
 		letter-spacing: 1px;
 		-webkit-font-smoothing: antialiased;
-		color: #ffe021;
+		color: var(--chart-future);
 		white-space: nowrap;
 		/* it sits just inside the box, and can crowd the border on a narrow strip,
 		   so it needs the same legibility halo the ticks carry */

@@ -298,7 +298,9 @@ export const states = {
 		params: simParams,
 		overlay: {
 			xLabel: "Simulations run",
-			yLabel: "Wins"
+			yLabel: "Wins",
+			// upright at the top of the axis, as on every other chart (`yTitleTop`)
+			yTitleTop: true
 		},
 		requests: { run: replay }
 	}

@@ -94,6 +94,10 @@
 			"value": "#fce5ff",
 			"comment": "the pale pink-violet of the halo behind Bacon's dot"
 		},
+		"future-yellow": {
+			"value": "#ffe021",
+			"comment": "the race chart's future strip label, and the word it names in the prose"
+		},
 		"deep-mauve": {
 			"value": "#372c3f",
 			"comment": "the Gen-Z step's dots that carry no line"

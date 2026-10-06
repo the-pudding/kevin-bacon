@@ -437,9 +437,12 @@ function cohortEntryFrames(nodes, w, h) {
 	};
 }
 
+// the y title upright at the top of the axis, as on the race chart and the
+// scatters (`yTitleTop`, ScrollyVisual's .y-title-top)
 const CAREER_OVERLAY = {
 	xLabel: "Career age (years)",
-	yLabel: "Film count"
+	yLabel: "Film count",
+	yTitleTop: true
 };
 
 const CAREER_TITLE = "Film count by career age";

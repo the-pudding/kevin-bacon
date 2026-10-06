@@ -457,7 +457,9 @@ export const states = {
 			),
 		overlay: {
 			xLabel: "Film count (log scale)",
-			yLabel: "Costar film count average (log scale)"
+			yLabel: "Costar film count average (log scale)",
+			// upright at the top of the axis, as Remoteness is (`yTitleTop`)
+			yTitleTop: true
 		}
 	}
 };

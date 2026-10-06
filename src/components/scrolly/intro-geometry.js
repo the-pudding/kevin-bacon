@@ -27,6 +27,12 @@ const introBottomFraction = () =>
 // is centred under its dot and it is the label, not the dot, that meets the edge
 export const INTRO_LABEL_INSET = 60;
 
+// ...and beside the prose, this much more on the right: step 0's "click to
+// continue" cue hangs at the next notch on the screen's right edge
+// (Stage.svelte's .nav-cue.beside), so the outermost names stop this far short
+// of the canvas's edge rather than running in under it.
+const INTRO_BESIDE_RIGHT = 100;
+
 // the dots' own x-extent in the baked layout, which sits well inside its 860
 // box (and off-centre in it), so fitting the box wasted width on a phone
 const INTRO_XS = Object.values(INTRO_LAYOUT.xy).map(([x]) => x);
@@ -39,17 +45,23 @@ const INTRO_X1 = Math.max(...INTRO_XS);
  * anchor's fitted screen position plus the axis scales — the one frame every
  * intro-chapter layout hangs off (networkIntro at full size, hopSeed pulled
  * back, see introPosition's `scale`). Across, it fits and centres the dots'
- * extent inside INTRO_LABEL_INSET; down, the layout's full 680 height, whose
+ * extent inside INTRO_LABEL_INSET, less INTRO_BESIDE_RIGHT on the right
+ * beside the prose; down, the layout's full 680 height, whose
  * padding below the lowest dot is what keeps that dot's label off the card.
  */
 export function introFrame(w, h) {
-	const availW = w - INTRO_LABEL_INSET * 2;
+	const right = isPlotBeside() ? INTRO_BESIDE_RIGHT : 0;
+	const availW = w - INTRO_LABEL_INSET * 2 - right;
 	const availH = h * introBottomFraction() - MARGIN;
 	const sxRaw = availW / (INTRO_X1 - INTRO_X0);
 	const syRaw = availH / INTRO_LAYOUT.h;
 	const sx = Math.min(sxRaw, syRaw * INTRO_MAX_STRETCH);
 	const sy = Math.min(syRaw, sxRaw * INTRO_MAX_STRETCH);
-	const ox = (w - (INTRO_X0 + INTRO_X1) * sx) / 2;
+	// centred in what is left once the right-hand reserve is taken off (the
+	// stacked case keeps the plain centring, so its layouts are unchanged)
+	const ox = right
+		? (w - right - (INTRO_X0 + INTRO_X1) * sx) / 2
+		: (w - (INTRO_X0 + INTRO_X1) * sx) / 2;
 	const oy = MARGIN + (availH - INTRO_LAYOUT.h * sy) / 2;
 	const [ax, ay] = INTRO_LAYOUT.xy[ANCHOR_ID];
 	return { cx: ox + ax * sx, cy: oy + ay * sy, sx, sy };

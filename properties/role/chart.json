@@ -96,6 +96,11 @@
 				"min": 4.5
 			}
 		},
+		"future": {
+			"value": "{color.future-yellow}",
+			"comment": "\"the future\": the race chart's strip label (ScrollyVisual's .band-label) and the word in the prose that introduces it (Index.svelte's .future)",
+			"contrast": { "against": "surface.page", "min": 4.5 }
+		},
 		"readout": {
 			"value": "{color.white}",
 			"comment": "the race scrubber's year, over its thumb",

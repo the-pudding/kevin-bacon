@@ -54,6 +54,8 @@
 	--color-lavender: #e6bfff;
 	/** the pale pink-violet of the halo behind Bacon's dot */
 	--color-lilac: #fce5ff;
+	/** the race chart's future strip label, and the word it names in the prose */
+	--color-future-yellow: #ffe021;
 	/** the Gen-Z step's dots that carry no line */
 	--color-deep-mauve: #372c3f;
 	/** the race chart's field dots, solid */
@@ -138,6 +140,8 @@
 	--chart-rank-row-muted: var(--color-gray-500);
 	--chart-rank-row-focus: var(--color-gray-900);
 	--chart-footnote: var(--color-gray-500);
+	/** "the future": the race chart's strip label (ScrollyVisual's .band-label) and the word in the prose that introduces it (Index.svelte's .future) */
+	--chart-future: var(--color-future-yellow);
 	/** the race scrubber's year, over its thumb */
 	--chart-readout: var(--color-white);
 	/** the quiz results chart's caption */
@@ -236,8 +240,8 @@
 	--surface-wash: var(--color-plum);
 	/** panels, cards, menus, chips and key caps laid over the page */
 	--surface-raised: var(--color-aubergine);
-	/** selected text, a highlighted option, a slider track */
-	--surface-selection: var(--color-gray-300);
+	/** selected text, a highlighted option, a slider track: a light wash on the dark page, under the page's own white text */
+	--surface-selection: rgba(255, 255, 255, 0.16);
 	/** the <mark> element */
 	--surface-highlight: var(--color-yellow);
 	/** hairline rules and the edges of controls */

@@ -27,8 +27,9 @@
 			"comment": "the solid rings and glows that part a mark or logo from the field behind it"
 		},
 		"selection": {
-			"value": "{color.gray-300}",
-			"comment": "selected text, a highlighted option, a slider track"
+			"value": "{color.white}",
+			"modify": { "alpha": 0.16 },
+			"comment": "selected text, a highlighted option, a slider track: a light wash on the dark page, under the page's own white text"
 		},
 		"highlight": {
 			"value": "{color.yellow}",
