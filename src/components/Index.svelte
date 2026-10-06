@@ -603,7 +603,7 @@
 					<p>
 						Let's go back to where Samuel L. Jackson took the crown in 2006.
 						Interestingly, this was before the Marvel Cinematic Universe era
-						kicked off, which only made strengthened his position.
+						kicked off, which only strengthened his position.
 					</p>
 					<p>
 						Conversely, Kevin Bacon's highest ever ranking was #108 in 1996 with
