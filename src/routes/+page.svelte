@@ -16,10 +16,10 @@
 		"https://pudding.cool/assets/fonts/atlas/AtlasGrotesk-Bold-Web.woff2"
 	];
 
-	const { title, description, url, keywords } = copy;
+	const { title, description, url, keywords, imageAlt } = copy.meta;
 	setContext("copy", copy);
 	setContext("data", data);
 </script>
 
-<Meta {title} {description} {url} {preloadFont} {keywords} />
+<Meta {title} {description} {url} {keywords} {imageAlt} {preloadFont} />
 <Index />

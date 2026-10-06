@@ -2,8 +2,9 @@
 // The writes are fire-and-forget: a failed one must never block or surface to
 // the reader, since this is background recording, not a gated step. The one
 // read — fetchQuizResults, for the credits' results charts — goes through the
-// aggregating `quiz_results` function (supabase/quiz_results.sql), because the
-// tables themselves stay insert-only to `anon`.
+// aggregating `kevinbacon_quiz_results` function (supabase/quiz_results.sql),
+// because the tables themselves stay insert-only to `anon`. Every table and
+// the function carry a `kevinbacon_` prefix (supabase/schema.sql).
 import { createClient } from "@supabase/supabase-js";
 import { env } from "$env/dynamic/public";
 
@@ -83,14 +84,18 @@ function insert(table, row) {
  * is whether that actor actually ranks #1 (closest to the center of
  * Hollywood) — always false for a give-up. */
 export function recordRankGuess({ actorId = null, gaveUp = false, correct }) {
-	insert("rank_guesses", { actor_id: actorId, gave_up: gaveUp, correct });
+	insert("kevinbacon_rank_guesses", {
+		actor_id: actorId,
+		gave_up: gaveUp,
+		correct
+	});
 }
 
 /** Record one pair-quiz pick (src/components/scrolly/PairQuiz.svelte).
  * `correct` is whether the picked actor is actually closer to the center of
  * Hollywood (lower avg distance) than the other option. */
 export function recordPairPick({ pairIndex, pickedId, otherId, correct }) {
-	insert("pair_quiz_picks", {
+	insert("kevinbacon_pair_quiz_picks", {
 		pair_index: pairIndex,
 		picked_id: pickedId,
 		other_id: otherId,
@@ -103,7 +108,7 @@ export function recordPairPick({ pairIndex, pickedId, otherId, correct }) {
  * same actor picked twice on two charts is two rows: what is being measured is
  * where the reader reached for the control, not just who they looked up. */
 export function recordActorSearch({ actorId, chart }) {
-	insert("actor_searches", { actor_id: actorId, chart });
+	insert("kevinbacon_actor_searches", { actor_id: actorId, chart });
 }
 
 /** Read both crowd histograms, both taker counts and — keyed by this browser's
@@ -117,7 +122,7 @@ export function recordActorSearch({ actorId, chart }) {
  */
 export async function fetchQuizResults({ pairCount, sljActorId = null }) {
 	if (!supabase) return null;
-	const { data, error } = await supabase.rpc("quiz_results", {
+	const { data, error } = await supabase.rpc("kevinbacon_quiz_results", {
 		p_session_id: sessionId(false),
 		p_pair_count: pairCount,
 		p_slj_actor_id: sljActorId

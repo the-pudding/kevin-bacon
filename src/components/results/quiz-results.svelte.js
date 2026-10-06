@@ -54,7 +54,7 @@ export function createQuizResults() {
 			} catch (error) {
 				// same failure idiom as the writers: log, show nothing, never throw
 				// at the reader
-				console.error("analytics: quiz_results failed", error);
+				console.error("analytics: kevinbacon_quiz_results failed", error);
 			} finally {
 				loading = false;
 			}

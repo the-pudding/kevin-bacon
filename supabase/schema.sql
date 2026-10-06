@@ -7,11 +7,13 @@
 -- select/update/delete policy is granted to `anon`, so the publishable key
 -- can only append rows.
 --
--- The one read path is the `quiz_results` function in quiz_results.sql (a
--- security definer aggregate behind these policies, for the credits' results
--- charts). Run that file after this one.
+-- Every object is `kevinbacon_`-prefixed; src/utils/analytics.js names them.
+--
+-- The one read path is the `kevinbacon_quiz_results` function in
+-- quiz_results.sql (a security definer aggregate behind these policies, for
+-- the credits' results charts). Run that file after this one.
 
-create table rank_guesses (
+create table kevinbacon_rank_guesses (
 	id uuid primary key default gen_random_uuid(),
 	session_id uuid not null,
 	actor_id integer, -- null when gave_up is true
@@ -20,7 +22,7 @@ create table rank_guesses (
 	created_at timestamptz not null default now()
 );
 
-create table pair_quiz_picks (
+create table kevinbacon_pair_quiz_picks (
 	id uuid primary key default gen_random_uuid(),
 	session_id uuid not null,
 	pair_index integer not null,
@@ -34,7 +36,7 @@ create table pair_quiz_picks (
 -- scatters. One row per pick rather than one per reader: the same actor named
 -- again on a later chart is a second row, because `chart` is half of what this
 -- is measuring.
-create table actor_searches (
+create table kevinbacon_actor_searches (
 	id uuid primary key default gen_random_uuid(),
 	session_id uuid not null,
 	actor_id integer not null,
@@ -42,13 +44,13 @@ create table actor_searches (
 	created_at timestamptz not null default now()
 );
 
-alter table rank_guesses enable row level security;
-alter table pair_quiz_picks enable row level security;
-alter table actor_searches enable row level security;
+alter table kevinbacon_rank_guesses enable row level security;
+alter table kevinbacon_pair_quiz_picks enable row level security;
+alter table kevinbacon_actor_searches enable row level security;
 
-create policy "anon insert only" on rank_guesses
+create policy "anon insert only" on kevinbacon_rank_guesses
 	for insert to anon with check (true);
-create policy "anon insert only" on pair_quiz_picks
+create policy "anon insert only" on kevinbacon_pair_quiz_picks
 	for insert to anon with check (true);
-create policy "anon insert only" on actor_searches
+create policy "anon insert only" on kevinbacon_actor_searches
 	for insert to anon with check (true);

@@ -1,0 +1,22 @@
+/* The share image's frame (scripts/social-image.js): the canvas alone, filling
+   the 1200×630 window. Written into the page's <head> before the story mounts,
+   so the canvas measures this box from its first paint. `#scrolly` outranks the
+   components' scoped selectors (a class plus Svelte's hash class).
+
+   The chrome is faded rather than removed, so every box the canvas measures
+   (the prose's height among them) stays as the reader's page has it, and
+   waitForStory still finds the next control. */
+
+#scrolly .scrolly-steps,
+#scrolly .tap-half,
+#scrolly .notch,
+#scrolly .step-progress,
+#scrolly .search,
+#scrolly [data-dev-only] {
+	opacity: 0;
+}
+
+#scrolly .scrolly-visual {
+	position: fixed;
+	inset: 0;
+}

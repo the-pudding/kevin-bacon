@@ -5,6 +5,7 @@ import { timeFormat } from "d3";
 import path from "path";
 import svg from "vite-plugin-svgstring";
 import dsv from "@rollup/plugin-dsv";
+import { qrcode } from "vite-plugin-qrcode";
 
 const { version } = JSON.parse(readFileSync("package.json", "utf8"));
 const timestamp = timeFormat("%Y-%m-%d-%H:%M")(new Date());
@@ -14,7 +15,7 @@ export default defineConfig({
 		__VERSION__: JSON.stringify(version),
 		__TIMESTAMP__: JSON.stringify(timestamp)
 	},
-	plugins: [sveltekit(), dsv(), svg()],
+	plugins: [sveltekit(), dsv(), svg(), qrcode()],
 	resolve: {
 		alias: {
 			$actions: path.resolve("./src/actions"),

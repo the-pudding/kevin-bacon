@@ -12,8 +12,8 @@
 // minted in a reserved namespace so the rows stay identifiable — to remove
 // them, run this in the Supabase SQL editor (service role):
 //
-//   delete from rank_guesses    where session_id::text like '5eed0000-%';
-//   delete from pair_quiz_picks where session_id::text like '5eed0000-%';
+//   delete from kevinbacon_rank_guesses    where session_id::text like '5eed0000-%';
+//   delete from kevinbacon_pair_quiz_picks where session_id::text like '5eed0000-%';
 //
 // Seeding is irreversible from here and permanently shifts every histogram the
 // story will ever show, so a non-local project needs SEED_ALLOW_REMOTE=1 —
@@ -35,7 +35,7 @@ const SESSION_PREFIX = "5eed0000-0000-4000-8000-";
 const PAIR_COUNT = 5;
 const CHUNK = 200;
 
-// rank_guesses.actor_id holds the NODE INDEX into scrolly-nodes.json, which is
+// kevinbacon_rank_guesses.actor_id holds the NODE INDEX into scrolly-nodes.json, which is
 // what GuessRank hands recordRankGuess — not the tmdb id. Derived here for the
 // same reason layout-shared.js derives SLJ with idOf(2231): the index moves
 // whenever the data is rebuilt, and a hardcoded one would silently seed a
@@ -288,8 +288,8 @@ async function main() {
 		PUBLIC_SUPABASE_PUBLISHABLE_KEY
 	);
 	console.log("seeding:");
-	await insertAll(supabase, "rank_guesses", rankRows);
-	await insertAll(supabase, "pair_quiz_picks", pairRows);
+	await insertAll(supabase, "kevinbacon_rank_guesses", rankRows);
+	await insertAll(supabase, "kevinbacon_pair_quiz_picks", pairRows);
 
 	console.log("\nplanted sessions — paste one into devtools and reload:");
 	for (const planted of PLANTED) {
@@ -299,8 +299,8 @@ async function main() {
 	}
 	console.log(
 		`\nto undo, in the Supabase SQL editor:\n` +
-			`  delete from rank_guesses    where session_id::text like '${SESSION_PREFIX.slice(0, 9)}%';\n` +
-			`  delete from pair_quiz_picks where session_id::text like '${SESSION_PREFIX.slice(0, 9)}%';`
+			`  delete from kevinbacon_rank_guesses    where session_id::text like '${SESSION_PREFIX.slice(0, 9)}%';\n` +
+			`  delete from kevinbacon_pair_quiz_picks where session_id::text like '${SESSION_PREFIX.slice(0, 9)}%';`
 	);
 }
 
