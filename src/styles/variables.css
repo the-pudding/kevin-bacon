@@ -62,12 +62,20 @@
 	--color-slate-mauve: #6a636f;
 	/** the opening network's actors off a lit route */
 	--color-ash: #a7a7a7;
-	/** the raised surfaces on the dark page: panels, cards, chips, key caps */
+	/** the dark page, and the panels, cards, chips and key caps on it */
 	--color-aubergine: #13051d;
 	/** the top of step 0's wash */
 	--color-plum: #1a051d;
-	/** the dark page */
+	/** the text on a filled light button */
 	--color-night: #111111;
+	/** the splash title, and the sticker behind The Pudding's wordmark */
+	--color-blush: #fbeffc;
+	/** the splash byline */
+	--color-petal: #fad6ff;
+	/** the tap lines round the splash cue's pointer doodle */
+	--color-magenta: #f368ff;
+	/** the race chart's future strip */
+	--color-umber: #29201e;
 	/** the canvas's near-black: dots, routes and the rings drawn over them */
 	--color-ink: #222222;
 	/** network links at rest */
@@ -102,56 +110,58 @@
 	/** the outline variant's hover: no fill */
 	--control-button-quiet-hover: transparent;
 	/** an over-canvas paragraph at rest */
-	--annotation-text: var(--color-gray-600);
-	--annotation-note: var(--color-gray-700);
-	--annotation-note-strong: var(--color-gray-900);
-	--annotation-callout-note: var(--color-gray-900);
+	--annotation-text: var(--color-white);
+	--annotation-note: var(--color-white);
+	--annotation-note-strong: var(--color-white);
+	--annotation-callout-note: var(--color-white);
+	/** the translucent plate behind a callout's note on the race chart */
+	--annotation-callout-plate: rgba(19, 5, 29, 0.5);
 	/** the ring a callout draws round its dot */
-	--annotation-callout-mark: var(--color-gray-700);
+	--annotation-callout-mark: var(--color-white);
 	/** an annotation arrow's line and head */
-	--annotation-arrow: var(--color-gray-600);
+	--annotation-arrow: var(--color-white);
 	--annotation-pulse-ring: rgba(255, 255, 255, 0.9);
 	--annotation-hit-pressed: rgba(255, 255, 255, 0.1);
 	/** The Pudding's wordmark on the title card */
 	--art-wordmark: var(--color-black);
+	/** the sticker shape behind the wordmark */
+	--art-wordmark-sticker: var(--color-blush);
 	/** the splash cue's hand-cursor doodle */
 	--art-pointer-fill: var(--color-white);
-	/** the three tap lines around the doodle's fingertip, solid orange */
-	--art-pointer-tick: var(--color-red);
-	/** black only separated the icon from a white page; the page is dark now, and at the tick marks' size the outline ring covers the whole shape, so a dark ink there reads as invisible instead of an edge */
-	--art-pointer-ink: var(--color-white);
+	/** the three tap lines around the doodle's fingertip */
+	--art-pointer-tick: var(--color-magenta);
+	/** the outline of the doodle's hand */
+	--art-pointer-ink: var(--color-black);
 	/** an actor's name beside their dot */
 	--chart-node-label: var(--color-white);
-	--chart-title: var(--color-gray-800);
-	/** axis tick labels, including the race chart's 1980 tick */
-	--chart-tick: var(--color-gray-500);
+	--chart-title: var(--color-white);
+	/** axis tick labels, including the race chart's 1980 tick, and the race scrubber's end years */
+	--chart-tick: var(--color-gray-400);
 	/** the tick's own stroke */
 	--chart-tick-mark: var(--color-gray-500);
 	/** the y-axis direction hint */
-	--chart-axis-hint: var(--color-gray-500);
-	--chart-legend: var(--color-gray-700);
-	/** the dashed edge of the race chart's future band */
-	--chart-band-edge: var(--category-yellow);
-	--chart-band-fill: rgba(204, 187, 68, 0.13);
-	--chart-band-label: var(--category-yellow-dark);
+	--chart-axis-hint: rgba(255, 255, 255, 0.9);
+	--chart-legend: var(--color-gray-300);
+	/** the race chart's future strip, drawn under the canvas (ScrollyVisual's .band-box) */
+	--chart-band-fill: var(--color-umber);
 	/** a name in the rank ladder */
-	--chart-rank-row: var(--color-gray-700);
+	--chart-rank-row: var(--color-white);
 	/** a rank ladder row whose actor is still hidden */
-	--chart-rank-row-muted: var(--color-gray-500);
-	--chart-rank-row-focus: var(--color-gray-900);
-	--chart-footnote: var(--color-gray-500);
+	--chart-rank-row-muted: var(--color-gray-400);
+	--chart-rank-row-focus: var(--color-white);
+	--chart-footnote: var(--color-gray-400);
 	/** "the future": the race chart's strip label (ScrollyVisual's .band-label) and the word in the prose that introduces it (Index.svelte's .future) */
 	--chart-future: var(--color-future-yellow);
 	/** the race scrubber's year, over its thumb */
 	--chart-readout: var(--color-white);
 	/** the quiz results chart's caption */
-	--chart-result-label: var(--color-gray-500);
+	--chart-result-label: var(--color-gray-400);
 	/** a results bucket's name */
-	--chart-result-key: var(--color-gray-900);
-	--chart-result-value: var(--color-gray-500);
-	--chart-result-value-mine: var(--color-gray-900);
-	--chart-result-fill: rgba(23, 23, 23, 0.22);
-	--chart-result-fill-mine: var(--color-black);
+	--chart-result-key: var(--color-white);
+	--chart-result-value: var(--color-gray-400);
+	--chart-result-value-mine: var(--color-white);
+	--chart-result-fill: rgba(255, 255, 255, 0.22);
+	--chart-result-fill-mine: var(--color-white);
 	/** the focus ring */
 	--control-focus: var(--color-gray-500);
 	/** a filled button: the default and story variants, the plain <button>, skip-to-main */
@@ -171,9 +181,9 @@
 	--control-input-placeholder: rgba(255, 255, 255, 0.8);
 	/** a pair-quiz card before its verdict */
 	--control-card-border: var(--color-gray-400);
-	--control-card-hover-border: var(--color-gray-900);
+	--control-card-hover-border: var(--category-green);
 	/** a search result chip */
-	--control-chip-border: var(--color-gray-900);
+	--control-chip-border: var(--color-white);
 	/** a step still to come in the progress bar: #e6bfff4a */
 	--control-progress-track: rgba(230, 191, 255, 0.29);
 	/** a step already passed: the same as the track, so only the lit line stands out */
@@ -196,7 +206,7 @@
 	/** the background crowd every chart is drawn against */
 	--mark-crowd: var(--category-gray);
 	/** the race line and dot a hovered callout refers to */
-	--mark-focus: var(--color-ink);
+	--mark-focus: var(--color-white);
 	/** network links at rest */
 	--mark-edge: var(--color-edge);
 	/** the opening network's anchor, the actors on a lit route and the route's line: light, to read against the dark page */
@@ -229,13 +239,15 @@
 	/** body copy, the splash card, the nav cue, credits */
 	--prose-fg: var(--color-white);
 	/** the splash title and the credits' headings */
-	--prose-heading: var(--color-gray-900);
-	/** secondary copy: captions, hints, placeholders */
-	--prose-muted: var(--color-gray-500);
-	--prose-link: var(--color-black);
-	--prose-link-hover: var(--color-black);
+	--prose-heading: var(--color-blush);
+	/** the splash byline */
+	--prose-byline: var(--color-petal);
+	/** secondary copy: captions, hints, placeholders, the search glyph */
+	--prose-muted: rgba(255, 255, 255, 0.8);
+	--prose-link: var(--color-white);
+	--prose-link-hover: var(--color-white);
 	/** the page and the canvas behind the dot field */
-	--surface-page: var(--color-night);
+	--surface-page: var(--color-aubergine);
 	/** the top of step 0's gradient, which runs down into surface.page (Stage.svelte's .intro-wash) */
 	--surface-wash: var(--color-plum);
 	/** panels, cards, menus, chips and key caps laid over the page */
@@ -252,23 +264,26 @@
 	--surface-scrim: rgba(0, 0, 0, 0.4);
 	/** body copy */
 	--type-prose-family: var(--font-serif);
-	/** the splash title and subtitle, the credits' headings */
+	/** a step's prose (app.css's .step-prose p) */
+	--type-step-family: var(--font-sans);
+	/** the splash subtitle, the credits' headings */
 	--type-heading-family: var(--font-serif);
+	/** the splash title, the chart titles and the race chart's future strip label */
+	--type-display-family: var(--font-mono);
 	/** form controls, the byline, the nav cue */
 	--type-ui-family: var(--font-sans);
 	/** graph labels and data readouts: names, legends, ranks, results, the scrubber year, the route listing */
 	--type-chart-family: var(--font-sans);
 	--type-chart-tracking: var(--tracking-mono);
 	/** over-canvas notes */
-	--type-annotation-family: var(--font-mono);
-	--type-annotation-tracking: var(--tracking-mono);
+	--type-annotation-family: var(--font-sans);
 	/** a callout's note on the race chart */
 	--type-callout-family: var(--font-sans);
 	/** quiz cards, search chips and the search box's readouts */
 	--type-chip-family: var(--font-mono);
 	--type-chip-tracking: var(--tracking-mono);
 	--type-dev-family: var(--font-mono);
-	--chart-result-track: rgba(17, 17, 17, 0.78);
+	--chart-result-track: rgba(19, 5, 29, 0.78);
 	/** the outline and ghost variants */
 	--control-button-quiet-fg: var(--prose-fg);
 	/** the prev/next notches beside the prose */
@@ -288,9 +303,9 @@
 	/** the anchor of the hop bands */
 	--mark-hop-0: var(--mark-ink);
 	/** one layer of --text-halo, the hold-out behind text over the dot field */
-	--surface-halo: rgba(17, 17, 17, 0.7);
+	--surface-halo: rgba(19, 5, 29, 0.7);
 	/** the plate behind prose laid over a chart (proseOver), blurred through with backdrop-filter so the chart shows faintly behind the words */
-	--surface-frost: rgba(17, 17, 17, 0.5);
+	--surface-frost: rgba(19, 5, 29, 0.5);
 	/** the solid rings and glows that part a mark or logo from the field behind it */
 	--surface-holdout: var(--surface-page);
 }

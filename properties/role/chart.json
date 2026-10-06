@@ -9,15 +9,15 @@
 			}
 		},
 		"title": {
-			"value": "{color.gray-800}",
+			"value": "{color.white}",
 			"contrast": {
 				"against": "surface.page",
 				"min": 4.5
 			}
 		},
 		"tick": {
-			"value": "{color.gray-500}",
-			"comment": "axis tick labels, including the race chart's 1980 tick",
+			"value": "{color.gray-400}",
+			"comment": "axis tick labels, including the race chart's 1980 tick, and the race scrubber's end years",
 			"contrast": {
 				"against": "surface.page",
 				"min": 4.5
@@ -32,7 +32,10 @@
 			}
 		},
 		"axis-hint": {
-			"value": "{color.gray-500}",
+			"value": "{color.white}",
+			"modify": {
+				"alpha": 0.9
+			},
 			"comment": "the y-axis direction hint",
 			"contrast": {
 				"against": "surface.page",
@@ -40,34 +43,18 @@
 			}
 		},
 		"legend": {
-			"value": "{color.gray-700}",
+			"value": "{color.gray-300}",
 			"contrast": {
 				"against": "surface.page",
 				"min": 4.5
 			}
 		},
-		"band-edge": {
-			"value": "{category.yellow}",
-			"comment": "the dashed edge of the race chart's future band",
-			"contrast": {
-				"exempt": "the band is named by its own label; the edge is not the only cue"
-			}
-		},
 		"band-fill": {
-			"value": "{category.yellow}",
-			"modify": {
-				"alpha": 0.13
-			}
-		},
-		"band-label": {
-			"value": "{category.yellow-dark}",
-			"contrast": {
-				"against": "chart.band-fill",
-				"min": 4.5
-			}
+			"value": "{color.umber}",
+			"comment": "the race chart's future strip, drawn under the canvas (ScrollyVisual's .band-box)"
 		},
 		"rank-row": {
-			"value": "{color.gray-700}",
+			"value": "{color.white}",
 			"comment": "a name in the rank ladder",
 			"contrast": {
 				"against": "surface.raised",
@@ -75,7 +62,7 @@
 			}
 		},
 		"rank-row-muted": {
-			"value": "{color.gray-500}",
+			"value": "{color.gray-400}",
 			"comment": "a rank ladder row whose actor is still hidden",
 			"contrast": {
 				"against": "surface.raised",
@@ -83,14 +70,14 @@
 			}
 		},
 		"rank-row-focus": {
-			"value": "{color.gray-900}",
+			"value": "{color.white}",
 			"contrast": {
 				"against": "surface.raised",
 				"min": 4.5
 			}
 		},
 		"footnote": {
-			"value": "{color.gray-500}",
+			"value": "{color.gray-400}",
 			"contrast": {
 				"against": "surface.raised",
 				"min": 4.5
@@ -99,7 +86,10 @@
 		"future": {
 			"value": "{color.future-yellow}",
 			"comment": "\"the future\": the race chart's strip label (ScrollyVisual's .band-label) and the word in the prose that introduces it (Index.svelte's .future)",
-			"contrast": { "against": "surface.page", "min": 4.5 }
+			"contrast": [
+				{ "against": "surface.page", "min": 4.5 },
+				{ "against": "chart.band-fill", "min": 4.5 }
+			]
 		},
 		"readout": {
 			"value": "{color.white}",
@@ -110,7 +100,7 @@
 			}
 		},
 		"result-label": {
-			"value": "{color.gray-500}",
+			"value": "{color.gray-400}",
 			"comment": "the quiz results chart's caption",
 			"contrast": {
 				"against": "surface.page",
@@ -118,7 +108,7 @@
 			}
 		},
 		"result-key": {
-			"value": "{color.gray-900}",
+			"value": "{color.white}",
 			"comment": "a results bucket's name",
 			"contrast": {
 				"against": "surface.page",
@@ -126,14 +116,14 @@
 			}
 		},
 		"result-value": {
-			"value": "{color.gray-500}",
+			"value": "{color.gray-400}",
 			"contrast": {
 				"against": "surface.page",
 				"min": 4.5
 			}
 		},
 		"result-value-mine": {
-			"value": "{color.gray-900}",
+			"value": "{color.white}",
 			"contrast": {
 				"against": "surface.page",
 				"min": 4.5
@@ -149,7 +139,7 @@
 			}
 		},
 		"result-fill": {
-			"value": "{color.gray-900}",
+			"value": "{color.white}",
 			"modify": {
 				"alpha": 0.22
 			},
@@ -158,7 +148,7 @@
 			}
 		},
 		"result-fill-mine": {
-			"value": "{color.black}",
+			"value": "{color.white}",
 			"contrast": {
 				"against": "surface.page",
 				"min": 3

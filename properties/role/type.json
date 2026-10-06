@@ -3,10 +3,22 @@
 		"prose": {
 			"family": { "value": "{font.serif}", "comment": "body copy" }
 		},
+		"step": {
+			"family": {
+				"value": "{font.sans}",
+				"comment": "a step's prose (app.css's .step-prose p)"
+			}
+		},
 		"heading": {
 			"family": {
 				"value": "{font.serif}",
-				"comment": "the splash title and subtitle, the credits' headings"
+				"comment": "the splash subtitle, the credits' headings"
+			}
+		},
+		"display": {
+			"family": {
+				"value": "{font.mono}",
+				"comment": "the splash title, the chart titles and the race chart's future strip label"
 			}
 		},
 		"ui": {
@@ -23,8 +35,7 @@
 			"tracking": { "value": "{tracking.mono}" }
 		},
 		"annotation": {
-			"family": { "value": "{font.mono}", "comment": "over-canvas notes" },
-			"tracking": { "value": "{tracking.mono}" }
+			"family": { "value": "{font.sans}", "comment": "over-canvas notes" }
 		},
 		"callout": {
 			"family": {

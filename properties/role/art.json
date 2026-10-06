@@ -5,19 +5,24 @@
 			"comment": "The Pudding's wordmark on the title card",
 			"contrast": { "exempt": "a logotype (WCAG 1.4.3's logotype exception)" }
 		},
+		"wordmark-sticker": {
+			"value": "{color.blush}",
+			"comment": "the sticker shape behind the wordmark",
+			"contrast": { "exempt": "a logotype (WCAG 1.4.3's logotype exception)" }
+		},
 		"pointer-fill": {
 			"value": "{color.white}",
 			"comment": "the splash cue's hand-cursor doodle",
 			"contrast": { "exempt": "a decorative doodle beside the cue's text" }
 		},
 		"pointer-tick": {
-			"value": "{color.red}",
-			"comment": "the three tap lines around the doodle's fingertip, solid orange",
+			"value": "{color.magenta}",
+			"comment": "the three tap lines around the doodle's fingertip",
 			"contrast": { "exempt": "a decorative doodle beside the cue's text" }
 		},
 		"pointer-ink": {
-			"value": "{color.white}",
-			"comment": "black only separated the icon from a white page; the page is dark now, and at the tick marks' size the outline ring covers the whole shape, so a dark ink there reads as invisible instead of an edge",
+			"value": "{color.black}",
+			"comment": "the outline of the doodle's hand",
 			"contrast": { "exempt": "a decorative doodle beside the cue's text" }
 		}
 	}

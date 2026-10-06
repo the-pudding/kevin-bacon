@@ -1,7 +1,7 @@
 {
 	"surface": {
 		"page": {
-			"value": "{color.night}",
+			"value": "{color.aubergine}",
 			"comment": "the page and the canvas behind the dot field"
 		},
 		"wash": {

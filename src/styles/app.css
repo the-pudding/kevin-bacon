@@ -169,15 +169,11 @@ svg {
 	height: auto;
 }
 
-body {
-	background: #13051d;
-}
-
 .step-prose p {
-	color: #fff;
+	color: var(--prose-fg);
 	-webkit-font-smoothing: antialiased;
 	font-size: 1.2rem;
-	font-family: var(--font-sans);
+	font-family: var(--type-step-family);
 	line-height: 1.25;
 }
 

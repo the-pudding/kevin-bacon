@@ -194,6 +194,6 @@
 		font-family: var(--type-chart-family);
 		font-variant-numeric: tabular-nums;
 		font-size: 14px;
-		color: #9e9e9e;
+		color: var(--chart-tick);
 	}
 </style>

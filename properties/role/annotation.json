@@ -1,29 +1,34 @@
 {
 	"annotation": {
 		"text": {
-			"value": "{color.gray-600}",
+			"value": "{color.white}",
 			"comment": "an over-canvas paragraph at rest",
 			"contrast": { "against": "surface.page", "min": 4.5 }
 		},
 		"note": {
-			"value": "{color.gray-700}",
+			"value": "{color.white}",
 			"contrast": { "against": "surface.page", "min": 4.5 }
 		},
 		"note-strong": {
-			"value": "{color.gray-900}",
+			"value": "{color.white}",
 			"contrast": { "against": "surface.page", "min": 4.5 }
 		},
 		"callout-note": {
-			"value": "{color.gray-900}",
-			"contrast": { "against": "surface.page", "min": 4.5 }
+			"value": "{color.white}",
+			"contrast": { "against": "annotation.callout-plate", "min": 4.5 }
+		},
+		"callout-plate": {
+			"value": "{color.aubergine}",
+			"modify": { "alpha": 0.5 },
+			"comment": "the translucent plate behind a callout's note on the race chart"
 		},
 		"callout-mark": {
-			"value": "{color.gray-700}",
+			"value": "{color.white}",
 			"comment": "the ring a callout draws round its dot",
 			"contrast": { "against": "surface.page", "min": 3 }
 		},
 		"arrow": {
-			"value": "{color.gray-600}",
+			"value": "{color.white}",
 			"comment": "an annotation arrow's line and head",
 			"contrast": { "against": "surface.page", "min": 3 }
 		},

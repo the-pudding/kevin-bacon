@@ -4,10 +4,7 @@
 	than an {@html} inline — the markup never varies, so there is nothing for
 	`{@html}` to buy and it would only add an XSS-lint exemption for no reason.
 -->
-<svg
-	viewBox="2 2 42 52"
-	xmlns="http://www.w3.org/2000/svg"
->
+<svg viewBox="2 2 42 52" xmlns="http://www.w3.org/2000/svg">
 	<g clip-path="">
 		<path
 			d="M8.67598 1.56016C8.80741 1.28875 9.03508 1.07545 9.3149 0.961562C9.47745 0.895339 9.65235 0.864843 9.82768 0.872157C10.003 0.87947 10.1746 0.924422 10.3308 1.00394C10.487 1.08346 10.6241 1.19568 10.7327 1.33293C10.8413 1.47019 10.9189 1.62924 10.9602 1.79925L12.5634 7.7822C12.6073 7.93725 12.6198 8.09951 12.6003 8.25954C12.5808 8.41958 12.5296 8.5742 12.4496 8.71443C12.3697 8.85465 12.2626 8.97768 12.1346 9.07635C12.0066 9.17503 11.8603 9.2474 11.7041 9.28925C11.548 9.33109 11.3851 9.34158 11.2249 9.32011C11.0647 9.29864 10.9105 9.24563 10.7712 9.16417C10.6318 9.08271 10.5101 8.97441 10.4132 8.84558C10.3163 8.71675 10.246 8.56995 10.2065 8.41371L8.60342 2.43077C8.51869 2.1418 8.54454 1.83158 8.67598 1.56016Z"
@@ -45,20 +42,20 @@
 	/* The ticks are their own solid shapes: the ink path is the hand's outline
 	   only, since a tick's subpath there has no hole and would paint over it. */
 	.pointer-tick {
-		fill: #f368ff;
+		fill: var(--art-pointer-tick);
 	}
 
 	.pointer-ink {
-		fill: #000;
+		fill: var(--art-pointer-ink);
 	}
 
 	.pointer-hand {
-		fill: #fff;
-		stroke: #fff;
+		fill: var(--art-pointer-fill);
+		stroke: var(--art-pointer-fill);
 		stroke-width: 5px;
 	}
 	.pointer-hand-2 {
-		fill: #fff;
-		stroke: #fff;
+		fill: var(--art-pointer-fill);
+		stroke: var(--art-pointer-fill);
 	}
 </style>

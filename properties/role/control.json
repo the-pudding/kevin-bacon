@@ -186,7 +186,7 @@
 				}
 			},
 			"hover-border": {
-				"value": "{color.gray-900}",
+				"value": "{category.green}",
 				"contrast": {
 					"against": "surface.raised",
 					"min": 3
@@ -195,7 +195,7 @@
 		},
 		"chip": {
 			"border": {
-				"value": "{color.gray-900}",
+				"value": "{color.white}",
 				"comment": "a search result chip",
 				"contrast": {
 					"against": "surface.raised",

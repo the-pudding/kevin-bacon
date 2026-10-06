@@ -13,7 +13,7 @@
 			}
 		},
 		"focus": {
-			"value": "{color.ink}",
+			"value": "{color.white}",
 			"comment": "the race line and dot a hovered callout refers to",
 			"contrast": { "against": "surface.page", "min": 3 }
 		},

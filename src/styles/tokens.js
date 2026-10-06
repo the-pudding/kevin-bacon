@@ -2,7 +2,7 @@
 // The canvas's mark.* colours as [r, g, b] (canvas can't read CSS custom properties).
 export const MARK_INK = [255, 255, 255];
 export const MARK_CROWD = [187, 187, 187];
-export const MARK_FOCUS = [34, 34, 34];
+export const MARK_FOCUS = [255, 255, 255];
 export const MARK_EDGE = [120, 120, 120];
 export const MARK_NETWORK_INK = [255, 255, 255];
 export const MARK_ANCHOR_HALO = [252, 229, 255];

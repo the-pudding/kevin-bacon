@@ -157,17 +157,19 @@ describe("raceCalloutGeometry", () => {
 		expect(callout.arrow.by).toBeLessThan(callout.arrow.ay);
 	});
 
-	test("...and above it on the phone, where the note is too tall to fit under", () => {
-		// the takeover's note wraps to seven lines on this box. Below the ring that
+	test("...and above it on a small phone, where the note is too tall to fit under", () => {
+		// the takeover's note wraps to eight lines on this box. Below the ring that
 		// ran it under the x-axis row and clipped the last line, which is what the
 		// flip is for — and why the height is estimated from the text rather than
-		// capped at a flat five lines.
-		const { callout } = frameAt(PHONE);
+		// capped at a flat five lines. (The shipped 375x667 phone has the room to
+		// keep its seven lines below since the race's y window was tightened.)
+		const box = { w: 360, h: 640 };
+		const { callout } = frameAt(box);
 		expect(callout.above).toBe(true);
 		// `note.y` is the BOTTOM edge once flipped — the markup lifts the box by its
 		// own rendered height, so this is the edge facing the ring
 		expect(callout.note.y).toBeLessThan(callout.ring.y);
-		expect(callout.note.y).toBeGreaterThan(racePlot(PHONE.w, PHONE.h).top);
+		expect(callout.note.y).toBeGreaterThan(racePlot(box.w, box.h).top);
 		// ...and the leader leaves that edge pointing DOWN at the ring
 		expect(callout.arrow.ay).toBeGreaterThan(callout.note.y);
 		expect(callout.arrow.by).toBeGreaterThan(callout.arrow.ay);

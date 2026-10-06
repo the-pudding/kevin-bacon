@@ -14,6 +14,7 @@ export default [
 		ignores: [
 			"build/",
 			"docs/",
+			"sheets/",
 			".svelte-kit/",
 			"node_modules/",
 			"static/",

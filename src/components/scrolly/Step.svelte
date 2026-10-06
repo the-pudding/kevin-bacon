@@ -185,10 +185,8 @@
 	.step-prose {
 		grid-area: 1 / 1;
 		max-width: 900px;
-    	margin: 0 auto;
+		margin: 0 auto;
 	}
-
-	
 
 	/* halo, not a plate, over a sky that runs under the prose (isProseHalo): a
 	   background would be a rectangle cut out of the picture. On this copy
@@ -197,6 +195,5 @@
 	   --text-halo: a text-shadow run covers the end of the run before it. */
 	.step-prose.halo {
 		filter: url(#prose-halo);
-		
 	}
 </style>

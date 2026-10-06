@@ -6,21 +6,27 @@
 			"contrast": { "against": "surface.page", "min": 4.5 }
 		},
 		"heading": {
-			"value": "{color.gray-900}",
+			"value": "{color.blush}",
 			"comment": "the splash title and the credits' headings",
 			"contrast": { "against": "surface.page", "min": 4.5 }
 		},
+		"byline": {
+			"value": "{color.petal}",
+			"comment": "the splash byline",
+			"contrast": { "against": "surface.page", "min": 4.5 }
+		},
 		"muted": {
-			"value": "{color.gray-500}",
-			"comment": "secondary copy: captions, hints, placeholders",
+			"value": "{color.white}",
+			"modify": { "alpha": 0.8 },
+			"comment": "secondary copy: captions, hints, placeholders, the search glyph",
 			"contrast": { "against": "surface.page", "min": 4.5 }
 		},
 		"link": {
-			"value": "{color.black}",
+			"value": "{color.white}",
 			"contrast": { "against": "surface.page", "min": 4.5 }
 		},
 		"link-hover": {
-			"value": "{color.black}",
+			"value": "{color.white}",
 			"contrast": { "against": "surface.page", "min": 4.5 }
 		}
 	}

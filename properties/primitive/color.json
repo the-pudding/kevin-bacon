@@ -112,7 +112,7 @@
 		},
 		"aubergine": {
 			"value": "#13051d",
-			"comment": "the raised surfaces on the dark page: panels, cards, chips, key caps"
+			"comment": "the dark page, and the panels, cards, chips and key caps on it"
 		},
 		"plum": {
 			"value": "#1a051d",
@@ -120,7 +120,23 @@
 		},
 		"night": {
 			"value": "#111111",
-			"comment": "the dark page"
+			"comment": "the text on a filled light button"
+		},
+		"blush": {
+			"value": "#fbeffc",
+			"comment": "the splash title, and the sticker behind The Pudding's wordmark"
+		},
+		"petal": {
+			"value": "#fad6ff",
+			"comment": "the splash byline"
+		},
+		"magenta": {
+			"value": "#f368ff",
+			"comment": "the tap lines round the splash cue's pointer doodle"
+		},
+		"umber": {
+			"value": "#29201e",
+			"comment": "the race chart's future strip"
 		},
 		"ink": {
 			"value": "#222222",

@@ -667,13 +667,13 @@
 	   reads at full strength. A colour, not an alpha, so the token contrast spec
 	   sees what the reader sees */
 	.rows li.known {
-		color: rgba(255, 255, 255, 1);
+		color: var(--chart-rank-row);
 		animation: none;
 	}
 
 	.rows li.focus {
 		font-weight: bold;
-		color: #fff;
+		color: var(--chart-rank-row-focus);
 	}
 
 	@keyframes row-in {

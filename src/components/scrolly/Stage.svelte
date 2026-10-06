@@ -847,7 +847,7 @@
 	   they need the air at 28px and start to fall apart at 64. */
 	.splash-card h1 {
 		margin: 0;
-		font-family: var(--type-heading-family);
+		font-family: var(--type-display-family);
 		font-size: clamp(var(--32px), 12vw, var(--64px));
 		font-weight: 400;
 		line-height: 1.02;
@@ -860,9 +860,7 @@
 		   background would punch a rectangle out of the sky it is meant to be
 		   inside */
 		text-shadow: var(--text-halo);
-		color: #fbeffc;
 		-webkit-font-smoothing: antialiased;
-		font-family: "Atlas Typewriter";
 		letter-spacing: -2px;
 		font-size: 6rem;
 	}
@@ -920,13 +918,12 @@
 	.splash-byline {
 		margin: 0.5rem 0 0;
 		letter-spacing: 0.02em;
-		color: var(--prose-fg);
+		color: var(--prose-byline);
 		text-shadow: var(--text-halo);
 		z-index: var(--z-tap-above);
 		text-transform: uppercase;
 		font-size: 0.8rem;
 		opacity: 0.9;
-		color: #fad6ff;
 	}
 
 	.splash-byline :global(a) {

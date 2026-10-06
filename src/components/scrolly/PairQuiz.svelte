@@ -314,13 +314,13 @@
 		/* letter-spacing: var(--type-chip-tracking); */
 		font-size: 14px;
 		line-height: 1.4;
-		color: #fff;
+		color: var(--prose-fg);
 		-webkit-font-smoothing: antialiased;
 	}
 
 	.quiz__status {
 		min-height: 1.4em;
-		font-family: var(--font-sans);
+		font-family: var(--type-ui-family);
 		font-weight: 600;
 		margin-right: 10px;
 		min-width: 70px;
@@ -369,7 +369,7 @@
 	}
 
 	.quiz__card:not(:disabled):hover {
-		border-color: #228833;
+		border-color: var(--control-card-hover-border);
 	}
 
 	/* Absolutely placed rather than laid out beside the name, so the name is

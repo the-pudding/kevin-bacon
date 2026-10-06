@@ -3271,12 +3271,12 @@
 	.overlay p {
 		position: absolute;
 		margin: 0;
-		font-family: var(--font-sans);
+		font-family: var(--type-annotation-family);
 		letter-spacing: 0;
 		font-size: 14px;
 		font-weight: 400;
 		text-align: left;
-		color: #fff;
+		color: var(--annotation-text);
 		-webkit-font-smoothing: antialiased;
 	}
 
@@ -3296,9 +3296,8 @@
 		text-align: center;
 		font-weight: 600;
 		color: var(--chart-title);
-		font-family: var(--font-mono);
+		font-family: var(--type-display-family);
 		letter-spacing: -0.5px;
-		color: #fff;
 		-webkit-font-smoothing: antialiased;
 		font-size: 1.2rem;
 	}
@@ -3395,13 +3394,13 @@
 
 	.band-box {
 		position: absolute;
-		/* --category-yellow at 13%. A wash rather than nothing: the block reads as
+		/* --chart-band-fill. A wash rather than nothing: the block reads as
 		   ground the chart has no data for, and an outline alone left it looking like
 		   an empty frame drawn over the plot. It can be this faint and still register
 		   because it is a large area — and it HAS to be faint, because this step's
 		   ten names render inside it. It is drawn under the canvas (.underlay), so
 		   the lines and dots inside it are drawn over it. */
-		background: #29201e;
+		background: var(--chart-band-fill);
 		/* The right-edge fade, and it works on the border too: a mask applies to the
 		   element's whole rendered box, so the top and bottom rules fade out along
 		   their length and the RIGHT rule disappears entirely — which is exactly the
@@ -3417,11 +3416,6 @@
 		mask-image: linear-gradient(to right, currentcolor 0 45%, transparent 100%);
 	}
 
-	/* Selected as `.overlay p` + a class for the specificity reason spelled out on
-	   .callout-note: a lone class loses to `.overlay p`'s font stack.
-	   The text is a darkened tint of --category-yellow rather than the raw token —
-	   #ccbb44 on white is ~1.75:1, which fails at any size; #6b5f15 clears AA
-	   (~6.4:1) while still reading as yellow, not ink. */
 	/* A plain class, not `.overlay p.band-label`: this lives in the ANNOTATIONS
 	   layer (so the block's wash can sit under the names), where no generic `p`
 	   rule competes with it. `position` and `margin` are stated here because
@@ -3433,7 +3427,7 @@
 	.band-label {
 		position: absolute;
 		margin: 0;
-		font-family: var(--font-mono);
+		font-family: var(--type-display-family);
 		font-size: 14px;
 		text-transform: uppercase;
 		letter-spacing: 1px;
@@ -3457,7 +3451,7 @@
 		position: absolute;
 		width: 11px;
 		height: 11px;
-		border: 1.5px solid #fff;
+		border: 1.5px solid var(--annotation-callout-mark);
 		border-radius: 50%;
 		/* the halo the rest of the chart furniture uses, so the ring reads where it
 		   sits: over the two lines it is pointing at */
@@ -3487,7 +3481,7 @@
 	}
 
 	.arrow-line {
-		stroke: #fff;
+		stroke: var(--annotation-arrow);
 		stroke-width: 1;
 	}
 
@@ -3499,10 +3493,10 @@
 	}
 
 	.arrow-head {
-		fill: #fff;
+		fill: var(--annotation-arrow);
 		/* its own halo, same reason as the line's — and paint-order keeps the
 		   stroke behind the fill so it haloes the head instead of thinning it */
-		stroke: #fff;
+		stroke: var(--annotation-arrow);
 		stroke-width: 1.5;
 		paint-order: stroke fill;
 	}
@@ -3521,15 +3515,15 @@
 		font-family: var(--type-callout-family);
 		font-size: 13px;
 		line-height: 1.2;
-		color: #fff;
-		background: rgba(19, 5, 29, 0.5);
+		color: var(--annotation-callout-note);
+		background: var(--annotation-callout-plate);
 		text-shadow:
-			0px 0px 2px #13051d,
-			0px 1px 2px #13051d,
-			0px -1px 2px #13051d,
-			-1px -1px 2px #13051d,
-			1px -1px 2px #13051d,
-			-1px 1px 2px #13051d;
+			0px 0px 2px var(--surface-holdout),
+			0px 1px 2px var(--surface-holdout),
+			0px -1px 2px var(--surface-holdout),
+			-1px -1px 2px var(--surface-holdout),
+			1px -1px 2px var(--surface-holdout),
+			-1px 1px 2px var(--surface-holdout);
 		/* three or four lines sitting over the chasing field, which would
 		   otherwise show through the counters */
 		/* text-shadow: var(--text-halo); */
@@ -3593,7 +3587,7 @@
 
 	.note {
 		font-size: 0.75rem;
-		color: #fff;
+		color: var(--annotation-note);
 		white-space: nowrap;
 		text-shadow: var(--text-halo);
 	}
@@ -3660,7 +3654,7 @@
 	.y-title-hint {
 		font-size: 12px;
 		font-weight: 500;
-		color: rgba(255, 255, 255, 0.9);
+		color: var(--chart-axis-hint);
 		text-shadow: none;
 	}
 
