@@ -121,11 +121,20 @@ select:focus {
 	outline-offset: 2px;
 }
 
+/* a focus target that is not a control — the step card, the quiz's score, the
+   credits heading, each focused from script so a keyboard reader's place
+   survives the control they were on unmounting — takes no ring: it is not
+   something to press, and a ring round a whole card reads as one */
+[tabindex="-1"]:focus {
+	outline: none;
+}
+
 /* a text field keeps its own outline when focused rather than taking the
-   focus ring above: the caret is what marks it as the active field */
+   focus ring above, brightened from its rest outline: the caret alone is too
+   small a cue to find the active field by */
 input:focus,
 textarea:focus {
-	outline: 2px solid var(--control-input-outline);
+	outline: 2px solid var(--control-input-outline-focus);
 }
 
 /* a range is not a text field: no box drawn round its track, and from the
@@ -259,7 +268,9 @@ ul {
 	   clicked went near-black behind its own near-black name and the ✓ it had
 	   just been given. Excluding disabled buttons is the fix, because a rule that never
 	   matches one has nothing to undo — and `button:disabled` above already
-	   carries the opacity and the cursor, hovered or not.
+	   carries the opacity and the cursor, hovered or not. An `aria-disabled`
+	   button is excluded too: it is just as dead, and stays focusable only so
+	   a keyboard reader keeps their place.
 
 	   The exclusion is wrapped in `:where()`, which contributes no specificity,
 	   so these stay at 0,1,1 — exactly what a bare `button:hover` weighed. That
@@ -269,11 +280,11 @@ ul {
 	   `:not(:disabled)` would weigh 0,2,1 and quietly take every one of those
 	   over, turning the term, the select trigger and the quiz chip
 	   black under the pointer while they were still live. */
-	button:where(:not(:disabled)):hover,
-	a[role="button"]:where(:not(:disabled)):hover,
-	input[type="button"]:where(:not(:disabled)):hover,
-	input[type="submit"]:where(:not(:disabled)):hover,
-	input[type="reset"]:where(:not(:disabled)):hover {
+	button:where(:not(:disabled, [aria-disabled="true"])):hover,
+	a[role="button"]:where(:not(:disabled, [aria-disabled="true"])):hover,
+	input[type="button"]:where(:not(:disabled, [aria-disabled="true"])):hover,
+	input[type="submit"]:where(:not(:disabled, [aria-disabled="true"])):hover,
+	input[type="reset"]:where(:not(:disabled, [aria-disabled="true"])):hover {
 		background: var(--control-button-primary-hover-plain);
 	}
 }

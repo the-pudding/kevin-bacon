@@ -32,14 +32,19 @@
 		...restProps
 	} = $props();
 
+	// the listbox's own id, for the input's aria-controls (a combobox role
+	// requires it) — bits-ui sets neither
+	const listId = $derived(`${id}-list`);
+
 	let open = $state(false);
 	/** @type {HTMLInputElement | null} */
 	let inputRef = $state(null);
 
 	// Opt-in: ActorSearch's box is a reader-initiated click on the search
 	// glyph, so focusing it is following the click. GuessRank's box appears on
-	// its own as each quiz question loads, where the same focus would steal
-	// keyboard/scroll from a reader who never asked for the input.
+	// its own as its step loads, where the same focus would steal keyboard/
+	// scroll from a reader who never asked for the input — so it opts in only
+	// on the remount after a pick, when the reader was already typing in it.
 	$effect(() => {
 		if (autofocus) inputRef?.focus();
 	});
@@ -58,20 +63,37 @@
 		bind:ref={inputRef}
 		{placeholder}
 		aria-label={placeholder}
+		aria-controls={listId}
 		class={`bits-combobox ${className}`.trim()}
 		oninput={(e) => onsearch?.(e.currentTarget.value)}
 	/>
 	<Combobox.Portal>
-		<Combobox.Content sideOffset={4}>
-			<Combobox.Viewport>
-				{#each items as item (item.value)}
-					<Combobox.Item value={item.value} label={item.label}>
-						{item.label}
-					</Combobox.Item>
-				{:else}
-					<span data-combobox-empty>{emptyText}</span>
-				{/each}
-			</Combobox.Viewport>
+		<!-- Rendered through `child` for the id alone: bits-ui gives the id prop
+		     to its floating layer and leaves the listbox element without one, so
+		     the input's aria-controls would point at nothing.
+
+		     The scrolling viewport is deliberately NOT a tab stop, though axe's
+		     scrollable-region-focusable asks for one when the list overflows: a
+		     focusable child is not allowed inside a listbox (aria-required-
+		     children), and the list is already scrolled from the keyboard — the
+		     arrow keys in the input move the highlight (aria-activedescendant)
+		     and bits-ui keeps it in view. -->
+		<Combobox.Content aria-label="Matches" sideOffset={4}>
+			{#snippet child({ props, wrapperProps })}
+				<div {...wrapperProps}>
+					<div {...props} id={listId}>
+						<Combobox.Viewport>
+							{#each items as item (item.value)}
+								<Combobox.Item value={item.value} label={item.label}>
+									{item.label}
+								</Combobox.Item>
+							{:else}
+								<span data-combobox-empty>{emptyText}</span>
+							{/each}
+						</Combobox.Viewport>
+					</div>
+				</div>
+			{/snippet}
 		</Combobox.Content>
 	</Combobox.Portal>
 </Combobox.Root>

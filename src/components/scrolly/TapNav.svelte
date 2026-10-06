@@ -17,9 +17,11 @@
 	 * hidden on step 0 but keeps its box; the next notch's chevron pans there instead
 	 * of a written cue, once the prose has landed.
 	 *
-	 * The next half goes disabled while the active step's gate is shut and its
-	 * `onnext` cannot be pressed yet, so a press there does nothing. The next
-	 * notch never does: every gated step's Next presses the step's own control
+	 * The next half goes aria-disabled while the active step's gate is shut and
+	 * its `onnext` cannot be pressed yet, so a press there does nothing — and
+	 * keeps its focus, which a natively disabled half would throw to <body>
+	 * (the registry's `go()` already refuses the move). The next notch never
+	 * does: every gated step's Next presses the step's own control
 	 * (`onnext`), and in the moment before that control can be pressed a press
 	 * simply does nothing. The halves carry no marking of their own and no
 	 * press tint — a tap's only feedback is the step it takes. At the very last
@@ -69,17 +71,16 @@
 	// still hold it.
 	const held = $derived(steps.nextBlocked);
 
+	// Where the arrow keys belong to what has focus, not to the story: text
+	// fields, a slider thumb (bits-ui thumbs are role="slider" and step by year
+	// themselves), an open InfoTerm panel (the sheet is modal — the story moving
+	// behind it unmounts it), and any widget that marks itself as owning them
+	// (the pair quiz, the rank list).
+	const OWNS_ARROWS =
+		'input, textarea, [role="slider"], [data-infoterm-panel], [data-owns-arrows]';
+
 	function onKeydown(e) {
-		const el = e.target;
-		// don't hijack arrow keys from text fields or a focused slider thumb
-		// (bits-ui thumbs are role="slider" and step by year themselves)
-		if (
-			el &&
-			(el.tagName === "INPUT" ||
-				el.tagName === "TEXTAREA" ||
-				el.closest?.('[role="slider"]'))
-		)
-			return;
+		if (e.defaultPrevented || e.target?.closest?.(OWNS_ARROWS)) return;
 		if (e.key === "ArrowLeft") steps.prev();
 		else if (e.key === "ArrowRight") forward();
 	}
@@ -105,6 +106,28 @@
 		// its focus, which is the only way that reader can reach the half at all.
 		if (e.detail > 0) e.currentTarget.blur();
 	}
+
+	// Crossing the `beside` breakpoint (a resize, or browser zoom) swaps the
+	// halves for the notches, and the focused one unmounts with its form. Which
+	// side had focus is read before the swap and handed to the same side after
+	// it. A plain `let`: neither effect may read state it writes.
+	/** @type {string | null} */
+	let refocus = null;
+	$effect.pre(() => {
+		void beside;
+		refocus =
+			/** @type {HTMLElement | null} */ (
+				document.activeElement?.closest("[data-nav]")
+			)?.dataset.nav ?? null;
+	});
+	$effect(() => {
+		void beside;
+		if (refocus == null) return;
+		/** @type {HTMLElement | null} */ (
+			document.querySelector(`[data-nav="${refocus}"]`)
+		)?.focus();
+		refocus = null;
+	});
 </script>
 
 <svelte:window onkeydown={onKeydown} />
@@ -114,6 +137,7 @@
 		<Button
 			variant="notch"
 			data-side="left"
+			data-nav="prev"
 			aria-label="Previous step"
 			onclick={() => steps.prev()}
 		>
@@ -124,6 +148,7 @@
 		<Button
 			variant="notch"
 			data-side="right"
+			data-nav="next"
 			aria-label="Next step"
 			onclick={forward}
 		>
@@ -131,10 +156,16 @@
 		</Button>
 	</div>
 {:else}
+	<!-- At step 0 this half advances (see above), which would make it a second
+	     "go forward" stop beside Next: it keeps answering a tap, but leaves the
+	     tab order and the accessibility tree to Next. -->
 	<button
 		type="button"
 		class="tap-half prev"
+		data-nav="prev"
 		aria-label={atStart ? "Continue" : "Previous step"}
+		tabindex={atStart ? -1 : undefined}
+		aria-hidden={atStart || undefined}
 		onpointerdown={tap.down}
 		onclick={(e) => onTap(e, "prev")}
 	></button>
@@ -142,8 +173,9 @@
 	<button
 		type="button"
 		class="tap-half next"
+		data-nav="next"
 		aria-label="Next step"
-		disabled={held}
+		aria-disabled={held}
 		onpointerdown={tap.down}
 		onclick={(e) => onTap(e, "next")}
 	></button>
@@ -199,7 +231,7 @@
 		right: 0;
 	}
 
-	.tap-half:disabled {
+	.tap-half[aria-disabled="true"] {
 		cursor: default;
 	}
 

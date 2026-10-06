@@ -1,3 +1,21 @@
+<script module>
+	// @ts-check
+	// Whether the reader's focus was inside the card that just left. Every step
+	// is its own instance, so the departing one sets this and the arriving one
+	// claims it: a control that moved the story on (a correct guess, a Start
+	// whose run hands off, a quiz chip) unmounts with its card, and the
+	// reader's place goes to the new card rather than to <body>. A plain `let`,
+	// not state: nothing renders from it.
+	let handoff = false;
+
+	/** @param {HTMLElement} node */
+	function claimFocus(node) {
+		if (!handoff) return;
+		handoff = false;
+		node.focus({ preventScroll: true });
+	}
+</script>
+
 <script>
 	// @ts-check
 	import { getContext } from "svelte";
@@ -136,7 +154,10 @@
 	let leftFrom = null;
 	let wasActive = false;
 	$effect.pre(() => {
-		if (wasActive && !active && el) leftFrom = el.getBoundingClientRect();
+		if (wasActive && !active && el) {
+			leftFrom = el.getBoundingClientRect();
+			if (el.contains(document.activeElement)) handoff = true;
+		}
 		wasActive = active;
 	});
 
@@ -171,6 +192,8 @@
 		class:lead={index === 0}
 		class:halo={isProseHalo(layoutState)}
 		class:plate={isProseOver(layoutState)}
+		tabindex="-1"
+		{@attach claimFocus}
 		bind:this={el}
 		in:fly={proseIn}
 		out:proseLeave={proseOut}

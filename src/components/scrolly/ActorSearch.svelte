@@ -85,6 +85,8 @@
 	let flying = $state(/** @type {number | null} */ (null));
 	/** @type {HTMLElement | undefined} */
 	let chipEl = $state();
+	/** @type {HTMLButtonElement | undefined} */
+	let glyphEl = $state();
 	/** @type {ReturnType<typeof setTimeout> | null} */
 	let markTimer = null;
 	/** @type {ReturnType<typeof setTimeout> | null} */
@@ -186,7 +188,7 @@
 		// The box closes on the pick and the chip takes its place: the reader has
 		// answered the only question it asks, and what happens next is on the
 		// canvas, which the box would otherwise be sitting over.
-		open = false;
+		close();
 		// the chip has to exist before it can be measured, and it only renders
 		// once `flying` is set
 		flying = id;
@@ -202,7 +204,14 @@
 
 	function clear() {
 		onclear();
+		close();
+	}
+
+	// Every way the box shuts — a pick, Escape, Clear — unmounts whatever had
+	// focus inside it, so the reader's place goes back to the glyph that opened it.
+	function close() {
 		open = false;
+		glyphEl?.focus();
 	}
 </script>
 
@@ -211,7 +220,7 @@
      pixel none of them is standing on. Same idiom as .hits and .route. -->
 <svelte:window
 	onkeydown={(e) => {
-		if (e.key === "Escape" && open) open = false;
+		if (e.key === "Escape" && open) close();
 	}}
 />
 
@@ -228,6 +237,7 @@
 		     titles are centred) and is the one strip of the box no layout plots
 		     into. -->
 		<button
+			bind:this={glyphEl}
 			class="search__glyph"
 			class:search__glyph--open={open}
 			aria-expanded={open}

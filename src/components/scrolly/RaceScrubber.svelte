@@ -94,7 +94,9 @@
 			<span class="bound" aria-hidden="true">{sliderMin}</span>
 			<div class="track" style:--at={sliderAt}>
 				<!-- the year chosen, riding over the thumb -->
-				<output class="year">{sliderValue}</output>
+				<!-- aria-hidden, not an <output>: that is an implicit status region,
+			     and the range already says its value — the year was read twice -->
+				<span class="year" aria-hidden="true">{sliderValue}</span>
 				<!-- min/max before value: a value set first is clamped to the default
 				     0–100 domain before the real bounds arrive -->
 				<input

@@ -178,7 +178,9 @@
 	$effect(() => {
 		listHeight;
 		barWidth;
-		const rowEls = list?.querySelectorAll("li");
+		const rowEls = /** @type {NodeListOf<HTMLLIElement> | undefined} */ (
+			list?.querySelectorAll("li.row")
+		);
 		if (rowEls && rowEls.length >= 2)
 			rowPitch = rowEls[1].offsetTop - rowEls[0].offsetTop;
 	});
@@ -438,7 +440,9 @@
 	function publishRows(scrollTop) {
 		if (!list) return;
 		const panel = list.offsetParent;
-		const rowEls = list.querySelectorAll("li");
+		const rowEls = /** @type {NodeListOf<HTMLLIElement>} */ (
+			list.querySelectorAll("li.row")
+		);
 		const bar = rowEls[0]?.querySelector(".bar");
 		if (
 			!(panel instanceof HTMLElement) ||
@@ -488,9 +492,12 @@
 	<!-- focusable so a keyboard can scroll it: its rows hold nothing that
 	     takes focus of their own -->
 	<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+	<!-- data-owns-arrows: arrows scroll the list rather than move the story
+	     (TapNav) -->
 	<ul
 		class="rows"
 		tabindex="0"
+		data-owns-arrows
 		aria-label="Top {RANK_TOP_N} actors by remoteness"
 		class:at-top={atTop}
 		class:entered
@@ -504,9 +511,10 @@
 	>
 		<!-- zero-height gauge: the row width the dot grid is laid out against,
 		     measured inside the scroller's padding so it needs no px assumptions -->
-		<div class="gauge" bind:clientWidth={barWidth} aria-hidden="true"></div>
+		<li class="gauge" bind:clientWidth={barWidth} aria-hidden="true"></li>
 		{#each rows as row, i (row.id)}
 			<li
+				class="row"
 				data-id={row.id}
 				class:focus={row.id === focusId}
 				class:known={isKnown(row.id, row.rank)}
@@ -573,7 +581,9 @@
 				</span>
 			</li>
 		{/each}
-		<p class="footnote">Only the top {RANK_TOP_N} actors shown</p>
+		<li class="footnote" aria-hidden="true">
+			Only the top {RANK_TOP_N} actors shown
+		</li>
 	</ul>
 </div>
 
@@ -614,17 +624,20 @@
 		);
 	}
 
-	/* inset: the list's edge mask would fade an outline drawn outside it */
+	/* inset, and unmasked while focused: the list's edge fade would otherwise
+	   take most of the ring with it */
 	.rows:focus-visible {
 		outline: 2px solid var(--control-focus);
 		outline-offset: -2px;
+		mask-image: none;
+		-webkit-mask-image: none;
 	}
 
 	.rows.at-top {
 		--fade-top: 0px;
 	}
 
-	.rows li {
+	.rows .row {
 		display: flex;
 		flex-direction: column;
 		gap: 0.2rem;
@@ -658,7 +671,7 @@
 	   `.known` from every row but Bacon's/a guess's) replayed the whole
 	   1.75s-invisible-then-1.4s-fade entrance on rows already on screen — read
 	   as the list vanishing and reappearing. */
-	.rows:not(.entered) li {
+	.rows:not(.entered) .row {
 		animation: row-in var(--row-in-ms) ease var(--row-in-delay) both;
 	}
 
@@ -666,12 +679,12 @@
 	   a row the reader has guessed, or every row on the reveal step — the row
 	   reads at full strength. A colour, not an alpha, so the token contrast spec
 	   sees what the reader sees */
-	.rows li.known {
+	.rows .row.known {
 		color: var(--chart-rank-row);
 		animation: none;
 	}
 
-	.rows li.focus {
+	.rows .row.focus {
 		font-weight: bold;
 		color: var(--chart-rank-row-focus);
 	}
@@ -686,7 +699,7 @@
 	}
 
 	@media (prefers-reduced-motion: reduce) {
-		.rows li {
+		.rows .row {
 			animation: none;
 		}
 	}
@@ -719,7 +732,7 @@
 
 	/* a hidden actor's lattice stays faint beside the named rows. Alpha is fine
 	   here, unlike on the row's text: the svg is decoration, not something read */
-	.rows li:not(.known) .dots {
+	.rows .row:not(.known) .dots {
 		opacity: 0.9;
 	}
 
@@ -792,7 +805,7 @@
 		pointer-events: none;
 	}
 
-	.collapsing .rows li {
+	.collapsing .rows .row {
 		opacity: 1;
 		animation: none;
 	}

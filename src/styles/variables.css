@@ -160,7 +160,7 @@
 	--chart-result-value-mine: var(--color-white);
 	--chart-result-fill: rgba(255, 255, 255, 0.22);
 	--chart-result-fill-mine: var(--color-white);
-	/** the focus ring */
+	/** the focus ring, on the page and on the step card's plate and frost */
 	--control-focus: var(--color-gray-500);
 	/** a filled button: the default and story variants, the plain <button>, skip-to-main */
 	--control-button-primary-bg: var(--color-white);
@@ -173,8 +173,10 @@
 	--control-button-secondary-hover: oklch(0.356 0 0);
 	--control-input-bg: var(--color-gray-50);
 	--control-input-fg: var(--color-gray-900);
-	/** a text input's outline, at rest and focused (reset.css) */
-	--control-input-outline: rgba(255, 255, 255, 0.2);
+	/** a text input's outline at rest: its only edge, since the box is filled with the page's colour (reset.css) */
+	--control-input-outline: rgba(255, 255, 255, 0.4);
+	/** a text input's outline while focused, set apart from the rest outline (reset.css) */
+	--control-input-outline-focus: var(--color-white);
 	/** an input's placeholder; the story's inputs are comboboxes on surface.raised (ui.combobox.css) */
 	--control-input-placeholder: rgba(255, 255, 255, 0.8);
 	/** a pair-quiz card before its verdict */

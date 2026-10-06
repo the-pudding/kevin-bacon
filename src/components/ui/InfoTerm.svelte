@@ -8,7 +8,7 @@
 	// popover, so whatever the term is talking about stays visible behind it; on a
 	// phone, where a tethered card has nowhere to go, it is a bottom sheet.
 	// Dialog.Content brings the focus trap and scroll lock the sheet needs.
-	import { Dialog, Popover } from "bits-ui";
+	import { Dialog, Popover, useId } from "bits-ui";
 	import { MediaQuery } from "svelte/reactivity";
 	import X from "@lucide/svelte/icons/x";
 
@@ -30,6 +30,12 @@
 	// the server has no viewport to measure — it renders the popover's trigger,
 	// which is the same <span> either way, and the real query resolves on hydrate
 	const sheet = new MediaQuery("(max-width: 30rem)", false);
+
+	// The panel's accessible name: the title where there is one, otherwise the
+	// term that opened it — the words (or the trigger's aria-label) the reader
+	// pressed are exactly what the panel is about.
+	const triggerId = useId();
+	const labelledBy = $derived(title ? undefined : triggerId);
 </script>
 
 <!-- trigger and body are authored once and rendered into whichever primitive is
@@ -50,28 +56,42 @@
      in the sentence ("actors ,") -->
 {#if sheet.current}
 	<Dialog.Root bind:open>
-		<Dialog.Trigger class="bits-infoterm {className}" {...restProps}>
+		<Dialog.Trigger
+			id={triggerId}
+			class="bits-infoterm {className}"
+			{...restProps}
+		>
 			{#snippet child({ props })}
 				{@render trigger(props)}
 			{/snippet}
 		</Dialog.Trigger><Dialog.Portal>
 			<Dialog.Overlay data-infoterm-scrim />
-			<Dialog.Content data-infoterm-panel data-infoterm-sheet>
-				<header data-infoterm-head>
+			<Dialog.Content
+				data-infoterm-panel
+				data-infoterm-sheet
+				aria-labelledby={labelledBy}
+			>
+				<!-- a <div>, not a <header>: a header outside any sectioning element
+				     is the page's banner landmark -->
+				<div data-infoterm-head>
 					{#if title}
 						<Dialog.Title data-infoterm-title>{title}</Dialog.Title>
 					{/if}
 					<Dialog.Close data-infoterm-close aria-label="Close">
 						<X />
 					</Dialog.Close>
-				</header>
+				</div>
 				{@render body()}
 			</Dialog.Content>
 		</Dialog.Portal>
 	</Dialog.Root>
 {:else}
 	<Popover.Root bind:open>
-		<Popover.Trigger class="bits-infoterm {className}" {...restProps}>
+		<Popover.Trigger
+			id={triggerId}
+			class="bits-infoterm {className}"
+			{...restProps}
+		>
 			{#snippet child({ props })}
 				{@render trigger(props)}
 			{/snippet}
@@ -81,16 +101,18 @@
 				side="top"
 				sideOffset={6}
 				collisionPadding={12}
+				role="dialog"
 				aria-label={title}
+				aria-labelledby={labelledBy}
 			>
-				<header data-infoterm-head>
+				<div data-infoterm-head>
 					{#if title}
 						<p data-infoterm-title>{title}</p>
 					{/if}
 					<Popover.Close data-infoterm-close aria-label="Close">
 						<X />
 					</Popover.Close>
-				</header>
+				</div>
 				{@render body()}
 			</Popover.Content>
 		</Popover.Portal>

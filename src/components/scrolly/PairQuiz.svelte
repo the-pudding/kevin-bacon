@@ -28,6 +28,7 @@
 	// prose wrapper carries an in:fly transform for its first ~560ms, and a
 	// transform makes its element the containing block for fixed descendants, so
 	// a pick in that window used to be resolvable against the wrong box.
+	import { tick } from "svelte";
 	import { story } from "./story.svelte.js";
 	import { INTERACTIVE_IDS, nodeName, quizDone } from "./states.js";
 	import { quizWinner } from "./layouts/scatters.js";
@@ -66,6 +67,13 @@
 
 	/** @type {HTMLButtonElement[]} */
 	let cardEls = [];
+	/** @type {HTMLElement | undefined} */
+	let quizEl = $state();
+	/** @type {HTMLElement | undefined} */
+	let doneEl = $state();
+	// The verdict, said to a screen reader: the ✓/✗ is aria-hidden and the
+	// colour is no account at all.
+	let verdict = $state("");
 	/** @type {ReturnType<typeof setTimeout> | null} */
 	let markTimer = null;
 	/** @type {ReturnType<typeof setTimeout> | null} */
@@ -137,18 +145,32 @@
 		});
 	}
 
-	function advance() {
+	// The keyed {#each} mounts the next pair's chips fresh (the flight's
+	// transforms need new boxes), so a reader who picked from the keyboard
+	// would be left on <body>. Their place moves on with the question: to the
+	// next pair's first chip, or to the score once there is none.
+	async function advance() {
 		holdTimer = null;
 		if (destroyed) return;
+		const hadFocus = quizEl?.contains(document.activeElement) ?? false;
 		i += 1;
 		picked = null;
 		phase = "asking";
+		if (!hadFocus) return;
+		await tick();
+		if (destroyed) return;
+		(pair ? cardEls[0] : doneEl)?.focus();
 	}
 
 	function pick(choice) {
 		if (phase !== "asking" || !pair) return;
 		picked = choice;
 		phase = "marking";
+		const pickedId = [pair.a, pair.b][choice];
+		verdict =
+			pickedId === winner
+				? `${nodeName(pickedId)}: correct.`
+				: `${nodeName(pickedId)}: not quite — ${nodeName(winner)} is closer.`;
 		markTimer = setTimeout(() => {
 			markTimer = null;
 			fly();
@@ -205,7 +227,10 @@
 	}
 </script>
 
-<div class="quiz">
+<!-- data-owns-arrows: an arrow key on a chip is not the reader asking to
+     leave the quiz (TapNav) -->
+<div class="quiz" data-owns-arrows bind:this={quizEl}>
+	<p class="sr-only" role="status">{verdict}</p>
 	<!-- The counter only, and it keeps its line when there is nothing left to
 	     count. The score below goes in the chips' box rather than here: that
 	     box is already reserved at two chips' worth, so a line of any sensible
@@ -219,11 +244,12 @@
 	     control, and the card's measured height is what half the canvas's bottom
 	     clearances are taken off (`stepsHeight` → `overlayHeight`), so a block
 	     that shrank as the quiz ran would walk the prose up the screen a pair at
-	     a time and take the x-axis title with it. Always a column, at every
-	     width, for the same reason: two chips abreast in the 25rem prose column
-	     wrap to a second row on the longer names, which is the same jump by
-	     another route. The two chips' worth of reservation is also what the
-	     sign-off below is written into. -->
+	     a time and take the x-axis title with it. The chips sit abreast, never
+	     wrapping to a second row, which would be the same jump by another
+	     route; the narrowest supported width is 375px, where the pair fits
+	     with each name on two lines (measured 2026-10-06). The two chips'
+	     worth of reservation is kept, and is what the sign-off below is
+	     written into. -->
 	<div class="quiz__cards">
 		{#if !pair}
 			<!-- The score, and the only thing that tells the reader the step has
@@ -236,7 +262,7 @@
 			     the first of those has a score to report; telling the second
 			     they got 0 out of 5 would be a lie about something they never
 			     did. -->
-			<p class="quiz__done">
+			<p class="quiz__done" tabindex="-1" bind:this={doneEl}>
 				{answered === pairs.length
 					? `You got ${score} out of ${pairs.length}.`
 					: "Tap on to carry on."}
@@ -250,7 +276,7 @@
 						? ""
 						: `--verdict: ${rgb(colourOf(choice, id))}`}
 					type="button"
-					disabled={phase !== "asking"}
+					aria-disabled={phase !== "asking"}
 					onclick={() => pick(choice)}
 				>
 					{nodeName(id)}
@@ -281,6 +307,10 @@
 	.quiz {
 		--chip-h: var(--48px); /* the minimum tap target on mobile */
 		--chip-gap: 0.75rem;
+		/* room for the 10px ✓/✗ at 0.5rem from the edge plus a few px clear of
+		   the name, and no more: every px of gutter is taken from a name that
+		   already wraps to two lines at 375 */
+		--mark-gutter: 1.5rem;
 		display: flex;
 		align-items: center;
 		gap: 0.5rem;
@@ -342,7 +372,9 @@
 		font-family: var(--type-chip-family);
 		letter-spacing: var(--type-chip-tracking);
 		font-size: var(--16px);
-		padding: 0.7rem 1.2rem;
+		/* the inline padding is the ✓/✗'s gutter (.quiz__mark), on both sides
+		   so the name stays centred */
+		padding: 0.7rem var(--mark-gutter);
 		min-height: var(--chip-h);
 		--verdict: var(--control-card-border);
 		border: 1px solid var(--verdict);
@@ -356,19 +388,16 @@
 		-webkit-font-smoothing: antialiased;
 	}
 
-	/* A picked chip is disabled at once — it is showing an answer now, not
-	   offering a choice — while reset.css treats a disabled BUTTON as a dead
-	   control: it fades it to 0.5 and gives it a not-allowed cursor. Neither is
-	   true of a chip mid-answer, which has to stay legible through the mark and
-	   the flight, so both are overturned here. The background is not: the reset
-	   leaves a disabled button's paint alone, hovered or not, so the rule above
-	   holds. */
-	.quiz__card:disabled {
-		opacity: 1;
+	/* A picked chip is aria-disabled at once — it is showing an answer now, not
+	   offering a choice — and `pick` refuses a second press. aria- rather than
+	   native disabled, which would drop a keyboard reader's focus to <body>.
+	   It stays legible through the mark and the flight: no fade, and the
+	   cursor stops promising a press. */
+	.quiz__card[aria-disabled="true"] {
 		cursor: default;
 	}
 
-	.quiz__card:not(:disabled):hover {
+	.quiz__card:not([aria-disabled="true"]):hover {
 		border-color: var(--control-card-hover-border);
 	}
 
@@ -379,6 +408,6 @@
 	   questions (see colourOf). */
 	.quiz__mark {
 		position: absolute;
-		right: 1.2rem;
+		right: 0.5rem;
 	}
 </style>

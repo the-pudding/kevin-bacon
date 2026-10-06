@@ -99,9 +99,12 @@
 		<div class="ask">
 			<div class="search">
 				{#key picks}
+					<!-- autofocus once the reader has picked: the remount would
+					     otherwise drop the focus they were typing with to <body> -->
 					<Combobox
 						bind:value
 						{items}
+						autofocus={picks > 0}
 						placeholder="Search for an actor…"
 						emptyText={query.trim().length < 2
 							? "Keep typing…"

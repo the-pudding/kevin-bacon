@@ -32,10 +32,21 @@
 	 * plays
 	 * @type {{ kind: string, label: string, onpress: () => void }} */
 	let { kind, label, onpress } = $props();
+
+	// aria-disabled rather than disabled: a natively disabled button drops the
+	// focus it holds to <body> the moment it is pressed, so a keyboard reader
+	// would lose their place for the length of the run. The press is refused here
+	// instead.
+	const running = $derived(story.running === kind);
+
+	function press() {
+		if (running) return;
+		onpress();
+	}
 </script>
 
 <div class="start-button">
-	<Button variant="story" disabled={story.running === kind} onclick={onpress}>
+	<Button variant="story" aria-disabled={running} onclick={press}>
 		{label}
 	</Button>
 </div>

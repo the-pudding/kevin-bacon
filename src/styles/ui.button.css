@@ -24,12 +24,14 @@
 	outline-offset: 2px;
 }
 
-.bits-button[data-button-root]:disabled {
+.bits-button[data-button-root]:is(:disabled, [aria-disabled="true"]) {
 	opacity: 0.5;
 	cursor: not-allowed;
 }
 
-.bits-button[data-button-root]:active {
+.bits-button[data-button-root]:where(
+		:not(:disabled, [aria-disabled="true"])
+	):active {
 	transform: scale(0.95);
 }
 
@@ -55,10 +57,12 @@
 /* variant (default, story, outline, secondary, ghost, link, round) */
 /* Every :hover below is guarded against disabled, for the reason reset.css
    gives at its own hover block: a disabled button takes no hover treatment.
-   These rules are specific enough to beat the reset outright, so without the
-   guard the story's StartButton — disabled the instant it is clicked, while the
-   run it started plays — sat under the resting pointer wearing the lit hover
-   fill of a button that was still live. `:where()` for the same reason as
+   Disabled means either form: natively, or `aria-disabled` on a button that
+   has to keep its focus while it is dead. These rules are specific enough to
+   beat the reset outright, so without the guard the story's StartButton —
+   aria-disabled the instant it is clicked, while the run it started plays —
+   sat under the resting pointer wearing the lit hover fill of a button that
+   was still live. `:where()` for the same reason as
    there: it adds no specificity, so each rule keeps the weight it had and goes
    on losing to whatever already overruled it. */
 .bits-button[data-button-root][data-variant="default"] {
@@ -69,7 +73,7 @@
 }
 
 .bits-button[data-button-root][data-variant="default"]:where(
-		:not(:disabled)
+		:not(:disabled, [aria-disabled="true"])
 	):hover {
 	background: var(--control-button-primary-hover);
 }
@@ -88,7 +92,7 @@
 }
 
 .bits-button[data-button-root][data-variant="story"]:where(
-		:not(:disabled)
+		:not(:disabled, [aria-disabled="true"])
 	):hover {
 	background: var(--control-button-primary-hover);
 }
@@ -103,7 +107,7 @@
 }
 
 .bits-button[data-button-root][data-variant="outline"]:where(
-		:not(:disabled)
+		:not(:disabled, [aria-disabled="true"])
 	):hover {
 	background: var(--control-button-quiet-hover);
 }
@@ -116,7 +120,7 @@
 }
 
 .bits-button[data-button-root][data-variant="secondary"]:where(
-		:not(:disabled)
+		:not(:disabled, [aria-disabled="true"])
 	):hover {
 	background: var(--control-button-secondary-hover);
 }
@@ -164,7 +168,7 @@
 }
 
 .bits-button[data-button-root][data-variant="notch"]:where(
-		:not(:disabled)
+		:not(:disabled, [aria-disabled="true"])
 	):hover {
 	background: var(--control-button-notch-hover);
 }

@@ -87,6 +87,9 @@
 	$effect(() => {
 		if (steps.current === steps.count - 1) quizResults.load();
 	});
+	// No scroll: the credits are still rolling up from below the screen
+	/** @param {HTMLElement} node */
+	const focusOnMount = (node) => node.focus({ preventScroll: true });
 
 	// What each Start press does — the button's, and the reader's Next on the
 	// same step (its `onnext`), which is the same press made for them. The
@@ -173,10 +176,27 @@
 	// instant the second layer of lines lands. Nothing should point at an actor
 	// whose dot has not arrived. Because both steps share the state, it is still
 	// true on the second one and the tour never pauses at the join.
+	//
+	// It also holds while the reader is on the caption's own term: focused, or
+	// its panel open. The tour would otherwise rewrite the words — and the
+	// panel's films — under a reader who is in the middle of reading them, and
+	// opening the panel from the keyboard makes no click to pin it with.
+	let routeOpen = $state(false);
+	let routeFocused = $state(false);
+	// The caption unmounts with its state, and a focused or open term taken
+	// out of the page reports neither a focusout nor a close — so leaving the
+	// constellation lets go of both, or the tour would come back paused.
+	$effect(() => {
+		if (steps.state === "networkIntro") return;
+		routeOpen = false;
+		routeFocused = false;
+	});
 	const touring = $derived(
 		steps.state === "networkIntro" &&
 			story.settled === "networkIntro" &&
-			!story.intro.pinned
+			!story.intro.pinned &&
+			!routeOpen &&
+			!routeFocused
 	);
 	// Where the tour has got to. A plain `let`, not $state: the tour effect reads
 	// it when it (re)starts and must not re-run because of it. Kept outside the
@@ -386,9 +406,12 @@
 						class="route"
 						bind:clientHeight={routeHeight}
 						style="top: {routeTop(layout)}px"
+						onfocusin={() => (routeFocused = true)}
+						onfocusout={() => (routeFocused = false)}
 					>
 						<strong>{introRoute.name}</strong>:
 						<InfoTerm
+							bind:open={routeOpen}
 							title="{introRoute.name} → {introRoute.anchor}"
 							onclick={() => (story.intro.pinned = true)}
 						>
@@ -866,7 +889,9 @@
 		>
 			<div class="credits-content">
 				<div class="credits-block">
-					<h2>Credits</h2>
+					<!-- the reader's place: the press that brought them here unmounted
+					     the navigation it was made on -->
+					<h2 tabindex="-1" {@attach focusOnMount}>Credits</h2>
 					<p class="credits-row">
 						<span class="role">Author</span>
 						<span class="name"

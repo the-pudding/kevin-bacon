@@ -2,11 +2,21 @@
 	"control": {
 		"focus": {
 			"value": "{color.gray-500}",
-			"comment": "the focus ring",
-			"contrast": {
-				"against": "surface.page",
-				"min": 3
-			}
+			"comment": "the focus ring, on the page and on the step card's plate and frost",
+			"contrast": [
+				{
+					"against": "surface.page",
+					"min": 3
+				},
+				{
+					"against": "surface.raised",
+					"min": 3
+				},
+				{
+					"against": "surface.frost",
+					"min": 3
+				}
+			]
 		},
 		"button": {
 			"primary": {
@@ -133,11 +143,26 @@
 			},
 			"outline": {
 				"value": "{color.white}",
-				"modify": { "alpha": 0.2 },
-				"comment": "a text input's outline, at rest and focused (reset.css)",
+				"modify": { "alpha": 0.4 },
+				"comment": "a text input's outline at rest: its only edge, since the box is filled with the page's colour (reset.css)",
 				"contrast": {
-					"exempt": "the input is identified by its placeholder and the box it sits in; the outline is not the only cue"
+					"against": "surface.page",
+					"min": 3
 				}
+			},
+			"outline-focus": {
+				"value": "{color.white}",
+				"comment": "a text input's outline while focused, set apart from the rest outline (reset.css)",
+				"contrast": [
+					{
+						"against": "surface.page",
+						"min": 3
+					},
+					{
+						"against": "control.input.outline",
+						"min": 3
+					}
+				]
 			},
 			"placeholder": {
 				"value": "{color.white}",
