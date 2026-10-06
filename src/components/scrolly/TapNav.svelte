@@ -217,6 +217,11 @@
 		cursor: pointer;
 		/* no 300ms wait, and no double-tap-to-zoom swallowing the first tap */
 		touch-action: manipulation;
+		/* a long-press on iOS otherwise selects the half itself — a highlight
+		   the size of half the screen, with a Copy/Look Up menu over nothing —
+		   and every tap the reader spends dismissing it steps the story back */
+		user-select: none;
+		-webkit-touch-callout: none;
 	}
 
 	.tap-half:hover {
