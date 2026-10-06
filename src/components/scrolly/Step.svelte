@@ -10,7 +10,7 @@
 		PROSE_IN_MS,
 		PROSE_RISE_PX
 	} from "./cardFade.js";
-	import { isProseHalo } from "./states.js";
+	import { isProseHalo, isProseOver } from "./states.js";
 
 	/**
 	 * One story step: prose in the slot, visual state declared alongside it.
@@ -170,6 +170,7 @@
 		class="step-prose"
 		class:lead={index === 0}
 		class:halo={isProseHalo(layoutState)}
+		class:plate={isProseOver(layoutState)}
 		bind:this={el}
 		in:fly={proseIn}
 		out:proseLeave={proseOut}
@@ -195,5 +196,26 @@
 	   --text-halo: a text-shadow run covers the end of the run before it. */
 	.step-prose.halo {
 		filter: url(#prose-halo);
+	}
+
+	/* the prose over a chart (isProseOver, Stage's `.scrolly-steps.over`) sits
+	   on one frosted plate, behind the whole copy rather than each paragraph:
+	   the page colour, part transparent, with the chart behind it blurred
+	   (backdrop-filter, not filter, which would blur the words). On this copy
+	   rather than the column for the halo's reason: the column drops `.over`
+	   the moment the step changes, and a departing copy pinned at its old
+	   width (proseLeave) that lost the padding with it rewrapped wider and
+	   lost its plate as it faded. */
+	.step-prose.plate {
+		padding: 0.5rem var(--12px);
+		border-radius: 6px;
+		background: var(--surface-frost);
+		backdrop-filter: blur(3px);
+		line-height: 1.3;
+	}
+
+	/* the last paragraph's bottom margin would sit inside the plate */
+	.step-prose.plate > :global(p:last-child) {
+		margin-bottom: 0;
 	}
 </style>

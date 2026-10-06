@@ -1149,7 +1149,7 @@
 	   the hop bands), at every width: the whole box top to bottom and the words
 	   centred in it, at no more than the prose measure and centred across. The
 	   chart runs under the words (edge to edge and down to the box's foot) and
-	   the frosted plate under each paragraph (below) is what keeps them legible. The canvas box does not move
+	   the frosted plate under the copy (Step.svelte's `.plate`) is what keeps them legible. The canvas box does not move
 	   for any of it: the chart reaches the screen's edges by drawing into the
 	   bleed, so only the prose changes place.
 
@@ -1171,23 +1171,6 @@
 		margin-inline: auto;
 		padding-inline: var(--16px);
 		align-items: center;
-	}
-
-	/* the prose over the chart sits on one frosted plate, behind the whole
-	   copy rather than each paragraph: the page colour, part transparent,
-	   with the chart behind it blurred (backdrop-filter, not filter, which
-	   would blur the words) */
-	.scrolly-steps.over :global(.step-prose) {
-		padding: 0.5rem var(--12px);
-		border-radius: 6px;
-		background: var(--surface-frost);
-		backdrop-filter: blur(3px);
-		line-height: 1.3;
-	}
-
-	/* the last paragraph's bottom margin would sit inside the plate */
-	.scrolly-steps.over :global(.step-prose > p:last-child) {
-		margin-bottom: 0;
 	}
 
 	/* An InfoTerm trigger sits inline and lands wherever the line wraps puts it,
