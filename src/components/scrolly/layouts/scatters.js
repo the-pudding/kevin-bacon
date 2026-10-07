@@ -267,6 +267,19 @@ const PAIR_SIDE_MIN_W = 460;
 const pairLabelDirs = (w) =>
 	w != null && w < PAIR_SIDE_MIN_W ? {} : PAIR_LABEL_DIRS;
 
+// The film-count step's names run left from dots at the plot's top-right
+// corner, level with the upright y-axis title, and in full ("Samuel L. Jackson
+// · 116 films") they reach it below a visual this wide (measured 2026-10-07:
+// 8px into "↑ more central" at 332, 6.6px clear at 347, 18.6px at 359). There
+// they drop "films", ~40px, which the axis title's "Remoteness" and the step's
+// prose already say.
+const FILMS_WORD_MIN_W = 360;
+/** @param {import("../nodes.js").ActorNode} n @param {number} [w] the visual's width */
+const filmsLabel = (n, w) =>
+	w != null && w < FILMS_WORD_MIN_W
+		? `${n.name} · ${n.films}`
+		: `${n.name} · ${n.films} films`;
+
 export const QUIZ_LABEL_DIRS = {
 	[QUIZ_IDS[0]]: "right", // Charlize Theron (49 films)
 	[QUIZ_IDS[1]]: "right", // Seth Rogen (48 films)
@@ -374,7 +387,7 @@ export const states = {
 		// this state's three shapes are the film-count step, the avg-distance
 		// pair step, and the costar-count pair step — each puts its own metric
 		// in the names, since the number is the point being made
-		labelText: (nodes, params) =>
+		labelText: (nodes, params, w) =>
 			params?.showCostars
 				? {
 						[PORTMAN]: `${nodes[PORTMAN].name} · 97 of the top 250`,
@@ -388,10 +401,7 @@ export const states = {
 							])
 						)
 					: Object.fromEntries(
-							[SLJ, CAGE].map((id) => [
-								id,
-								`${nodes[id].name} · ${nodes[id].films} films`
-							])
+							[SLJ, CAGE].map((id) => [id, filmsLabel(nodes[id], w)])
 						),
 		pulse: (params) => (params?.showPair ? null : SLJ),
 		overlay: AVG_OVERLAY,

@@ -1210,9 +1210,11 @@
 	 * @type {import("./plot.js").Bleed}
 	 */
 	let labelBleed = $state.raw(NO_BLEED);
-	// per-node label text overrides, so a name can carry the step's number
+	// per-node label text overrides, so a name can carry the step's number;
+	// handed the visual's width too, for a name that only fits a wide enough
+	// box in full (scatters.js's filmsLabel)
 	const labelTexts = $derived(
-		STATE_LABEL_TEXT[stateName]?.(nodes, layoutParams) ?? {}
+		STATE_LABEL_TEXT[stateName]?.(nodes, layoutParams, width) ?? {}
 	);
 	const pulseId = $derived.by(() => {
 		const spec = STATE_PULSE[stateName];
