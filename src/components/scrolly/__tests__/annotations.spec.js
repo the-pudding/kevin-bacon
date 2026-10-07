@@ -37,6 +37,37 @@ describe("raceLabelCut", () => {
 		});
 		expect([...shown]).toEqual([3]);
 	});
+
+	test("a floor stops the cut once the swept stack would run past it", () => {
+		const attrs = new Float64Array(ATTR_SIZE);
+		dot(attrs, 9, 10); // the subject, alone at the top
+		for (let id = 1; id <= 6; id++) dot(attrs, id, 60 + id); // a tight pack
+		const shown = raceLabelCut(attrs, {
+			highlight: [9],
+			labelIds: [1, 2, 3, 4, 5, 6],
+			onPlot: () => true,
+			top: 10,
+			floor: 100,
+			gap: 16
+		});
+		// the pack stacks from 61 at 16px: 61, 77, 93 fit, 109 would not
+		expect([...shown].sort()).toEqual([1, 2, 3, 9]);
+	});
+
+	test("a faded subject below the floor takes no room in the stack", () => {
+		const attrs = new Float64Array(ATTR_SIZE);
+		dot(attrs, 9, 400, 0); // retired: faded, its y run on off the plot
+		for (let id = 1; id <= 3; id++) dot(attrs, id, id * 20);
+		const shown = raceLabelCut(attrs, {
+			highlight: [9],
+			labelIds: [1, 2, 3],
+			onPlot: () => true,
+			top: 10,
+			floor: 100,
+			gap: 16
+		});
+		expect([...shown].sort()).toEqual([1, 2, 3, 9]);
+	});
 });
 
 describe("trackLabels", () => {

@@ -40,12 +40,42 @@ import { ALPHA_SEEN } from "./render.js";
  * ten nearest the centre — but not from the plot test: a name the draw pass has
  * culled has nothing left to label.
  *
+ * A `floor` caps the cut by height as well as by count: a name is only taken
+ * while the stack the de-collider will sweep — every kept name pushed at least
+ * `gap` below the one above it — still ends on or above it. On a short canvas
+ * the stack otherwise runs off the plot and over the year ticks under it.
+ *
  * @param {Float32Array | Float64Array} attrs the frame's dot buffer
- * @param {{ highlight?: number[], labelIds: Iterable<number>, onPlot: (id: number) => boolean, top: number }} rule
+ * @param {{ highlight?: number[], labelIds: Iterable<number>, onPlot: (id: number) => boolean, top: number, floor?: number | null, gap?: number }} rule
  * @returns {Set<number>}
  */
-export function raceLabelCut(attrs, { highlight, labelIds, onPlot, top }) {
+export function raceLabelCut(
+	attrs,
+	{ highlight, labelIds, onPlot, top, floor = null, gap = 0 }
+) {
 	const keep = new Set((highlight ?? []).filter(onPlot));
+	// only a subject the frame draws takes room in the stack: a faded one's y
+	// still runs on down its curve, off the plot, and would refuse every name
+	const ys = [...keep]
+		.filter((id) => attrs[id * STRIDE + 6] > ALPHA_SEEN)
+		.map((id) => attrs[id * STRIDE + 1]);
+	for (const [id, y] of rankedRest(attrs, labelIds, keep, onPlot)) {
+		if (keep.size >= top) break;
+		ys.push(y);
+		if (floor != null && stackBottom(ys, gap) > floor) break;
+		keep.add(id);
+	}
+	return keep;
+}
+
+/**
+ * The cut's candidates beyond the exempt ones, as [id, y], nearest the top first.
+ * @param {Float32Array | Float64Array} attrs
+ * @param {Iterable<number>} labelIds
+ * @param {Set<number>} keep
+ * @param {(id: number) => boolean} onPlot
+ */
+function rankedRest(attrs, labelIds, keep, onPlot) {
 	/** @type {[number, number][]} */
 	const rest = [];
 	for (const id of labelIds) {
@@ -57,12 +87,19 @@ export function raceLabelCut(attrs, { highlight, labelIds, onPlot, top }) {
 		}
 		rest.push([id, attrs[id * STRIDE + 1]]);
 	}
-	rest.sort((a, b) => a[1] - b[1]);
-	for (const [id] of rest) {
-		if (keep.size >= top) break;
-		keep.add(id);
-	}
-	return keep;
+	return rest.sort((a, b) => a[1] - b[1]);
+}
+
+/**
+ * Where the lowest name of a downward-only stack lands: the de-collider's
+ * top-down sweep (label-decollide.js) over these dot ys.
+ * @param {number[]} ys
+ * @param {number} gap
+ */
+function stackBottom(ys, gap) {
+	let prev = -Infinity;
+	for (const y of [...ys].sort((a, b) => a - b)) prev = Math.max(y, prev + gap);
+	return prev;
 }
 
 /**

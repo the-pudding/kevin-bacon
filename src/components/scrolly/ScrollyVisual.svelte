@@ -1895,7 +1895,10 @@
 				highlight: labelKeep,
 				labelIds,
 				onPlot: (id) => onRacePlot(attrs, id * STRIDE),
-				top: RACE_LABEL_TOP
+				top: RACE_LABEL_TOP,
+				// raceFuture lifts its names over the plot instead (labelFloor)
+				floor: raceStep.tailPx === undefined ? racePlotRect?.bottom : null,
+				gap: LABEL_LINE_GAP_PX
 			});
 		}
 		return galaxyHighlight.ids.length > 0 ? galaxyLabelCut() : labelIds;
