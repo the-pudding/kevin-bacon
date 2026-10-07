@@ -2738,7 +2738,6 @@
 						<p
 							class="band-label fade-in"
 							class:band-label-right={b.label.right}
-							class:band-label-bottom={b.label.bottom}
 							style="left: {b.label.x}px; top: {b.label.y}px"
 						>
 							the future
@@ -3568,16 +3567,14 @@
 		/* it sits just inside the box, and can crowd the border on a narrow strip,
 		   so it needs the same legibility halo the ticks carry */
 		text-shadow: var(--text-halo);
-	}
-
-	/* the top-right corner: the anchor `x` is the box's right edge, so the text
-	   is pulled back by its own rendered width to sit inside it */
-	.band-label-right {
-		transform: translateX(-100%);
-	}
-
-	.band-label-bottom {
+		/* the anchor is on the box's foot, so the text is pulled up by its own
+		   rendered height to sit inside it */
 		transform: translateY(-100%);
+	}
+
+	/* ...and at its bottom-right corner, pulled back by its own width too */
+	.band-label-right {
+		transform: translate(-100%, -100%);
 	}
 
 	/* the ring has no text: it IS the mark, and the note beside it is what carries

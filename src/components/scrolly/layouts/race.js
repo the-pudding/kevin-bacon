@@ -1554,7 +1554,7 @@ function raceFutureTicks(cam, frontier, full) {
  * actually reached that width. The markup mounts it only then, which gives it
  * its own separate `.fade-in` rather than the wrapper's.
  */
-function raceFutureBand(cam, frontier, labelInside = false) {
+function raceFutureBand(cam, frontier, labelLeft = false) {
 	if (!(frontier > RACE_DATA_END)) return null;
 	const { x0, right, pitch, xS } = raceFutureScale(cam);
 	if (pitch <= 0 || x0 > right - 1) return null;
@@ -1566,20 +1566,22 @@ function raceFutureBand(cam, frontier, labelInside = false) {
 		y: cam.top,
 		width,
 		height: cam.bottom - cam.top,
-		// Bottom-left inside the box for the closing step: its projected names sit
-		// at the strip's far (right) edge and read leftwards across it, and the
-		// best of them lands at the top of the closing window, so on a phone the
-		// names ran over a label in the top corner. The block's foot is empty bar
-		// the lines arriving from the left. Top-right inside the box for every
-		// other step, whose crown's own name renders right at the strip's left
-		// edge (x(RACE_DATA_END) + 7) and would otherwise share the corner.
-		// `right` and `bottom` say which corner: the markup aligns the text's
-		// right edge or foot to the anchor, since the box's width (and so its
-		// right edge) varies frame to frame.
+		// Along the box's foot, on every step. The top belongs to the names:
+		// the crown's renders at the strip's left edge (x(RACE_DATA_END) + 7)
+		// and ran into a label in the top-right corner on a phone (Owen,
+		// 2026-10-07), as the closing step's best projected name did. Bottom-left
+		// for the closing step, whose projected names sit at the strip's far
+		// (right) edge and read leftwards across it — SLJ's, falling, lands just
+		// above the bottom-right corner — so its foot is empty bar the lines
+		// arriving from the left. Bottom-right for every other step, whose names
+		// run right from the strip's left edge and stop short of that corner.
+		// `right` says which: the markup aligns the text's right edge to the
+		// anchor, since the box's width (and so its right edge) varies frame to
+		// frame.
 		label: open
-			? labelInside
-				? { x: x0 + 6, y: cam.bottom - 4, right: false, bottom: true }
-				: { x: x0 + fullWidth - 6, y: cam.top + 4, right: true, bottom: false }
+			? labelLeft
+				? { x: x0 + 6, y: cam.bottom - 4, right: false }
+				: { x: x0 + fullWidth - 6, y: cam.bottom - 4, right: true }
 			: null
 	};
 }
