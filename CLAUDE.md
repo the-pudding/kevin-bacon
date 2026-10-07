@@ -15,7 +15,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Share image (`og:image`/`twitter:image`): `npm run social` writes the canvas at step 0 to `static/assets/social.jpg`, 1200×630, framed by `scripts/social-image.css` (`--step N`, `--out <path>` to try another step without replacing it, `--url` to reuse a dev server)
 - All quality gates as CI runs them (lint, the design tokens' build check, svelte-check, vitest, the rendered contrast scan): `npm run gates`
 - WCAG colour contrast of the rendered page at every step (axe-core on a dev server): `npm run a11y` (`--box`, `--steps`)
-- Text overprinting text at every step (shared glyph ink of prose, chart title and chart text; 375, 390, 667×375 at 100% and 200% text, Chromium and WebKit): `npm run overlap` (`--box`, `--text`, `--engine`, `--steps`, `--min`)
+- Text overprinting text at every step (shared glyph ink of prose, chart title and chart text; 375×667, 390×844, 667×375 at 100% and 200% text, Chromium and WebKit): `npm run overlap` (`--box`, `--text`, `--engine`, `--steps`, `--min`)
 - Format: `npm run format`
 - Sync Google Docs/Sheets micro-CMS content into `src/data` (per `google.config.js`): `npm run gdoc`
 - Rebuild the story data from the analysis repo: `ANALYSIS_REPO=<path> npm run scrolly-data`. The env var is required — the script never guesses where the analysis checkout is, since a stale path would silently rebuild the committed data from the wrong inputs. Rarely needed: the output is committed.
