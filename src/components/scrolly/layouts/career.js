@@ -3,7 +3,14 @@ import { ATTR_SIZE, set } from "../attr-buffer.js";
 import { SWEENEY, DENIRO, CHASE, HACKMAN, MIRREN } from "../cast.js";
 import { ANCHOR_ID } from "../nodes.js";
 import { CROWD, CAREER } from "../palette.js";
-import { MARGIN, plotBottom, lin, markedTicks, stepped } from "../plot.js";
+import {
+	MARGIN,
+	plotBottom,
+	plotTop,
+	lin,
+	markedTicks,
+	stepped
+} from "../plot.js";
 import {
 	SEARCH_DOT_R,
 	SEARCH_RGB,
@@ -140,7 +147,7 @@ function careerFrame(nodes, w, h) {
 			filmsMax = Math.max(filmsMax, ...series.map((p) => p[1]));
 		}
 	}
-	const top = MARGIN + 8;
+	const top = plotTop(h, "career") + 8;
 	const bottom = plotBottom(h, "career");
 	return {
 		ageMax,

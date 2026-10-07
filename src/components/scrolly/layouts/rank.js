@@ -2,7 +2,7 @@ import { ANCHOR_ID, hash01 } from "../nodes.js";
 import { ATTR_SIZE, set } from "../attr-buffer.js";
 import { RIGHT, drain } from "../drain.js";
 import { CROWD, HOP_RGB, hopDotAlpha, INK } from "../palette.js";
-import { MARGIN } from "../plot.js";
+import { MARGIN, titleClearance } from "../plot.js";
 import {
 	RANK_BAR_H,
 	RANK_DOT_D,
@@ -19,9 +19,9 @@ import {
 // it — the dots don't need to dissolve themselves.
 // ---------------------------------------------------------------------------
 
-// fallback before RankBars has measured its centered focus row (see params
-// below) — only ever visible for a frame or two on first mount
-const BACON_Y = MARGIN + 40;
+// where the bar stands before RankBars has measured its centered focus row (see
+// params below) — only ever visible for a frame or two on first mount
+const restingBarY = () => titleClearance("rank") + 40;
 
 /** @type {import("../layout-types.js").LayoutFn} */
 function layoutRank(nodes, w, _h, _edges, params) {
@@ -33,7 +33,7 @@ function layoutRank(nodes, w, _h, _edges, params) {
 		x: x0,
 		y: baconY,
 		w: maxBarW
-	} = params?.bar ?? { x: MARGIN, y: BACON_Y, w: w - MARGIN * 2 };
+	} = params?.bar ?? { x: MARGIN, y: restingBarY(), w: w - MARGIN * 2 };
 
 	// Bacon's own corpus hop shares, cut through the strip's shared scatter —
 	// the exact points his RankBars row draws (rank-geometry.js), not an
@@ -104,11 +104,14 @@ export const states = {
 		layout: layoutRank,
 		params,
 		scene: "rank",
+		// measured like a plot group (plot.js): the ladder hangs under the title
+		// and stops above the taller of the chapter's two cards
+		card: "rank",
 		title,
 		// the bands collapse onto Bacon's bar on a curve: the drain (drain.js),
 		// turning the way the title card's fall does. Back out of the bar (a
 		// step back past rankReveal) fans out straight.
 		curve: { from: ["hopAnchor"], bows: drain(RIGHT) }
 	},
-	rankReveal: { layout: layoutRank, params, scene: "rank", title }
+	rankReveal: { layout: layoutRank, params, scene: "rank", card: "rank", title }
 };

@@ -23,6 +23,15 @@
 				"min": 4.5
 			}
 		},
+		"tick-horizon": {
+			"value": "{color.gray-400}",
+			"modify": { "alpha": 0.75 },
+			"comment": "the race chart's future strip's last year, the tick its years fade to (race.js's FUTURE_TICK_HORIZON_ALPHA, which a race spec holds to this alpha)",
+			"contrast": {
+				"against": "surface.page",
+				"min": 4.5
+			}
+		},
 		"tick-mark": {
 			"value": "{color.gray-500}",
 			"comment": "the tick's own stroke",

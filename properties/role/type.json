@@ -49,6 +49,16 @@
 				"comment": "quiz cards, search chips and the search box's readouts"
 			},
 			"tracking": { "value": "{tracking.mono}" }
+		},
+		"chart-title": {
+			"size": {
+				"value": "1.2rem",
+				"comment": "the chart titles over the canvas (ScrollyVisual's .chart-title)"
+			},
+			"size-base": {
+				"value": "19.2px",
+				"comment": "the chart title's size at the default 16px root: the one line every layout's plot top is authored to clear, which ScrollyVisual measures the live titles against"
+			}
 		}
 	}
 }

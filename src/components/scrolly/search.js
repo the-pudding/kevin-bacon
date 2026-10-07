@@ -41,6 +41,31 @@ const nameOf = (id) => /** @type {string} */ (rawNodes.nodes[id][1]);
  */
 export const SEARCH_POOL = /** @type {number[]} */ (rawNodes.searchPool);
 
+// Which chart the reader's named actor is being asked about, for the search's
+// analytics (`recordActorSearch`). Keyed by CHART rather than by state, which
+// is why three states share "career" and two share "remoteness": the question
+// the reader is answering is "where am I on this chart", and `careerTrio`,
+// `careerBacon` and `careerMany` are one scene drawing one chart (see
+// layouts/career.js), as are `scatterCenters` and `scatterQuiz` — both titled
+// "Films vs. remoteness". Splitting them would make the numbers say the
+// reader searched four different things when they searched one.
+//
+// Read off the active state rather than passed per mount, so every step can
+// share ONE panel snippet — which is what keeps the control mounted across
+// the runs of adjacent steps (15 → 19 is five of them). A state listed here
+// is one whose steps carry the search's glyph on the chart title's line,
+// which ScrollyVisual's title measure needs to know.
+/** @type {Record<string, string>} */
+export const SEARCH_CHARTS = {
+	hopAnchor: "hops",
+	scatterCenters: "remoteness",
+	scatterQuiz: "remoteness",
+	degScatter: "costars",
+	careerTrio: "career",
+	careerBacon: "career",
+	careerMany: "career"
+};
+
 /**
  * The ranked top 250. The rank guess's own, narrower pool: every result needs
  * a visible RankBars row to scroll to, and RankBars only renders this many.

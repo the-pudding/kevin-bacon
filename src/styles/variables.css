@@ -107,6 +107,10 @@
 	--tracking-mono: -0.3px;
 	/** the outline variant's hover: no fill */
 	--control-button-quiet-hover: transparent;
+	/** the chart titles over the canvas (ScrollyVisual's .chart-title) */
+	--type-chart-title-size: 1.2rem;
+	/** the chart title's size at the default 16px root: the one line every layout's plot top is authored to clear, which ScrollyVisual measures the live titles against */
+	--type-chart-title-size-base: 19.2px;
 	/** an over-canvas paragraph at rest */
 	--annotation-text: var(--color-white);
 	--annotation-note: var(--color-white);
@@ -135,6 +139,8 @@
 	--chart-title: var(--color-white);
 	/** axis tick labels, including the race chart's 1980 tick, and the race scrubber's end years */
 	--chart-tick: var(--color-gray-400);
+	/** the race chart's future strip's last year, the tick its years fade to (race.js's FUTURE_TICK_HORIZON_ALPHA, which a race spec holds to this alpha) */
+	--chart-tick-horizon: rgba(161, 161, 161, 0.75);
 	/** the tick's own stroke */
 	--chart-tick-mark: var(--color-gray-500);
 	/** the y-axis direction hint */
@@ -162,6 +168,8 @@
 	--chart-result-fill-mine: var(--color-white);
 	/** the focus ring, on the page and on the step card's plate and frost */
 	--control-focus: var(--color-gray-500);
+	/** the focus ring on the canvas's actor buttons (ScrollyVisual's .hit), which crosses route lines and Bacon's glow; a page-coloured halo outside it keeps its edge on any dot */
+	--control-focus-canvas: var(--color-white);
 	/** a filled button: the default and story variants, the plain <button>, skip-to-main */
 	--control-button-primary-bg: var(--color-white);
 	--control-button-primary-fg: var(--color-night);

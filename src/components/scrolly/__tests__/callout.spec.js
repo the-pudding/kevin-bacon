@@ -5,7 +5,6 @@
 import { beforeEach, describe, expect, test } from "vitest";
 import { ATTR_SIZE } from "../attr-buffer.js";
 import { TRAIL_SIZE } from "../trails.js";
-import { setPlotBeside } from "../plot.js";
 import {
 	writeRaceSweepFrame,
 	racePanFrame,
@@ -13,10 +12,12 @@ import {
 	raceVisibleSpan,
 	RACE_FULL_STEP,
 	RACE_DATA_END,
-	RACE_BAND_FIRST
+	RACE_BAND_FIRST,
+	FUTURE_TICK_HORIZON_ALPHA
 } from "../layouts/race.js";
+import tokens from "$styles/tokens.json";
 import { STATE_RACE } from "../states.js";
-import { BOXES } from "./helpers.js";
+import { BOXES, useBox } from "./helpers.js";
 
 // the waypoint raceFull rests on by every path, which is where the crossing sits
 const REST = 2006;
@@ -27,6 +28,7 @@ const DESKTOP = { w: 700, h: 820 };
 
 /** one race frame at one box and playhead, with only its furniture read back */
 function frameAt({ w, h }, playhead = REST, step = RACE_FULL_STEP) {
+	useBox({ h, beside: false });
 	return writeRaceSweepFrame(
 		new Float64Array(ATTR_SIZE),
 		new Float64Array(TRAIL_SIZE),
@@ -37,9 +39,10 @@ function frameAt({ w, h }, playhead = REST, step = RACE_FULL_STEP) {
 	);
 }
 
-// the plot's layout mode is module state on plot.js, and these tests read the
-// plot floor — so pin it rather than inherit whatever ran last
-beforeEach(() => setPlotBeside(false));
+// the plot's layout mode and geometry are module state on plot.js, and these
+// tests read the plot floor — so pin them rather than inherit whatever ran last
+// (frameAt pins the geometry to its own box)
+beforeEach(() => useBox(BOXES[0]));
 
 describe("raceCallout", () => {
 	test("a step gets the chapter's callout while its moment is on the plot", () => {
@@ -111,7 +114,7 @@ describe("raceCallout", () => {
 		// Asserted over every playhead the reader can reach, at every box, rather
 		// than at the few the other tests happen to use.
 		for (const box of BOXES) {
-			setPlotBeside(box.beside);
+			useBox(box);
 			const span = raceVisibleSpan(box.w, box.h);
 			for (let p = RACE_BAND_FIRST; p <= RACE_DATA_END; p += 0.25) {
 				// exclusive: a ring ON either edge has faded to nothing, and is not
@@ -196,5 +199,17 @@ describe("raceCalloutGeometry", () => {
 				`${w}px right edge`
 			).toBeLessThanOrEqual(cam.right);
 		}
+	});
+});
+
+// The future strip's years fade to FUTURE_TICK_HORIZON_ALPHA at the horizon,
+// and the canvas cannot read the CSS token that holds that last year to 4.5:1
+// against the page (`chart.tick-horizon`, checked by the contrast spec) — so
+// the two are held together here instead.
+describe("the future strip's horizon year", () => {
+	test("fades no further than the tick-horizon token's alpha", () => {
+		const [r, g, b, a] = tokens["chart.tick-horizon"].rgba;
+		expect(a).toBe(FUTURE_TICK_HORIZON_ALPHA);
+		expect([r, g, b]).toEqual(tokens["chart.tick"].rgba.slice(0, 3));
 	});
 });

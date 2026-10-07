@@ -1,49 +1,110 @@
-// The plot's canvas geometry: the plot floor each chart group draws to, and
-// the x-axis title's placement under it — the one piece with a rule a refactor
-// can quietly break, because the obvious shape for it (clamp the title up until
-// it clears the card) is the wrong one.
+// The plot's canvas geometry: the floor and top each chart group draws to off
+// the DOM's measurements, and the x-axis title's placement under the floor —
+// the one piece with a rule a refactor can quietly break, because the obvious
+// shape for it (clamp the title up until it clears the card) is the wrong one.
 import { describe, expect, test } from "vitest";
 import {
+	AXIS_ROOM,
+	MARGIN,
 	PLOT_BOTTOM_BESIDE,
-	PLOT_BOTTOM_MIN,
-	PLOT_RESERVE,
+	chartFloor,
 	plotBottomAt,
+	MIN_PLOT_H,
+	plotTopAt,
 	xLabelTop
 } from "../plot.js";
+import { STATE_GROUP, STATE_PLOT } from "../states.js";
+import { geometryFor } from "./helpers.js";
 
 // the 375x667 canvas, which motion.md rule 4 calls authoritative, and the two
 // rows the title has to choose between on it
 const H = 641;
-const FLOOR = plotBottomAt(H, "career", false);
+const GEOMETRY = geometryFor({ h: H });
+const FLOOR = plotBottomAt(H, "career", false, GEOMETRY);
 const TICKS = FLOOR + 10;
 const HOME = FLOOR + 32;
 
-// the phone canvases the reserves were measured across (360x640 to 430x932)
-const PHONE_HS = [614, 641, 818, 906];
+// a geometry as the page measures one: a reserve per group, and one group
+// whose title wraps
+const MEASURED = {
+	reserves: { race: 296, scatter: 251, quiz: 297, career: 263, sim: 198 },
+	titles: { race: 27, scatter: 0, quiz: 0, career: 0, sim: 0 }
+};
+const AXIS_GROUPS = /** @type {const} */ ([
+	"race",
+	"scatter",
+	"quiz",
+	"career",
+	"sim"
+]);
 
 describe("plot floor", () => {
-	test("never ends above the floor share of the canvas, stacked", () => {
-		for (const group of Object.keys(PLOT_RESERVE))
-			for (const h of PHONE_HS)
-				expect(plotBottomAt(h, group, false)).toBeGreaterThanOrEqual(
-					h * PLOT_BOTTOM_MIN
-				);
-	});
-
-	test("keeps its group's reserve clear once the screen is tall enough", () => {
-		for (const [group, reserve] of Object.entries(PLOT_RESERVE))
-			expect(plotBottomAt(906, group, false)).toBe(
-				Math.max(906 * PLOT_BOTTOM_MIN, 906 - reserve)
-			);
-		// a tall phone's scatter gains the canvas a share-based floor left empty
-		expect(plotBottomAt(906, "scatter", false)).toBeGreaterThan(
-			906 * PLOT_BOTTOM_MIN
-		);
+	test("keeps its group's whole reserve, and AXIS_ROOM over it, clear, stacked", () => {
+		for (const group of AXIS_GROUPS)
+			for (const h of [349, 641, 818, 906]) {
+				const floor = plotBottomAt(h, group, false, MEASURED);
+				expect(floor + AXIS_ROOM).toBe(h - MEASURED.reserves[group]);
+				expect(chartFloor(h, group, MEASURED)).toBe(floor + AXIS_ROOM);
+			}
 	});
 
 	test("takes the column's own share beside the prose, whatever the group", () => {
-		for (const group of Object.keys(PLOT_RESERVE))
-			expect(plotBottomAt(820, group, true)).toBe(820 * PLOT_BOTTOM_BESIDE);
+		for (const group of AXIS_GROUPS)
+			expect(plotBottomAt(820, group, true, MEASURED)).toBe(
+				820 * PLOT_BOTTOM_BESIDE
+			);
+	});
+
+	test("is not drawn to a guess before the geometry is measured", () => {
+		expect(() => plotBottomAt(641, "race", false, null)).toThrow();
+		expect(() =>
+			plotBottomAt(641, "race", false, { reserves: {}, titles: {} })
+		).toThrow();
+	});
+});
+
+describe("plot top", () => {
+	test("sits a MARGIN down under a one-line title", () => {
+		expect(plotTopAt(641, "scatter", false, MEASURED)).toBe(MARGIN);
+	});
+
+	test("moves down by as much as the group's title runs past one line", () => {
+		expect(plotTopAt(641, "race", false, MEASURED)).toBe(MARGIN + 27);
+	});
+
+	test("never comes closer to the floor than MIN_PLOT_H", () => {
+		// a four-line title at 200% text on a phone runs ~190px past one line
+		const tall = { ...MEASURED, titles: { ...MEASURED.titles, race: 190 } };
+		for (const h of [349, 641])
+			expect(
+				plotBottomAt(h, "race", false, tall) - plotTopAt(h, "race", false, tall)
+			).toBeGreaterThanOrEqual(MIN_PLOT_H);
+	});
+});
+
+describe("plot groups", () => {
+	// The contract the measured geometry rests on: a step change inside a group
+	// moves neither the floor nor the top (motion.md rule 7), which holds only
+	// because every state in the group reads the same group's numbers.
+	test("every state in a group reads the same reserve and plot top", () => {
+		for (const group of AXIS_GROUPS) {
+			const states = Object.keys(STATE_PLOT).filter(
+				(s) => STATE_PLOT[s] === group
+			);
+			const floors = states.map((s) =>
+				plotBottomAt(641, STATE_PLOT[s], false, MEASURED)
+			);
+			const tops = states.map((s) =>
+				plotTopAt(641, STATE_GROUP[s], false, MEASURED)
+			);
+			expect(new Set(floors).size, group).toBe(1);
+			expect(new Set(tops).size, group).toBe(1);
+		}
+	});
+
+	test("a plot state's measured group is its plot group", () => {
+		for (const [state, group] of Object.entries(STATE_PLOT))
+			expect(STATE_GROUP[state], state).toBe(group);
 	});
 });
 

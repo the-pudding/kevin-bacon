@@ -49,6 +49,7 @@
 		OVERLAYS,
 		STATE_SCENE,
 		STATE_PLOT,
+		STATE_GROUP,
 		STATE_LABELS,
 		STATE_TITLE,
 		STATE_LABEL_TEXT,
@@ -86,23 +87,31 @@
 		MARGIN,
 		TITLE_BAND,
 		plotBottomAt,
+		plotTopAt,
 		isPlotBeside,
 		xLabelTop,
 		setPlotBeside,
+		setPlotGeometry,
 		NO_BLEED,
 		screenSpan
 	} from "./plot.js";
+	import { SEARCH_CHARTS } from "./search.js";
 	import { story } from "./story.svelte.js";
 
-	// undefined until the <Step> registry has populated (first client render)
-	/** @type {{ state: import("./states.js").VisualState, step?: number, params?: Object, stepsHeight?: number, coldStart?: boolean, beside?: boolean }} */
+	// undefined until the <Step> registry has populated (first client render).
+	// `reserves` is each group's measured card reserve (Stage.svelte), null
+	// until every card has been measured; `titles` is bound back out to Stage,
+	// which places the panels that hang under a chart title off it.
+	/** @type {{ state: import("./states.js").VisualState, step?: number, params?: Object, stepsHeight?: number, coldStart?: boolean, beside?: boolean, reserves?: import("./plot.js").PlotGeometry["reserves"] | null, titles?: import("./plot.js").PlotGeometry["titles"] | null }} */
 	let {
 		state: stateName,
 		step = -1,
 		params,
 		stepsHeight = 0,
 		coldStart = false,
-		beside = false
+		beside = false,
+		reserves = null,
+		titles = $bindable(null)
 	} = $props();
 
 	const TWEEN_MS = 700;
@@ -436,7 +445,7 @@
 		if (layoutParams?.playhead != null) {
 			return STATES[name](nodes, w, h, edges, layoutParams, bleed);
 		}
-		const key = `${name}:${w}:${h}:${bleed.l}:${bleed.r}:${isPlotBeside()}:${JSON.stringify(layoutParams) ?? ""}`;
+		const key = `${name}:${w}:${h}:${bleed.l}:${bleed.r}:${isPlotBeside()}:${geometryKey}:${JSON.stringify(layoutParams) ?? ""}`;
 		let result = layoutCache.get(key);
 		if (!result) {
 			result = STATES[name](nodes, w, h, edges, layoutParams, bleed);
@@ -683,6 +692,9 @@
 	// write just as the box's own height does. 0 is not a fraction any layout can
 	// be built at, so the first run always counts as a change.
 	let prevBeside = false;
+	// ...and the measured geometry it was authored against (plot.js), for the
+	// same reason: a card or a title that changed height moves every plot
+	let prevGeometryKey = "";
 
 	/**
 	 * Re-measure the column's offset in the viewport.
@@ -723,6 +735,7 @@
 		prevH = height;
 		prevCanvasW = canvasWidth;
 		prevBeside = beside;
+		prevGeometryKey = geometryKey;
 	}
 
 	// live, so DevTools' emulation (and a reader changing the OS setting mid-story)
@@ -803,13 +816,46 @@
 	/** @type {HTMLElement | undefined} */
 	let titleEl = $state();
 	let titleHeight = $state(0);
+	// -- Measured geometry ------------------------------------------------------
+	// The chart titles, measured: a hidden copy of every grouped state's title
+	// at the width that state sets it at — centred, or flush across a
+	// screen-wide chart, and pulled in by the search glyph on a searchable step
+	// — and one line of title at the default type size. A group's overrun is
+	// how far its tallest title runs past that line, which is what pushes its
+	// plot down (plot.js's plotTop), on every step of the group alike, so a step
+	// change inside one never moves the plot (motion.md rule 7). Measured here
+	// rather than in Stage because the title's rules are this component's.
+	const TITLED = Object.keys(STATE_GROUP).filter((s) => STATE_TITLE[s]);
+	/** @type {Record<string, number>} */
+	let titleHeights = $state({});
+	let titleLine = $state(0);
+	$effect(() => {
+		if (!titleLine || TITLED.some((s) => !titleHeights[s])) return;
+		/** @type {import("./plot.js").PlotGeometry["titles"]} */
+		const out = {};
+		// a group with no title at all (the opening) runs past nothing
+		for (const g of Object.values(STATE_GROUP)) out[g] = 0;
+		for (const s of TITLED) {
+			const g = STATE_GROUP[s];
+			out[g] = Math.max(out[g], titleHeights[s] - titleLine);
+		}
+		titles = out;
+	});
+	/** the geometry every layout is built against, or null until all of it is in */
+	const geometry = $derived(reserves && titles ? { reserves, titles } : null);
+	const geometryKey = $derived(JSON.stringify(geometry));
+	// ...as a flag that turns once, for the effects that must wait for it
+	// without re-running on every new identity of the same numbers
+	const measured = $derived(geometry !== null);
+
 	const titleOverrun = $derived.by(() => {
 		titleHeight;
 		width;
 		stateName;
-		if (!titleEl || !overlayEl || !yTitleW) return 0;
+		const group = STATE_PLOT[stateName];
+		if (!titleEl || !overlayEl || !yTitleW || !group || !geometry) return 0;
 		// its resting top: the plot's top edge (hintTop), less its 0.6em lift
-		const rest = MARGIN + 8 - yTitleLift;
+		const rest = plotTopAt(height, group, beside, geometry) + 8 - yTitleLift;
 		const o = overlayEl.getBoundingClientRect();
 		const t = titleEl.getBoundingClientRect();
 		// read once per measure, not per frame: the axis' x holds still in a pan
@@ -1099,9 +1145,10 @@
 	 */
 	function axisPlaces(d, name) {
 		const group = STATE_PLOT[name];
-		if (!height || !group)
+		if (!height || !group || !geometry)
 			return { xTop: 0, yTop: 0, hintTop: 0, hintBottom: 0 };
-		const floor = plotBottomAt(height, group, beside);
+		const floor = plotBottomAt(height, group, beside, geometry);
+		const top = plotTopAt(height, group, beside, geometry) + 8;
 		return {
 			// x-axis title sits just under the plot, but never behind the step card:
 			// on long-prose steps the card climbs into the plot and the title moves
@@ -1113,12 +1160,12 @@
 			// for what a clamp did.
 			xTop: xLabelTop(height, stepsHeight, d?.axes?.xBase, floor),
 			// vertical centre of the rotated y-axis title: every scatter/line layout
-			// maps its y-domain onto the full plot area (top ≈ MARGIN+8 → floor), so
-			// the plot-area centre IS the axis centre
-			yTop: (MARGIN + 8 + floor) / 2,
+			// maps its y-domain onto the full plot area (top ≈ plotTop+8 → floor),
+			// so the plot-area centre IS the axis centre
+			yTop: (top + floor) / 2,
 			// pinned homes for the "lower"/"higher" mini-labels — the same plot-rect
 			// top/bottom the y-axis title centres within
-			hintTop: MARGIN + 8,
+			hintTop: top,
 			hintBottom: floor
 		};
 	}
@@ -1878,7 +1925,7 @@
 	// labels. The stacker lifts the whole set off the plot floor for it.
 	function labelFloor() {
 		return raceStep?.tailPx !== undefined && height
-			? plotBottomAt(height, STATE_PLOT[stateName], beside) - 4
+			? plotBottomAt(height, STATE_PLOT[stateName], beside, geometry) - 4
 			: null;
 	}
 	/**
@@ -2000,13 +2047,24 @@
 	}
 
 	// -- Effects ----------------------------------------------------------------
+	// The plot's layout mode and measured geometry are properties of the PAGE's
+	// layout, not of any one state, so they are handed to plot.js here rather
+	// than threaded through the layout modules — before anything below can
+	// build a layout or read a plot: the camera's bounds read the race's plot as
+	// soon as the box is measured.
+	$effect.pre(() => {
+		setPlotBeside(beside);
+		setPlotGeometry(geometry);
+	});
 	// The race camera on a state change: drop the hold, remember the departing
 	// camera, rest on the arriving step's. Depends on stateName ONLY (the reads
-	// are untracked) — a choreography publishing raceView while the state is
-	// unchanged must not re-fire this. Declared before the render effect so it
+	// are untracked), once the geometry the race's plot is built from is in —
+	// a choreography publishing raceView while the state is unchanged must not
+	// re-fire this. Declared before the render effect so it
 	// wins the flush when a step change dirties both.
 	$effect(() => {
 		stateName;
+		if (!measured) return;
 		const step = STATE_RACE[stateName];
 		untrack(() => camera.reset(step, width, height));
 	});
@@ -2016,6 +2074,8 @@
 		raceStep;
 		width;
 		height;
+		geometryKey;
+		if (!measured) return;
 		untrack(() => camera.publish(raceStep, width, height));
 	});
 
@@ -2251,7 +2311,7 @@
 
 	/** everything the render effect needs measured before it can build a layout */
 	const canvasReady = () =>
-		!!(canvas && width && height && canvasWidth && stateName);
+		!!(canvas && width && height && canvasWidth && stateName && geometry);
 
 	/**
 	 * Whether the backing store has to be re-fitted, which is also what makes the
@@ -2268,6 +2328,11 @@
 	 * height for the rest of the session, until some other change happened to
 	 * rebuild it — which is how answering the quiz's first pair came to jump the
 	 * scatter's y-axis half a chart down the screen.
+	 *
+	 * So does the measured geometry (plot.js): a card or a chart title that
+	 * changed height — the reader changed their text size, or a web font
+	 * landed — moves every plot's floor or top, and that is a change of box
+	 * from the reader's side.
 	 */
 	function isResize(moved) {
 		return (
@@ -2275,7 +2340,8 @@
 			width !== prevW ||
 			height !== prevH ||
 			canvasWidth !== prevCanvasW ||
-			beside !== prevBeside
+			beside !== prevBeside ||
+			geometryKey !== prevGeometryKey
 		);
 	}
 
@@ -2287,12 +2353,10 @@
 	 * steps aside (scrubbing implies active, so this one guard covers both).
 	 */
 	function fitBox() {
-		// the plot's layout mode is a property of the PAGE's layout, not of any one
-		// state, so it is set here — once, before any layout is built — rather than
-		// threaded through the layout modules. `beside` is a prop, so
-		// the effect already re-runs when the breakpoint flips, and `isResize`
-		// is what stops that re-run being discarded as a no-op.
-		setPlotBeside(beside);
+		// plot.js's page layout is already set (the pre-effect above the camera's);
+		// `beside` and the geometry are read here as well, so the effect re-runs
+		// when either changes, and `isResize` is what stops that re-run being
+		// discarded as a no-op.
 		// where the column sits in the viewport, which the full-bleed layouts
 		// author their sky against
 		const resized = isResize(measureBleed());
@@ -2656,6 +2720,7 @@
 						<p
 							class="band-label fade-in"
 							class:band-label-right={b.label.right}
+							class:band-label-bottom={b.label.bottom}
 							style="left: {b.label.x}px; top: {b.label.y}px"
 						>
 							the future
@@ -3007,6 +3072,25 @@
 				</p>
 			{/key}
 		{/if}
+		<!-- Every grouped chart title, again, unseen, for the plot top
+		     (`titleHeights` above): each at the width its own state sets it at,
+		     plus one line at the default type size to measure them against. -->
+		<div class="title-measure" aria-hidden="true">
+			<p class="chart-title measure line" bind:clientHeight={titleLine}>M</p>
+			{#each TITLED as name (name)}
+				{@const span = titleSpanFor(name)}
+				<p
+					class="chart-title measure"
+					class:searchable={!!SEARCH_CHARTS[name]}
+					class:flush={span}
+					style:--title-left={span && `${span[0]}px`}
+					style:--title-span={span && `${span[1]}px`}
+					bind:clientHeight={titleHeights[name]}
+				>
+					{STATE_TITLE[name]}
+				</p>
+			{/each}
+		</div>
 	</div>
 	{#if pick}
 		<div class="hits">
@@ -3210,6 +3294,14 @@
 		background: var(--annotation-hit-pressed);
 	}
 
+	/* The ring over the canvas: white rather than the page's grey ring, which
+	   vanished where it crossed a route line or Bacon's glow, with a ring of
+	   the page's own colour outside it, so its edge holds against any dot. */
+	.hit:focus-visible {
+		outline: 2px solid var(--control-focus-canvas);
+		box-shadow: 0 0 0 6px var(--surface-page);
+	}
+
 	/* a region centred on a single dot reads as a halo, not a box */
 	.hit.round {
 		border-radius: 50%;
@@ -3276,13 +3368,16 @@
 		font-family: var(--type-display-family);
 		letter-spacing: -0.5px;
 		-webkit-font-smoothing: antialiased;
-		font-size: 1.2rem;
+		font-size: var(--type-chart-title-size);
 	}
 
 	/* A searchable step puts ActorSearch's glyph (1.75rem, at the plot's right
 	   margin) on this line: pulled in either side by it, so the title stays
-	   centred and wraps before it reaches the glyph. */
-	:global(.scrolly-visual:has(.search__glyph)) .chart-title {
+	   centred and wraps before it reaches the glyph. A measured copy
+	   (.title-measure) is pulled in by its own state's glyph, not the live
+	   step's. */
+	:global(.scrolly-visual:has(.search__glyph)) .chart-title:not(.measure),
+	.chart-title.measure.searchable {
 		max-width: calc(100% - 2 * (var(--plot-margin) + 1.75rem));
 	}
 
@@ -3298,8 +3393,27 @@
 
 	/* ...and short of the search glyph at the span's right end, with the same
 	   0.5rem of air the glyph keeps from its own edge */
-	:global(.scrolly-visual:has(.search__glyph)) .chart-title.flush {
+	:global(.scrolly-visual:has(.search__glyph)) .chart-title.flush:not(.measure),
+	.chart-title.measure.flush.searchable {
 		max-width: calc(var(--title-span) - 1.75rem - 0.5rem);
+	}
+
+	/* the measured copies (titleHeights): laid out exactly as the titles are —
+	   in a box that is the overlay's own, so they resolve against the same
+	   width — and never seen. Clipped, so a copy wider than the screen (a long
+	   word at a large text size) cannot widen the page. */
+	.title-measure {
+		position: absolute;
+		inset: 0;
+		overflow: hidden;
+		visibility: hidden;
+		pointer-events: none;
+	}
+
+	/* ...and the line they are measured against: one line at the size every
+	   layout's plot top was authored for, whatever the reader's text size */
+	.chart-title.measure.line {
+		font-size: var(--type-chart-title-size-base);
 	}
 
 	.x-label {
@@ -3420,6 +3534,10 @@
 	   is pulled back by its own rendered width to sit inside it */
 	.band-label-right {
 		transform: translateX(-100%);
+	}
+
+	.band-label-bottom {
+		transform: translateY(-100%);
 	}
 
 	/* the ring has no text: it IS the mark, and the note beside it is what carries

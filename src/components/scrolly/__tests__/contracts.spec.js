@@ -10,8 +10,10 @@ import {
 	STATE_AMBIENT,
 	STATE_RACE,
 	STATE_YCAP,
+	STATE_PLOT,
 	entryFor
 } from "../states.js";
+import { plotBottomAt, plotTopAt, setPlotGeometry } from "../plot.js";
 import { prepareArrival } from "../arrivals.js";
 import { parkLeavers, restateHidden } from "../arrival-marks.js";
 import { ALPHA_SEEN } from "../render.js";
@@ -38,12 +40,16 @@ import {
 	storyWith,
 	storySteps,
 	backFrom,
-	published
+	published,
+	useBox
 } from "./helpers.js";
 
 // px or alpha: invisible, and inside the rounding of the Float32 frame buffers
 // the live canvas draws from
 const TOLERANCE = 1e-3;
+
+// how far under its plot floor every chart's x tick row starts
+const X_TICK_DROP = 10;
 
 function expectSameFrame(actual, expected, what) {
 	const { max, at } = maxAbsDiff(actual, expected);
@@ -548,6 +554,64 @@ describe("hidden spots: every dot an arrival shows starts on the canvas", () => 
 						Object.assign(story[key], value);
 					else story[key] = value;
 				}
+			}
+		});
+	}
+});
+
+// The measured geometry's contract (plot.js): every state in a plot group draws
+// its x-axis row at the group's measured floor and keeps its y ticks under the
+// group's measured plot top, so a step change inside a group moves neither
+// (motion.md rule 7) — whatever the cards and titles measure. Built against a
+// geometry whose every group differs, so a state reading another group's
+// numbers, or a hard-coded one, cannot pass by coincidence.
+describe("measured plot geometry", () => {
+	const MEASURED = {
+		reserves: {
+			race: 301,
+			scatter: 263,
+			quiz: 317,
+			career: 277,
+			sim: 211,
+			intro: 240,
+			rank: 280
+		},
+		titles: {
+			race: 27,
+			scatter: 13,
+			quiz: 19,
+			career: 31,
+			sim: 7,
+			intro: 0,
+			rank: 23,
+			hops: 17
+		}
+	};
+	const box = BOXES[0];
+
+	for (const [state, group] of Object.entries(STATE_PLOT)) {
+		test(`${state} draws to the ${group} group's floor and top`, () => {
+			useBox(box);
+			setPlotGeometry(MEASURED);
+			try {
+				const { axes } = STATES[state](
+					nodes,
+					box.w,
+					box.h,
+					edges,
+					layoutParamsFor(state),
+					box.bleed
+				);
+				const floor = plotBottomAt(box.h, group, false, MEASURED);
+				expect(axes.xBase - floor, "x-axis row off the floor").toBe(
+					X_TICK_DROP
+				);
+				for (const tick of axes.y ?? [])
+					expect(tick.pos, `y tick ${tick.label}`).toBeGreaterThanOrEqual(
+						plotTopAt(box.h, group, false, MEASURED)
+					);
+			} finally {
+				useBox(box);
 			}
 		});
 	}

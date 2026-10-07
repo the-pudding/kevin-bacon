@@ -12,6 +12,8 @@
 	 * ScrollyVisual publishes because only it knows the canvas width.
 	 */
 	import { story } from "./story.svelte.js";
+	import { nodeName } from "./states.js";
+	import { raceLeaderAt } from "./layouts/race.js";
 
 	const cam = $derived(story.race.cam);
 	// playhead the reader is aiming at; falls back to the published camera whenever
@@ -28,6 +30,14 @@
 	const sliderMin = $derived(Math.floor(cam?.panMin ?? 0));
 	const sliderMax = $derived(Math.ceil(cam?.panMax ?? 0));
 	const sliderValue = $derived(Math.round(value));
+	// What the slider says to a screen reader: the year, and who leads the race
+	// in it, which the chart otherwise says only in ink.
+	const valueText = $derived.by(() => {
+		const leader = raceLeaderAt(value);
+		return leader == null
+			? `${sliderValue}`
+			: `${sliderValue} — ${nodeName(leader)} leads`;
+	});
 	// how far along the track the thumb sits, 0-1, for the year riding over it
 	const sliderAt = $derived(
 		sliderMax > sliderMin
@@ -103,6 +113,7 @@
 					type="range"
 					class="race-slider"
 					aria-label="Year"
+					aria-valuetext={valueText}
 					min={sliderMin}
 					max={sliderMax}
 					step="1"

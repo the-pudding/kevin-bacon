@@ -4,7 +4,14 @@ import { ATTR_SIZE, set } from "../attr-buffer.js";
 import { SIM_SERIES, SIM_LABEL_N, SIM_LABEL_IDS } from "../cast.js";
 import { RIGHT, drain } from "../drain.js";
 import { CROWD, INK } from "../palette.js";
-import { MARGIN, plotBottom, lin, markedTicks, stepped } from "../plot.js";
+import {
+	MARGIN,
+	plotBottom,
+	plotTop,
+	lin,
+	markedTicks,
+	stepped
+} from "../plot.js";
 import {
 	TRAIL_SIZE,
 	TRAIL_POINTS,
@@ -101,7 +108,7 @@ const DOT_ROOM = 8;
 
 function simPlot(w, h) {
 	return {
-		top: MARGIN + 10,
+		top: plotTop(h, "sim") + 10,
 		bottom: plotBottom(h, "sim"),
 		left: MARGIN + 22, // room for the win-count ticks
 		right: w - MARGIN - DOT_ROOM
@@ -225,7 +232,8 @@ const SIM_LABEL_DIRS = Object.fromEntries(
 	SIM_LABEL_IDS.map((id) => [id, "left"])
 );
 
-const simLabelText = () =>
+/** each named contender's label, by id: their name and their share of the wins */
+export const simLabelText = () =>
 	Object.fromEntries(
 		story.genz.candidates
 			.slice(0, SIM_LABEL_N)

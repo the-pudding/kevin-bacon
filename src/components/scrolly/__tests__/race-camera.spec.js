@@ -1,5 +1,6 @@
-import { describe, expect, test } from "vitest";
+import { beforeEach, describe, expect, test } from "vitest";
 import { createRaceCamera } from "../race-camera.js";
+import { useBox } from "./helpers.js";
 import { STATE_RACE } from "../states.js";
 import {
 	raceRestPlayhead,
@@ -11,6 +12,9 @@ import {
 
 const W = 700;
 const H = 820;
+// the race's plot reads plot.js's module geometry
+beforeEach(() => useBox({ h: H, beside: false }));
+
 const freshStory = () => ({
 	race: { view: null, scrubYear: null, cam: null }
 });

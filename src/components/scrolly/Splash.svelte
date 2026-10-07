@@ -16,10 +16,10 @@
 	 * Stage.svelte renders it from the registry's active config, inside a stable
 	 * {#if} block Svelte can transition both ways.
 	 *
-	 * What it does render is an sr-only copy of the title, in the prose column's
-	 * live region, so a screen reader announces the card on arrival as it does a
-	 * step's prose. The drawn card sits after Previous/Next in the document and
-	 * outside that region, so on its own it is only met by reading on past Next.
+	 * A screen reader hears the card's name from Stage's status line on
+	 * arrival, as it hears every step's place in the story; the drawn title
+	 * itself is hidden from it, since the page's h1 already carries the same
+	 * words.
 	 *
 	 * The title, subtitle and byline come in as snippets rather than strings so the words
 	 * live in Index.svelte beside the story's other prose.
@@ -41,17 +41,9 @@
 	let { state: layoutState, params, title, subtitle, byline } = $props();
 
 	const steps = getContext("scrolly-steps");
-	const index = steps.register({
+	steps.register({
 		state: layoutState,
 		params,
 		splash: { title, subtitle, byline }
 	});
-	const active = $derived(steps.current === index);
 </script>
-
-{#if active && !steps.held}
-	<p class="sr-only">{@render title()}</p>
-	{#if subtitle}
-		<p class="sr-only">{@render subtitle()}</p>
-	{/if}
-{/if}

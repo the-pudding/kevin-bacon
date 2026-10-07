@@ -76,9 +76,10 @@
  * @property {number} width px, x → the frontier's position on that scale. Grows
  *   from 0 as the strip opens
  * @property {number} height px, the plot's full height
- * @property {{x: number, y: number, right: boolean}|null} label px, the anchor
- *   of the block's label, inside the box's top corner — `right` says which
- *   corner, and the markup right-aligns the text to `x` when it's set. Fixed at
+ * @property {{x: number, y: number, right: boolean, bottom: boolean}|null} label
+ *   px, the anchor of the block's label, inside one of the box's corners —
+ *   `right` and `bottom` say which, and the markup aligns the text's right
+ *   edge to `x` and its foot to `y` when they are set. Fixed at
  *   the box's FINAL width, not the currently-drawn one, and null until the box
  *   has actually reached that width — so the label never tracks the box's
  *   growing edge and only appears once it is fully drawn

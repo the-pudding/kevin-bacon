@@ -104,6 +104,10 @@
 		matches.map(({ id, name }) => ({ value: String(id), label: name }))
 	);
 
+	// The pick, said to a screen reader: what it changes is a dot on the canvas,
+	// which says nothing to one.
+	let announced = $state("");
+
 	function commit(id) {
 		// The canvas mark first, the analytics write last: this is background
 		// instrumentation reached from a click handler, and touching localStorage
@@ -183,6 +187,7 @@
 	async function pick(next) {
 		const id = Number(next);
 		if (!Number.isInteger(id) || flying != null) return;
+		announced = `${nodeName(id)} is marked on the chart.`;
 		value = "";
 		query = "";
 		// The box closes on the pick and the chip takes its place: the reader has
@@ -230,6 +235,7 @@
      same flush as the canvas, before `bind:this` has handed it over. -->
 {#if visual}
 	<div class="search" style="--plot-margin: {visual.plotRightInset()}px">
+		<p class="sr-only" role="status">{announced}</p>
 		<!-- The way in. A bare glyph with an accessible name and nothing beside it —
 		     a label, a tooltip that behaves like one or a pulse would each make it
 		     the call to action this control is deliberately not. It sits at the right

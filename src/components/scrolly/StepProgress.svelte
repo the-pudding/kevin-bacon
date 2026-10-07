@@ -51,19 +51,11 @@
 </script>
 
 {#if !down && up && current}
-	<div
-		class="step-progress"
-		role="group"
-		aria-label="Story progress"
-		transition:fade={barFade}
-	>
-		<!-- the lines carry no information a screen reader can use; this line is
-		     the same fact, said once -->
-		<span class="sr-only">
-			Chapter {steps.currentChapter + 1} of {steps.chapters.length}: {current.title}.
-			Step {current.steps.indexOf(steps.dotStep) + 1} of {current.steps.length}.
-		</span>
-		<div class="lines" aria-hidden="true">
+	<!-- the lines carry no information a screen reader can use: the same fact
+	     is Stage's status line, said on every step change whether or not the
+	     bar is up -->
+	<div class="step-progress" aria-hidden="true" transition:fade={barFade}>
+		<div class="lines">
 			{#each steps.dotSteps as step (step)}
 				<span
 					class="line"

@@ -20,7 +20,7 @@ import {
 	introPosition
 } from "../intro-geometry.js";
 import { CROWD, HOP_INK, HOP_RGB, hopDotAlpha } from "../palette.js";
-import { MARGIN, NO_BLEED, screenSpan } from "../plot.js";
+import { MARGIN, NO_BLEED, screenSpan, titleClearance } from "../plot.js";
 import { hopFractions, hopShareLabels } from "../rank-geometry.js";
 import { SEARCH_DOT_R } from "../search.js";
 import {
@@ -154,17 +154,18 @@ const HEADER_H = 60;
 // the anchor's dot in the header row
 const ANCHOR_DOT_R = 10;
 
-// the top of the header row, and of the four bands under it. The anchor's name
-// hangs below its dot to within 2px of the header's foot, so the bands start a
-// BAND_GAP further down — the same whitespace that separates the bands.
-const TOP = MARGIN + 12;
-const BANDS_TOP = TOP + HEADER_H + BAND_GAP;
+// the top of the header row, under the chart title (titleClearance), and of the four
+// bands under it. The anchor's name hangs below its dot to within 2px of the
+// header's foot, so the bands start a BAND_GAP further down — the same
+// whitespace that separates the bands.
+const headerTop = () => titleClearance("hops") + 12;
+const bandsTop = () => headerTop() + HEADER_H + BAND_GAP;
 
 /** the height the four rows share, once the three gaps between them are
  * reserved. Down to a MARGIN off the box's foot rather than to `plotBottom`:
  * that line keeps a chart clear of the step card or its own axis furniture, and
  * this chart has neither to clear — the prose lies over it at every width. */
-const bandsHeight = (h) => h - MARGIN - BANDS_TOP - BAND_GAP * 3;
+const bandsHeight = (h) => h - MARGIN - bandsTop() - BAND_GAP * 3;
 
 // The crowd stands on a blue-noise scatter: every dot the same size, no two
 // touching, and no rows or columns for the eye to find. Seats are dealt by
@@ -208,7 +209,7 @@ const crowdSeats = (x0, x1, h) =>
 	);
 
 /** how far down a row's seats are moved: a BAND_GAP per row above it */
-const bandOffset = (band) => BANDS_TOP + (band - 1) * BAND_GAP;
+const bandOffset = (band) => bandsTop() + (band - 1) * BAND_GAP;
 
 /**
  * The rows: the header band for the anchor, then hops 1–4, each running from
@@ -221,9 +222,9 @@ const bandOffset = (band) => BANDS_TOP + (band - 1) * BAND_GAP;
  * @returns {{ bandTop: number[], bandH: number[] }} per hop, index = hop
  */
 function bandGeometry(seats, cuts) {
-	const bandTop = [TOP];
+	const bandTop = [headerTop()];
 	const bandH = [HEADER_H];
-	let foot = BANDS_TOP - BAND_GAP;
+	let foot = bandsTop() - BAND_GAP;
 	for (let hop = 1; hop <= 4; hop++) {
 		const first = hop > 1 ? cuts[hop - 2] : 0;
 		const last = cuts[hop - 1];
@@ -857,6 +858,10 @@ export const states = {
 		// out on the press, in on the landing (ScrollyVisual's titleState). As
 		// two scenes, 4 <-> 5 blanked the legend for a whole tween.
 		scene: "hops",
+		// measured like a plot group (plot.js) for its title alone: the bands
+		// start under the taller of the two titles. The prose lies over the
+		// chart, so there is no card to keep the foot clear of.
+		card: "hops",
 		// The bands span the whole screen (see bandFrame), so the prose lies
 		// over them rather than beside them, on a frosted plate that keeps it
 		// legible over the rows — Stage.svelte reads this (see isProseOver).
@@ -887,6 +892,7 @@ export const states = {
 		// the reveal is authored for nobody (see arrivalDelays).
 		revealFrom: [],
 		scene: "hops",
+		card: "hops",
 		proseOver: true,
 		// Static: it does not need to carry the anchor's name, because the
 		// anchor's dot is the only labelled thing on the chart and it is 60px

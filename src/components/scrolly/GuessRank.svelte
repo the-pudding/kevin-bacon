@@ -27,6 +27,17 @@
 	import { RANK_TOP_N, SLJ } from "./cast.js";
 
 	const steps = getContext("scrolly-steps");
+	// The hidden copy Stage measures the card from (CardMeasure): drawn in its
+	// tallest form — the search up AND a verdict under it — whatever the
+	// reader has done, or the rank chapter's reserve would grow on their first
+	// guess and move the ladder under them.
+	const measuring = getContext("scrolly-measuring") ?? false;
+	// the longest line the verdict can read: the longest name in the pool, at
+	// the lowest rank it can have
+	const longestName = RANK_POOL.map((id) => String(nodeName(id))).reduce(
+		(a, b) => (b.length > a.length ? b : a)
+	);
+	const longestVerdict = `${longestName} ranks #${RANK_TOP_N}. Keep going…`;
 
 	// Guessing pans the rank ladder to the picked actor (a param update, not a
 	// step change). Naming #1 or skipping is the only way off this step — the
@@ -49,7 +60,7 @@
 	// The search stays up until the question is answered or skipped: a wrong
 	// guess is read out under it and the reader types the next one straight
 	// away. RankBars keeps focus on the last guess until a new one is picked.
-	const asking = $derived(!story.rank.skipped && !solved);
+	const asking = $derived(measuring || (!story.rank.skipped && !solved));
 
 	// Both handlers below record the guess LAST, after the state write and the
 	// step move. It is background instrumentation called straight from a click:
@@ -117,7 +128,9 @@
 			<Button variant="story" onclick={skip}>Skip</Button>
 		</div>
 	{/if}
-	{#if story.rank.skipped}
+	{#if measuring}
+		<p class="verdict">{longestVerdict}</p>
+	{:else if story.rank.skipped}
 		<p class="verdict">{nodeName(SLJ)} ranks #1.</p>
 	{:else if guess != null}
 		<p class="verdict">

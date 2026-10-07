@@ -113,9 +113,10 @@ const NODE_LABEL_PX = 4 + Math.round(12 * 1.2);
  * guessed fraction of the canvas (which left a hole on a tall phone, where the
  * fit is width-limited and the constellation stops well short of its band).
  */
-export function introBottom(w, h) {
+export function introBottom(w, h, geometry = undefined) {
 	let y = 0;
-	for (const id of INTRO_IDS) y = Math.max(y, introPosition(id, w, h)[1]);
+	for (const id of INTRO_IDS)
+		y = Math.max(y, introPosition(id, w, h, 1, geometry)[1]);
 	return y + FOCUS_RADIUS + NODE_LABEL_PX;
 }
 
@@ -372,6 +373,9 @@ export const states = {
 	// at all and the tour never restarts (see notes/scrolly-framework.md).
 	networkIntro: {
 		layout: layoutNetworkIntro,
+		// measured like a plot group (plot.js): the constellation's fit stops
+		// above the tallest of its two cards and the tour caption over them
+		card: "intro",
 		// the halo behind Bacon's dot, on this state alone (see hasAnchorHalo)
 		anchorHalo: true,
 		// Only the actor being talked about and the actors their route runs through

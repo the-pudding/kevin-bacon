@@ -18,6 +18,14 @@
 				}
 			]
 		},
+		"focus-canvas": {
+			"value": "{color.white}",
+			"comment": "the focus ring on the canvas's actor buttons (ScrollyVisual's .hit), which crosses route lines and Bacon's glow; a page-coloured halo outside it keeps its edge on any dot",
+			"contrast": {
+				"against": "surface.page",
+				"min": 3
+			}
+		},
 		"button": {
 			"primary": {
 				"bg": {

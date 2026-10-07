@@ -9,7 +9,12 @@ import { makeNodes } from "../nodes.js";
 import { STATES, STATE_PARAMS } from "../states.js";
 import { story } from "../story.svelte.js";
 import { ATTR_SIZE } from "../attr-buffer.js";
-import { NO_BLEED, setPlotBeside } from "../plot.js";
+import {
+	AXIS_ROOM,
+	NO_BLEED,
+	setPlotBeside,
+	setPlotGeometry
+} from "../plot.js";
 import { TRAIL_SIZE } from "../trails.js";
 import { RACE_DATA_END } from "../layouts/race.js";
 
@@ -44,6 +49,54 @@ export const BOXES = [
 		beside: true
 	}
 ];
+
+/**
+ * The measured geometry (plot.js's PlotGeometry) every layout is built against
+ * in these specs: the reserves each group carried as hand-measured constants
+ * before they were measured live (a card's px plus AXIS_ROOM, floored at 60% of
+ * the canvas), and the opening's at the 72% of the canvas its fit used to
+ * take; every title on one line. A fixture, not a measurement — the goldens
+ * hash how the layouts answer a geometry, and the browser is what measures one.
+ * @param {{ h: number }} box
+ * @returns {import("../plot.js").PlotGeometry}
+ */
+export function geometryFor({ h }) {
+	const card = (px) => Math.min(px + AXIS_ROOM, 0.4 * h) - AXIS_ROOM;
+	return {
+		reserves: {
+			race: card(250),
+			scatter: card(234),
+			quiz: card(293),
+			career: card(250),
+			sim: card(189),
+			intro: 0.28 * h,
+			rank: 250
+		},
+		titles: {
+			race: 0,
+			scatter: 0,
+			quiz: 0,
+			career: 0,
+			sim: 0,
+			intro: 0,
+			rank: 0,
+			hops: 0
+		}
+	};
+}
+
+/**
+ * Put plot.js in `box`'s page layout — side by side or stacked, and its
+ * measured geometry — as ScrollyVisual's fitBox does before it builds anything.
+ * @param {{ h: number, beside: boolean }} box
+ */
+export function useBox(box) {
+	setPlotBeside(box.beside);
+	setPlotGeometry(geometryFor(box));
+}
+
+// every spec starts on the phone, as the page does
+useBox(BOXES[0]);
 
 /**
  * The story's resting defaults with `overrides` applied one group deep —
@@ -114,7 +167,7 @@ export function backFrom(steps, i) {
 
 /** one layout call, at one box, with the params ScrollyVisual would pass */
 export function buildLayout(state, box, params = layoutParamsFor(state)) {
-	setPlotBeside(box.beside);
+	useBox(box);
 	return STATES[state](nodes, box.w, box.h, edges, params, box.bleed);
 }
 

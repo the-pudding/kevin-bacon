@@ -29,6 +29,7 @@
 		PROSE_RISE_PX
 	} from "./cardFade.js";
 	import { isProseHalo, isProseOver } from "./states.js";
+	import CardMeasure from "./CardMeasure.svelte";
 
 	/**
 	 * One story step: prose in the slot, visual state declared alongside it.
@@ -75,8 +76,17 @@
 	 *
 	 * `alt` is what the canvas is showing, said to a screen reader. The drawn
 	 * chart is hidden from assistive tech (ScrollyVisual), so this is its only
-	 * account of the visual: it goes first in the prose, visually hidden, and
-	 * the column's live region reads it out with the step's words.
+	 * account of the visual. Registered rather than rendered here: Stage's
+	 * status line reads it out on the step change, with the reader's place in
+	 * the story, just ahead of the card in the document.
+	 *
+	 * The card opens on its chapter's title, as a visually hidden heading, so
+	 * the story has a heading structure past the title card; it is also where
+	 * the reader's focus goes when a step change takes the card it was in.
+	 *
+	 * Every step also draws its card a second time, hidden (CardMeasure), for
+	 * Stage to size its group's reserve off (states.js's STATE_GROUP) and to
+	 * know before it arrives whether the card will need to scroll.
 	 *
 	 * The prose is held off screen while the arrival it describes is still
 	 * playing — every step, not a declared few. It is read off the registry
@@ -107,6 +117,8 @@
 	} = $props();
 
 	const steps = getContext("scrolly-steps");
+	/** @type {string | undefined} */
+	const chapter = getContext("scrolly-chapter");
 	const index = steps.register({
 		state: layoutState,
 		params,
@@ -116,9 +128,13 @@
 		skipback,
 		advanceon,
 		hideBar,
-		chapter: getContext("scrolly-chapter")
+		alt,
+		chapter
 	});
 	const active = $derived(steps.current === index);
+	// over a chart the prose lies over, the card is the whole box rather than a
+	// card (Stage's `.scrolly-steps.over`), and there is nothing to measure
+	const measured = $derived(!isProseOver(layoutState));
 
 	// An explicit query rather than the `--1s` token, because these carry a
 	// delay: shrinking the duration would leave the 260ms standing and the prose
@@ -183,9 +199,7 @@
      other rather than stacking them, so the words on their way out do not
      slide up the screen to make room. What the column MEASURES across a swap
      is neither of them — proseLeave above takes the departing copy out of flow
-     — and Stage holds the last card height for the span (`cardHeight`). The
-     column's aria-live is unaffected: a live region announces what ARRIVES,
-     and the copy on its way out is only being removed. -->
+     — and Stage holds the last card height for the span (`cardHeight`). -->
 {#if active && !steps.held}
 	<div
 		class="step-prose"
@@ -193,16 +207,24 @@
 		class:halo={isProseHalo(layoutState)}
 		class:plate={isProseOver(layoutState)}
 		tabindex="-1"
-		{@attach claimFocus}
+		{@attach !chapter && claimFocus}
 		bind:this={el}
 		in:fly={proseIn}
 		out:proseLeave={proseOut}
 	>
-		{#if alt}
-			<p class="sr-only">{alt}</p>
+		{#if chapter}
+			<h2 class="sr-only" tabindex="-1" {@attach claimFocus}>{chapter}</h2>
 		{/if}
 		{@render children()}
 	</div>
+{/if}
+{#if measured}
+	<CardMeasure
+		class={index === 0 ? "step-prose lead" : "step-prose"}
+		onmeasure={(px) => (steps.configs[index].cardHeight = px)}
+	>
+		{@render children()}
+	</CardMeasure>
 {/if}
 
 <style>

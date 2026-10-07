@@ -4,7 +4,7 @@ import { ATTR_SIZE, set } from "../attr-buffer.js";
 import { SLJ, CAGE, idOf } from "../cast.js";
 import { LEFT, drain } from "../drain.js";
 import { CROWD, QUIZ_RIGHT, QUIZ_WRONG } from "../palette.js";
-import { MARGIN, plotBottom, lin, markedTicks, stepped } from "../plot.js";
+import { plotBottom, plotTop, lin, markedTicks, stepped } from "../plot.js";
 import {
 	scatterPosition,
 	deLogFilms,
@@ -43,7 +43,7 @@ function filmsScatter(nodes, w, h, cfg) {
 	const values = nodes.map((n) => cfg.yOf(n));
 	const [vMin, vMax] = scatterDomain(nodes, values, cfg);
 	const pad = (vMax - vMin) * SCATTER_PAD;
-	const top = MARGIN + 8;
+	const top = plotTop(h, cfg.plot) + 8;
 	const bottom = plotBottom(h, cfg.plot);
 	const yS = cfg.invert
 		? (v) => lin(v, vMin - pad, vMax + pad, top, bottom)

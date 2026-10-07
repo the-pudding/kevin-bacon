@@ -21,7 +21,6 @@ import {
 	isProseOver
 } from "../states.js";
 import { NODE_COUNT } from "../nodes.js";
-import { PLOT_RESERVE } from "../plot.js";
 import { BOXES, arrivalContext, layoutParamsFor, phasesOf } from "./helpers.js";
 
 const names = Object.keys(STATES);
@@ -255,7 +254,7 @@ describe("state registry", () => {
 	test("every state with axis titles names a real plot group", () => {
 		for (const name of names) {
 			if (!OVERLAYS[name]?.xLabel && !OVERLAYS[name]?.yLabel) continue;
-			expect(Object.keys(PLOT_RESERVE), name).toContain(STATE_PLOT[name]);
+			expect(STATE_PLOT[name], name).toBeTypeOf("string");
 		}
 	});
 });

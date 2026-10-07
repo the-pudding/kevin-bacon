@@ -40,14 +40,23 @@
 	<ol>
 		{#each bars as bar (bar.key)}
 			<li class:mine={bar.mine} class:empty={bar.count === 0}>
-				<span class="key">{bar.label}</span>
+				<!-- the sr-only words say what the bar and its number are of -->
+				<span class="key"
+					>{bar.label}{#if bar.mine}<span class="sr-only">
+							(you)</span
+						>{/if}</span
+				>
 				<span class="track">
 					<span
 						class="fill"
 						style:width={grown ? `${(bar.count / max) * 100}%` : "0%"}
 					></span>
 				</span>
-				<span class="val">{Math.round((bar.count / total) * 100)}%</span>
+				<span class="val"
+					>{Math.round((bar.count / total) * 100)}%<span class="sr-only">
+						of readers</span
+					></span
+				>
 			</li>
 		{/each}
 	</ol>

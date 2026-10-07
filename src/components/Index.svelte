@@ -1,6 +1,6 @@
 <script>
 	// @ts-check
-	import { setContext } from "svelte";
+	import { getContext, setContext } from "svelte";
 	import Stage from "$components/scrolly/Stage.svelte";
 	import Step from "$components/scrolly/Step.svelte";
 	import Chapter from "$components/scrolly/Chapter.svelte";
@@ -19,8 +19,10 @@
 	import { prepareArrival } from "$components/scrolly/arrivals.js";
 	import { resetHopAnchor } from "$components/scrolly/story.svelte.js";
 	import { routeSummary } from "$components/scrolly/intro-routes.js";
-	import { SEARCH_POOL } from "$components/scrolly/search.js";
+	import { SEARCH_CHARTS, SEARCH_POOL } from "$components/scrolly/search.js";
+	import { simLabelText } from "$components/scrolly/layouts/sim-race.js";
 	import { HOP_CYCLE_IDS } from "$components/scrolly/cast.js";
+	import { INTRO_IDS } from "$components/scrolly/nodes.js";
 	import {
 		CYCLE_ORDER,
 		introBottom
@@ -34,28 +36,6 @@
 	// A gate that never opens: the step's own control is the way forward, and
 	// the reader's Next presses it for them (the step's `onnext`).
 	const NEVER = () => false;
-
-	// Which chart the reader's named actor is being asked about, for the search's
-	// analytics (`recordActorSearch`). Keyed by CHART rather than by state, which
-	// is why three states share "career" and two share "remoteness": the question
-	// the reader is answering is "where am I on this chart", and `careerTrio`,
-	// `careerBacon` and `careerMany` are one scene drawing one chart (see
-	// layouts/career.js), as are `scatterCenters` and `scatterQuiz` — both titled
-	// "Films vs. remoteness". Splitting them would make the numbers say the
-	// reader searched four different things when they searched one.
-	//
-	// Read off the active state rather than passed per mount, so every step can
-	// share ONE panel snippet — which is what keeps the control mounted across
-	// the runs of adjacent steps (15 → 19 is five of them).
-	const SEARCH_CHARTS = {
-		hopAnchor: "hops",
-		scatterCenters: "remoteness",
-		scatterQuiz: "remoteness",
-		degScatter: "costars",
-		careerTrio: "career",
-		careerBacon: "career",
-		careerMany: "career"
-	};
 
 	/**
 	 * A pick on the hop chart: the named actor takes the top of the stack, and
@@ -77,6 +57,7 @@
 	// story for each destination step. Created here so it is the one instance
 	// every <Step>, TapNav and StepProgress reads from the context.
 	const steps = createStepRegistry({ navigate: prepareArrival });
+	const copy = getContext("copy");
 
 	setContext("scrolly-steps", steps);
 
@@ -134,41 +115,42 @@
 	const introRoute = $derived(
 		story.intro.focus == null ? null : routeSummary(story.intro.focus)
 	);
-	// how tall the caption ended up — one line on a wide viewport, two on a phone —
-	// so the clamp that keeps it off the step card knows what it is clamping
-	let routeHeight = $state(0);
-	// The caption hangs a short gap under the constellation's lowest name, then is
-	// clamped off the step card — which only binds on a viewport short enough that
-	// the two would otherwise meet.
+	// The caption hangs a short gap under the constellation's lowest name, in a
+	// band of its own: the intro group's reserve carries the band (`aboveCard`),
+	// so the constellation's fit stops above it and the caption never has to be
+	// lifted into the graph to clear the card.
 	const ROUTE_GAP = 12;
-	/** @param {{ width: number, height: number, overlayHeight: number }} layout the stage's measurements */
-	function routeTop({ width, height, overlayHeight }) {
-		if (!width || !height) return 0;
-		const floor = height - overlayHeight - routeHeight - ROUTE_GAP;
-		return Math.min(introBottom(width, height) + ROUTE_GAP, floor);
-	}
-	// The caption's height before it has ever been measured: two lines at its
-	// 1rem / 1.2, what it takes on a phone. It is not rendered until the reveal
-	// has settled, and the step card is centred off the caption from the first
-	// frame, so without a stand-in the card would drop by half a caption the
-	// moment it first appears.
-	const ROUTE_HEIGHT_GUESS = 2 * 16 * 1.2;
+	// Every caption the step can show — one per actor the tour or a tap can pick
+	// out, Bacon having no route to himself — measured unseen at the caption's
+	// width. The band is the tallest of them, so it holds still while the tour
+	// moves on through names that wrap to more lines or fewer.
+	const ROUTES = INTRO_IDS.map(routeSummary).filter((r) => r != null);
+	/** @type {number[]} */
+	let routeHeights = $state([]);
+	const routeHeight = $derived(
+		routeHeights.length === ROUTES.length && routeHeights.every(Boolean)
+			? Math.max(...routeHeights)
+			: 0
+	);
+	const aboveCard = $derived(
+		routeHeight ? { intro: routeHeight + 2 * ROUTE_GAP } : null
+	);
+	/** @param {{ width: number, height: number, geometry: import("$components/scrolly/plot.js").PlotGeometry | null }} layout the stage's measurements */
+	const routeTop = ({ width, height, geometry }) =>
+		introBottom(width, height, geometry) + ROUTE_GAP;
 	// Where the constellation's chart ends, for Stage to centre the step card
-	// under: the foot of the tour caption at its own home under the lowest name,
-	// plus the same gap again as clear air under it,
-	// whether or not it is showing yet, so the card does not move when it
-	// arrives. Other states answer null and Stage takes their plot group's.
+	// under: the foot of the tour caption's band under the lowest name, whether
+	// or not it is showing yet, so the card does not move when it arrives. Other
+	// states answer null and Stage takes their plot group's.
 	/**
 	 * @param {string} state
 	 * @param {{ width: number, height: number }} box
+	 * @param {import("$components/scrolly/plot.js").PlotGeometry} geometry
 	 */
-	function chartFloor(state, { width, height }) {
+	function chartFloor(state, { width, height }, geometry) {
 		if (state !== "networkIntro") return null;
 		return (
-			introBottom(width, height) +
-			ROUTE_GAP +
-			(routeHeight || ROUTE_HEIGHT_GUESS) +
-			ROUTE_GAP
+			introBottom(width, height, geometry) + ROUTE_GAP + routeHeight + ROUTE_GAP
 		);
 	}
 	// Gated on `settled`, which for this state means the walk is over: it is
@@ -301,7 +283,10 @@
 </script>
 
 <svelte:boundary onerror={(e) => console.error(e)}>
-	<Stage {steps} {dimensions} floor={chartFloor}>
+	<!-- the page's one h1: the title card's own name is drawn, not a heading,
+	     and unmounts with its step -->
+	<h1 class="sr-only">{copy.meta.title}</h1>
+	<Stage {steps} {dimensions} floor={chartFloor} {aboveCard}>
 		{#snippet children(layout)}
 			<!-- shared over-canvas panels live here, beside the <Step>s rather
 		     than inside one — a snippet declared directly inside a
@@ -401,10 +386,13 @@
 			     phone, so the graph stops well short of its band and any fixed
 			     fraction leaves a hole under it. -->
 			{#snippet routePanel()}
-				{#if story.settled === "networkIntro" && introRoute}
+				{#if story.settled === "networkIntro" && introRoute && layout.geometry}
+					<!-- live once the reader has picked an actor themselves: the tour
+					     turns every few seconds, and announcing each turn would talk
+					     over everything else on the page -->
 					<p
 						class="route"
-						bind:clientHeight={routeHeight}
+						aria-live={story.intro.pinned ? "polite" : "off"}
 						style="top: {routeTop(layout)}px"
 						onfocusin={() => (routeFocused = true)}
 						onfocusout={() => (routeFocused = false)}
@@ -424,6 +412,23 @@
 					</p>
 				{/if}
 			{/snippet}
+			<!-- the tour caption's band (routeHeight): every caption, unseen, at
+			     the caption's width and type -->
+			{#each ROUTES as route, k (route.name)}
+				<p
+					class="route route-measure"
+					inert
+					aria-hidden="true"
+					bind:clientHeight={routeHeights[k]}
+				>
+					<strong>{route.name}</strong>:
+					<InfoTerm>
+						{route.count}
+						{#snippet info()}{/snippet}
+					</InfoTerm>
+					away from {route.anchor}.
+				</p>
+			{/each}
 			<!-- THE OPENING -->
 			<!-- The story opens here, on the constellation, with no title card
 			     before it: a first load grows it from nothing (the walk, as the
@@ -436,8 +441,7 @@
 			     one grows the constellation and then demonstrates the game on it;
 			     the next one only changes the words. Step 0 is also where the reader
 			     is taught how to move (Stage.svelte's cue). -->
-			<!-- `alt`: what the canvas shows, for a screen reader (see Step.svelte).
-			     PLACEHOLDERS — bare descriptions for Owen to reword. -->
+			<!-- `alt`: what the canvas shows, for a screen reader (see Step.svelte). -->
 			<Step
 				state="networkIntro"
 				panel={routePanel}
@@ -449,7 +453,11 @@
 					appeared, aiming to reach him in six movies or fewer.
 				</p>
 			</Step>
-			<Step state="networkIntro" panel={routePanel}>
+			<Step
+				state="networkIntro"
+				panel={routePanel}
+				alt="The same network, with the actor the tour has picked out joined to Kevin Bacon by their route."
+			>
 				<p>
 					The conventional wisdom is that Kevin Bacon is the all-encompassing
 					center of Hollywood: so prolific and well-known that the game is a lot
@@ -680,6 +688,7 @@
 					state="scatterCenters"
 					params={{ showPair: true, showCostars: true }}
 					panel={searchPanel}
+					alt="The same chart, still labelling Natalie Portman and Anna Kendrick."
 				>
 					<p>
 						It would be too circular to use costars with low remoteness as our
@@ -715,6 +724,7 @@
 					gate={() => quizDone(story)}
 					onnext={steps.skip}
 					panel={searchPanel}
+					alt="The films vs. remoteness chart. As each pair is answered, its two actors land on the chart at their remoteness."
 				>
 					<p>
 						Let's test our knowledge with a few more examples. For these actors
@@ -830,7 +840,19 @@
           2. A typical sim doesn't get her close, only an over-performing sim gets her close
           3. The sim doesn't just confirm today's leaderboard, it reshuffles it
            -->
-				<Step state="simRace">
+				<Step
+					state="simRace"
+					alt="The finished count: a line per contender, each ending at their share of the 10,000 wins."
+				>
+					<!-- the leaderboard the canvas labels, for a screen reader -->
+					<div class="sr-only">
+						<p>The most wins across the 10,000 simulations:</p>
+						<ol>
+							{#each Object.values(simLabelText()) as line (line)}
+								<li>{line}</li>
+							{/each}
+						</ol>
+					</div>
 					<p>
 						Chloë Grace Moretz is the most likely to be Gen Z's Kevin Bacon,
 						winning just over 10% of the simulations. It's by no means a
@@ -860,7 +882,11 @@
 						how long that will take.
 					</p>
 				</Step>
-				<Step state="outro" hideBar>
+				<Step
+					state="outro"
+					hideBar
+					alt="The chart dissolves into a drifting field of dots."
+				>
 					<p>
 						What is far more certain is that the first woman to be the center of
 						Hollywood is on the horizon, with 65% of the wins going to women.
@@ -995,6 +1021,17 @@
 		   the tap halves for free — same idiom as .hits and .quiz */
 		z-index: var(--z-tap-above);
 		animation: panel-in 0.4s ease both;
+	}
+
+	/* the measured copies: the caption's own box at the stacked card's width
+	   (Stage's --card-w), whichever step is on screen, and never seen */
+	.route.route-measure {
+		top: auto;
+		bottom: 0;
+		right: auto;
+		width: var(--card-w);
+		visibility: hidden;
+		animation: none;
 	}
 
 	.route strong {

@@ -27,10 +27,13 @@ const STEP_PARAM = "step";
  * `gate` (the reader's Next does not leave while it returns false), `onnext`
  * (what that Next does instead), `skipback` (a backward move passes through
  * this step) and `advanceon` (the step carries the reader on itself) —
- * `hideBar` (drops the progress bar for this step alone), `chapter` for the
- * title of the <Chapter> it sits in, or `splash` for the title card's name,
- * subtitle and byline.
- * @typedef {{ state: import("./states.js").VisualState, params?: Object, panel?: import("svelte").Snippet, gate?: () => boolean, onnext?: () => void, skipback?: boolean, advanceon?: () => boolean, hideBar?: boolean, chapter?: string, splash?: { title: import("svelte").Snippet, subtitle?: import("svelte").Snippet, byline?: import("svelte").Snippet } }} StepConfig
+ * `hideBar` (drops the progress bar for this step alone), `alt` (what the
+ * canvas shows, said to a screen reader), `chapter` for the title of the
+ * <Chapter> it sits in, or `splash` for the title card's name, subtitle and
+ * byline. `cardHeight` is written back by the step once its card has been
+ * measured (Step.svelte's CardMeasure), for Stage to size the groups' reserves
+ * from (plot.js).
+ * @typedef {{ state: import("./states.js").VisualState, params?: Object, panel?: import("svelte").Snippet, gate?: () => boolean, onnext?: () => void, skipback?: boolean, advanceon?: () => boolean, hideBar?: boolean, alt?: string, chapter?: string, cardHeight?: number, splash?: { title: import("svelte").Snippet, subtitle?: import("svelte").Snippet, byline?: import("svelte").Snippet } }} StepConfig
  */
 
 /**

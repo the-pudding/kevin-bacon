@@ -11,13 +11,20 @@
 
 	/**
 	 * What the prose is handed: how much of the canvas's bottom edge the step
-	 * card covers, the canvas box, and the visual itself (for the pair quiz's
-	 * flights).
-	 * @typedef {{ overlayHeight: number, width: number, height: number, visual: ScrollyVisual | undefined }} StageLayout
+	 * card covers, the canvas box, the measured plot geometry (null until it is
+	 * all in) and the visual itself (for the pair quiz's flights).
+	 * @typedef {{ overlayHeight: number, width: number, height: number, geometry: import("./plot.js").PlotGeometry | null, visual: ScrollyVisual | undefined }} StageLayout
 	 */
 
-	/** @type {{ steps: ReturnType<typeof import("./step-registry.svelte.js").createStepRegistry>, dimensions: { width: number, height: number }, floor?: (state: import("./states.js").VisualState, box: { width: number, height: number }) => number | null, children: import("svelte").Snippet<[StageLayout]> }} */
-	let { steps, dimensions, floor, children } = $props();
+	/**
+	 * `floor` is where a state's chart ends when the story, not its plot group,
+	 * knows (the tour caption, Index.svelte). `aboveCard` is, per group, the px
+	 * the story keeps between that group's chart and its card for DOM of its
+	 * own — the tour caption's band, on the opening — added to the group's
+	 * measured reserve; null until the story has measured it.
+	 * @type {{ steps: ReturnType<typeof import("./step-registry.svelte.js").createStepRegistry>, dimensions: { width: number, height: number }, floor?: (state: import("./states.js").VisualState, box: { width: number, height: number }, geometry: import("./plot.js").PlotGeometry) => number | null, aboveCard: Partial<Record<import("./plot.js").PlotGroup, number>> | null, children: import("svelte").Snippet<[StageLayout]> }}
+	 */
+	let { steps, dimensions, floor, aboveCard, children } = $props();
 
 	import { onMount } from "svelte";
 	import { MediaQuery } from "svelte/reactivity";
@@ -33,8 +40,13 @@
 	import PointerIcon from "./PointerIcon.svelte";
 	import PuddingLogo from "../Header.svelte";
 	import { story } from "./story.svelte.js";
-	import { STATE_PLOT, isProseOver, isRankState } from "./states.js";
-	import { TITLE_BAND, chartFloor } from "./plot.js";
+	import {
+		STATE_GROUP,
+		STATE_PLOT,
+		isProseOver,
+		isRankState
+	} from "./states.js";
+	import { TITLE_BAND, chartFloor, reserveOf, titleClearance } from "./plot.js";
 	import {
 		CARD_IN_MS,
 		CARD_IN_DELAY_MS,
@@ -111,6 +123,65 @@
 		cardHeight = stepsHeight;
 	});
 
+	// -- The cards, measured ----------------------------------------------------
+	// Each measured group keeps the canvas's foot clear of the TALLEST card
+	// among its steps (plot.js), so a step change inside a group never moves its
+	// plot. Every step's hidden copy reports its card (Step.svelte's
+	// CardMeasure) at `--card-w`, the stacked card's width, whichever step is on
+	// screen; step 0's card also carries the nav cue's row, measured the same
+	// way below.
+	//
+	// Published only once the web fonts are in, so the first layout is built
+	// against the type the reader will actually read rather than snapped to it a
+	// moment later. After that, a change — a new width, the reader's text size —
+	// is a change of box, and the canvas snaps to it (ScrollyVisual's isResize).
+	let layoutWidth = $state(0);
+	let cueHeight = $state(0);
+	let fontsReady = $state(false);
+	// the card's max-height (`.scrolly-steps`): half the layout. Past it the card
+	// scrolls rather than the plot shrinking further, so it also caps a reserve.
+	const cardCap = $derived(dimensions.height / 2);
+	/** @param {number} i a step index @returns {number} its card's height at rest */
+	const cardOf = (i) =>
+		(steps.configs[i].cardHeight ?? 0) + (i === 0 ? cueHeight : 0);
+	/**
+	 * Each measured group's tallest card, capped — or null while any card in a
+	 * group has yet to report.
+	 * @returns {Partial<Record<import("./plot.js").PlotGroup, number>> | null}
+	 */
+	function tallestCards() {
+		/** @type {Partial<Record<import("./plot.js").PlotGroup, number>>} */
+		const out = {};
+		for (const [i, { state }] of steps.configs.entries()) {
+			const group = STATE_GROUP[state];
+			if (!group || isProseOver(state)) continue;
+			if (!steps.configs[i].cardHeight) return null;
+			out[group] = Math.max(out[group] ?? 0, Math.min(cardOf(i), cardCap));
+		}
+		return out;
+	}
+	const reserves = $derived.by(() => {
+		if (!fontsReady || !cardCap || !cueHeight || !aboveCard) return null;
+		const out = tallestCards();
+		if (!out) return null;
+		for (const [group, px] of Object.entries(aboveCard)) out[group] += px;
+		return out;
+	});
+	// how far each group's chart title runs past one line, measured by
+	// ScrollyVisual, which owns the title (bound back out of it)
+	/** @type {import("./plot.js").PlotGeometry["titles"] | null} */
+	let titles = $state(null);
+	/** @type {import("./plot.js").PlotGeometry | null} */
+	const geometry = $derived(reserves && titles ? { reserves, titles } : null);
+	// The card at 200% text, or on a short landscape phone: taller than its cap,
+	// so it scrolls in place, and takes its presses back from the tap halves
+	// while it does — the price of being able to read the top of it.
+	// Read once every card has reported (`reserves`), so never before the steps
+	// have registered.
+	const scrolls = $derived(
+		!!reserves && !beside && !proseOver && cardOf(steps.current ?? 0) > cardCap
+	);
+
 	// Where the step's chart ends, in canvas coordinates, when the card sits
 	// under it (stacked, not over the chart) — or null when there is no such
 	// edge: the sky and the other full-bleed states, where the dots run to the
@@ -118,14 +189,24 @@
 	// whose chart ends in a DOM panel (the tour caption) is answered by `floor`,
 	// which Index.svelte supplies because it owns that panel.
 	const floorY = $derived.by(() => {
-		if (beside || proseOver || !visualHeight) return null;
-		const own = floor?.(currentState, {
-			width: visualWidth,
-			height: visualHeight
-		});
+		if (beside || proseOver || !visualHeight || !geometry) return null;
+		const own = floor?.(
+			currentState,
+			{ width: visualWidth, height: visualHeight },
+			geometry
+		);
 		if (own != null) return own;
 		const group = STATE_PLOT[currentState];
-		return group ? chartFloor(visualHeight, group) : null;
+		return group ? chartFloor(visualHeight, group, geometry) : null;
+	});
+	// Over a screen-wide chart (the hop bands), stacked, the card starts under
+	// the chart's title rather than at the box's top, so the words centred in it
+	// never lie over the title. In the layout's coordinates: the canvas box
+	// starts a title band down.
+	const overTop = $derived.by(() => {
+		const group = STATE_GROUP[currentState];
+		if (beside || !proseOver || !group || !geometry) return null;
+		return TITLE_BAND + titleClearance(group, geometry);
 	});
 	// How far the card is raised off the screen's foot: half of the space its
 	// chart leaves under it that the card does not fill, which centres it in that
@@ -158,51 +239,18 @@
 
 	// The rank panel outlives the rank chapter by one step: raceRecent keeps it
 	// mounted so its bars can collapse into the race chart's own dots (see
-	// RankBars' `collapse`). Its box has to stop moving for that — the panel is
-	// sized off the card, and raceRecent's card is 34px taller than rankReveal's
-	// at 375x667, so without this every row would shift away from what the
-	// reader was looking at (and away from where the canvas has been aimed) at
-	// the very moment it collapses. Hold the last height a rank step measured.
-	//
-	// Surviving a prose swap is no longer part of its job: `cardHeight` above is
-	// already held across one, for every consumer. What is left here is the
-	// carry-over into raceRecent, which is a step CHANGE and so a height the
-	// general hold is right to let go of and this one is not.
-	//
-	// AND TODAY IT INSURES A GAP THAT NOTHING ELSE PINS. Measured at 375x667,
-	// the panel's last frame is at 559ms after the press and `cardHeight`
-	// releases at 1275ms, so the general hold would in fact serve: the ladder is
-	// already gone before the taller card can reach it. That 716ms is not two
-	// clocks passing each other, though — it is one tween. `story.rank.collapsed`
-	// does BOTH jobs: it drops `showRankPanel` below, and it opens the raceRecent
-	// arrival's `hold.until` (layouts/race.js), which starts the arrival tween
-	// whose completion callback calls land() — and land() is what releases
-	// `cardHeight`. So the margin IS `TWEEN_MS`, 700ms, plus a frame.
-	//
-	// Which is why this stays rather than being deleted as redundant. It is
-	// redundant only for as long as that arrival takes a tween to land: give
-	// raceRecent an entry that lands on the frame the gate opens and the margin
-	// is zero, the ladder takes the frame in which `stepsHeight` reads 0 (the
-	// arriving card is measured a frame later), and every row jumps 205px in the
-	// last frame the reader sees of it. Two lines to insure a number no test
-	// holds is the cheaper side of that trade.
-	//
-	// What is held is the RAW card measurement, not `overlayHeight`. Whether any
-	// of that card covers the canvas is a live question — `beside` answers it,
-	// and the answer flips during the first frames of every cold load, before the
-	// viewport has been measured. Holding the gated value froze the wrong side of
-	// that flip: a page opened straight onto a rank step (?step=8, ?step=9) seeded
-	// this from the stacked layout's ~800px, `overlayHeight` then went to 0 for
-	// good on a desktop viewport, the `!overlayHeight` guard that used to stand
-	// here early-returned on every run after, and the ladder was left with
-	// `bottom: 812px` on a 774px canvas — no height at all, over a canvas carrying
-	// nothing but Bacon's hop bar. Gating at the point of use instead leaves the
-	// hold doing only the job it is for.
-	let rankStepsHeight = $state(0);
-	$effect(() => {
-		if (isRankState(currentState)) rankStepsHeight = cardHeight;
-	});
-	const rankPanelBottom = $derived((beside ? 0 : rankStepsHeight) + 12);
+	// RankBars' `collapse`). Its box must not move for that, and does not: it
+	// stands on the rank group's reserve — the taller of the chapter's two cards,
+	// measured whether or not either is on screen — rather than on the card in
+	// front of it, so the step into raceRecent, whose card is taller, leaves
+	// every row where the reader was looking. Its top hangs under the rank
+	// group's chart title (titleClearance), 10px further down.
+	const rankPanelBox = $derived(
+		geometry && {
+			top: titleClearance("rank", geometry) + 10,
+			bottom: (beside ? 0 : reserveOf("rank", geometry)) + 12
+		}
+	);
 	// The panel's own fade-in used to run on a fixed delay timed to land after
 	// the hopBands→rankFocus bar retarget; now it waits for that retarget to
 	// actually settle instead. Once true it stays true: the panel outlives
@@ -265,6 +313,7 @@
 	let mounted = $state(false);
 	onMount(() => {
 		mounted = true;
+		document.fonts.ready.then(() => (fontsReady = true));
 	});
 
 	const reducedMotion = new MediaQuery(
@@ -300,6 +349,22 @@
 	const panelOut = $derived(
 		reducedMotion.current ? { duration: 0 } : { duration: PANEL_OUT_MS }
 	);
+	// The reader's place in the story, said on every step change: the chapter,
+	// the step within it and what the canvas shows (the step's `alt`). One
+	// always-mounted status line, rather than the whole card as a live region,
+	// which read every word of every card, late, and never said where the
+	// reader was. The opening, outside every chapter, says only what the canvas
+	// shows; the title card says its own name (in the markup).
+	const placeText = $derived.by(() => {
+		const config = steps.config;
+		if (!config) return "";
+		const chapter = config.chapter && steps.chapters[steps.currentChapter];
+		const place = chapter
+			? `Chapter ${steps.currentChapter + 1} of ${steps.chapters.length}: ${chapter.title}. Step ${chapter.steps.indexOf(steps.dotStep) + 1} of ${chapter.steps.length}.`
+			: "";
+		return [place, config.alt].filter(Boolean).join(" ");
+	});
+
 	/** what the prose is handed (StageLayout): getters, so a read tracks the measurement */
 	const layout = {
 		get overlayHeight() {
@@ -310,6 +375,9 @@
 		},
 		get height() {
 			return visualHeight;
+		},
+		get geometry() {
+			return geometry;
 		},
 		get visual() {
 			return visual;
@@ -341,10 +409,11 @@
 	<div
 		class="scrolly-layout"
 		bind:this={layoutBox}
+		bind:clientWidth={layoutWidth}
 		class:exited={steps.exited}
 		style="--viewport-height: {dimensions.height
 			? `${dimensions.height}px`
-			: '100svh'}; --title-band: {TITLE_BAND}px; --splash-reveal-ms: {SPLASH_REVEAL_MS}ms; --splash-reveal-step: {SPLASH_REVEAL_STEP_MS}ms; --cue-in: {PROSE_IN_MS}ms; --cue-delay: {PROSE_IN_DELAY_MS +
+			: '100svh'}; --card-w: {layoutWidth}px; --title-band: {TITLE_BAND}px; --splash-reveal-ms: {SPLASH_REVEAL_MS}ms; --splash-reveal-step: {SPLASH_REVEAL_STEP_MS}ms; --cue-in: {PROSE_IN_MS}ms; --cue-delay: {PROSE_IN_DELAY_MS +
 			PROSE_IN_MS +
 			NAV_CUE_BEAT_MS}ms; --cue-rise: {PROSE_RISE_PX}px"
 	>
@@ -353,6 +422,17 @@
 			class:shown={steps.current < 4 && !steps.exited}
 			aria-hidden="true"
 		></div>
+		{#if !steps.exited}
+			<!-- The reader's place, said on each step change (placeText), ahead of
+			     the card in the document so it also reads as the card's preface. -->
+			<p class="sr-only" role="status">
+				{#if activeSplash}
+					{@render activeSplash.title()}
+				{:else}
+					{placeText}
+				{/if}
+			</p>
+		{/if}
 		<!-- The prose and the step controls come BEFORE the canvas in the
 		     document, though they paint over it (the z ladder below, not source
 		     order, decides that): a keyboard or screen-reader reader meets the
@@ -364,11 +444,21 @@
 			<div
 				class="scrolly-steps"
 				class:over={proseOver}
+				class:scrolls
 				style:bottom={cardLift ? `${cardLift}px` : null}
+				style:top={overTop == null ? null : `${overTop}px`}
 				bind:clientHeight={stepsHeight}
-				aria-live="polite"
 			>
 				{@render children(layout)}
+				<!-- the cue's row, unseen, for step 0's measured card (cardOf) -->
+				<div
+					class="nav-cue in-card cue-measure"
+					inert
+					aria-hidden="true"
+					bind:clientHeight={cueHeight}
+				>
+					{@render navCue()}
+				</div>
 				<!-- step 0's nav cue, stacked: a row of its own under the prose.
 				     Mounted for the whole of the step rather than when it shows,
 				     so the row is already there when the prose lands and the words
@@ -435,6 +525,8 @@
 					coldStart={steps.coldStart}
 					stepsHeight={overlayHeight}
 					{beside}
+					{reserves}
+					bind:titles
 				/>
 			{/if}
 			{#if !steps.exited}
@@ -453,13 +545,13 @@
 			     focus, so dropping it on raceRecent would send the focus row back to
 			     the reader's guess and re-hide every other name at the exact moment
 			     the bars collapse. -->
-				{#if showRankPanel}
+				{#if showRankPanel && rankPanelBox}
 					<!-- the keyboard's own way on is the window's arrow keys (TapNav) -->
 					<!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
 					<div
 						class="rank-bars-panel"
 						class:revealed={story.rank.revealed}
-						style="bottom: {rankPanelBottom}px"
+						style="top: {rankPanelBox.top}px; bottom: {rankPanelBox.bottom}px"
 						onpointerdown={beside ? undefined : rankTap.down}
 						onclick={beside ? undefined : onRankTap}
 					>
@@ -505,7 +597,11 @@
 						<PuddingLogo />
 					</div>
 					<div class="splash-card" in:fade={cardIn} out:fade={cardOut}>
-						<h1 class:reveal={mounted}>{@render activeSplash.title()}</h1>
+						<!-- not a heading: the page's one h1 is its title already
+						     (Index.svelte), and the status line has just said it -->
+						<p class="splash-title" class:reveal={mounted} aria-hidden="true">
+							{@render activeSplash.title()}
+						</p>
 						{#if activeSplash.subtitle}
 							<p class="splash-subtitle" class:reveal={mounted}>
 								{@render activeSplash.subtitle()}
@@ -747,8 +843,9 @@
 		z-index: var(--z-tap-above);
 	}
 
-	/* the rank chapter's "everyone else" list: hangs 2rem under the chart
-	   title's line and sits above the measured step card (inline `bottom`).
+	/* the rank chapter's "everyone else" list: hangs under the rank group's
+	   chart title and sits above its measured reserve (inline `top` and
+	   `bottom`, rankPanelBox).
 	   Nothing on the canvas needs the space above it — Bacon's hop bar
 	   collapses straight onto his own row in the list (layouts/rank.js), which
 	   RankBars measures wherever the list lands. Its opaque background must not hide the
@@ -761,7 +858,6 @@
 	.rank-bars-panel {
 		position: absolute;
 		z-index: var(--z-tap-above);
-		top: calc(var(--chart-title-top) + 2rem);
 		left: 0;
 		right: 0;
 		background: var(--surface-raised);
@@ -816,7 +912,7 @@
 	   display type. Uppercasing is presentational — the title string stays as
 	   written. The tracking is tighter than smaller uppercase serifs want:
 	   they need the air at 28px and start to fall apart at 64. */
-	.splash-card h1 {
+	.splash-title {
 		margin: 0;
 		font-family: var(--type-display-family);
 		font-size: clamp(var(--32px), 12vw, var(--64px));
@@ -832,8 +928,6 @@
 		   inside */
 		text-shadow: var(--text-halo);
 		-webkit-font-smoothing: antialiased;
-		letter-spacing: -2px;
-		font-size: 6rem;
 	}
 
 	/* The Pudding's wordmark, pinned to the top of the screen rather than
@@ -982,11 +1076,28 @@
 
 	/* Stacked: a row of its own under the step's prose, at the card's right
 	   edge. The paragraph's own bottom margin is the gap above it, and the cue
-	   takes that margin over at the foot of the card. */
+	   takes that margin over at the foot of the card. In flow, not fixed: the
+	   base rule's `position: fixed` pinned it to the viewport's foot, where it
+	   took no row at all and printed over the prose's last line. */
 	.nav-cue.in-card {
+		position: static;
+		right: auto;
+		bottom: auto;
 		grid-area: 2 / 1;
 		justify-self: end;
 		padding-bottom: var(--16px);
+	}
+
+	/* the same row, unseen, at the card's foot, for step 0's measured card */
+	.nav-cue.in-card.cue-measure {
+		position: absolute;
+		right: 0;
+		bottom: 0;
+		max-width: calc(var(--card-w) * 0.7);
+		/* not risen: the base rule's entrance offset would hang it below the
+		   page's foot, and make the page scroll */
+		transform: none;
+		visibility: hidden;
 	}
 
 	/* .sr-only is absolute but leaves its offsets auto, so this paragraph kept
@@ -1056,14 +1167,14 @@
 	   `in:fade`/`out:fade` above still carry every later mount and every exit
 	   unaffected by any of this. */
 	.splash-logo,
-	.splash-card h1,
+	.splash-title,
 	.splash-subtitle,
 	.splash-byline {
 		opacity: 0;
 	}
 
 	.splash-logo.reveal,
-	.splash-card h1.reveal,
+	.splash-title.reveal,
 	.splash-subtitle.reveal,
 	.splash-byline.reveal {
 		opacity: 1;
@@ -1074,7 +1185,7 @@
 			transition: opacity var(--splash-reveal-ms) ease-out;
 		}
 
-		.splash-card h1 {
+		.splash-title {
 			transition: opacity var(--splash-reveal-ms) ease-out;
 			transition-delay: var(--splash-reveal-step);
 		}
@@ -1132,7 +1243,14 @@
 		   whole of a step change this box measures 0 whether it holds one copy or
 		   two. That is what `cardHeight` in the script holds against. */
 		display: grid;
-		align-items: end;
+		/* `safe`: a card taller than its max-height (below) keeps its top in
+		   the box rather than overflowing out of reach above it */
+		align-items: safe end;
+		/* No taller than half the layout (`cardCap` in the script, which also
+		   caps the plot reserves): past that, at 200% text or on a landscape
+		   phone, the card scrolls in place (`.scrolls`) rather than climbing off
+		   the top of the screen. */
+		max-height: calc(var(--viewport-height) / 2);
 		/* OVER the tap halves, and transparent to them. The halves cover this
 		   card's full width, and a control inside it cannot lift itself clear:
 		   a step wrapper's in:fly (and .rank-focus-text's opacity animation)
@@ -1145,13 +1263,24 @@
 		pointer-events: none;
 	}
 
+	/* A card taller than its cap scrolls, and so has to take the presses a
+	   scroll is made of back from the tap halves: a tap on its words steps
+	   nothing while it does. Only then — overflow would also clip the pair
+	   quiz's chips flying out of the card. */
+	.scrolly-steps.scrolls {
+		overflow-y: auto;
+		overscroll-behavior: contain;
+		pointer-events: auto;
+	}
+
 	/* OVER A CHART THAT SPANS THE SCREEN (`proseOver` in the state registry —
 	   the hop bands), at every width: the whole box top to bottom and the words
 	   centred in it, at no more than the prose measure and centred across. The
 	   chart runs under the words (edge to edge and down to the box's foot) and
 	   the frosted plate under the copy (Step.svelte's `.plate`) is what keeps them legible. The canvas box does not move
 	   for any of it: the chart reaches the screen's edges by drawing into the
-	   bleed, so only the prose changes place.
+	   bleed, so only the prose changes place. Stacked, over a chart with a
+	   title, the box starts under the title instead (inline `top`, `overTop`).
 
 	   Auto margins and not a translate, for the reason the side-by-side rule
 	   below gives: a transform would capture the departing copy's `position:
@@ -1168,9 +1297,10 @@
 		right: 0;
 		box-sizing: content-box;
 		max-width: var(--prose-w);
+		max-height: none;
 		margin-inline: auto;
 		padding-inline: var(--16px);
-		align-items: center;
+		align-items: safe center;
 	}
 
 	/* An InfoTerm trigger sits inline and lands wherever the line wraps puts it,
@@ -1250,9 +1380,10 @@
 			right: auto;
 			bottom: 0;
 			width: var(--prose-w);
+			max-height: none;
 			/* the column is centred in its own column now, so that is the edge the
 			   two copies of a swap share (see the grid note above) */
-			align-items: center;
+			align-items: safe center;
 		}
 
 		/* A full-bleed state's title belongs to the SCREEN, not to the charts'

@@ -560,7 +560,9 @@
 							<span
 								class="share"
 								style="flex-basis: {(bars?.[i]?.[band]?.w ?? 0).toFixed(1)}px"
-								>{share}</span
+								><span class="sr-only"
+									>{band + 1} {band === 0 ? "movie" : "movies"} away:
+								</span>{share}</span
 							>
 						{/each}
 					</span>

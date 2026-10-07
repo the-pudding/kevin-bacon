@@ -149,7 +149,7 @@ export const STATE_RACE = pick("race");
 export const STATE_SCENE = pick("scene");
 
 /**
- * Which plot group a chart state draws to (plot.js's PLOT_RESERVE): the px it
+ * Which plot group a chart state draws to (plot.js's PlotGroup): the px it
  * keeps clear at the canvas's foot for the step card, one height for every step
  * in the group so a step change inside it leaves the plot where it is. The
  * layout module passes the same name to `plotBottom`; this copy is the render
@@ -158,6 +158,16 @@ export const STATE_SCENE = pick("scene");
  * @type {Partial<Record<LayoutState, import("./plot.js").PlotGroup>>}
  */
 export const STATE_PLOT = pick("plot");
+
+/**
+ * The group a state is MEASURED in (plot.js's PlotGeometry): its plot group,
+ * or for a state with no axes that still hangs off the DOM's measurements, the
+ * `card` group it names — the opening constellation (`intro`), the rank ladder
+ * (`rank`) and the hop bands (`hops`). Every state in a group reads the same
+ * reserve and the same plot top, so a step change inside one moves neither.
+ * @type {Partial<Record<LayoutState, import("./plot.js").PlotGroup>>}
+ */
+export const STATE_GROUP = { ...pick("card"), ...STATE_PLOT };
 
 /**
  * Per-state list of prior states the layout's `delays` choreography is

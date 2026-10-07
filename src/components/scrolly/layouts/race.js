@@ -24,6 +24,7 @@ import { easeCubicInOut } from "../tween.js";
 import {
 	MARGIN,
 	plotBottom,
+	plotTop,
 	lin,
 	markedTicks,
 	stepped,
@@ -261,6 +262,21 @@ const yearOf = (iso) => {
 // ---------------------------------------------------------------------------
 
 const RACE_ANCHOR_FIRST = Math.floor(yearOf(story.eras[0].start));
+
+/**
+ * Who holds the crown at `year` — a decimal year, as the race's playhead is —
+ * off story.eras, or null before the first reign opens (December 1971; the
+ * camera reaches 1970). The chart says it only in ink, so this is what the
+ * year slider reads out to a screen reader (RaceScrubber).
+ * @param {number} year
+ * @returns {number | null} the holder's node id
+ */
+export function raceLeaderAt(year) {
+	const era = story.eras.find(
+		(e) => yearOf(e.start) <= year && (!e.end || year < yearOf(e.end))
+	);
+	return era?.id ?? null;
+}
 const RACE_ANCHOR_LAST = Math.max(
 	...RACE_IDS.map((id) => RACE_RANGE.get(id)[1])
 );
@@ -856,7 +872,7 @@ export function racePlot(w, h) {
 		w - RACE_NAME_GUTTER
 	);
 	return {
-		top: MARGIN + 10,
+		top: plotTop(h, "race") + 10,
 		bottom: plotBottom(h, "race"),
 		left,
 		right,
@@ -1451,8 +1467,10 @@ const FUTURE_TICK_BOUNDARY = TICK_W_YY + 2.5;
 // How far the strip's years have faded by the horizon. They recede with the
 // block they sit under rather than staying flat under a fading box — the
 // uncertainty is the point, and a crisp 2030 under a dissolved right edge reads
-// as a rendering slip. Not 0: the horizon year still has to be readable.
-const FUTURE_TICK_HORIZON_ALPHA = 0.45;
+// as a rendering slip. Not 0: the horizon year still has to be readable, at the
+// 4.5:1 of the `chart.tick-horizon` token this mirrors (a race spec holds the
+// two together; the canvas cannot read a CSS token).
+export const FUTURE_TICK_HORIZON_ALPHA = 0.75;
 
 /**
  * The strip's ticks: the years the frontier has reached, on the strip's own
@@ -1548,16 +1566,20 @@ function raceFutureBand(cam, frontier, labelInside = false) {
 		y: cam.top,
 		width,
 		height: cam.bottom - cam.top,
-		// Top-left inside the box for the closing step, whose projected names sit
-		// out at the strip's far (right) edge; top-right inside the box for every
+		// Bottom-left inside the box for the closing step: its projected names sit
+		// at the strip's far (right) edge and read leftwards across it, and the
+		// best of them lands at the top of the closing window, so on a phone the
+		// names ran over a label in the top corner. The block's foot is empty bar
+		// the lines arriving from the left. Top-right inside the box for every
 		// other step, whose crown's own name renders right at the strip's left
-		// edge (x(RACE_DATA_END) + 7) and would otherwise share the corner. `right`
-		// says which corner: the markup right-aligns the text to `x` when it's set,
-		// since the box's width (and so its right edge) varies frame to frame.
+		// edge (x(RACE_DATA_END) + 7) and would otherwise share the corner.
+		// `right` and `bottom` say which corner: the markup aligns the text's
+		// right edge or foot to the anchor, since the box's width (and so its
+		// right edge) varies frame to frame.
 		label: open
 			? labelInside
-				? { x: x0 + 6, y: cam.top + 4, right: false }
-				: { x: x0 + fullWidth - 6, y: cam.top + 4, right: true }
+				? { x: x0 + 6, y: cam.bottom - 4, right: false, bottom: true }
+				: { x: x0 + fullWidth - 6, y: cam.top + 4, right: true, bottom: false }
 			: null
 	};
 }
@@ -4089,7 +4111,7 @@ export const states = {
 		layout: RACE_CLOSE_LAYOUT,
 		// not the chapter's shared title: two thirds of the ink on this chart is
 		// modelled, and the axis it is drawn on runs past the end of the record
-		title: "Where the center of Hollywood could be in future",
+		title: "Where the future center of Hollywood could be",
 		race: RACE_CLOSE_STEP,
 		yCap: RACE_CLOSE_YCAP,
 		...RACE_CLOSE_LABELS,

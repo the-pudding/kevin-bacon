@@ -1,7 +1,7 @@
 // The films scatters' shared scales: the fixed log-films x axis every variant
 // plots against, and the avg-distance range.
 import rawNodes from "$data/scrolly-nodes.json";
-import { MARGIN, lin, markedTicks, plotBottom } from "./plot.js";
+import { MARGIN, lin, markedTicks, plotBottom, plotTop } from "./plot.js";
 
 // fixed film-count x-scale shared by every films-scatter variant so dots only
 // travel vertically when the y-metric changes. Floored at 5 films: below that
@@ -69,7 +69,7 @@ export const scatterY = (id, h, plot) =>
 		avgDistanceOf(id),
 		AVG_MIN - AVG_PAD,
 		AVG_MAX + AVG_PAD,
-		MARGIN + 8,
+		plotTop(h, plot) + 8,
 		plotBottom(h, plot)
 	);
 

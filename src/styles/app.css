@@ -183,8 +183,7 @@ svg {
 	line-height: 1.3;
 }
 
-/* the first paragraph a reader sees: a step with an `alt` leads with an
-   sr-only paragraph (Step.svelte), so :first-of-type alone would miss it */
+/* the first paragraph a reader sees, whatever sr-only text leads the card */
 .step-prose p:nth-child(1 of p:not(.sr-only)) {
 	margin-top: 0;
 }
