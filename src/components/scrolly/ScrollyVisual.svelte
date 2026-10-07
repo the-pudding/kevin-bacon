@@ -157,6 +157,9 @@
 	// how close a below-dot name may sit to the canvas edge before it stops
 	// sliding outward (see the .node-label transform)
 	const LABEL_EDGE_GAP_PX = 2;
+	// how far back past its dot's centre a below-dot name that runs one way
+	// ("belowRight"/"belowLeft") starts, so the dot still sits over its name
+	const LABEL_RUN_INSET_PX = 8;
 	// the two race steps whose 1980 tick carries the "why 1980?" term: raceFull,
 	// and raceFuture, whose arrival pan starts from raceFull's camera and so can
 	// have 1980 on the plot for its first frames
@@ -1193,7 +1196,7 @@
 	 * than letting the new state drop it back under its dot (see frameSides in
 	 * annotations.js). Written by drawScene only when a side changes: every row
 	 * of the names reads it, so a fresh map each frame re-rendered all of them.
-	 * @type {Record<number, "left" | "right">}
+	 * @type {Record<number, import("./annotations.js").LabelSide>}
 	 */
 	let frameDirs = $state.raw({});
 	/**
@@ -2052,10 +2055,18 @@
 	// than threaded through the layout modules — before anything below can
 	// build a layout or read a plot: the camera's bounds read the race's plot as
 	// soon as the box is measured.
-	$effect.pre(() => {
+	//
+	// The render effect hands them over again itself, just before it builds:
+	// the measurements settle over several passes of one flush on a cold load,
+	// and a render that ran ahead of this pre-effect's re-run built against the
+	// previous pass's geometry and cached that layout under the new key — the
+	// opening constellation sat squashed under a stale card reserve until the
+	// tour's first pick built a fresh one.
+	const handPagePlot = () => {
 		setPlotBeside(beside);
 		setPlotGeometry(geometry);
-	});
+	};
+	$effect.pre(handPagePlot);
 	// The race camera on a state change: drop the hold, remember the departing
 	// camera, rest on the arriving step's. Depends on stateName ONLY (the reads
 	// are untracked), once the geometry the race's plot is built from is in —
@@ -2560,6 +2571,8 @@
 		// where it has not been measured yet would hand the store a width of 0 and
 		// blank the canvas until the next resize
 		if (!canvasReady()) return;
+		// the page's plot as this run's `geometryKey` describes it (see handPagePlot)
+		handPagePlot();
 		const box = fitBox();
 		// A new beat, taken before the early returns below and independently of
 		// the state: a step change is a beat even where the state and its params
@@ -2747,8 +2760,11 @@
 		     in the name is what the sentence is about. -->
 			{#each tracked as t (`${t.id}:${t.name}`)}
 				<!-- a per-node override ("left"/"right") sits the label beside the dot,
-			     vertically centred; otherwise it hangs below, centred on the dot. All
-			     three are clamped to the canvas: .annotations clips, so an unclamped
+			     vertically centred; otherwise it hangs below, centred on the dot, or
+			     running right from just left of it ("belowRight") or left to just
+			     right of it ("belowLeft"), LABEL_RUN_INSET_PX into the name so it
+			     still reads as hanging from that dot. All of them are clamped to the
+			     canvas: .annotations clips, so an unclamped
 			     name is simply cut, which is what took the last letters off the race
 			     chart's right-hand gutter and off the quiz's left-hand names. The
 			     clamp is CSS, not px arithmetic here, because the percentages resolve
@@ -2764,7 +2780,11 @@
 						? `translate(clamp(${gap}px, ${t.x + t.r + 4}px, ${edge}), calc(${t.y + t.labelOffset}px - 50%))`
 						: dir === "left"
 							? `translate(clamp(${gap}px, calc(${t.x - t.r - 4}px - 100%), ${edge}), calc(${t.y + t.labelOffset}px - 50%))`
-							: `translate(clamp(${gap}px, calc(${t.x}px - 50%), ${edge}), ${t.y + t.r + 4}px)`}
+							: dir === "belowRight"
+								? `translate(clamp(${gap}px, ${t.x - LABEL_RUN_INSET_PX}px, ${edge}), ${t.y + t.r + 4}px)`
+								: dir === "belowLeft"
+									? `translate(clamp(${gap}px, calc(${t.x + LABEL_RUN_INSET_PX}px - 100%), ${edge}), ${t.y + t.r + 4}px)`
+									: `translate(clamp(${gap}px, calc(${t.x}px - 50%), ${edge}), ${t.y + t.r + 4}px)`}
 				<!-- a hovered callout's actor is named at full strength, as the inked
 				     leader is, rather than at their dot's field alpha — but only while
 				     the name is showing at all, so a culled or held name stays out -->
@@ -3198,6 +3218,21 @@
 		   (see nameSwap). The transition rides --dot-alpha as it always did. */
 		opacity: calc(var(--dot-alpha, 1) * var(--name-alpha, 1));
 		transition: opacity var(--label-fade) ease;
+	}
+
+	/* the opening constellation's fifteen names, stacked: at 14px no side of
+	   their dots fits all of them on a 375px phone without one printing over
+	   another name or dot (INTRO_LABEL_DIRS in layouts/intro.js, whose
+	   NODE_LABEL_PX is this size's line box). Beside the prose (>= 75rem, kept
+	   in step with Stage's BESIDE_MIN_W) the graph has the room for 14px. */
+	.annotations[data-chart="networkIntro"] .node-label {
+		font-size: 12px;
+	}
+
+	@media (min-width: 75rem) {
+		.annotations[data-chart="networkIntro"] .node-label {
+			font-size: 14px;
+		}
 	}
 
 	/* the race chart's names (the "race" scene and raceClose, which closes it

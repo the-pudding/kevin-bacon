@@ -536,7 +536,8 @@ export function drawAnchorHalo(ctx, attrs, i, level) {
  * @param {CanvasRenderingContext2D} ctx
  * @param {Float32Array} attrs
  * @param {{ id: number, x: number, y: number, r: number, labelAlpha: number, labelOffset: number }[]} labels
- * @param {Record<number, "left" | "right">} dirs
+ * @param {Record<number, import("./annotations.js").LabelSide>} dirs only
+ *   beside-dot names are nudged, so only "left" and "right" reach a leader
  * @param {{ rgb: number[], alpha: number, full: number, under?: boolean }} [style]
  */
 export function drawLabelLeaders(ctx, attrs, labels, dirs, style) {

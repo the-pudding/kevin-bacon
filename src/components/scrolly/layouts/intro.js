@@ -102,6 +102,31 @@ const HIT_MIN = 26;
 const HIT_MAX = 44;
 const HIT_SHARE = 0.85;
 
+// Which side of its dot each name takes where hanging it below, centred, would
+// print it over another name or dot. Searched over the dot and name boxes
+// measured at every phone from 375 to 430 wide (the names at the 12px the
+// stacked layout gives them, .node-label in ScrollyVisual) and on the desktop
+// (at 14px), in Chromium and WebKit, with each name kept 4px clear of every
+// other name and of every other dot — the room its --text-halo, 7px off the
+// glyphs, needs to hold out a link without cutting a neighbour's dot. Emma
+// Stone goes left because her name, centred, runs under Bacon's; the
+// right-hand cluster (De Niro, Murphy, Taylor-Joy, Chalamet) sits too close
+// together for any of them to hang centred, so De Niro and Taylor-Joy run
+// right from their dots, Murphy and Chalamet go beside theirs, and
+// Cumberbatch's long name runs left, clear of Bacon. The two names beside
+// their dots on one side (Murphy, Stone) are a hundred px apart, so the
+// beside-dot stacker (annotations.js) never nudges either. One map for the
+// step, whatever is picked out, so a name never changes side when the tour
+// starts or moves on.
+const INTRO_LABEL_DIRS = /** @type {const} */ ({
+	1: "belowRight", // Robert De Niro
+	2: "left", // Cillian Murphy
+	5: "belowLeft", // Benedict Cumberbatch
+	7: "right", // Timothée Chalamet
+	9: "belowRight", // Anya Taylor-Joy
+	13: "left" // Emma Stone
+});
+
 // A name hanging under a dot: the 4px gap ScrollyVisual leaves plus .node-label's
 // own line box (12px at 1.2).
 const NODE_LABEL_PX = 4 + Math.round(12 * 1.2);
@@ -385,6 +410,7 @@ export const states = {
 		// A function, so the fifteen are not discoverable from the declaration —
 		// they are declared in states.js's STATE_TRACKED instead.
 		labels: (p) => (p?.focus == null ? INTRO_IDS : [...routeActors(p.focus)]),
+		labelDirs: INTRO_LABEL_DIRS,
 		params: (s) => ({ focus: s.intro.focus }),
 		// The walk is this state's pop-in: the story opens here, and a first
 		// load seeds every node at zero radius/alpha and tweens it in on the

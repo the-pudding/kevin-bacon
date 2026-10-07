@@ -19,6 +19,15 @@ import { ALPHA_SEEN } from "./render.js";
  */
 
 /**
+ * Where a name sits when it is not hung below its dot, centred (the default):
+ * beside it ("left"/"right", stacked apart by the de-collider below), or still
+ * hung below it but running one way from it rather than centred ("belowRight"
+ * starts just left of the dot and runs right, "belowLeft" ends just right of it
+ * — neither is stacked).
+ * @typedef {"left" | "right" | "belowRight" | "belowLeft"} LabelSide
+ */
+
+/**
  * The race labels one FRAME shows: the step's own subject, then the labelled
  * dots nearest the centre of Hollywood, up to `top` in all.
  *
@@ -147,8 +156,8 @@ export function createLabelFreezer(fadeMs) {
 /**
  * Whether two frames put every name on the same side, so a frame that changes
  * no side hands the template the map it already has.
- * @param {Record<number, "left" | "right">} a
- * @param {Record<number, "left" | "right">} b
+ * @param {Record<number, LabelSide>} a
+ * @param {Record<number, LabelSide>} b
  */
 export function sameSides(a, b) {
 	const keys = Object.keys(a);
@@ -171,12 +180,12 @@ export function sameSides(a, b) {
  * keeps both the side and the nudge it had on the last frame that showed it.
  *
  * @param {TrackedLabel[]} labels
- * @param {Record<number, "left" | "right">} dirs the arriving state's map
- * @param {Map<number, {dir: "left" | "right", offset: number}>} lastShown
- * @returns {Record<number, "left" | "right">}
+ * @param {Record<number, LabelSide>} dirs the arriving state's map
+ * @param {Map<number, {dir: LabelSide, offset: number}>} lastShown
+ * @returns {Record<number, LabelSide>}
  */
 function frameSides(labels, dirs, lastShown) {
-	/** @type {Record<number, "left" | "right">} */
+	/** @type {Record<number, LabelSide>} */
 	const side = {};
 	for (const t of labels) {
 		if (t.labelAlpha > 0) {
@@ -192,6 +201,25 @@ function frameSides(labels, dirs, lastShown) {
 		}
 	}
 	return side;
+}
+
+/** @param {LabelSide | undefined} dir whether the stacker nudges a name on this side */
+const isBeside = (dir) => dir === "left" || dir === "right";
+
+/**
+ * Lifts a stack of beside-dot names as a body by however far its lowest name
+ * runs past `floor`, writing the lifted nudges back into `offsets`.
+ * @param {TrackedLabel[]} beside
+ * @param {Map<number, number>} offsets
+ * @param {number} floor
+ */
+function liftOverFloor(beside, offsets, floor) {
+	let over = 0;
+	for (const t of beside) {
+		over = Math.max(over, t.y + (offsets.get(t.id) ?? 0) - floor);
+	}
+	if (over <= 0) return;
+	for (const [id, off] of offsets) offsets.set(id, off - over);
 }
 
 /**
@@ -220,7 +248,7 @@ export function createLabelStacker(gapPx) {
 	 * Each name's side and nudge on the last frame that SHOWED it, so a name
 	 * fading out can keep them instead of being re-placed by the state that no
 	 * longer labels it (see frameSides).
-	 * @type {Map<number, {dir: "left" | "right", offset: number}>}
+	 * @type {Map<number, {dir: LabelSide, offset: number}>}
 	 */
 	const lastShown = new Map();
 	return {
@@ -232,13 +260,20 @@ export function createLabelStacker(gapPx) {
 		 * rest — a de-collider relaxes toward its target a little per frame, so a
 		 * caller keeps drawing until it has.
 		 * @param {TrackedLabel[]} labels
-		 * @param {Record<number, "left" | "right">} dirs
+		 * @param {Record<number, LabelSide>} dirs
 		 * @param {number | null} floor
 		 */
 		stack(labels, dirs, floor) {
 			const side = frameSides(labels, dirs, lastShown);
+			// every name on screen keeps its side for its fade-out; a beside-dot
+			// name's nudge is recorded over this once the sweep below has run
+			for (const t of labels) {
+				if (t.labelAlpha > 0 && side[t.id] != null) {
+					lastShown.set(t.id, { dir: side[t.id], offset: 0 });
+				}
+			}
 			const beside = labels.filter(
-				(t) => t.labelAlpha > 0 && side[t.id] != null
+				(t) => t.labelAlpha > 0 && isBeside(side[t.id])
 			);
 			if (beside.length === 0) {
 				return { moved: beside, dirs: side, settled: true };
@@ -253,15 +288,7 @@ export function createLabelStacker(gapPx) {
 					gapPx
 				)
 			]);
-			if (floor != null) {
-				let over = 0;
-				for (const t of beside) {
-					over = Math.max(over, t.y + (offsets.get(t.id) ?? 0) - floor);
-				}
-				if (over > 0) {
-					for (const [id, off] of offsets) offsets.set(id, off - over);
-				}
-			}
+			if (floor != null) liftOverFloor(beside, offsets, floor);
 			for (const t of beside) {
 				t.labelOffset = offsets.get(t.id) ?? 0;
 				lastShown.set(t.id, { dir: side[t.id], offset: t.labelOffset });
