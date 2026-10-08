@@ -171,7 +171,7 @@ svg {
 .step-prose p {
 	color: var(--prose-fg);
 	-webkit-font-smoothing: antialiased;
-	font-size: 1.2rem;
+	font-size: var(--16px);
 	font-family: var(--type-step-family);
 	line-height: 1.25;
 }
