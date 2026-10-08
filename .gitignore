@@ -5,6 +5,7 @@ node_modules
 build
 functions
 sheets
+screenshots
 .env
 .env.*
 !.env.example
