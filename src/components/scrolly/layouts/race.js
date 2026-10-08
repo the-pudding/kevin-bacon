@@ -2803,17 +2803,20 @@ function raceLayout(step, yCap = Infinity) {
 // The y-axis title stands upright at the top of the axis, under its "more
 // central" hint, rather than turned along it (`yTitleTop`, ScrollyVisual's
 // .y-title-top). No bottom hint: the arrow on the top one says which way is which.
+// The title lines up with the tick labels' left edge, which it takes from a
+// label as wide as raceYTicks' widest ("2.10": `yTickReserve`) rather than
+// from the labels drawn: those switch between tenths and hundredths as the
+// camera zooms, and the title jumped sideways with them.
 const CLOSE_OVERLAY = {
 	yLabel: "Remoteness",
 	yTitleTop: true,
-	yTopLabel: "↑ more central"
+	yTopLabel: "↑ more central",
+	yTickReserve: "0.00"
 };
 
 const OVERLAY = {
-	xLabel: "Year",
-	yLabel: "Remoteness",
-	yTitleTop: true,
-	yTopLabel: "↑ more central"
+	...CLOSE_OVERLAY,
+	xLabel: "Year"
 };
 
 // optional runtime override of the camera ({ playhead }); null while idle, so

@@ -864,15 +864,14 @@
 		// read once per measure, not per frame: the axis' x holds still in a pan
 		const yMarkX = untrack(() => decor?.axes?.yMarkX ?? 0);
 		const left = yMarkX - 12 - yTickW;
-		// below the chart title where it would run in under it, then below any
-		// tick label wherever that leaves it (the spans run top to bottom, so
-		// one pass steps past each in turn)
-		let top =
+		// below the chart title where it would run in under it. Never below a
+		// tick label: the ticks slide and swap through a rescale, and a title
+		// stepping past them jumped every few frames; they fade under it
+		// instead (underYTitle)
+		const top =
 			left + yTitleW + 8 <= t.left - o.left
 				? rest
 				: Math.max(rest, t.bottom - o.top + 6);
-		for (const [a, b] of yTickSpans)
-			if (a < top + yTitleH && b > top) top = b + 4;
 		return top - rest;
 	});
 	// tappable chart regions (layout `hits` + the state's `pick`): rendered as
@@ -892,17 +891,19 @@
 	// cannot hand to a sibling: measured instead, again whenever the labels'
 	// text changes (a pan slides them, which moves nothing sideways) and when
 	// an arriving chart's held furniture is let in — until then its ticks are
-	// not in the DOM, and a measure taken then reads 0 and would stand.
+	// not in the DOM, and a measure taken then reads 0 and would stand. A chart
+	// whose labels change width as its camera moves draws a hidden one as wide
+	// as its widest (overlay `yTickReserve`, .tick-reserve), so the measure
+	// holds still while they do.
 	/** @type {HTMLElement | undefined} */
 	let overlayEl = $state();
 	let yTickW = $state(0);
-	// ...and the upright title's own width and lift, and how far down a tick
-	// label it would rest on reaches (titleOverrun)
+	// ...and the upright title's own width, lift and height, and one tick
+	// label's height (titleOverrun, underYTitle)
 	let yTitleW = $state(0);
 	let yTitleLift = $state(0);
 	let yTitleH = $state(0);
-	/** the y tick labels' [top, bottom], in the overlay's coordinates @type {[number, number][]} */
-	let yTickSpans = $state([]);
+	let yTickH = $state(0);
 	const yTickKey = $derived(
 		(decor?.axes?.y ?? []).map((t) => t.label ?? "").join("|")
 	);
@@ -919,21 +920,20 @@
 		yTitleW = title?.offsetWidth ?? 0;
 		yTitleLift = title ? parseFloat(getComputedStyle(title).fontSize) * 0.6 : 0;
 		yTitleH = title?.offsetHeight ?? 0;
-		yTickSpans = overlayEl ? tickSpans(els) : [];
+		yTickH = Math.max(0, ...[...els].map((e) => e.offsetHeight));
 	});
 	/**
-	 * The y tick labels' vertical spans, top to bottom, in the overlay's
-	 * coordinates, for the upright title to step clear of (titleOverrun).
-	 * @param {Iterable<Element>} ticks
-	 * @returns {[number, number][]}
+	 * Whether a y tick label would run under the upright title, which it then
+	 * fades out beneath (.tick-y .under) while the title holds still. Hidden
+	 * or shown, never between: a ramp over the gap left a label that came to
+	 * rest just clear of the title stuck half-faded.
+	 * @param {any} set the furniture set the tick belongs to
+	 * @param {number} pos the tick's y, in the overlay's coordinates
 	 */
-	function tickSpans(ticks) {
-		const o = /** @type {HTMLElement} */ (overlayEl).getBoundingClientRect()
-			.top;
-		return [...ticks]
-			.map((e) => e.getBoundingClientRect())
-			.map((r) => /** @type {[number, number]} */ ([r.top - o, r.bottom - o]))
-			.sort((a, b) => a[0] - b[0]);
+	function underYTitle(set, pos) {
+		if (!set.overlay?.yTitleTop || !yTitleH) return false;
+		const top = set.hintTop + titleOverrun - yTitleLift;
+		return pos + yTickH / 2 > top && pos - yTickH / 2 < top + yTitleH;
 	}
 	/** how long the departing furniture keeps its place before it goes. The HTML
 	 *  twin of DEPART_FADE_MS: decluttering, not a beat the reader watches. */
@@ -2913,14 +2913,23 @@
 				></span>
 			{/if}
 		{/each}
+		{#if set.overlay?.yTickReserve}
+			<!-- the widest label the axis can draw, never seen: it holds the
+			     labels' measured width (yTickW) still while the drawn ones change -->
+			<p class="tick tick-y tick-reserve" aria-hidden="true">
+				{set.overlay.yTickReserve}
+			</p>
+		{/if}
 		{#each set.decor?.axes?.y ?? [] as tick}
 			{#if tick.label}
+				<!-- faded under the upright y title (underYTitle), on an inner
+				     span for the same reason as the x ticks' alpha -->
 				<p
 					class="tick tick-y fade-in"
 					aria-hidden="true"
 					style="left: {set.decor.axes.yMarkX}px; top: {tick.pos}px"
 				>
-					{tick.label}
+					<span class:under={underYTitle(set, tick.pos)}>{tick.label}</span>
 				</p>
 			{/if}
 			{#if tick.mark}
@@ -3356,7 +3365,8 @@
 		}
 
 		.node-label,
-		.pulse-wrap {
+		.pulse-wrap,
+		.tick-y span {
 			transition: none;
 		}
 
@@ -3685,6 +3695,18 @@
 		   plot, and 3px of air */
 		transform: translate(calc(-100% - 12px), -50%);
 		white-space: nowrap;
+	}
+
+	.tick-y span {
+		transition: opacity 0.2s ease;
+	}
+
+	.tick-reserve {
+		visibility: hidden;
+	}
+
+	.tick-y .under {
+		opacity: 0;
 	}
 
 	/* a tick's mark (Tick.mark), in the tick labels' colour. Both axes'
