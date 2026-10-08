@@ -265,6 +265,7 @@
 						<button class="search__clear" onclick={clear}>Clear</button>
 					</p>
 				{/if}
+				<span class="search__label" aria-hidden="true">Search actors</span>
 				<Combobox
 					bind:value
 					{items}
@@ -381,6 +382,21 @@
 		/* the canvas states carry a halo on their prose; a control is a solid
 		   object and does not want one */
 		text-shadow: none;
+	}
+
+	/* Desktop only: the same width the prose sits beside the canvas (Stage's
+	   BESIDE_MIN_W). The input names itself for assistive tech, hence aria-hidden. */
+	.search__label {
+		display: none;
+	}
+
+	@media (min-width: 75rem) {
+		.search__label {
+			display: block;
+			font-family: var(--type-chip-family);
+			font-size: 0.8rem;
+			color: var(--prose-muted);
+		}
 	}
 
 	.search__current {
