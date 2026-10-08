@@ -11,7 +11,7 @@ import {
 } from "../attr-buffer.js";
 import { bowsInto } from "../drain.js";
 import { blueNoiseSeats } from "../blue-noise.js";
-import { FIELD_IDS, HOP_CYCLE_IDS, SKY_IDS, isIntroActor } from "../cast.js";
+import { FIELD_IDS, HOP_ANCHOR_IDS, SKY_IDS, isIntroActor } from "../cast.js";
 import { ALPHA_SEEN } from "../render.js";
 import {
 	NETWORK_HOP_DELAY_MS,
@@ -64,10 +64,10 @@ const BAND_GAP = 12;
 // is, which is that ratio and not a flattened version of it.
 //
 // The identity that matters: for Bacon the ratio is 1, so this is exactly the
-// sample and his frame is the frame `hopBands` has always drawn. That is what
-// makes stepping from step 4 onto the cycling chart move no dot the reader can
-// see. (The dots neither shows differ: hopBands hides them in the sky, see
-// layoutBandsOffSky, and they cross to hopAnchor's rows unseen.)
+// sample and his frame is the frame `hopBands` has always drawn, so stepping
+// from step 4 onto step 5 moves only the dots a boundary passes on the way to
+// Freeman's rows. (The dots neither shows differ: hopBands hides them in the
+// sky, see layoutBandsOffSky, and they cross to hopAnchor's rows unseen.)
 const BACON_HOP_COUNTS = story.rankHopBands[ANCHOR_ID];
 
 /**
@@ -433,12 +433,11 @@ function bandFrame(w, h, bleed, seed = false) {
 // So the rows are filled by quota: each takes the number of dots its own weight
 // asks for, cut out of one fixed order. Anchored on Bacon the quota lands
 // exactly on the hop boundaries and every dot is in its own degree, which is the
-// chart step 5 has always drawn — the goldens hold `hopBands` and `hopAnchor
-// {anchorId: 0}` to the same three hashes, so stepping between them moves
-// nothing. Anchored on anyone else a crowd dot's row is a proportion rather than
-// its own distance. Nothing labels a crowd dot — the only name here is the
-// anchor's — so it is not a claim the chart makes to anybody; it is written down
-// because it is the one thing the chart says less than it looks like it does.
+// chart step 4 draws. Anchored on anyone else a crowd dot's row is a proportion
+// rather than its own distance. Nothing labels a crowd dot — the only name here
+// is the anchor's — so it is not a claim the chart makes to anybody; it is
+// written down because it is the one thing the chart says less than it looks
+// like it does.
 //
 // Only a subset of the crowd is on show (see shownDots): as many as the box
 // seats, drawn from each degree in proportion. The rest are dealt by the
@@ -451,10 +450,10 @@ function bandFrame(w, h, bleed, seed = false) {
  *
  * A band is a CUT through this list (see bandCuts), so changing the anchor
  * slides three boundaries rather than re-dealing the field — a dot changes rows
- * only if a boundary passed it, and the cycle reads as the breakdown moving
- * instead of as a reshuffle. Ordering by hop is what makes that true: a hash
- * order would scatter the same number of changes evenly across the crowd, and
- * every turn would look like static.
+ * only if a boundary passed it, and an anchor change reads as the breakdown
+ * moving instead of as a reshuffle. Ordering by hop is what makes that true: a
+ * hash order would scatter the same number of changes evenly across the crowd,
+ * and every anchor change would look like static.
  *
  * Struck once, at module scope: 22,500 entries that depend on neither the box
  * nor the anchor.
@@ -545,10 +544,10 @@ function dealBands(ids, shares) {
 	return bands;
 }
 
-// The anchors the cycle turns through, who drop out of the header into a band
-// and climb back up on every turn — so they are always among the dots on show,
+// The steps' own anchors, who drop out of the header into a band and climb
+// back up on every step change — so they are always among the dots on show,
 // and the reader never watches one fade out as it lands.
-const FEATURED = new Set(HOP_CYCLE_IDS);
+const FEATURED = new Set(HOP_ANCHOR_IDS);
 
 /** each hop's dots in the order they are picked to be shown: the featured
  * anchors first, then by a fixed hash. Struck once, at module scope. */
@@ -883,21 +882,21 @@ export const states = {
 		// The same layout `hopBands` draws, handed an anchor.
 		layout: layoutHopBands,
 		// No state plays this layout's cascade on the way in. The cascade is
-		// hopBands' sort off the sky — a degree at a time, out of a crowd spread across
-		// the plot — and every arrival HERE comes off a step already resting on
-		// Bacon, so not a dot moves. Left to default the delays would still be
-		// spent: measured 2026-09-22, 1.8s of blank chart between the departing
-		// furniture fading out and the arriving furniture fading in, with nothing
-		// travelling for any of it. An empty list is the field's own way of saying
-		// the reveal is authored for nobody (see arrivalDelays).
+		// hopBands' sort off the sky — a degree at a time, out of a crowd spread
+		// across the plot — and every arrival HERE comes off rows already sorted,
+		// so a dot moves only where a boundary passes it. Left to default the
+		// delays would still be spent: measured 2026-09-22, 1.8s of blank chart
+		// between the departing furniture fading out and the arriving furniture
+		// fading in. An empty list is the field's own way of saying the reveal is
+		// authored for nobody (see arrivalDelays).
 		revealFrom: [],
 		scene: "hops",
 		card: "hops",
 		proseOver: true,
 		// Static: it does not need to carry the anchor's name, because the
 		// anchor's dot is the only labelled thing on the chart and it is 60px
-		// above this line — and a title that changed on every turn of the cycle
-		// would crossfade on every turn too.
+		// above this line — and a title that named the anchor would change, and
+		// crossfade, on the step change between the chart's two steps.
 		title: "Actors with 4 degrees of separation",
 		// Nobody at all while the chip is carrying the anchor here: the name is
 		// still legible on the chip itself, and printing it under the empty seat
@@ -906,6 +905,11 @@ export const states = {
 		// exchange the scatters make (see ActorSearch's `moves`).
 		labels: (params) =>
 			params?.arriving ? [] : [params?.anchorId ?? ANCHOR_ID],
-		params: (s) => ({ anchorId: s.hops.anchorId, arriving: s.hops.arriving })
+		// the step's own anchor (its <Step> params index HOP_ANCHOR_IDS), unless
+		// the reader searched for somebody else on it
+		params: (s, step) => ({
+			anchorId: s.hops.anchorId ?? HOP_ANCHOR_IDS[step.anchor],
+			arriving: s.hops.arriving
+		})
 	}
 };

@@ -197,7 +197,7 @@
 		])
 	];
 	// …plus the two ids nothing can know at build time: the actor the reader has
-	// searched for, and the one step 6's hop chart is currently anchored on.
+	// searched for, and the one they searched for on step 6's hop chart.
 	// Derived rather than declared because between them the pools are ~1,400
 	// actors (search.js) and every tracked id costs a label element walked by
 	// trackLabels on every frame — all of them, to show one name. Read by
@@ -205,9 +205,8 @@
 	// value on the next frame.
 	//
 	// The de-duplication is load-bearing, not tidiness: the pools hold plenty of
-	// actors the story names itself (SLJ, the intro fifteen, the Gen Z cast), the
-	// hop chart's anchor is Bacon for most of its life and he is tracked outright,
-	// and the two are free to land on the same person. The label elements are
+	// actors the story names itself (SLJ, the intro fifteen, the Gen Z cast, the
+	// hop chart's own anchors), and the two are free to land on the same person. The label elements are
 	// keyed on `id:name`, so a duplicate is a duplicate key, which throws and
 	// takes the whole step card — search control included — down with it. Measured
 	// on 2026-09-21: searching Samuel L. Jackson unmounted the control; searching

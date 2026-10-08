@@ -4,7 +4,7 @@
 import { describe, expect, test } from "vitest";
 import { STRIDE, ALPHA_OFFSET, BOW_SIZE } from "../attr-buffer.js";
 import { ANCHOR_ID } from "../nodes.js";
-import { FIELD_IDS, HOP_CYCLE_IDS, SKY_IDS, SLJ } from "../cast.js";
+import { FIELD_IDS, HOP_ANCHOR_IDS, SKY_IDS, SLJ } from "../cast.js";
 import { HOP_RGB } from "../palette.js";
 import {
 	MARGIN,
@@ -90,9 +90,9 @@ describe("hop bands span the screen", () => {
 	}
 });
 
-// Steps 4 and 5 draw this layout on Bacon, then on each anchor the cycle turns
-// through; SLJ stands in for a searched anchor who is not among the dots on show.
-const ANCHORS = [ANCHOR_ID, ...HOP_CYCLE_IDS, SLJ];
+// Step 4 draws this layout on Bacon, and steps 5 and 6 on their own anchors;
+// SLJ stands in for a searched anchor who is not among the dots on show.
+const ANCHORS = [ANCHOR_ID, ...HOP_ANCHOR_IDS, SLJ];
 
 /** the layout anchored on `anchorId`, resting (not mid-search) */
 const anchored = (box, anchorId) =>

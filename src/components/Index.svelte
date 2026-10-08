@@ -14,14 +14,13 @@
 	import { createQuizResults } from "$components/results/quiz-results.svelte.js";
 	import useWindowDimensions from "$runes/useWindowDimensions.svelte.js";
 	import { story, request } from "$components/scrolly/story.svelte.js";
-	import { quizDone } from "$components/scrolly/states.js";
+	import { STATE_PARAMS, quizDone } from "$components/scrolly/states.js";
 	import { createStepRegistry } from "$components/scrolly/step-registry.svelte.js";
 	import { prepareArrival } from "$components/scrolly/arrivals.js";
 	import { resetHopAnchor } from "$components/scrolly/story.svelte.js";
 	import { routeSummary } from "$components/scrolly/intro-routes.js";
 	import { SEARCH_CHARTS, SEARCH_POOL } from "$components/scrolly/search.js";
 	import { simLabelText } from "$components/scrolly/layouts/sim-race.js";
-	import { HOP_CYCLE_IDS } from "$components/scrolly/cast.js";
 	import { INTRO_IDS } from "$components/scrolly/nodes.js";
 	import {
 		CYCLE_ORDER,
@@ -42,14 +41,15 @@
 	 * the chip the control is flying is what ARRIVES there — so the dot leaves
 	 * the crowd unseen (`conceal`) and holds the seat invisible until the chip
 	 * lands on it. Skipped when the reader names the actor already standing at
-	 * the top: that dot is already in the seat, so there is nothing to cross the
-	 * canvas and concealing it would be a big black dot popping out of a chart
-	 * that is otherwise not changing.
+	 * the top (the step's own anchor, or their last pick): that dot is already
+	 * in the seat, so there is nothing to cross the canvas and concealing it
+	 * would be a big black dot popping out of a chart that is otherwise not
+	 * changing.
 	 */
 	function anchorPick(visual, id) {
-		if (id !== story.hops.anchorId) visual?.conceal?.(id);
+		const shown = STATE_PARAMS.hopAnchor(story, steps.config?.params).anchorId;
+		if (id !== shown) visual?.conceal?.(id);
 		story.hops.anchorId = id;
-		story.hops.pinned = true;
 		story.hops.arriving = true;
 	}
 
@@ -95,11 +95,10 @@
 	// and it simply carries on across the step change into step 1, which is the
 	// same state with different words.
 	//
-	// TOUR_MS is step 6's beat as well: both are one line of chart to read. Step
-	// 6 answers a store write with the 450ms param tween (PARAM_TWEEN_MS in
-	// ScrollyVisual); here the old route fades for 400ms, the bare network
-	// holds for 350ms and the new one walks in to Bacon at 700ms a movie
-	// (routeWalk in layouts/intro.js), so a two-movie route takes 2.15s of it.
+	// Each turn is one line of chart to read: the old route fades for 400ms,
+	// the bare network holds for 350ms and the new one walks in to Bacon at
+	// 700ms a movie (routeWalk in layouts/intro.js), so a two-movie route takes
+	// 2.15s of it.
 	const TOUR_MS = 3400; // ~1.25-1.95s to read, after the route has walked in
 	// The beat the whole constellation gets before anything is picked out of it.
 	// The network has just finished drawing itself and the step's paragraph has
@@ -233,58 +232,6 @@
 			clearInterval(turns);
 		};
 	});
-
-	// --- step 6's cycle of anchors ---
-	// The same idea one chapter on, and deliberately the same shape: the step says
-	// Kevin Bacon is not special in this respect, so the chart stops being about
-	// him — the dot at the top and the rows under it are redrawn for one actor
-	// after another, and "not special" is something the reader watches instead of
-	// something they are told. The search takes it over (story.hops.pinned).
-	//
-	// Simpler than the tour in the two places the tour is complicated: there is no
-	// tap surface on this chart, so nothing can release a pick out from under the
-	// clock, and the arrival rule puts the cycle back to the top of the list every
-	// time the reader walks in (resetHopAnchor), so it has no position to resume
-	// from. What it keeps is the trap the tour documents at length: this effect
-	// must never read the field showNextAnchor writes, or the write would
-	// invalidate the effect, re-run it and skip an actor on every turn.
-	// Gated on the arrival having landed: the rows sorting themselves into the
-	// arriving actor's proportions is the thing the step is about, and the cycle
-	// must not start over the top of that arrival. `story.settled` rather than
-	// `steps.held`, for the reason the tour gives: the chart runs across two
-	// steps, and a step-scoped hold would stop it dead at the join and restart it
-	// from the top of the list.
-	const cycling = $derived(
-		steps.state === "hopAnchor" &&
-			story.settled === "hopAnchor" &&
-			!story.hops.pinned
-	);
-	// Written then advanced, the way the tour's showNext is: the step rests on
-	// Bacon, who is not in the list, so the FIRST turn has to show the list's
-	// first actor rather than its second.
-	let anchorNext = 0;
-	const showNextAnchor = () => {
-		story.hops.anchorId = HOP_CYCLE_IDS[anchorNext];
-		anchorNext = (anchorNext + 1) % HOP_CYCLE_IDS.length;
-	};
-	$effect(() => {
-		if (!cycling) {
-			anchorNext = 0;
-			return;
-		}
-		// text and rows that change on their own are motion the reader didn't ask
-		// for: under reduced motion the chart rests on Bacon and waits to be asked
-		if (reducedMotion.current) return;
-		// The first turn is not held for a beat. The step arrives on the chart the
-		// step before it rests on — identical to the byte — so a held first turn is
-		// three seconds of a picture the reader has just finished reading, and the
-		// thing the step is actually for does not start until then. The tour holds
-		// its own first turn for the opposite reason: its step arrives on something
-		// the reader has not seen.
-		showNextAnchor();
-		const timer = setInterval(showNextAnchor, TOUR_MS);
-		return () => clearInterval(timer);
-	});
 </script>
 
 <svelte:boundary onerror={(e) => console.error(e)}>
@@ -332,14 +279,14 @@
 			<!-- The same control on step 6, asking a different question: who the hop
 		     chart is drawn FOR. So the pool is the same SEARCH_POOL the other three
 		     searches use — narrowed at build time to actors with an exported hop
-		     breakdown (see search.js) — and a pick pins the cycle rather than
-		     marking a dot in a crowd.
-		     `picked` is null until they pin, so the Clear row appears only once
-		     there is a decision of theirs to undo; while the cycle is running the
-		     name under the reader's nose is the one on the canvas, and offering
-		     to clear it would be offering to clear the step. Clearing puts the
-		     chart back on Bacon with the cycle live, which is where the arrival
-		     leaves it (resetHopAnchor). Deliberately NOT the sticky pick: this is
+		     breakdown (see search.js) — and a pick replaces the step's own
+		     anchor rather than marking a dot in a crowd.
+		     `picked` is null until they pick, so the Clear row appears only once
+		     there is a decision of theirs to undo; until then the name under the
+		     reader's nose is the step's own, and offering to clear it would be
+		     offering to clear the step. Clearing puts the chart back on the
+		     step's anchor, which is where the arrival leaves it
+		     (resetHopAnchor). Deliberately NOT the sticky pick: this is
 		     a different pool answering a different question, and a name chosen
 		     here has nothing to say on the scatters.
 
@@ -354,7 +301,7 @@
 					visual={layout.visual}
 					chart={SEARCH_CHARTS[steps.state]}
 					pool={SEARCH_POOL}
-					picked={story.hops.pinned ? story.hops.anchorId : null}
+					picked={story.hops.anchorId}
 					moves
 					onpick={(id) => anchorPick(layout.visual, id)}
 					onland={() => (story.hops.arriving = false)}
@@ -509,9 +456,11 @@
 		     being told what it means. Held per STEP, so it holds again on each of
 		     the steps below rather than only on the first arrival at the chart.
 		     The first is about Bacon's own number and rests on him
-		     (`hopBands`); the two after it are the cycling chart (`hopAnchor`),
-		     one paragraph each so the card stays clear of the 2-movie row's
-		     label on a phone — see layouts/hop-bands.js. -->
+		     (`hopBands`); the two after it redraw the chart for one actor each
+		     (`hopAnchor`, its `anchor` param indexing HOP_ANCHOR_IDS: Freeman,
+		     then Streep), so every press moves the rows. The search waits for
+		     the second of them. One paragraph each so the card stays clear of
+		     the 2-movie row's label on a phone — see layouts/hop-bands.js. -->
 				<Step
 					state="hopBands"
 					alt="Chart: the four degrees of Kevin Bacon. Kevin Bacon's dot sits above four rows of dots, one for the actors 1, 2, 3 and 4 movies away from him, each labelled with its share of actors. The 2-movie row is by far the largest."
@@ -543,21 +492,22 @@
 				</Step>
 				<Step
 					state="hopAnchor"
-					panel={anchorPanel}
-					alt="The same chart, redrawn for other actors in turn. Every one of them has a small 4-movie row."
+					params={{ anchor: 0 }}
+					alt="The same chart, redrawn for Morgan Freeman. His 4-movie row is small too."
 				>
 					<p>
-						Morgan Freeman, Meryl Streep and Scarlett Johansson are also four
-						degrees from every actor in Hollywood. In fact, 10% of actors in the
-						dataset are four degrees away from everyone else. <b
+						Morgan Freeman and Meryl Streep are also four degrees from every
+						actor in Hollywood. In fact, 10% of actors in the dataset are four
+						degrees away from everyone else. <b
 							>No one can reach everyone within 3.</b
 						>
 					</p>
 				</Step>
 				<Step
 					state="hopAnchor"
+					params={{ anchor: 1 }}
 					panel={anchorPanel}
-					alt="The same chart, still redrawn for other actors in turn."
+					alt="The same chart, redrawn for Meryl Streep."
 				>
 					<p>
 						We need a more granular way to measure the connectivity of actors:

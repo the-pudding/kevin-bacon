@@ -1,7 +1,7 @@
 <script>
 	// @ts-check
 	// Naming an actor, on the charts that can do something with one: the two films
-	// scatters and the career chart mark the reader's own dot, and the cycling hop
+	// scatters and the career chart mark the reader's own dot, and the hop
 	// chart takes the name as the actor its rows are drawn for. An EASTER EGG, not
 	// an invitation — a magnifying glass at the right of the chart's own title,
 	// and nothing else until the reader presses it. There is no sentence offering

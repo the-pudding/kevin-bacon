@@ -9,7 +9,8 @@ import {
 	SWEENEY,
 	CHASE,
 	HACKMAN,
-	MIRREN
+	MIRREN,
+	HOP_ANCHOR_IDS
 } from "./cast.js";
 import { ANCHOR_ID, INTRO_IDS } from "./nodes.js";
 import { states as introStates } from "./layouts/intro.js";
@@ -555,6 +556,7 @@ export const STATE_TRACKED = [
 	...story.genz.candidates.map((c) => c.id),
 	...GALAXY_CAST,
 	ANCHOR_ID, // hopBands, careerBacon
+	...HOP_ANCHOR_IDS, // hopAnchor
 	PORTMAN, // scatterCenters, degScatter
 	KENDRICK,
 	SWEENEY, // careerTrio, careerMany

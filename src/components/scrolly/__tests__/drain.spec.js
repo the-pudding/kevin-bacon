@@ -13,7 +13,12 @@ import {
 	drain
 } from "../drain.js";
 import { STATE_CURVE } from "../states.js";
-import { BOXES, buildLayout } from "./helpers.js";
+import {
+	BOXES,
+	buildLayout,
+	layoutParamsFor,
+	stepParamsOf
+} from "./helpers.js";
 
 const box = BOXES[0];
 const cap = LEAN_CAP * Math.min(box.w, box.h);
@@ -79,7 +84,11 @@ describe("every curved arrival", () => {
 		for (const from of curve.from) {
 			for (const b of BOXES) {
 				test(`${from} → ${state}, ${b.name}: bows across the chord, one hand throughout, within the lean`, () => {
-					const live = Float32Array.from(buildLayout(from, b).attrs);
+					// a forward arrival leaves the departing state's last step
+					const departing = stepParamsOf(from).at(-1);
+					const live = Float32Array.from(
+						buildLayout(from, b, layoutParamsFor(from, departing)).attrs
+					);
 					const target = buildLayout(state, b).attrs;
 					const bows = curve.bows(live, target, b.w, b.h, b.bleed);
 					const top = LEAN_CAP * Math.min(b.w, b.h);

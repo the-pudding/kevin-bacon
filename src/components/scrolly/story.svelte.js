@@ -5,7 +5,7 @@
 // update, not a step change.
 //
 // Grouped by the interaction that owns the fields: `intro` (the opening
-// constellation's tour and taps), `hops` (the cycling hop-chart anchor), `rank` (the guess-the-rank ladder), `race` (the race chart's camera
+// constellation's tour and taps), `hops` (the hop chart's searched anchor), `rank` (the guess-the-rank ladder), `race` (the race chart's camera
 // and its Gen Z draw-on), `quiz` (the pair quiz), `search` (the reader's own
 // actor, on four charts) and `sim` (the simulation replay). The top-level
 // fields are the framework's own: what the reader has asked for, what is
@@ -21,7 +21,6 @@
 // `advanceon` in Step.svelte.
 import simStory from "$data/scrolly-story.json";
 import { SIM_LABEL_N } from "./cast.js";
-import { ANCHOR_ID } from "./nodes.js";
 
 const SIM_N_SIMS = simStory.genz.nSims;
 
@@ -82,25 +81,21 @@ export const story = $state({
 		releases: 0
 	},
 
-	/** step 6's hop chart: whose breakdown the bands are drawn for (the cycle in
-	 * Index.svelte, the anchor search, layouts/hop-bands.js's `hopAnchor`) */
+	/** the hop chart's search, on step 6 (the anchor search in Index.svelte,
+	 * layouts/hop-bands.js's `hopAnchor`). Each `hopAnchor` step names its own
+	 * anchor in its params; this is only what the reader put there instead. */
 	hops: {
-		/** node id of the actor at the top of the stack. Only the ranked top 250
-		 * have a `rankHopBands` row to draw, so this is never anything else — the
-		 * cycle is HOP_CYCLE_IDS and the search is scoped to RANK_POOL */
-		anchorId: ANCHOR_ID,
-		/** the reader named an actor themselves, so the cycle stands down and
-		 * leaves the bands where they put them. Clearing resumes it. The twin of
-		 * `intro.pinned`, and for the same reason: the step demonstrates itself
-		 * rather than waiting to be asked, and a reader who takes it over keeps it */
-		pinned: false,
+		/** node id of the actor the reader searched for, or null while the chart
+		 * rests on the step's own anchor. The search is scoped to SEARCH_POOL,
+		 * every member of which has a `rankHopBands` row to draw */
+		anchorId: null,
 		/** the anchor is being DELIVERED by the search's chip, which is still in
 		 * the air: the top of the stack holds the new anchor's place unnamed and
 		 * invisible, so nothing climbs out of the crowd to meet a name that is
 		 * already on its way down the screen. Dropped when the chip lands, and the
-		 * dot fades in under it (the same beat the scatters' mark gets). The cycle
-		 * never raises it — a turn of the cycle has no chip, and the anchors trade
-		 * places in full view, which is the motion that step is made of. */
+		 * dot fades in under it (the same beat the scatters' mark gets). A step
+		 * change never raises it — the step's anchors trade places in full view,
+		 * which is the motion those steps are made of. */
 		arriving: false
 	},
 
@@ -252,13 +247,12 @@ export function request(kind) {
 	story.request = { kind, nonce: story.request.nonce + 1 };
 }
 
-/** Put the cycling hop chart back on Bacon, with the cycle live. Called by the
- * step registry's arrival rules on every arrival at `hopAnchor`, so the step
- * opens on the anchor its neighbours rest on and a pick the reader made on an
- * earlier visit is not still sitting there when they walk in again. */
+/** Put the hop chart back on the step's own anchor. Called by the step
+ * registry's arrival rules on every arrival at a `hopAnchor` step, so a pick the
+ * reader made on an earlier visit is not still sitting there when they walk in
+ * again, and stepping 6 → 5 lands on 5's anchor rather than 6's pick. */
 export function resetHopAnchor() {
-	story.hops.anchorId = ANCHOR_ID;
-	story.hops.pinned = false;
+	story.hops.anchorId = null;
 	// …and it is also the one place a chip abandoned mid-flight is cleaned up:
 	// a reader who steps away while one is travelling unmounts the control
 	// before it can drop this itself, and an anchor left `arriving` would be an

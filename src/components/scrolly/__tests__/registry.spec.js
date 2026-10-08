@@ -21,7 +21,13 @@ import {
 	isProseOver
 } from "../states.js";
 import { NODE_COUNT } from "../nodes.js";
-import { BOXES, arrivalContext, layoutParamsFor, phasesOf } from "./helpers.js";
+import {
+	BOXES,
+	arrivalContext,
+	layoutParamsFor,
+	phasesOf,
+	stepParamsOf
+} from "./helpers.js";
 
 const names = Object.keys(STATES);
 // what ScrollyVisual tracks out of the attr array each frame — the only ids
@@ -32,8 +38,11 @@ const tracked = new Set([
 	...STATE_TRACKED
 ]);
 const isNodeId = (id) => Number.isInteger(id) && id >= 0 && id < NODE_COUNT;
+/** what `spec` resolves to on each of the story's steps on `state` */
 const resolve = (spec, state) =>
-	typeof spec === "function" ? spec(layoutParamsFor(state)) : spec;
+	stepParamsOf(state).map((step) =>
+		typeof spec === "function" ? spec(layoutParamsFor(state, step)) : spec
+	);
 const ctx = arrivalContext(BOXES[1]);
 
 function expectWellFormedLegs(anim, where) {
@@ -164,12 +173,13 @@ describe("state registry", () => {
 
 	test("every name a state can show at rest has a tracked dot", () => {
 		for (const state of names) {
-			for (const id of resolve(STATE_LABELS[state], state) ?? []) {
+			for (const id of resolve(STATE_LABELS[state], state).flat()) {
+				if (id == null) continue;
 				expect(isNodeId(id), `${state} label ${id}`).toBe(true);
 				expect(tracked.has(id), `${state} label ${id} untracked`).toBe(true);
 			}
-			const pulse = resolve(STATE_PULSE[state], state);
-			if (pulse != null) {
+			for (const pulse of resolve(STATE_PULSE[state], state)) {
+				if (pulse == null) continue;
 				expect(isNodeId(pulse), `${state} pulse ${pulse}`).toBe(true);
 				expect(tracked.has(pulse), `${state} pulse ${pulse} untracked`).toBe(
 					true

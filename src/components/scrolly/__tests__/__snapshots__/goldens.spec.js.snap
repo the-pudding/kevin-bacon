@@ -264,34 +264,34 @@ exports[`layout goldens > degScatter {"searchId":null} @stacked 1`] = `
 }
 `;
 
-exports[`layout goldens > hopAnchor {"anchorId":0,"arriving":false} @beside 1`] = `
+exports[`layout goldens > hopAnchor {"anchorId":6,"arriving":false} @beside 1`] = `
 {
-  "attrs": "f11e321cb8bd1530",
-  "colour": "dc5377495671a120",
-  "decor": "67418b50cdb92eda",
-  "delays": "81adf7d1bf8819f7",
+  "attrs": "8af4a8eec61bd454",
+  "colour": "14bd26bfc2c9f074",
+  "decor": "72e111734ff24f6f",
+  "delays": "f3ffb3846cb84f11",
   "trailDelays": null,
   "trails": null,
 }
 `;
 
-exports[`layout goldens > hopAnchor {"anchorId":0,"arriving":false} @phone 1`] = `
+exports[`layout goldens > hopAnchor {"anchorId":6,"arriving":false} @phone 1`] = `
 {
-  "attrs": "924a3ef99499b630",
-  "colour": "dc5377495671a120",
-  "decor": "e79276245b20a2a2",
-  "delays": "81adf7d1bf8819f7",
+  "attrs": "d0e472f9e5c26592",
+  "colour": "bcbc9017b487b069",
+  "decor": "0c5394f9236f32c4",
+  "delays": "d9dc8f8630f01016",
   "trailDelays": null,
   "trails": null,
 }
 `;
 
-exports[`layout goldens > hopAnchor {"anchorId":0,"arriving":false} @stacked 1`] = `
+exports[`layout goldens > hopAnchor {"anchorId":6,"arriving":false} @stacked 1`] = `
 {
-  "attrs": "a8309dd21595446d",
-  "colour": "dc5377495671a120",
-  "decor": "21979002f110156c",
-  "delays": "81adf7d1bf8819f7",
+  "attrs": "17dfe88a53a98ab8",
+  "colour": "1be3646eef11789c",
+  "decor": "04ffce009062ff88",
+  "delays": "28157d71442a88a3",
   "trailDelays": null,
   "trails": null,
 }
@@ -299,10 +299,10 @@ exports[`layout goldens > hopAnchor {"anchorId":0,"arriving":false} @stacked 1`]
 
 exports[`layout goldens > hopAnchor {"anchorId":105,"arriving":false} @beside 1`] = `
 {
-  "attrs": "1a6a0da747cddbcd",
-  "colour": "4cd48ae421a7271e",
+  "attrs": "b49bcb7ca6aa7d30",
+  "colour": "a479a0ef1daa8075",
   "decor": "1c0b331edd957b95",
-  "delays": "4793d61561b39c55",
+  "delays": "634664f23cef230a",
   "trailDelays": null,
   "trails": null,
 }
@@ -310,10 +310,10 @@ exports[`layout goldens > hopAnchor {"anchorId":105,"arriving":false} @beside 1`
 
 exports[`layout goldens > hopAnchor {"anchorId":105,"arriving":false} @phone 1`] = `
 {
-  "attrs": "539767299fa67960",
-  "colour": "f10179bdac8f5767",
+  "attrs": "ee08ecafb67894a1",
+  "colour": "454ecd9cef9c263c",
   "decor": "7a9da37d660bc5fb",
-  "delays": "743e57736a443af0",
+  "delays": "6e8d3df70238e4e4",
   "trailDelays": null,
   "trails": null,
 }
@@ -321,10 +321,10 @@ exports[`layout goldens > hopAnchor {"anchorId":105,"arriving":false} @phone 1`]
 
 exports[`layout goldens > hopAnchor {"anchorId":105,"arriving":false} @stacked 1`] = `
 {
-  "attrs": "d15e82ff1056514c",
-  "colour": "5a0cef766d18a2ec",
+  "attrs": "94f3c0bf7f96d78b",
+  "colour": "613b29f879385528",
   "decor": "9670d39598052910",
-  "delays": "cd51a73494f8ee30",
+  "delays": "a4621c5f23ba89bd",
   "trailDelays": null,
   "trails": null,
 }
@@ -332,10 +332,10 @@ exports[`layout goldens > hopAnchor {"anchorId":105,"arriving":false} @stacked 1
 
 exports[`layout goldens > hopAnchor {"anchorId":105,"arriving":true} @beside 1`] = `
 {
-  "attrs": "6b6ef896adc8aa9a",
-  "colour": "4cd48ae421a7271e",
+  "attrs": "990805f98fcaf3a1",
+  "colour": "a479a0ef1daa8075",
   "decor": "1c0b331edd957b95",
-  "delays": "4793d61561b39c55",
+  "delays": "634664f23cef230a",
   "trailDelays": null,
   "trails": null,
 }
@@ -343,10 +343,10 @@ exports[`layout goldens > hopAnchor {"anchorId":105,"arriving":true} @beside 1`]
 
 exports[`layout goldens > hopAnchor {"anchorId":105,"arriving":true} @phone 1`] = `
 {
-  "attrs": "1c8ca59495ff6be7",
-  "colour": "f10179bdac8f5767",
+  "attrs": "8e72dc94847a0248",
+  "colour": "454ecd9cef9c263c",
   "decor": "7a9da37d660bc5fb",
-  "delays": "743e57736a443af0",
+  "delays": "6e8d3df70238e4e4",
   "trailDelays": null,
   "trails": null,
 }
@@ -354,10 +354,43 @@ exports[`layout goldens > hopAnchor {"anchorId":105,"arriving":true} @phone 1`] 
 
 exports[`layout goldens > hopAnchor {"anchorId":105,"arriving":true} @stacked 1`] = `
 {
-  "attrs": "ca4f00f13539ced0",
-  "colour": "5a0cef766d18a2ec",
+  "attrs": "e5e8c6c35dfe4803",
+  "colour": "613b29f879385528",
   "decor": "9670d39598052910",
-  "delays": "cd51a73494f8ee30",
+  "delays": "a4621c5f23ba89bd",
+  "trailDelays": null,
+  "trails": null,
+}
+`;
+
+exports[`layout goldens > hopAnchor {"anchorId":107,"arriving":false} @beside 1`] = `
+{
+  "attrs": "3ef498fbba7ee722",
+  "colour": "6222479adf96dc34",
+  "decor": "edafa563afa87279",
+  "delays": "739bc8ebf840aaf8",
+  "trailDelays": null,
+  "trails": null,
+}
+`;
+
+exports[`layout goldens > hopAnchor {"anchorId":107,"arriving":false} @phone 1`] = `
+{
+  "attrs": "eead29ef1a21b071",
+  "colour": "da5174aa973b5e69",
+  "decor": "87c1163c7f252a5e",
+  "delays": "63ec6c8f9ab596a7",
+  "trailDelays": null,
+  "trails": null,
+}
+`;
+
+exports[`layout goldens > hopAnchor {"anchorId":107,"arriving":false} @stacked 1`] = `
+{
+  "attrs": "9ab2d0758594337b",
+  "colour": "e1ee5738c0618e64",
+  "decor": "458444caf27eb352",
+  "delays": "0496df23811ec557",
   "trailDelays": null,
   "trails": null,
 }
@@ -365,8 +398,8 @@ exports[`layout goldens > hopAnchor {"anchorId":105,"arriving":true} @stacked 1`
 
 exports[`layout goldens > hopBands null @beside 1`] = `
 {
-  "attrs": "f917fbbbccea726c",
-  "colour": "ded5c4814a7b6642",
+  "attrs": "d492a58375718203",
+  "colour": "ce363f11db6f2e51",
   "decor": "67418b50cdb92eda",
   "delays": "81adf7d1bf8819f7",
   "trailDelays": null,
@@ -376,8 +409,8 @@ exports[`layout goldens > hopBands null @beside 1`] = `
 
 exports[`layout goldens > hopBands null @phone 1`] = `
 {
-  "attrs": "63cf8f2862a60789",
-  "colour": "4beffe8a7c5eca63",
+  "attrs": "6f8e5c52d2b37a5e",
+  "colour": "8b74e7e412465520",
   "decor": "e79276245b20a2a2",
   "delays": "81adf7d1bf8819f7",
   "trailDelays": null,
@@ -387,8 +420,8 @@ exports[`layout goldens > hopBands null @phone 1`] = `
 
 exports[`layout goldens > hopBands null @stacked 1`] = `
 {
-  "attrs": "17c03aab9e855fdb",
-  "colour": "ded5c4814a7b6642",
+  "attrs": "d0d9b90e1e52fc59",
+  "colour": "ce363f11db6f2e51",
   "decor": "21979002f110156c",
   "delays": "81adf7d1bf8819f7",
   "trailDelays": null,

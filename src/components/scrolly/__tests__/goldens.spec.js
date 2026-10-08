@@ -23,6 +23,7 @@ import {
 
 // the static params the <Step> tags in Index.svelte declare
 const STEP_PARAMS = {
+	hopAnchor: [{ anchor: 0 }, { anchor: 1 }],
 	scatterCenters: [
 		{ showFilms: true },
 		{ showPair: true },
@@ -47,10 +48,10 @@ const INTERACTIONS = [
 	// would hash a different dot in the same code path. Taken off the pool by
 	// position rather than named, so it survives a data rebuild that reorders it.
 	{ search: { actorId: SEARCH_POOL[0] } },
-	// the hop chart anchored on somebody other than Bacon. Named rather than
-	// taken by position, and NOT one of the cycle's own: this has to be the actor
-	// whose split is furthest from the resting frame's whatever the cycle is
-	// later changed to, and Jackson is the extreme of the whole pool — 11.1% at
+	// the hop chart anchored on the reader's search. Named rather than taken by
+	// position, and NOT one of the steps' own anchors: this has to be the actor
+	// whose split is furthest from the resting frame's whatever those are later
+	// changed to, and Jackson is the extreme of the whole pool — 11.1% at
 	// three movies against Bacon's 29.0% — so a change that quietly stopped the
 	// rows following the anchor could not leave the hash alone.
 	{ hops: { anchorId: SLJ } },

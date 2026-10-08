@@ -163,6 +163,20 @@ export function storySteps() {
 	});
 }
 
+/**
+ * The static params of every <Step> on `state`, in story order — `[undefined]`
+ * for a state no step hands params to. A state whose selector reads its step's
+ * params (`hopAnchor`'s anchor) is only ever laid out with one of these.
+ * @param {string} state
+ * @returns {(Object | undefined)[]}
+ */
+export function stepParamsOf(state) {
+	const params = storySteps()
+		.filter((step) => step.state === state)
+		.map((step) => step.params);
+	return params.length > 0 ? params : [undefined];
+}
+
 /** where a backward move from step `i` lands: `skipback` steps are passed through */
 export function backFrom(steps, i) {
 	let dest = i - 1;

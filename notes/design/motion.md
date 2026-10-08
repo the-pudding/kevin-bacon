@@ -69,10 +69,8 @@ travelling is something the reader has to re-find.
    The chart title is the exception, on every step alike: a title whose text
    changes fades out on the press, like the departing names and links, and the
    new one fades in when the arrival lands. A title that does not change stays
-   up. That holds inside a scene too, so 4 → 5, which moves no dot, still runs
-   its out beat and its tween with no title up (about 0.7s) — Owen's call
-   (2026-09-23), taken over landing a still arrival at once, which would start
-   `hopAnchor`'s cycle while the words were still changing.
+   up. That holds inside a scene too, so 4 → 5 runs its out beat and its
+   tween with no title up — Owen's call (2026-09-23).
 
 7. **Nothing pops.** Anything that appears or disappears does so through alpha,
    and nothing on the canvas jumps between two consecutive frames. A snap is

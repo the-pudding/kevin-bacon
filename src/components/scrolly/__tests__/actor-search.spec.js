@@ -11,7 +11,7 @@ import {
 	withSearchLabel
 } from "../search.js";
 import { ANCHOR_ID, makeNodes } from "../nodes.js";
-import { HOP_CYCLE_IDS, RANK_TOP_N } from "../cast.js";
+import { HOP_ANCHOR_IDS, RANK_TOP_N } from "../cast.js";
 import story from "$data/scrolly-story.json";
 
 const { nodes } = makeNodes();
@@ -104,18 +104,17 @@ describe("the hop chart's anchors", () => {
 			expect(hasBreakdown(id), nameOf(id)).toBe(true);
 	});
 
-	test("every actor the cycle visits has one too", () => {
-		expect(HOP_CYCLE_IDS.length).toBeGreaterThan(1);
-		for (const id of HOP_CYCLE_IDS)
+	test("every step anchor on the hop chart has one too", () => {
+		expect(HOP_ANCHOR_IDS.length).toBeGreaterThan(1);
+		for (const id of HOP_ANCHOR_IDS)
 			expect(hasBreakdown(id), nameOf(id)).toBe(true);
 	});
 
-	// The step rests on Bacon, so the cycle must not open on him: its first turn
-	// would move nothing and the chart would look frozen for a beat. Nor may it
-	// name anyone twice, for the same reason one turn on.
-	test("the cycle leaves Bacon behind and names nobody twice", () => {
-		expect(HOP_CYCLE_IDS).not.toContain(ANCHOR_ID);
-		expect(new Set(HOP_CYCLE_IDS).size).toBe(HOP_CYCLE_IDS.length);
+	// The step before rests on Bacon, so no anchor may be him: that press would
+	// move nothing. Nor may two steps share one, for the same reason one step on.
+	test("the step anchors leave Bacon behind and name nobody twice", () => {
+		expect(HOP_ANCHOR_IDS).not.toContain(ANCHOR_ID);
+		expect(new Set(HOP_ANCHOR_IDS).size).toBe(HOP_ANCHOR_IDS.length);
 	});
 });
 
