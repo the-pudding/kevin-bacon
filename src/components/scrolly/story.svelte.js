@@ -198,12 +198,11 @@ export const story = $state({
 		revealed: false
 	},
 
-	/** the reader's own actor (ActorSearch, search.js). Unlike every other group
-	 * here this one is NOT re-armed on arrival: the pick is deliberately sticky,
-	 * so a reader who names an actor on the hop chart keeps finding them on the
-	 * three scatters that follow. That is the whole reading — one person carried
-	 * through four different questions — and an arrival rule that cleared it
-	 * would make the search four unrelated lookups instead. */
+	/** the reader's own actor (ActorSearch, search.js). Sticky across one run
+	 * of searchable steps, so a reader who names an actor on the first scatter
+	 * keeps finding them on the steps after it, and dropped by any move that
+	 * leaves the run (see prepareArrival in arrivals.js): the scatters' run and
+	 * the career chart's each start unpicked. */
 	search: {
 		/** node id of the searched actor, or null before the reader has named
 		 * one. Read by the `params` selector of all four searchable states, so a

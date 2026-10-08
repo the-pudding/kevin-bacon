@@ -264,8 +264,9 @@
 		     the card is the point rather than a cost. Not gated and never
 		     announced: the search is an easter egg, it holds nobody, and a
 		     reader who never presses the glyph has missed nothing. The pick is
-		     sticky, so the later charts find it already made (see
-		     story.svelte.js's `search`). -->
+		     sticky within a run of consecutive search steps, so the later
+		     steps of the run find it already made, and is dropped on leaving
+		     the run (see story.svelte.js's `search`). -->
 			{#snippet searchPanel()}
 				<ActorSearch
 					visual={layout.visual}

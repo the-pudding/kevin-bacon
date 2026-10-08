@@ -6,6 +6,7 @@
 // post-render $effect would leave it painting the blurred question for a frame
 // before being told not to.
 import { isRankState } from "./states.js";
+import { carriesPick } from "./search.js";
 import {
 	resetGenzLines,
 	resetHopAnchor,
@@ -86,6 +87,13 @@ export function prepareArrival(move) {
 	// two steps sharing one is not a landing at all — nothing travels, so nothing
 	// would settle it again, and the tour across the 0 → 1 join would stop dead.
 	if (to !== from) story.settled = null;
+	// The reader's pick lasts one run of searchable steps: it carries between
+	// two neighbours that both offer the search and is dropped by any move that
+	// leaves the run, so the career chart starts unpicked after the scatters'
+	// run has ended at raceGenz, and stepping back into a run starts it fresh.
+	// A move is always to a neighbouring step (past a `skipback` one at most),
+	// so the two states either side are the whole question.
+	if (!(carriesPick(from) && carriesPick(to))) story.search.actorId = null;
 	prepareRank(move);
 	ARRIVALS[to]?.(move);
 }

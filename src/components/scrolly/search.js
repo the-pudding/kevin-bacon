@@ -67,6 +67,15 @@ export const SEARCH_CHARTS = {
 };
 
 /**
+ * The state's steps carry the reader's own pick (`story.search`): every
+ * searchable chart but the hop chart's, whose search picks the chart's anchor
+ * instead (`story.hops`).
+ * @param {string | undefined} state
+ */
+export const carriesPick = (state) =>
+	!!SEARCH_CHARTS[state] && SEARCH_CHARTS[state] !== "hops";
+
+/**
  * The ranked top 250. The rank guess's own, narrower pool: every result needs
  * a visible RankBars row to scroll to, and RankBars only renders this many.
  * @type {number[]}

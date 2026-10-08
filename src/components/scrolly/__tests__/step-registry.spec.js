@@ -198,6 +198,31 @@ describe("createStepRegistry", () => {
 		expect(story.settled).toBe(null);
 	});
 
+	test("the reader's pick lasts one run of consecutive search steps", () => {
+		const steps = createStepRegistry({ navigate: prepareArrival });
+		for (const state of [
+			"scatterCenters",
+			"degScatter",
+			"raceGenz",
+			"careerTrio",
+			"careerBacon"
+		])
+			steps.register({ state });
+		story.search.actorId = 7;
+		steps.next();
+		expect(story.search.actorId).toBe(7);
+		steps.next();
+		expect(story.search.actorId).toBe(null);
+		steps.next();
+		story.search.actorId = 7;
+		steps.next();
+		expect(story.search.actorId).toBe(7);
+		// stepping back out of the run drops it too
+		steps.prev();
+		steps.prev();
+		expect(story.search.actorId).toBe(null);
+	});
+
 	test("exit is one-way", () => {
 		const { steps } = registry();
 		expect(steps.exited).toBe(false);
