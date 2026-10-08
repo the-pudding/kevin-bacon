@@ -248,11 +248,16 @@
 	// from. What it keeps is the trap the tour documents at length: this effect
 	// must never read the field showNextAnchor writes, or the write would
 	// invalidate the effect, re-run it and skip an actor on every turn.
-	// `steps.held` rather than `story.settled`: the rows sorting themselves into
-	// the arriving actor's proportions is the thing the step is about, and the
-	// cycle must not start over the top of that arrival.
+	// Gated on the arrival having landed: the rows sorting themselves into the
+	// arriving actor's proportions is the thing the step is about, and the cycle
+	// must not start over the top of that arrival. `story.settled` rather than
+	// `steps.held`, for the reason the tour gives: the chart runs across two
+	// steps, and a step-scoped hold would stop it dead at the join and restart it
+	// from the top of the list.
 	const cycling = $derived(
-		steps.state === "hopAnchor" && !steps.held && !story.hops.pinned
+		steps.state === "hopAnchor" &&
+			story.settled === "hopAnchor" &&
+			!story.hops.pinned
 	);
 	// Written then advanced, the way the tour's showNext is: the step rests on
 	// Bacon, who is not in the list, so the FIRST turn has to show the list's
@@ -502,10 +507,11 @@
 		     the moment the step becomes active — the crowd sorting into rows is
 		     the point of the step, and the reader should see that finish before
 		     being told what it means. Held per STEP, so it holds again on each of
-		     the three below rather than only on the first arrival at the chart.
-		     The middle one is the cycling chart (`hopAnchor`); the two either
-		     side of it are about Bacon's own number and rest on him
-		     (`hopBands`) — see layouts/hop-bands.js. -->
+		     the steps below rather than only on the first arrival at the chart.
+		     The first is about Bacon's own number and rests on him
+		     (`hopBands`); the two after it are the cycling chart (`hopAnchor`),
+		     one paragraph each so the card stays clear of the 2-movie row's
+		     label on a phone — see layouts/hop-bands.js. -->
 				<Step
 					state="hopBands"
 					alt="Chart: the four degrees of Kevin Bacon. Kevin Bacon's dot sits above four rows of dots, one for the actors 1, 2, 3 and 4 movies away from him, each labelled with its share of actors. The 2-movie row is by far the largest."
@@ -547,6 +553,12 @@
 							>No one can reach everyone within 3.</b
 						>
 					</p>
+				</Step>
+				<Step
+					state="hopAnchor"
+					panel={anchorPanel}
+					alt="The same chart, still redrawn for other actors in turn."
+				>
 					<p>
 						We need a more granular way to measure the connectivity of actors:
 						the average number of movies it takes to get to every actor in

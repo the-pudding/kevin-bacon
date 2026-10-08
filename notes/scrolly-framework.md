@@ -228,8 +228,9 @@ rank order, never by raw rank against `nodes.length`.
   `Stage.svelte`); every plot group's floor stops above the tallest of its
   cards (the measured reserve, above), so no chart text lies under the prose.
   Over the hop bands (`proseOver`) the prose lies over the chart by design, on
-  its frosted plate: at 375 step 5's two paragraphs still cover the 1- and
-  2-movie band labels. The tap halves cover
+  its frosted plate, centred in the box under the title — so a card of more
+  than one paragraph covers the 2-movie row's label at 375 (why the cycling
+  chart's words are split across steps 5 and 6). The tap halves cover
   the whole layout (stacked; beside the prose they give way to edge notches), so any control in a step card must take its presses back with
   `pointer-events: auto` under the card's `--z-card` lift, and anything over the
   canvas must beat both at `--z-tap-above`. A step card that grows can cover a

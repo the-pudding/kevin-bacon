@@ -25,12 +25,15 @@ import {
 const ARRIVALS = {
 	// the cycling hop chart always opens on Bacon — the anchor the step before it
 	// rests on — so the arrival moves the rows and nothing else, and the cycle is
-	// something the reader watches start. Both directions: the step after it is
-	// still about Bacon's own number, so stepping back in has the same job.
-	// Unpinning with it is the point of doing this at all — a reader who named
-	// somebody, walked on and came back would otherwise find the chart frozen on
-	// a pick they made minutes ago with no cycle to explain it.
-	hopAnchor: () => resetHopAnchor(),
+	// something the reader watches start. Both directions: stepping back in out
+	// of the rank chapter has the same job. Unpinning with it is the point of
+	// doing this at all — a reader who named somebody, walked on and came back
+	// would otherwise find the chart frozen on a pick they made minutes ago with
+	// no cycle to explain it. Only from OUTSIDE the state: its two steps are one
+	// chart, and the cycle (or the reader's pick) carries across the join.
+	hopAnchor: ({ from }) => {
+		if (from !== "hopAnchor") resetHopAnchor();
+	},
 	// arriving at the quiz backwards means the reader has already been through
 	// it, so reveal every pair instead of re-asking (see story.svelte.js).
 	// Arriving forwards re-arms the question — and with it the step's gate.
