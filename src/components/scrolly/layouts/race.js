@@ -1242,7 +1242,7 @@ function raceCalloutGeometry(cam, ring, at) {
  */
 const RACE_TAKEOVER_CALLOUT = {
 	...RACE_TAKEOVER,
-	text: "Freedomland (2006) - Samuel L. Jackson stars in this crime drama with Julianne Moore. This gives him an average distance of 2.14, overtaking Gene Hackman whose last film was in 2004.",
+	text: "Freedomland (2006) takes Samuel L. Jackson to 2.14, overtaking Gene Hackman, whose last film was in 2004.",
 	focus: [HACKMAN]
 };
 

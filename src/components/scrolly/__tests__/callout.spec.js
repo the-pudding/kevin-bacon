@@ -161,12 +161,11 @@ describe("raceCalloutGeometry", () => {
 	});
 
 	test("...and above it on a small phone, where the note is too tall to fit under", () => {
-		// the takeover's note wraps to eight lines on this box. Below the ring that
-		// ran it under the x-axis row and clipped the last line, which is what the
-		// flip is for — and why the height is estimated from the text rather than
-		// capped at a flat five lines. (The shipped 375x667 phone has the room to
-		// keep its seven lines below since the race's y window was tightened.)
-		const box = { w: 360, h: 640 };
+		// a short plot, where the takeover's five-line note would run under the
+		// x-axis row below the ring and clip its last line — which is what the flip
+		// is for, and why the height is estimated from the text rather than capped
+		// at a flat number of lines. (The shipped 375x667 phone keeps it below.)
+		const box = { w: 375, h: 400 };
 		const { callout } = frameAt(box);
 		expect(callout.above).toBe(true);
 		// `note.y` is the BOTTOM edge once flipped — the markup lifts the box by its
@@ -179,10 +178,10 @@ describe("raceCalloutGeometry", () => {
 	});
 
 	test("...and below at the shortest drop when neither side fits", () => {
-		// the landscape phone the drop clamp was written for: a seven-line note fits
-		// nowhere on a ~200px plot, so it keeps the shortest drop and the axis row
-		// takes the overlap. Flipping here would only move the problem.
-		const { callout } = frameAt({ w: 375, h: 400 });
+		// the drop clamp's case: a five-line note fits nowhere on a ~150px plot, so
+		// it keeps the shortest drop and the axis row takes the overlap. Flipping
+		// here would only move the problem.
+		const { callout } = frameAt({ w: 375, h: 320 });
 		expect(callout.above).toBe(false);
 		expect(callout.note.y - callout.ring.y).toBeCloseTo(24, 5);
 	});
