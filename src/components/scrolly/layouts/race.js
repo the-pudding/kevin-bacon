@@ -1637,8 +1637,14 @@ function raceAxes(
 	frontier,
 	w,
 	futureTicks = true,
-	xTicks = true
+	xTicks = true,
+	yLabels = true
 ) {
+	// the y labels only: the marks keep sliding with the camera (see
+	// RaceFrame.yLabels)
+	const y = raceYTicks(yS, vMin, vMax).map((t) =>
+		yLabels ? t : { ...t, label: "" }
+	);
 	// every visible year gets its own horizontal label — no thinning, no width
 	// branch on the historical axis's own spacing: PX_PER_YEAR guarantees the
 	// gap even for a 4-digit label. Ticks travel with their years during a pan,
@@ -1657,7 +1663,7 @@ function raceAxes(
 			x: [],
 			xBase: cam.bottom + 10,
 			yMarkX: cam.left,
-			y: raceYTicks(yS, vMin, vMax)
+			y
 		};
 	}
 	// The historical axis stops where the DATA stops. This used to run to the
@@ -1683,7 +1689,6 @@ function raceAxes(
 			mark: /** @type {const} */ ("major")
 		});
 	}
-	const y = raceYTicks(yS, vMin, vMax);
 	// the strip's years join the historical ones in one array, so they inherit
 	// `.tick.tick-x` and `xBase` verbatim and sit on the same row by construction
 	//
@@ -1719,6 +1724,11 @@ function raceAxes(
  * RACE_DATA_END, so a frontier past it changes nothing they compute.
  * @property {boolean} [futureTicks] emit the strip's own year labels (default
  * true).
+ * @property {boolean} [yLabels] label the y ticks (default true). raceGenz's
+ * pan turns them off: it opens the window from 0.15 to 0.7 tall, so the ladder
+ * changes rung twice mid-pan and renumbers every label, and the crown's labels
+ * slide up under the upright title as they go. Its marks still slide; the
+ * Gen-Z window's labels fade in when the pan lands (motion.md rule 2).
  * @property {boolean} [fieldLines] draw the race cast's and the backdrop's
  * lines (default true). raceGenz turns them off and keeps their dots, so the
  * only lines on that step are the Gen-Z field's.
@@ -2710,7 +2720,8 @@ export function writeRaceSweepFrame(
 			frontier,
 			w,
 			frame.futureTicks !== false,
-			frame.xTicks !== false
+			frame.xTicks !== false,
+			frame.yLabels !== false
 		),
 		callout: raceCallout(cam, yS, frame.callouts ?? RACE_PAN_CALLOUTS),
 		band: raceFutureBand(cam, frontier, frame.proj !== undefined),
@@ -3594,6 +3605,7 @@ const genzOpenFrame = (restP) => (e) => ({
 	...RACE_GENZ_STEP,
 	playhead: restP,
 	yOpen: e,
+	yLabels: false,
 	genz: 0
 });
 // the Gen Z field's arrival, the reader's own press. The camera is settled on
