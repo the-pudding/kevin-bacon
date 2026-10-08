@@ -43,6 +43,7 @@
 		RACE_PAINT_ORDER,
 		RACE_SHADED_SLOTS
 	} from "./layouts/race.js";
+	import { SIM_PAINT_ORDER } from "./layouts/sim-race.js";
 	import { MARK_INK } from "$styles/tokens.js";
 	import {
 		STATES,
@@ -985,12 +986,18 @@
 	// changed is not swapped at all, and a frame that publishes furniture owns it.
 	const sceneOf = (name) => STATE_SCENE[name] ?? name;
 	// the race chart's charts (the "race" scene and raceClose, on a scene of its
-	// own). Its field dots are solid (raceDotSpec), so their alpha can no longer
+	// own), and the simulation race before raceClose, whose lines are the same
+	// slots — each with the paint order its lines are ranked in (render.js's
+	// rankShades). Its field dots are solid (raceDotSpec), so their alpha can no longer
 	// set their names': a field name is drawn at RACE_FIELD_LABEL_ALPHA of its
 	// dot's alpha, and an ink dot's (the leader's, the named Gen-Z cast) at its
 	// own. The leaders from names to dots are white at 0.6 for a name at rest,
 	// fading with it below that, and run from behind the dot.
-	const RACE_CHARTS = new Set(["race", "raceClose"]);
+	const RACE_CHARTS = new Map([
+		["race", RACE_PAINT_ORDER],
+		["raceClose", SIM_PAINT_ORDER],
+		["simRace", SIM_PAINT_ORDER]
+	]);
 	// Dots painted after the rest, in layers (render.js's drawDots `late`): the
 	// named Gen-Z contenders on top wherever they are drawn, and on raceGenz the
 	// rest of the Gen-Z field between them and the crowd it arrives into.
@@ -1008,7 +1015,8 @@
 	const RACE_FIELD_LABEL_ALPHA = 0.65;
 	// the background-coloured band behind each of its lines, solid for a line at
 	// the field's 0.35 or more (see render.js's strokeTrail)...
-	// ...and the lines themselves graded by their rank in 2025: the highest
+	// ...and the lines themselves graded by their rank in the chart's paint
+	// order (2025 remoteness on the race scene, wins after it): the highest
 	// near-white (white at 0.75, short of the leader's solid white), the lowest
 	// their own grey at the field's 0.35 taken 40% of the way to that colour
 	const RACE_LINE_HALO = {
@@ -2009,13 +2017,13 @@
 		if (!ctx) return;
 		const attrs = tweener.current;
 		clearCanvas(ctx, width, height, bleed);
-		const raceLines = RACE_CHARTS.has(sceneOf(stateName));
+		const lineOrder = RACE_CHARTS.get(sceneOf(stateName));
 		drawTrails(
 			ctx,
 			trailTweener.current,
 			focusSlots,
-			raceLines ? RACE_LINE_HALO : null,
-			raceLines ? RACE_PAINT_ORDER : null
+			lineOrder ? RACE_LINE_HALO : null,
+			lineOrder ?? null
 		);
 		drawEdges(
 			ctx,
@@ -3284,8 +3292,6 @@
 	/* the race chart's names (the "race" scene and raceClose, which closes it
 	   on a scene of its own) */
 	.annotations:is([data-chart="race"], [data-chart="raceClose"]) .node-label {
-		letter-spacing: 0;
-		text-shadow: none;
 		text-transform: none;
 		font-size: 14px;
 	}

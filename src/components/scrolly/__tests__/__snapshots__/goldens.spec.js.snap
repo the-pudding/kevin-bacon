@@ -1447,7 +1447,7 @@ exports[`layout goldens > simRace {"runs":0,"names":0} @beside 1`] = `
   "decor": "5ab4fef53354717f",
   "delays": null,
   "trailDelays": null,
-  "trails": "86b46b362892c32c",
+  "trails": "c10f94f35d8c92a1",
 }
 `;
 
@@ -1458,7 +1458,7 @@ exports[`layout goldens > simRace {"runs":0,"names":0} @phone 1`] = `
   "decor": "502ae91f4d44c83b",
   "delays": null,
   "trailDelays": null,
-  "trails": "863c09ed0cd82558",
+  "trails": "3351470274e99cad",
 }
 `;
 
@@ -1469,7 +1469,7 @@ exports[`layout goldens > simRace {"runs":0,"names":0} @stacked 1`] = `
   "decor": "383d9e0ee3baf6dc",
   "delays": null,
   "trailDelays": null,
-  "trails": "9ef3970861194c4c",
+  "trails": "79418e3bfcdf8602",
 }
 `;
 
@@ -1480,7 +1480,7 @@ exports[`layout goldens > simRace {"runs":10000,"names":5} @beside 1`] = `
   "decor": "5ab4fef53354717f",
   "delays": null,
   "trailDelays": null,
-  "trails": "af06ea4ed5fb4418",
+  "trails": "162dbfec689030db",
 }
 `;
 
@@ -1491,7 +1491,7 @@ exports[`layout goldens > simRace {"runs":10000,"names":5} @phone 1`] = `
   "decor": "502ae91f4d44c83b",
   "delays": null,
   "trailDelays": null,
-  "trails": "58f1c21582e9e72d",
+  "trails": "dae19899ff692264",
 }
 `;
 
@@ -1502,7 +1502,7 @@ exports[`layout goldens > simRace {"runs":10000,"names":5} @stacked 1`] = `
   "decor": "383d9e0ee3baf6dc",
   "delays": null,
   "trailDelays": null,
-  "trails": "9f61aa7cddb1e6fb",
+  "trails": "ec43870ddd2607bb",
 }
 `;
 

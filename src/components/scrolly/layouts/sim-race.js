@@ -1,7 +1,7 @@
 import story from "$data/scrolly-story.json";
 import rawNodes from "$data/scrolly-nodes.json";
 import { ATTR_SIZE, set } from "../attr-buffer.js";
-import { SIM_SERIES, SIM_LABEL_N, SIM_LABEL_IDS } from "../cast.js";
+import { SIM_SERIES, SIM_LABEL_N, SIM_LABEL_IDS, SLJ } from "../cast.js";
 import { RIGHT, drain } from "../drain.js";
 import { CROWD, INK } from "../palette.js";
 import {
@@ -17,8 +17,10 @@ import {
 	TRAIL_POINTS,
 	TRAIL_META,
 	setTrailPoints,
+	setTrailHighlight,
 	collapseTrail,
-	SIM_SLOT_BASE
+	SIM_SLOT_BASE,
+	RACE_SLOT
 } from "../trails.js";
 
 // ---------------------------------------------------------------------------
@@ -158,6 +160,50 @@ function simLinePoints(cum, played, xS, yS) {
 	return points;
 }
 
+// The race chart's line rules (raceClose follows this step on the same slots):
+// every line at the field's alpha, graded by rank in the renderer, and the one
+// in front inked solid white (setTrailHighlight).
+const SIM_LINE_ALPHA = 0.35;
+
+/**
+ * The series in front after `played` runs — the most wins, a tie going to the
+ * earlier seat in win order — or -1 before anyone has won.
+ * @param {number} played
+ */
+function simLeadAt(played) {
+	let lead = -1;
+	let best = 0;
+	WINS_AT.forEach((cum, s) => {
+		if (cum[played] > best) {
+			best = cum[played];
+			lead = s;
+		}
+	});
+	return lead;
+}
+
+/**
+ * The sim chart's paint order for the renderer's rank grading (render.js's
+ * rankShades): the contenders by final wins, fewest first, so the leader is
+ * painted last and ranked top. Ranked by the chart's own measure rather than
+ * by RACE_PAINT_ORDER's 2025 remoteness, which would grade a contender with
+ * barely a win as near-white. Every other slot is painted first.
+ *
+ * raceClose, the next step, paints in this order too, with SLJ above the
+ * contenders: its lines are these slots, and the renderer picks the order
+ * by state the moment the step changes — while this chart's lines are still on
+ * screen — so a second order would re-grade them on the press.
+ */
+export const SIM_PAINT_ORDER = (() => {
+	const lines = [
+		...SIM_SERIES.map((_id, s) => SIM_SLOT_BASE + s).reverse(),
+		RACE_SLOT.get(SLJ)
+	];
+	const placed = new Set(lines);
+	const rest = TRAIL_META.map((_, t) => t).filter((t) => !placed.has(t));
+	return [...rest, ...lines];
+})();
+
 /**
  * The one frame writer: the settled layout and every animation frame both go
  * through here, so a run's last frame IS the layout it settles onto.
@@ -172,22 +218,23 @@ export function writeSimFrame(attrs, trails, w, h, runs) {
 	const xS = (r) => lin(r, 0, SIM_N_SIMS, plot.left, plot.right);
 	const yS = (v) => lin(v, 0, SIM_Y_MAX, plot.bottom, plot.top);
 	const played = Math.max(0, Math.min(SIM_N_SIMS, Math.round(runs)));
+	const lead = simLeadAt(played);
 	SIM_SERIES.forEach((id, s) => {
 		const cum = WINS_AT[s];
 		const named = s < SIM_LABEL_N;
 		const slot = SIM_SLOT_BASE + s;
-		const lineAlpha = named ? 0.8 : 0.35;
 		if (played === 0) {
 			// nothing has run yet: every line is a dot on the origin, ready to unspool
-			collapseTrail(trails, slot, xS(0), yS(0), lineAlpha);
+			collapseTrail(trails, slot, xS(0), yS(0), SIM_LINE_ALPHA);
 		} else {
 			setTrailPoints(
 				trails,
 				slot,
 				simLinePoints(cum, played, xS, yS),
-				lineAlpha
+				SIM_LINE_ALPHA
 			);
 		}
+		setTrailHighlight(trails, slot, s === lead ? 1 : 0);
 		if (id !== null) {
 			set(
 				attrs,
