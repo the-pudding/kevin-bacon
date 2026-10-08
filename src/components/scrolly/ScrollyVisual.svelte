@@ -553,15 +553,20 @@
 		beginLegendGlide(set, sceneChange, still, ms);
 		if (!sceneChange || still) {
 			decor = set;
+			furnitureState = stateName;
 			if (sceneChange) furnitureHeld = true;
 			return;
 		}
 		if (leavingRaf) cancelAnimationFrame(leavingRaf);
-		leaving = dropUnchangedXLabel(
-			untrack(() => furnitureSet(decor, from)),
-			stateName
-		);
+		leaving = {
+			...dropUnchangedXLabel(
+				untrack(() => furnitureSet(decor, from)),
+				stateName
+			),
+			yTitle: untrack(() => yTitlePlace)
+		};
 		decor = set;
+		furnitureState = stateName;
 		furnitureHeld = true;
 		// One frame is all Svelte needs to mount the copy; clearing it then is what
 		// plays its out-fade, because a block created and destroyed inside one
@@ -772,6 +777,16 @@
 	/** @type {{ axes?: { x?: import("./layout-types.js").Tick[], y?: import("./layout-types.js").Tick[], xBase?: number, yBase?: number, yMarkX?: number }, notes?: import("./states.js").Note[], callout?: import("./layout-types.js").RaceCallout|null, band?: import("./layout-types.js").FutureBand|null, legend?: import("./layout-types.js").LegendItem[], legendY?: number, hits?: import("./layout-types.js").Hit[] } | null} */
 	let decor = $state(null);
 	/**
+	 * The state `decor` is that state's furniture for — set with it, in
+	 * swapFurniture. Not `stateName`, which turns on the press, a flush before the
+	 * swap: read from that, the live layer drew the arriving chart's overlay over
+	 * the departing chart's axes for a flush, and the y title measured off that
+	 * (the arriving race chart's wide tick reserve against the scatter's ticks)
+	 * was frozen into the departing copy, which jumped sideways as it faded.
+	 * @type {string | null}
+	 */
+	let furnitureState = $state(null);
+	/**
 	 * The arriving chart's furniture waits for the beat. What is leaving fades
 	 * out where it stood, the dots travel, and only then does the new chart's
 	 * text appear — motion.md rule 6, applied once here rather than per state.
@@ -792,7 +807,7 @@
 	 * out-fade at its own coordinates. A frozen snapshot, not a live read: it has
 	 * to go on rendering its own text at its own places while the arriving state
 	 * is already building.
-	 * @type {ReturnType<typeof furnitureSet> | null}
+	 * @type {(ReturnType<typeof furnitureSet> & { yTitle: typeof yTitlePlace }) | null}
 	 */
 	let leaving = $state.raw(null);
 	let leavingRaf = 0;
@@ -809,6 +824,7 @@
 	const shownTitle = $derived(titleState && STATE_TITLE[titleState]);
 	const shownTitleShift = $derived(titleState ? titleShiftFor(titleState) : 0);
 	const shownTitleSpan = $derived(titleState ? titleSpanFor(titleState) : null);
+	const shownTitleSearchable = $derived(!!SEARCH_CHARTS[titleState]);
 	// The chart title, measured, for the one thing that has to clear it: an
 	// upright y-axis title (.y-title-top) sits level with the title's first
 	// line, so wherever it would run in under the title — a wrapped title on a
@@ -854,8 +870,7 @@
 	const titleOverrun = $derived.by(() => {
 		titleHeight;
 		width;
-		stateName;
-		const group = STATE_PLOT[stateName];
+		const group = STATE_PLOT[furnitureState];
 		if (!titleEl || !overlayEl || !yTitleW || !group || !geometry) return 0;
 		// its resting top: the plot's top edge (hintTop), less its 0.6em lift
 		const rest = plotTopAt(height, group, beside, geometry) + 8 - yTitleLift;
@@ -882,8 +897,6 @@
 	// a choreography on the race chart) — a reader's scrub grab is ignored while
 	// it is set, so a choreographed pan is never fought by the scrubber mid-motion.
 	let camPanning = $state(false);
-	/** the furniture the state the reader is ON wants drawn */
-	const arriving = $derived(furnitureSet(decor, stateName));
 
 	// The y tick labels' left edge, for the upright y-axis title (.y-title-top)
 	// to line up with. The labels are right-aligned against the axis (.tick-y),
@@ -911,7 +924,7 @@
 		yTickKey;
 		width;
 		furnitureHeld;
-		stateName;
+		furnitureState;
 		const els = overlayEl?.querySelectorAll(".layer:not(.gone) .tick-y") ?? [];
 		yTickW = Math.max(0, ...[...els].map((e) => e.offsetWidth));
 		const title = /** @type {HTMLElement | null | undefined} */ (
@@ -922,6 +935,24 @@
 		yTitleH = title?.offsetHeight ?? 0;
 		yTickH = Math.max(0, ...[...els].map((e) => e.offsetHeight));
 	});
+	// ...gathered into the place a set's upright title is drawn at. The arriving
+	// set reads it live; the departing copy freezes it (swapFurniture), because
+	// on the press every one of these is re-measured off what is on screen then:
+	// the chart title the copy sat under is gone and its own ticks are no longer
+	// the live layer's. Read live, the departing title jumped up and left, and a
+	// tick it had hidden came back out from under it, all in its fade's first frame.
+	const yTitlePlace = $derived({
+		overrun: titleOverrun,
+		tickW: yTickW,
+		lift: yTitleLift,
+		height: yTitleH,
+		tickH: yTickH
+	});
+	/** the furniture the state the reader is ON wants drawn */
+	const arriving = $derived({
+		...furnitureSet(decor, furnitureState),
+		yTitle: yTitlePlace
+	});
 	/**
 	 * Whether a y tick label would run under the upright title, which it then
 	 * fades out beneath (.tick-y .under) while the title holds still. Hidden
@@ -931,9 +962,10 @@
 	 * @param {number} pos the tick's y, in the overlay's coordinates
 	 */
 	function underYTitle(set, pos) {
-		if (!set.overlay?.yTitleTop || !yTitleH) return false;
-		const top = set.hintTop + titleOverrun - yTitleLift;
-		return pos + yTickH / 2 > top && pos - yTickH / 2 < top + yTitleH;
+		const { overrun, lift, height, tickH } = set.yTitle;
+		if (!set.overlay?.yTitleTop || !height) return false;
+		const top = set.hintTop + overrun - lift;
+		return pos + tickH / 2 > top && pos - tickH / 2 < top + height;
 	}
 	/** how long the departing furniture keeps its place before it goes. The HTML
 	 *  twin of DEPART_FADE_MS: decluttering, not a beat the reader watches. */
@@ -2836,7 +2868,7 @@
 				aria-hidden="true"
 				style="left: {(set.decor?.axes?.yMarkX ?? 0) -
 					12 -
-					yTickW}px; top: {set.hintTop + titleOverrun}px"
+					set.yTitle.tickW}px; top: {set.hintTop + set.yTitle.overrun}px"
 			>
 				{#if set.overlay.yTopLabel}
 					<span class="y-title-hint">{set.overlay.yTopLabel}</span>
@@ -3095,6 +3127,7 @@
 					bind:this={titleEl}
 					bind:clientHeight={titleHeight}
 					class:flush={shownTitleSpan}
+					class:searchable={shownTitleSearchable}
 					aria-hidden="true"
 					style="--title-shift: {shownTitleShift}px"
 					style:--title-left={shownTitleSpan && `${shownTitleSpan[0]}px`}
@@ -3422,11 +3455,11 @@
 
 	/* A searchable step puts ActorSearch's glyph (1.75rem, at the plot's right
 	   margin) on this line: pulled in either side by it, so the title stays
-	   centred and wraps before it reaches the glyph. A measured copy
-	   (.title-measure) is pulled in by its own state's glyph, not the live
-	   step's. */
-	:global(.scrolly-visual:has(.search__glyph)) .chart-title:not(.measure),
-	.chart-title.measure.searchable {
+	   centred and wraps before it reaches the glyph. Keyed on the title's own
+	   state rather than on the glyph being there: the glyph leaves on the
+	   press, and a title fading out where it stands must not re-wrap onto one
+	   line on its way out. */
+	.chart-title.searchable {
 		max-width: calc(100% - 2 * (var(--plot-margin) + 1.75rem));
 	}
 
@@ -3442,8 +3475,7 @@
 
 	/* ...and short of the search glyph at the span's right end, with the same
 	   0.5rem of air the glyph keeps from its own edge */
-	:global(.scrolly-visual:has(.search__glyph)) .chart-title.flush:not(.measure),
-	.chart-title.measure.flush.searchable {
+	.chart-title.flush.searchable {
 		max-width: calc(var(--title-span) - 1.75rem - 0.5rem);
 	}
 

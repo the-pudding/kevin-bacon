@@ -574,10 +574,13 @@
 			     scatter that had not begun to re-plot, and the race scrubber
 			     mounted reading a year the chart would not reach for another nine
 			     seconds. Gating on `steps.held` fixes both by asking the same
-			     question everything else that arrives with a step now asks. -->
+			     question everything else that arrives with a step now asks.
+			     `|global`: leaving a panel step changes the {#key}, which destroys
+			     the {#if} with it, and a local out: does not play for a parent
+			     block's destruction — the panel was cut in the frame of the press. -->
 				{#key activePanel}
 					{#if activePanel && !steps.held}
-						<div class="panel-layer" out:fade={panelOut}>
+						<div class="panel-layer" out:fade|global={panelOut}>
 							{@render activePanel()}
 						</div>
 					{/if}

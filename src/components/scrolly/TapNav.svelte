@@ -79,10 +79,19 @@
 	const OWNS_ARROWS =
 		'input, textarea, [role="slider"], [data-infoterm-panel], [data-owns-arrows]';
 
+	// An arrow the story takes is the story's alone: left to the browser too, it
+	// also scrolled the page sideways by the scrollbar gutter that 100vw-wide
+	// canvas overhangs (see `scrollbar-gutter` in Stage), sliding every label on
+	// screen 11px with each step.
 	function onKeydown(e) {
 		if (e.defaultPrevented || e.target?.closest?.(OWNS_ARROWS)) return;
-		if (e.key === "ArrowLeft") steps.prev();
-		else if (e.key === "ArrowRight") forward();
+		if (e.key === "ArrowLeft") {
+			e.preventDefault();
+			steps.prev();
+		} else if (e.key === "ArrowRight") {
+			e.preventDefault();
+			forward();
+		}
 	}
 
 	// what the arrow key and the next notch do: forward off the last step
