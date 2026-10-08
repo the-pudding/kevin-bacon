@@ -117,10 +117,20 @@
 	// it measures is the canvas, not a card — a height that, held into the next
 	// step, would put every clearance a card-sized distance off the top. The
 	// last real card's height stands instead, exactly as it does across a swap.
+	//
+	// The state that card belongs to is held with it, for `floorY`: the card's
+	// lift is the space ITS chart leaves under it. Read off the live state, the
+	// press paired the departing card with the arriving chart's floor — 24 → 25
+	// at 375x667 raised it 28px for the whole swap, and the departing x-axis
+	// title, measured off the card, hopped 36px up to its far home as it faded.
 	let cardHeight = $state(0);
+	let cardState = $state(
+		/** @type {import("./states.js").VisualState | null} */ (null)
+	);
 	$effect(() => {
 		if (steps.held || proseOver) return;
 		cardHeight = stepsHeight;
+		cardState = currentState;
 	});
 
 	// -- The cards, measured ----------------------------------------------------
@@ -187,16 +197,18 @@
 	// edge: the sky and the other full-bleed states, where the dots run to the
 	// screen's foot. A plot group's comes from its reserve (chartFloor); a state
 	// whose chart ends in a DOM panel (the tour caption) is answered by `floor`,
-	// which Index.svelte supplies because it owns that panel.
+	// which Index.svelte supplies because it owns that panel. The step is the
+	// card's (cardState), not the live one, so the two move together.
 	const floorY = $derived.by(() => {
-		if (beside || proseOver || !visualHeight || !geometry) return null;
+		if (beside || proseOver || !cardState || !visualHeight || !geometry)
+			return null;
 		const own = floor?.(
-			currentState,
+			cardState,
 			{ width: visualWidth, height: visualHeight },
 			geometry
 		);
 		if (own != null) return own;
-		const group = STATE_PLOT[currentState];
+		const group = STATE_PLOT[cardState];
 		return group ? chartFloor(visualHeight, group, geometry) : null;
 	});
 	// Over a screen-wide chart (the hop bands), stacked, the card starts under
