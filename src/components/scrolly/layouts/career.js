@@ -326,19 +326,25 @@ const CAREER_ENTRY_MS = [1200, 1100];
  * nothing perceptibly moves when the second leg takes over.
  *
  * `heroFromCloud` is for a hero who is a plain cloud dot on the chart being
- * left (Bacon, arriving off the trio): leg 0 starts them in their cloud style,
- * so the arrival carries them to the start of their line without lighting them
- * up, and they grow into the hero's mark over the first HERO_LIGHT_UP of the
- * draw-on, as their line starts.
+ * left (Bacon arriving off the trio, Sweeney arriving off Bacon's bounds): leg
+ * 0 starts them in their cloud style, so the arrival carries them to the start
+ * of their line without lighting them up, and they grow into the hero's mark
+ * over the first HERO_LIGHT_UP of the draw-on, as their line starts.
+ *
+ * `showCohort` is careerLayout's flag: the comparisons grow at cohort strength
+ * and the cohort fan opens out of the hero's endpoint alongside them, as
+ * careerMany's own fan does (see fanGrower).
  *
  * The final leg at e=1 reproduces the static layout call for call (same
  * monotone segments, same sample window, same alphas), so the settle has
  * nothing left to move. See EntryAnim in states.js.
  */
-function careerEntry(cast, heroFromCloud) {
+function careerEntry(cast, heroFromCloud, showCohort) {
 	const heroKey = cast.named[0][0];
+	const comparisonAlpha = showCohort ? COHORT_ALPHA : COMPARISON_ALPHA;
 	return function careerEntryFrames(nodes, w, h) {
 		const { rideTip, xS, yS } = lineDrawer(nodes, w, h);
+		const growFan = showCohort ? fanGrower(nodes, w, h) : () => {};
 		// per named actor: the curve the line samples off, and the career-age span
 		// the draw-on grows across
 		const lines = cast.named.map(([key, id, slot]) => {
@@ -350,7 +356,7 @@ function careerEntry(cast, heroFromCloud) {
 				a0: series && series[0][0],
 				a1: series && series.at(-1)[0],
 				start: series && [xS(series[0][0]), yS(series[0][1])],
-				trailAlpha: key === heroKey ? HERO_ALPHA : COMPARISON_ALPHA
+				trailAlpha: key === heroKey ? HERO_ALPHA : comparisonAlpha
 			};
 		});
 		const hero = lines[0];
@@ -372,12 +378,14 @@ function careerEntry(cast, heroFromCloud) {
 					collapseTrail(trails, line.slot, line.start[0], line.start[1], 0);
 					set(attrs, line.id, line.start[0], line.start[1], 5.5, CAREER, 0);
 				}
+				growFan(trails, 0);
 				return;
 			}
 			rideTip(attrs, trails, hero, 1, HERO_DOT);
 			for (const line of comparisons) {
 				rideTip(attrs, trails, line, e, [5.5, CAREER, COMPARISON_ALPHA * e]);
 			}
+			growFan(trails, e);
 		};
 	};
 }
@@ -405,21 +413,15 @@ const COHORT_ENTRY_MS = [1600];
 const COHORT_STAGGER = 0.5;
 
 /**
- * careerMany entry choreography: every cohort line grows out of the end of
- * Sweeney's line, the same way careerTrio's two comparisons do — staggered in
- * slot order so the fan sprays open instead of appearing all at once. Without
- * it the lines morph in from the corner they were parked at, which reads as
- * arriving from the bottom-left rather than branching off her career.
- *
- * Her own line, the two comparisons and the background cloud aren't touched
- * here: they're already on screen from careerTrio and ride the ordinary arrival
- * tween, over which the comparisons dim into cohort strength.
- *
- * The final frame reproduces the static layout call for call (same clipped
- * series, same segments, same full sample window, same alpha), so the settle has
- * nothing left to move. See EntryAnim in states.js.
+ * The cohort fan's growth, bound to one frame's scales: every cohort line grows
+ * out of the end of Sweeney's line, the same way careerTrio's two comparisons
+ * do — staggered in slot order so the fan sprays open instead of appearing all
+ * at once. Without it the lines morph in from the corner they were parked at,
+ * which reads as arriving from the bottom-left rather than branching off her
+ * career. At e = 1 every line reproduces the static layout call for call (same
+ * clipped series, same segments, same full sample window, same alpha).
  */
-function cohortEntryFrames(nodes, w, h) {
+function fanGrower(nodes, w, h) {
 	const { growLine, xS, yS } = lineDrawer(nodes, w, h);
 	const [heroAge, heroFilms] = heroEnd(TRIO);
 	const forkX = xS(heroAge);
@@ -431,9 +433,7 @@ function cohortEntryFrames(nodes, w, h) {
 	}));
 	const span = 1 - COHORT_STAGGER;
 	const last = Math.max(1, lines.length - 1);
-	// attrs/phase are unused: this state's dots need no choreography, and the
-	// fan is one leg
-	return (_attrs, trails, _phase, e) => {
+	return (trails, e) => {
 		lines.forEach((line, i) => {
 			const offset = (COHORT_STAGGER * i) / last;
 			const local = Math.min(1, Math.max(0, (e - offset) / span));
@@ -442,6 +442,19 @@ function cohortEntryFrames(nodes, w, h) {
 			else growLine(trails, line, local, COHORT_ALPHA);
 		});
 	};
+}
+
+/**
+ * careerMany's entry stepping back in from simRace: the fan alone. Her own line,
+ * the two comparisons and the background cloud aren't touched here: the
+ * arrival tween carries them, over which the comparisons dim into cohort
+ * strength. See EntryAnim in states.js.
+ */
+function cohortEntryFrames(nodes, w, h) {
+	const growFan = fanGrower(nodes, w, h);
+	// attrs/phase are unused: this state's dots need no choreography, and the
+	// fan is one leg
+	return (_attrs, trails, _phase, e) => growFan(trails, e);
 }
 
 // the y title upright at the top of the axis, as on the race chart and the
@@ -475,7 +488,7 @@ export const states = {
 		revealFrom: ["raceGenz"],
 		entry: {
 			phases: CAREER_ENTRY_MS,
-			frames: careerEntry(TRIO, false),
+			frames: careerEntry(TRIO, false, false),
 			// each name lands with the line that earns it, rather than labelling a
 			// dot the reader hasn't been told anything about yet: nobody on the
 			// arrival, the hero with leg 0, the comparisons with leg 1
@@ -512,7 +525,7 @@ export const states = {
 		revealFrom: ["careerTrio"],
 		entry: {
 			phases: CAREER_ENTRY_MS,
-			frames: careerEntry(BOUNDS, true),
+			frames: careerEntry(BOUNDS, true, false),
 			labelsAfter: [[], [ANCHOR_ID], [HACKMAN, MIRREN]]
 		},
 		overlay: CAREER_OVERLAY
@@ -527,14 +540,22 @@ export const states = {
 		labels: (params) => withSearchLabel([SWEENEY], params),
 		// this state hosts the career-age search (step 27)
 		params: withSearchParams(),
-		// the fan is authored to branch off the endpoint of Sweeney's line, which
-		// holds arriving backward from simRace too: her line and the comparisons
-		// are already drawn on that chart, so the branch point is the same
-		// endpoint either direction. Arriving forward from careerBacon they are at
-		// alpha 0 — they faded out where they lay on the way in — so they fade
-		// back on without travelling, and the fan branches off the same point.
+		// The fan branches off the endpoint of Sweeney's line either direction.
+		// Forward from careerBacon her line is not on the chart — the trio faded
+		// out where it lay on the way into careerBacon — so she arrives as a cloud
+		// dot, her line draws on with her dot riding the tip as on careerTrio, and
+		// the comparisons and the fan then grow out of its end together. Backward
+		// from simRace the arrival tween carries her line and the fan alone draws.
 		revealFrom: ["careerBacon", "simRace"],
-		entry: { phases: COHORT_ENTRY_MS, frames: cohortEntryFrames },
+		entry: [
+			{
+				from: ["careerBacon"],
+				phases: [CAREER_ENTRY_MS[0], ...COHORT_ENTRY_MS],
+				frames: careerEntry(TRIO, true, true),
+				labelsAfter: [[], [SWEENEY]]
+			},
+			{ from: ["simRace"], phases: COHORT_ENTRY_MS, frames: cohortEntryFrames }
+		],
 		overlay: CAREER_OVERLAY
 	}
 };
