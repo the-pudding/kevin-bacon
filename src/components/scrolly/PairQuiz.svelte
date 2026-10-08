@@ -397,8 +397,14 @@
 		cursor: default;
 	}
 
-	.quiz__card:not([aria-disabled="true"]):hover {
-		border-color: var(--control-card-hover-border);
+	/* Mouse only, as reset.css's button hover is. A touch leaves :hover on the
+	   point it tapped, and the next pair's chips mount under that point — so on
+	   a phone the chip where the last pick landed came up wearing the green
+	   border, which reads as the answer. */
+	@media (hover: hover) and (pointer: fine) {
+		.quiz__card:not([aria-disabled="true"]):hover {
+			border-color: var(--control-card-hover-border);
+		}
 	}
 
 	/* Absolutely placed rather than laid out beside the name, so the name is
