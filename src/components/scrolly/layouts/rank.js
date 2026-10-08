@@ -2,7 +2,6 @@ import { ANCHOR_ID, hash01 } from "../nodes.js";
 import { ATTR_SIZE, set } from "../attr-buffer.js";
 import { RIGHT, drain } from "../drain.js";
 import { CROWD, HOP_RGB, hopDotAlpha, INK } from "../palette.js";
-import { MARGIN, titleClearance } from "../plot.js";
 import {
 	RANK_BAR_H,
 	RANK_DOT_D,
@@ -19,21 +18,14 @@ import {
 // it — the dots don't need to dissolve themselves.
 // ---------------------------------------------------------------------------
 
-// where the bar stands before RankBars has measured its centered focus row (see
-// params below) — only ever visible for a frame or two on first mount
-const restingBarY = () => titleClearance("rank") + 40;
-
 /** @type {import("../layout-types.js").LayoutFn} */
-function layoutRank(nodes, w, _h, _edges, params) {
+function layoutRank(nodes, _w, _h, _edges, params) {
 	const attrs = new Float64Array(ATTR_SIZE);
 	// RankBars reports the box its centered row's bar actually occupies
 	// (story.rank.focusBar) — the canvas bar tweens to meet it there, not a fixed
-	// spot, so the strip the dots land on is the strip the panel then draws
-	const {
-		x: x0,
-		y: baconY,
-		w: maxBarW
-	} = params?.bar ?? { x: MARGIN, y: restingBarY(), w: w - MARGIN * 2 };
+	// spot, so the strip the dots land on is the strip the panel then draws.
+	// The state is not laid out until it has (`ready` below).
+	const { x: x0, y: baconY, w: maxBarW } = params.bar;
 
 	// Bacon's own corpus hop shares, cut through the strip's shared scatter —
 	// the exact points his RankBars row draws (rank-geometry.js), not an
@@ -95,6 +87,13 @@ function placeInBar(attrs, n, slots, x0, baconY, shown) {
 }
 
 const params = (s) => ({ bar: s.rank.focusBar, bare: s.rank.bareCanvas });
+// The panel mounts with the step, but measures its row only once its list has
+// bound, after the canvas's effect has already run: an arrival that set off
+// without the bar went for a guessed spot and was re-aimed ~50-90ms in, as a
+// 450ms unstaggered retarget that threw away the 700ms collapse — the crowd
+// sheared into the bar as one block (feedback on 6 → 7, 2026-10-08). So the
+// canvas waits for the bar.
+const ready = (p) => p.bar != null;
 
 const title = "Ranking Actors by Remoteness Score";
 
@@ -111,7 +110,15 @@ export const states = {
 		// the bands collapse onto Bacon's bar on a curve: the drain (drain.js),
 		// turning the way the title card's fall does. Back out of the bar (a
 		// step back past rankReveal) fans out straight.
-		curve: { from: ["hopAnchor"], bows: drain(RIGHT) }
+		curve: { from: ["hopAnchor"], bows: drain(RIGHT) },
+		ready
 	},
-	rankReveal: { layout: layoutRank, params, scene: "rank", card: "rank", title }
+	rankReveal: {
+		layout: layoutRank,
+		params,
+		ready,
+		scene: "rank",
+		card: "rank",
+		title
+	}
 };

@@ -945,6 +945,72 @@ exports[`layout goldens > raceRecent null @stacked 1`] = `
 }
 `;
 
+exports[`layout goldens > rankFocus {"bar":{"x":36,"y":240,"w":300},"bare":false} @beside 1`] = `
+{
+  "attrs": "d4874eb7fbb95b91",
+  "colour": "0713631851fd7917",
+  "decor": "bf21a9e8fbc5a384",
+  "delays": null,
+  "trailDelays": null,
+  "trails": null,
+}
+`;
+
+exports[`layout goldens > rankFocus {"bar":{"x":36,"y":240,"w":300},"bare":false} @phone 1`] = `
+{
+  "attrs": "d4874eb7fbb95b91",
+  "colour": "0713631851fd7917",
+  "decor": "bf21a9e8fbc5a384",
+  "delays": null,
+  "trailDelays": null,
+  "trails": null,
+}
+`;
+
+exports[`layout goldens > rankFocus {"bar":{"x":36,"y":240,"w":300},"bare":false} @stacked 1`] = `
+{
+  "attrs": "d4874eb7fbb95b91",
+  "colour": "0713631851fd7917",
+  "decor": "bf21a9e8fbc5a384",
+  "delays": null,
+  "trailDelays": null,
+  "trails": null,
+}
+`;
+
+exports[`layout goldens > rankFocus {"bar":{"x":36,"y":240,"w":300},"bare":true} @beside 1`] = `
+{
+  "attrs": "ff5da5dfb0167139",
+  "colour": "0713631851fd7917",
+  "decor": "bf21a9e8fbc5a384",
+  "delays": null,
+  "trailDelays": null,
+  "trails": null,
+}
+`;
+
+exports[`layout goldens > rankFocus {"bar":{"x":36,"y":240,"w":300},"bare":true} @phone 1`] = `
+{
+  "attrs": "ff5da5dfb0167139",
+  "colour": "0713631851fd7917",
+  "decor": "bf21a9e8fbc5a384",
+  "delays": null,
+  "trailDelays": null,
+  "trails": null,
+}
+`;
+
+exports[`layout goldens > rankFocus {"bar":{"x":36,"y":240,"w":300},"bare":true} @stacked 1`] = `
+{
+  "attrs": "ff5da5dfb0167139",
+  "colour": "0713631851fd7917",
+  "decor": "bf21a9e8fbc5a384",
+  "delays": null,
+  "trailDelays": null,
+  "trails": null,
+}
+`;
+
 exports[`layout goldens > rankFocus {"bar":{"x":120,"y":300,"w":400},"bare":false} @beside 1`] = `
 {
   "attrs": "328d4827ad78f81c",
@@ -978,9 +1044,9 @@ exports[`layout goldens > rankFocus {"bar":{"x":120,"y":300,"w":400},"bare":fals
 }
 `;
 
-exports[`layout goldens > rankFocus {"bar":null,"bare":false} @beside 1`] = `
+exports[`layout goldens > rankReveal {"bar":{"x":36,"y":240,"w":300},"bare":false} @beside 1`] = `
 {
-  "attrs": "dff26ce2bb98b15a",
+  "attrs": "d4874eb7fbb95b91",
   "colour": "0713631851fd7917",
   "decor": "bf21a9e8fbc5a384",
   "delays": null,
@@ -989,9 +1055,9 @@ exports[`layout goldens > rankFocus {"bar":null,"bare":false} @beside 1`] = `
 }
 `;
 
-exports[`layout goldens > rankFocus {"bar":null,"bare":false} @phone 1`] = `
+exports[`layout goldens > rankReveal {"bar":{"x":36,"y":240,"w":300},"bare":false} @phone 1`] = `
 {
-  "attrs": "81545478dc06c947",
+  "attrs": "d4874eb7fbb95b91",
   "colour": "0713631851fd7917",
   "decor": "bf21a9e8fbc5a384",
   "delays": null,
@@ -1000,9 +1066,9 @@ exports[`layout goldens > rankFocus {"bar":null,"bare":false} @phone 1`] = `
 }
 `;
 
-exports[`layout goldens > rankFocus {"bar":null,"bare":false} @stacked 1`] = `
+exports[`layout goldens > rankReveal {"bar":{"x":36,"y":240,"w":300},"bare":false} @stacked 1`] = `
 {
-  "attrs": "dff26ce2bb98b15a",
+  "attrs": "d4874eb7fbb95b91",
   "colour": "0713631851fd7917",
   "decor": "bf21a9e8fbc5a384",
   "delays": null,
@@ -1011,9 +1077,9 @@ exports[`layout goldens > rankFocus {"bar":null,"bare":false} @stacked 1`] = `
 }
 `;
 
-exports[`layout goldens > rankFocus {"bar":null,"bare":true} @beside 1`] = `
+exports[`layout goldens > rankReveal {"bar":{"x":36,"y":240,"w":300},"bare":true} @beside 1`] = `
 {
-  "attrs": "0d807b90d380ff4d",
+  "attrs": "ff5da5dfb0167139",
   "colour": "0713631851fd7917",
   "decor": "bf21a9e8fbc5a384",
   "delays": null,
@@ -1022,9 +1088,9 @@ exports[`layout goldens > rankFocus {"bar":null,"bare":true} @beside 1`] = `
 }
 `;
 
-exports[`layout goldens > rankFocus {"bar":null,"bare":true} @phone 1`] = `
+exports[`layout goldens > rankReveal {"bar":{"x":36,"y":240,"w":300},"bare":true} @phone 1`] = `
 {
-  "attrs": "47fe4f33b56db19c",
+  "attrs": "ff5da5dfb0167139",
   "colour": "0713631851fd7917",
   "decor": "bf21a9e8fbc5a384",
   "delays": null,
@@ -1033,9 +1099,9 @@ exports[`layout goldens > rankFocus {"bar":null,"bare":true} @phone 1`] = `
 }
 `;
 
-exports[`layout goldens > rankFocus {"bar":null,"bare":true} @stacked 1`] = `
+exports[`layout goldens > rankReveal {"bar":{"x":36,"y":240,"w":300},"bare":true} @stacked 1`] = `
 {
-  "attrs": "0d807b90d380ff4d",
+  "attrs": "ff5da5dfb0167139",
   "colour": "0713631851fd7917",
   "decor": "bf21a9e8fbc5a384",
   "delays": null,
@@ -1069,72 +1135,6 @@ exports[`layout goldens > rankReveal {"bar":{"x":120,"y":300,"w":400},"bare":fal
 exports[`layout goldens > rankReveal {"bar":{"x":120,"y":300,"w":400},"bare":false} @stacked 1`] = `
 {
   "attrs": "328d4827ad78f81c",
-  "colour": "0713631851fd7917",
-  "decor": "bf21a9e8fbc5a384",
-  "delays": null,
-  "trailDelays": null,
-  "trails": null,
-}
-`;
-
-exports[`layout goldens > rankReveal {"bar":null,"bare":false} @beside 1`] = `
-{
-  "attrs": "dff26ce2bb98b15a",
-  "colour": "0713631851fd7917",
-  "decor": "bf21a9e8fbc5a384",
-  "delays": null,
-  "trailDelays": null,
-  "trails": null,
-}
-`;
-
-exports[`layout goldens > rankReveal {"bar":null,"bare":false} @phone 1`] = `
-{
-  "attrs": "81545478dc06c947",
-  "colour": "0713631851fd7917",
-  "decor": "bf21a9e8fbc5a384",
-  "delays": null,
-  "trailDelays": null,
-  "trails": null,
-}
-`;
-
-exports[`layout goldens > rankReveal {"bar":null,"bare":false} @stacked 1`] = `
-{
-  "attrs": "dff26ce2bb98b15a",
-  "colour": "0713631851fd7917",
-  "decor": "bf21a9e8fbc5a384",
-  "delays": null,
-  "trailDelays": null,
-  "trails": null,
-}
-`;
-
-exports[`layout goldens > rankReveal {"bar":null,"bare":true} @beside 1`] = `
-{
-  "attrs": "0d807b90d380ff4d",
-  "colour": "0713631851fd7917",
-  "decor": "bf21a9e8fbc5a384",
-  "delays": null,
-  "trailDelays": null,
-  "trails": null,
-}
-`;
-
-exports[`layout goldens > rankReveal {"bar":null,"bare":true} @phone 1`] = `
-{
-  "attrs": "47fe4f33b56db19c",
-  "colour": "0713631851fd7917",
-  "decor": "bf21a9e8fbc5a384",
-  "delays": null,
-  "trailDelays": null,
-  "trails": null,
-}
-`;
-
-exports[`layout goldens > rankReveal {"bar":null,"bare":true} @stacked 1`] = `
-{
-  "attrs": "0d807b90d380ff4d",
   "colour": "0713631851fd7917",
   "decor": "bf21a9e8fbc5a384",
   "delays": null,

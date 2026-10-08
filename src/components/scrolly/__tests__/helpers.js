@@ -98,6 +98,11 @@ export function useBox(box) {
 // every spec starts on the phone, as the page does
 useBox(BOXES[0]);
 
+// …with the rank panel's focus row measured (RankBars' `story.rank.focusBar`),
+// as the page has it before it lays a rank state out (`ready` in
+// layouts/rank.js). A fixture, like geometryFor: the panel is what measures it.
+story.rank.focusBar = { x: 36, y: 240, w: 300 };
+
 /**
  * The story's resting defaults with `overrides` applied one group deep —
  * `storyWith({ sim: { runs: 10 } })` keeps `sim.names` — as a plain copy of every

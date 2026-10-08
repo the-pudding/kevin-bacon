@@ -115,8 +115,9 @@ export const story = $state({
 		skipped: false,
 		/** `{ x, y, w }` in canvas coordinate space of the hop bar on RankBars'
 		 * centered focus row, measured live by RankBars itself — null until it has
-		 * mounted and reported a position. The canvas bar tweens to meet that
-		 * exact box, so the two are the same strip (see layouts/rank.js) */
+		 * mounted and reported a position, and the rank states are not laid out
+		 * until it has. The canvas bar tweens to meet that exact box, so the two
+		 * are the same strip (see layouts/rank.js) */
 		focusBar: null,
 		/** `{ cx, top, pitch, bottom }` in canvas coordinate space of RankBars'
 		 * rows — the CENTRE of row #1's bar at the list's current scroll (where

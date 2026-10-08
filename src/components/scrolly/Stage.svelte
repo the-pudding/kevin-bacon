@@ -264,7 +264,7 @@
 		}
 	);
 	// The panel's own fade-in used to run on a fixed delay timed to land after
-	// the hopBands→rankFocus bar retarget; now it waits for that retarget to
+	// the hopBands→rankFocus collapse; now it waits for that collapse to
 	// actually settle instead. Once true it stays true: the panel outlives
 	// rankFocus (see story.rank.handoff), and re-checking story.settled live
 	// would hide it again the moment the reader reaches rankReveal, where settled

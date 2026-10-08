@@ -96,6 +96,16 @@ export const STATE_TITLE = pick("title");
 export const STATE_PARAMS = pick("params");
 
 /**
+ * Per-state check that the layout's params carry everything the page has to
+ * measure for it. Until it passes, the canvas does not lay the state out: the
+ * arrival waits on the measurement rather than setting off for a guess and
+ * being re-aimed mid-flight. Only states laid out against measured HTML appear
+ * here.
+ * @type {Partial<Record<LayoutState, (params: Object) => boolean>>}
+ */
+export const STATE_READY = pick("ready");
+
+/**
  * Per-state handler for a tap on one of the layout's `hits` regions: writes the
  * picked value into the shared `story` state, which the state's own STATE_PARAMS
  * selector then feeds back into the layout. Only states whose layout returns

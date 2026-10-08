@@ -349,10 +349,12 @@
 	// keep the focused row centered: instant on first paint (no spoiler pan
 	// from the top), smooth when a guess/reveal moves the focus.
 	//
-	// A pre-effect, so the box below is published before ScrollyVisual's layout
-	// effect runs in the same flush: that's what lets the arrival be one authored
-	// TWEEN_MS collapse onto this row, instead of a tween aimed at a fallback
-	// spot and then retargeted (fast, PARAM_TWEEN_MS) once the measurement lands.
+	// A pre-effect, so a box re-measured once the list is up is published before
+	// ScrollyVisual's layout effect runs in the same flush. The first one cannot
+	// be: on mount `list` is not bound yet, and it lands only after the canvas's
+	// effect has run — which is why the rank states hold their arrival until it
+	// has (`ready` in layouts/rank.js), so the collapse is one authored TWEEN_MS
+	// tween onto this row rather than a guess re-aimed mid-flight.
 	$effect.pre(() => {
 		const id = focusId;
 		const ready = fontsReady;

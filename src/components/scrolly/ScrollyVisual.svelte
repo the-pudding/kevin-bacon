@@ -60,6 +60,7 @@
 		STATE_YCAP,
 		STATE_RACE,
 		STATE_PARAMS,
+		STATE_READY,
 		STATE_REVEAL_FROM,
 		curveFor,
 		entryFor,
@@ -2326,11 +2327,7 @@
 	 * linear share of it — the constellation's old route fades out whole, and
 	 * the new one travels from the picked actor in to Bacon without pausing at
 	 * the co-stars between. A retarget mid-way supersedes whichever stage is
-	 * running, and the clear's onDone with it. Still
-	 * settles on completion — rankFocus's bar only gets its real target once
-	 * RankBars measures its row (story.rank.focusBar), so this is the one state
-	 * whose "reveal has landed" moment is a param retarget rather than the
-	 * state's own arrival tween.
+	 * running, and the clear's onDone with it. Still settles on completion.
 	 */
 	function tweenToParams(target) {
 		trailTweener.to(target.trails, PARAM_TWEEN_MS, 0);
@@ -2365,9 +2362,15 @@
 		);
 	}
 
-	/** everything the render effect needs measured before it can build a layout */
+	/**
+	 * everything the render effect needs measured before it can build a layout,
+	 * the page's own measurements for a state laid out against them included
+	 * (STATE_READY): until they land the departing frame holds, so the arrival
+	 * sets off once, for the real spot
+	 */
 	const canvasReady = () =>
-		!!(canvas && width && height && canvasWidth && stateName && geometry);
+		!!(canvas && width && height && canvasWidth && stateName && geometry) &&
+		(STATE_READY[stateName]?.(layoutParams) ?? true);
 
 	/**
 	 * Whether the backing store has to be re-fitted, which is also what makes the
@@ -2579,11 +2582,10 @@
 		},
 		// A retarget that supersedes the state arrival still in flight keeps that
 		// arrival's curve: the reader pressed nothing, the arrival is completing
-		// — rankFocus's bar lands this way, RankBars measuring its row a frame
-		// or two into the collapse, and without this the curve the state
-		// declared was seen only on a second visit, when the bar was already
-		// known (Owen, 2026-09-25). A retarget after the arrival has landed is
-		// an interaction, and travels straight.
+		// — rankFocus's bar re-measured mid-collapse (the mono face landing
+		// after the first measurement) re-aims this way, and must not
+		// straighten the drain the state declared (Owen, 2026-09-25). A retarget
+		// after the arrival has landed is an interaction, and travels straight.
 		params: (target, from) => {
 			const curve = tweener.running ? arrivalCurve : null;
 			resetArrivalGates(from);

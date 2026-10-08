@@ -151,7 +151,7 @@ travelling is something the reader has to re-find.
     own. A curve is authored per arrival like a reveal (a state's `curve`,
     from named origins), has the endpoints of a straight tween — so every
     contract, and a press mid-flight, holds as for one; a retarget that
-    completes the same arrival, such as the rank bar landing, keeps its
+    completes the same arrival, such as the rank bar re-measured mid-collapse, keeps its
     curve — and never circles:
     one bow per dot, and the slower the dot the more of its travel it may
     lean. The bend sits at the END of the travel — the dot leaves along its
