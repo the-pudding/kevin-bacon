@@ -767,11 +767,10 @@
 					alt="Back on Sydney Sweeney's line, with many other careers fanning out from the same point."
 				>
 					<p>
-						Back to Sydney Sweeney. We can now see that whatever actor we use to
-						model a Gen Z actor's film trajectory can massively impact the
-						results. For each actor, we consider similar ones based on film
-						count and career age, and randomly select one weighted by how close
-						they are.
+						We can now see that whatever actor we use to model a Gen Z actor's
+						film trajectory can massively impact the results. For each actor, we
+						consider similar ones based on film count and career age, and
+						randomly select one weighted by how close they are.
 					</p>
 					<p>
 						By applying the same approach for costar film counts, we can start
@@ -818,7 +817,7 @@
 						winning just over 10% of the simulations. It's by no means a
 						landslide: her median remoteness is 2.19 with a median projected
 						film count of 66, quite far away from Samuel L. Jackson's
-						stratospheric numbers.
+						stratospheric numbers of 116 and 2.09.
 					</p>
 				</Step>
 				<!-- the story's closing chart (PRD P-27-1): the race chart's future
