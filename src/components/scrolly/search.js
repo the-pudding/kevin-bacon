@@ -41,6 +41,15 @@ const nameOf = (id) => /** @type {string} */ (rawNodes.nodes[id][1]);
  */
 export const SEARCH_POOL = /** @type {number[]} */ (rawNodes.searchPool);
 
+/**
+ * Where the search exists at all: tablet width and up. A phone's title line has
+ * no room for the labelled glyph beside the longer chart titles, so below this
+ * the control is not mounted and the titles keep the whole line. One query for
+ * both ends of that (ActorSearch's mount, ScrollyVisual's title reserve), so
+ * the two cannot disagree about whether the glyph is there.
+ */
+export const SEARCH_MEDIA = "(min-width: 48rem)";
+
 // Which chart the reader's named actor is being asked about, for the search's
 // analytics (`recordActorSearch`). Keyed by CHART rather than by state, which
 // is why three states share "career" and two share "remoteness": the question

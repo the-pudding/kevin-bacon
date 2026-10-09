@@ -775,9 +775,15 @@
 	   --chart-title-top: how far down this box the chart title's line sits —
 	   the title (ScrollyVisual) and the search glyph at the far end of it
 	   (ActorSearch) both read it, so the two stay on one line. Its size is the
-	   air left under the progress bar; the title still clears MARGIN. */
+	   air left under the progress bar; the title still clears MARGIN.
+
+	   --search-w: how much of that line the labelled search glyph takes, glyph
+	   to label's end. The glyph is sized to it and the title is pulled in by it,
+	   so the two can only meet if the label outgrows it — it is in rem, as the
+	   label's type is, so text zoom grows both together. */
 	.scrolly-visual {
 		--chart-title-top: 10px;
+		--search-w: 9rem;
 		position: absolute;
 		top: var(--title-band);
 		right: 0;

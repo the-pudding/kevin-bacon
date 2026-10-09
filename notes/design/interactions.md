@@ -78,6 +78,14 @@ over the canvas — no input in the prose, no placeholder sentence, and **no
 call to action anywhere**. A reader who never presses it has missed nothing,
 which is the whole intent.
 
+**Revised 2026-10-09 (Owen): a labelled glyph, and tablet width up only.** The
+magnifying glass now reads "Search actors" beside it, and that label is the
+button's accessible name. Below 48rem (`SEARCH_MEDIA`, search.js) the search
+does not exist: phones get no glyph on any of these steps, and their titles
+take the whole line back. The label needs room the phone title line does not
+have. Wherever the search does exist, the title is pulled in by the label's
+width (`--search-w`, Stage.svelte), so a long title wraps before it reaches it.
+
 Being out of the card is the point rather than a cost, and three things follow:
 
 - **Nothing over the canvas is measured.** The reserved-height apparatus the

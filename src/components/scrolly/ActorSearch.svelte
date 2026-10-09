@@ -7,7 +7,10 @@
 	// and nothing else until the reader presses it. There is no sentence offering
 	// the search and no call to action anywhere, because nothing later in the
 	// story reads the answer out: a reader who never notices this has missed
-	// nothing.
+	// nothing. The glyph carries a "Search actors" label, but no more than that.
+	//
+	// Tablet width and up only (search.js's SEARCH_MEDIA): on a phone the title
+	// line has no room for the label beside the longer chart titles.
 	//
 	// It owns none of what a pick MEANS. The pool it offers, the id it shows as
 	// picked and what a pick or a Clear writes are all the caller's (see the two
@@ -49,9 +52,10 @@
 	// vacated — which the new anchor holds invisibly until `onland` says the chip
 	// has arrived with it. See `fly`.
 	import { tick } from "svelte";
+	import { MediaQuery } from "svelte/reactivity";
 	import Search from "@lucide/svelte/icons/search";
 	import Combobox from "$components/ui/Combobox.svelte";
-	import { SEARCH_RGB, searchActors } from "./search.js";
+	import { SEARCH_MEDIA, SEARCH_RGB, searchActors } from "./search.js";
 	import { nodeName } from "./states.js";
 	import {
 		HOLD_MS,
@@ -75,6 +79,8 @@
 		onland,
 		onclear
 	} = $props();
+
+	const roomy = new MediaQuery(SEARCH_MEDIA, false);
 
 	let query = $state("");
 	/** bits-ui carries a string value; the pool is node ids */
@@ -232,25 +238,25 @@
 <!-- Only once the visual is bound: the glyph lines up with the chart's right
      end, which the visual reports (`plotRightInset`), and the chip flies to a
      dot only the visual can locate. On a cold load the panel is created in the
-     same flush as the canvas, before `bind:this` has handed it over. -->
-{#if visual}
+     same flush as the canvas, before `bind:this` has handed it over. And only
+     where there is room for it (`roomy`, SEARCH_MEDIA): none on a phone. -->
+{#if visual && roomy.current}
 	<div class="search" style="--plot-margin: {visual.plotRightInset()}px">
 		<p class="sr-only" role="status">{announced}</p>
-		<!-- The way in. A bare glyph with an accessible name and nothing beside it —
-		     a label, a tooltip that behaves like one or a pulse would each make it
-		     the call to action this control is deliberately not. It sits at the right
-		     of the title band, which is empty on every chart that offers this (the
-		     titles are centred) and is the one strip of the box no layout plots
-		     into. -->
+		<!-- The way in: the glyph and its label. It sits at the right of the title
+		     band, which is empty on every chart that offers this (the titles are
+		     centred, and pulled in short of it) and is the one strip of the box no
+		     layout plots into. The visible label is the accessible name, so the two
+		     cannot disagree (WCAG 2.5.3); `aria-expanded` says whether it is open. -->
 		<button
 			bind:this={glyphEl}
 			class="search__glyph"
 			class:search__glyph--open={open}
 			aria-expanded={open}
-			aria-label={open ? "Close actor search" : "Search for an actor"}
 			onclick={() => (open = !open)}
 		>
-			<Search />
+			<Search aria-hidden="true" />
+			Search actors
 		</button>
 
 		{#if open}
@@ -328,16 +334,25 @@
 	   visual (`plotRightInset`) rather than typed, so it cannot drift from the
 	   plot it is lining up with — including the hop chart's, which ends at its
 	   screen-wide span instead. */
+	/* The label's right end sits on the plot's right margin, and the button pads
+	   out past it on every side to a 48px target. Its width is --search-w
+	   (Stage.svelte), the same reserve the chart title is pulled in by, so the
+	   title wraps before it reaches the label; nowrap keeps the label one line. */
 	.search__glyph {
+		--pad: calc((var(--48px) - 1.75rem) / 2);
 		position: absolute;
-		top: calc(var(--glyph-top) + (1.75rem - var(--48px)) / 2);
-		right: calc(var(--plot-margin) - (var(--48px) - 1.75rem) / 2);
+		top: calc(var(--glyph-top) - var(--pad));
+		right: calc(var(--plot-margin) - var(--pad));
 		display: flex;
 		align-items: center;
-		justify-content: center;
-		width: var(--48px);
+		justify-content: flex-end;
+		gap: 0.375rem;
+		width: calc(var(--search-w) + 2 * var(--pad));
 		height: var(--48px);
-		padding: 0;
+		padding: 0 var(--pad);
+		font-family: var(--type-chip-family);
+		font-size: 0.8rem;
+		white-space: nowrap;
 		border: 0;
 		border-radius: var(--radius-sm);
 		background: none;
@@ -359,6 +374,7 @@
 	}
 
 	.search__glyph :global(svg) {
+		flex: none;
 		width: 1.125rem;
 		height: 1.125rem;
 	}

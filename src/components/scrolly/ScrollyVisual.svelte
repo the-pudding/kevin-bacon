@@ -97,7 +97,7 @@
 		NO_BLEED,
 		screenSpan
 	} from "./plot.js";
-	import { SEARCH_CHARTS } from "./search.js";
+	import { SEARCH_CHARTS, SEARCH_MEDIA } from "./search.js";
 	import { story } from "./story.svelte.js";
 
 	// undefined until the <Step> registry has populated (first client render).
@@ -811,7 +811,11 @@
 	let titleState = $state(null);
 	const shownTitle = $derived(titleState && STATE_TITLE[titleState]);
 	const shownTitleShift = $derived(titleState ? titleShiftFor(titleState) : 0);
-	const shownTitleSearchable = $derived(!!SEARCH_CHARTS[titleState]);
+	// whether a state's title shares its line with the search glyph: a
+	// searchable state, wherever the search exists at all (SEARCH_MEDIA)
+	const searchRoom = new MediaQuery(SEARCH_MEDIA, false);
+	const searchableTitle = (name) => searchRoom.current && !!SEARCH_CHARTS[name];
+	const shownTitleSearchable = $derived(searchableTitle(titleState));
 	// The chart title, measured, for the one thing that has to clear it: an
 	// upright y-axis title (.y-title-top) sits level with the title's first
 	// line, so wherever it would run in under the title — a wrapped title on a
@@ -3138,7 +3142,7 @@
 			{#each TITLED as name (name)}
 				<p
 					class="chart-title measure"
-					class:searchable={!!SEARCH_CHARTS[name]}
+					class:searchable={searchableTitle(name)}
 					bind:clientHeight={titleHeights[name]}
 				>
 					{STATE_TITLE[name]}
@@ -3439,14 +3443,14 @@
 		font-size: var(--type-chart-title-size);
 	}
 
-	/* A searchable step puts ActorSearch's glyph (1.75rem, at the plot's right
-	   margin) on this line: pulled in either side by it, so the title stays
-	   centred and wraps before it reaches the glyph. Keyed on the title's own
-	   state rather than on the glyph being there: the glyph leaves on the
-	   press, and a title fading out where it stands must not re-wrap onto one
-	   line on its way out. */
+	/* A searchable step puts ActorSearch's labelled glyph (--search-w, at the
+	   plot's right margin) on this line: pulled in either side by it, so the
+	   title stays centred and wraps before it reaches the label. Keyed on the
+	   title's own state rather than on the glyph being there: the glyph leaves
+	   on the press, and a title fading out where it stands must not re-wrap
+	   onto one line on its way out. */
 	.chart-title.searchable {
-		max-width: calc(100% - 2 * (var(--plot-margin) + 1.75rem));
+		max-width: calc(100% - 2 * (var(--plot-margin) + var(--search-w)));
 	}
 
 	/* the measured copies (titleHeights): laid out exactly as the titles are —
