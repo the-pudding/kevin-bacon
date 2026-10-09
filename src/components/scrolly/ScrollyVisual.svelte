@@ -465,19 +465,6 @@
 	 */
 	const titleShiftFor = (name) =>
 		isProseOver(name) ? (labelBleed.r - labelBleed.l) / 2 : 0;
-	/**
-	 * ...except that a chart the prose lies over (the hop bands) titles itself
-	 * flush with its own left edge instead: the span it draws across, in this
-	 * box's px — negative where the chart reaches past the box into the bleed,
-	 * which is why this is a position and not `text-align` inside the box. Null
-	 * for every other state, which keeps the centred title.
-	 * @returns {[number, number] | null} the span's left edge and its width
-	 */
-	const titleSpanFor = (name) => {
-		if (!isProseOver(name) || !width) return null;
-		const [x0, x1] = screenSpan(width, labelBleed);
-		return [x0, x1 - x0];
-	};
 
 	/** the static chart furniture a layout hands the template */
 	/**
@@ -824,7 +811,6 @@
 	let titleState = $state(null);
 	const shownTitle = $derived(titleState && STATE_TITLE[titleState]);
 	const shownTitleShift = $derived(titleState ? titleShiftFor(titleState) : 0);
-	const shownTitleSpan = $derived(titleState ? titleSpanFor(titleState) : null);
 	const shownTitleSearchable = $derived(!!SEARCH_CHARTS[titleState]);
 	// The chart title, measured, for the one thing that has to clear it: an
 	// upright y-axis title (.y-title-top) sits level with the title's first
@@ -838,13 +824,13 @@
 	let titleHeight = $state(0);
 	// -- Measured geometry ------------------------------------------------------
 	// The chart titles, measured: a hidden copy of every grouped state's title
-	// at the width that state sets it at — centred, or flush across a
-	// screen-wide chart, and pulled in by the search glyph on a searchable step
-	// — and one line of title at the default type size. A group's overrun is
-	// how far its tallest title runs past that line, which is what pushes its
-	// plot down (plot.js's plotTop), on every step of the group alike, so a step
-	// change inside one never moves the plot (motion.md rule 7). Measured here
-	// rather than in Stage because the title's rules are this component's.
+	// at the width that state sets it at — centred, and pulled in by the search
+	// glyph on a searchable step — and one line of title at the default type
+	// size. A group's overrun is how far its tallest title runs past that line,
+	// which is what pushes its plot down (plot.js's plotTop), on every step of
+	// the group alike, so a step change inside one never moves the plot
+	// (motion.md rule 7). Measured here rather than in Stage because the title's
+	// rules are this component's.
 	const TITLED = Object.keys(STATE_GROUP).filter((s) => STATE_TITLE[s]);
 	/** @type {Record<string, number>} */
 	let titleHeights = $state({});
@@ -3135,12 +3121,9 @@
 					class="chart-title fade-in"
 					bind:this={titleEl}
 					bind:clientHeight={titleHeight}
-					class:flush={shownTitleSpan}
 					class:searchable={shownTitleSearchable}
 					aria-hidden="true"
 					style="--title-shift: {shownTitleShift}px"
-					style:--title-left={shownTitleSpan && `${shownTitleSpan[0]}px`}
-					style:--title-span={shownTitleSpan && `${shownTitleSpan[1]}px`}
 					out:fade|global={furnitureOut}
 				>
 					{shownTitle}
@@ -3153,13 +3136,9 @@
 		<div class="title-measure" aria-hidden="true">
 			<p class="chart-title measure line" bind:clientHeight={titleLine}>M</p>
 			{#each TITLED as name (name)}
-				{@const span = titleSpanFor(name)}
 				<p
 					class="chart-title measure"
 					class:searchable={!!SEARCH_CHARTS[name]}
-					class:flush={span}
-					style:--title-left={span && `${span[0]}px`}
-					style:--title-span={span && `${span[1]}px`}
 					bind:clientHeight={titleHeights[name]}
 				>
 					{STATE_TITLE[name]}
@@ -3468,22 +3447,6 @@
 	   line on its way out. */
 	.chart-title.searchable {
 		max-width: calc(100% - 2 * (var(--plot-margin) + 1.75rem));
-	}
-
-	/* Flush with the chart's own left edge (titleSpanFor): placed at the span's
-	   left in px, and capped at the span's width rather than the box's, since
-	   the chart is wider than the box it is titled in. */
-	.chart-title.flush {
-		left: var(--title-left);
-		transform: none;
-		max-width: var(--title-span);
-		text-align: left;
-	}
-
-	/* ...and short of the search glyph at the span's right end, with the same
-	   0.5rem of air the glyph keeps from its own edge */
-	.chart-title.flush.searchable {
-		max-width: calc(var(--title-span) - 1.75rem - 0.5rem);
 	}
 
 	/* the measured copies (titleHeights): laid out exactly as the titles are —
