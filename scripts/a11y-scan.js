@@ -19,7 +19,7 @@ import { readFileSync } from "node:fs";
 import { parseArgs } from "node:util";
 import { chromium } from "playwright";
 import { AxeBuilder } from "@axe-core/playwright";
-import { INDEX, parseSteps } from "./stale-checklist.js";
+import { INDEX, parseSteps } from "./story-steps.js";
 import { startVite, waitForStory } from "./lib/story-page.js";
 
 const BOXES = {

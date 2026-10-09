@@ -4,7 +4,7 @@
 // story's resting defaults.
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
-import { parseSteps } from "../../../../scripts/stale-checklist.js";
+import { parseSteps } from "../../../../scripts/story-steps.js";
 import { makeNodes } from "../nodes.js";
 import { STATES, STATE_PARAMS } from "../states.js";
 import { story } from "../story.svelte.js";

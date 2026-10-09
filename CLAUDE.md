@@ -10,7 +10,6 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Preview a production build: `npm run preview`
 - Lint (Prettier check, then ESLint per `eslint.config.js`, then Stylelint per `stylelint.config.js`): `npm run lint`
 - Test (vitest): `npm run test`. Regenerate the layout goldens after an intentional layout change: `npx vitest run -u`
-- Stale the tween checklist's rows from the staged diff: `npm run stale` (`--check` only reports; the pre-commit gate runs it)
 - Contact sheet of one step transition, frame by frame on a faked clock: `npm run sheet -- <from> <to>` (both directions, mobile box; `--box tall|desktop|wide`, `--click Start` for a gated step). Output under `sheets/`, gitignored. The `tween-sheet` skill is the workflow.
 - Share image (`og:image`/`twitter:image`): `npm run social` writes the canvas at step 0 to `static/assets/social.jpg`, 1200×630, framed by `scripts/social-image.css` (`--step N`, `--out <path>` to try another step without replacing it, `--url` to reuse a dev server)
 - Evidence pack of every step at rest on mobile 375×667, tablet 768×1024 and desktop 1440×900 (2× density): `npm run screenshots` (`--box`, `--steps`, `--settle`, `--url`). Output under `screenshots/<date>/<box>/NN-<state>.png` plus `screenshots/<date>.zip`, gitignored.
@@ -25,35 +24,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Deploy to production/AWS (pudding.cool): `npm run prodution` (typo preserved as-is in `package.json`)
 - Password-protect a build (requires `.env` with `PASSWORD=...`): `make protect`, then `make github` or `make pudding`
 
-Tests live in `src/components/scrolly/__tests__/` and run under vitest in plain Node (the layouts import nothing from Svelte; the `.svelte.js` modules compile to plain objects there). By subject: `tween.spec.js` (the tweener's timing, supersede and reframe semantics), `registry.spec.js` (invariants of the state registry in `states.js`), `goldens.spec.js` (a content hash of every state's layout at three canvas boxes, stored as vitest snapshots), `contracts.spec.js` (the frame equalities the framework requires: an entry's last leg, an ambient at t = 0 and a race step's resting frame all reproduce the static layout; and the hidden-spots walk: every dot an arrival brings on starts at the departing state's spot, inside the canvas), `render.spec.js`, `annotations.spec.js`, `choreographer.spec.js` and `race-camera.spec.js` (the visual's extracted modules), `rank-turn.spec.js` (the column the hop bands collapse into on the way to Bacon's rank bar: the bar stood on end, centred, hops top to bottom), `callout.spec.js` (the race chart's callouts: which one a frame draws, and which side of its ring the note lands on), `scatter-quiz.spec.js` (the pair quiz's answer and its verdict colours — named rather than hashed, because a golden is keyed on the params JSON and so cannot catch a change that renames the key), `step-registry.spec.js` (the wizard: gates, skipback, the bar's dots) and `stale-checklist.spec.js` (the checklist script's rules, and that the table matches the `<Step>` list). The goldens are the automated half of the tween sign-off below: a refactor that changes nothing keeps every hash, and an intentional layout change regenerates its golden in the same commit.
+Tests live in `src/components/scrolly/__tests__/` and run under vitest in plain Node (the layouts import nothing from Svelte; the `.svelte.js` modules compile to plain objects there). By subject: `tween.spec.js` (the tweener's timing, supersede and reframe semantics), `registry.spec.js` (invariants of the state registry in `states.js`), `goldens.spec.js` (a content hash of every state's layout at three canvas boxes, stored as vitest snapshots), `contracts.spec.js` (the frame equalities the framework requires: an entry's last leg, an ambient at t = 0 and a race step's resting frame all reproduce the static layout; and the hidden-spots walk: every dot an arrival brings on starts at the departing state's spot, inside the canvas), `render.spec.js`, `annotations.spec.js`, `choreographer.spec.js` and `race-camera.spec.js` (the visual's extracted modules), `rank-turn.spec.js` (the column the hop bands collapse into on the way to Bacon's rank bar: the bar stood on end, centred, hops top to bottom), `callout.spec.js` (the race chart's callouts: which one a frame draws, and which side of its ring the note lands on), `scatter-quiz.spec.js` (the pair quiz's answer and its verdict colours — named rather than hashed, because a golden is keyed on the params JSON and so cannot catch a change that renames the key), `step-registry.spec.js` (the wizard: gates, skipback, the bar's dots) and `story-steps.spec.js` (reading the `<Step>` list off `Index.svelte`). The goldens are the automated half of the motion check below: a refactor that changes nothing keeps every hash, and an intentional layout change regenerates its golden in the same commit.
 
 ## Terminology
 
 - "step N" always means step **index** N: the zero-based index in the
-  `?step=N` query parameter, which is the same index the `notes/tween-checklist.md`
-  rows are numbered by. It is never an ordinal ("the Nth step") and never a
+  `?step=N` query parameter. It is never an ordinal ("the Nth step") and never a
   chapter, state or layout name.
 
-## Tween sign-off
+## Motion check
 
-`notes/tween-checklist.md` is the manual sign-off record for every step
-transition — the only regression net the story's motion has.
-
-- **ALWAYS** mark every affected step `[!]` (stale) in that checklist after
-  changing anything that alters what the canvas does: a `layouts/*.js` function,
-  `tween.js`, a layout module (`attr-buffer.js`, `palette.js`, `plot.js`, `cast.js`,
-  `rank-geometry.js`, `scatter-scales.js`, `trails.js`, `intro-geometry.js`,
-  `sky.js`), `ScrollyVisual.svelte` or its modules (`render.js`, `annotations.js`,
-  `choreographer.js`, `race-camera.js`, `arrival-marks.js`), `Stage.svelte`, `states.js`, a state's
-  entry/reveal/delay/ambient/camera config, an over-canvas panel, the registry or
-  arrival rules (`step-registry.svelte.js`, `arrivals.js`), or the `<Step>` list
-  in `Index.svelte`. `npm run stale` applies these rules from the staged diff, and
-  the pre-commit gate refuses a commit that skipped it.
-- **ALWAYS** stale the step either side of a changed step as well — a tween has
-  two ends.
-- **ALWAYS** renumber the checklist rows when a `<Step>` is added, removed or
-  reordered.
-- **NEVER** mark a row `[x]`. Only Owen signs a row off, after looking at it.
 - **ALWAYS** read the transition's contact sheets (`npm run sheet`, the
   `tween-sheet` skill) against `notes/design/motion.md` before reporting a
   motion change as working. A claim about what the canvas does that no sheet

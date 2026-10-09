@@ -19,7 +19,7 @@ import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { parseArgs } from "node:util";
 import { chromium } from "playwright";
-import { INDEX, parseSteps } from "./stale-checklist.js";
+import { INDEX, parseSteps } from "./story-steps.js";
 import { startVite, waitForStory } from "./lib/story-page.js";
 
 const BOXES = {

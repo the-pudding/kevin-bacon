@@ -3,9 +3,8 @@
 > The rules every step transition is held to, agreed 2026-09-19. The framework
 > map (`notes/scrolly-framework.md`) carries the contracts that implement them
 > and the per-chart notes carry the reasoning for one chart; this is what "looks
-> right" means before either of those. `notes/tween-checklist.md` is where each
-> transition is signed off against these rules, and `npm run sheet` is how a
-> transition is looked at frame by frame (see "Checking a transition").
+> right" means before either of those. `npm run sheet` is how a transition is
+> looked at frame by frame against these rules (see "Checking a transition").
 
 The story is one canvas of dots with stable identities, and the reader moves it
 one press at a time. Every rule below follows from two facts about that: the
@@ -39,7 +38,7 @@ travelling is something the reader has to re-find.
    to satisfy rules 1, 2 and 7 on its own: nothing the reveal introduced may pop
    off, and nothing it held back may pop on. The one backward arrival that never
    happens is a `skipback` step's, because a backward move is declared to pass
-   through it; the checklist marks that column n/a.
+   through it.
 
 4. **Mobile first.** Every transition is authored and looked at on the phone
    box (375×667) before any other. Travel distances, the room a label has, what
@@ -118,7 +117,7 @@ travelling is something the reader has to re-find.
     coordinates. Anything that changes the box's measured rect (a layout shift, a
     scrollbar appearing, a column that re-centres) snaps every dot and restarts
     the sky, so a change to `Stage.svelte`'s layout is a change to every
-    transition, and the checklist treats it as one.
+    transition.
 
 13. **Reduced motion is the same story, cut.** Under `prefers-reduced-motion`
     every transition lands on its settled frame at once. Fades are kept, travel is

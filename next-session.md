@@ -96,7 +96,6 @@ Do this:
 - `notes/audit/a11y/*.png`: untracked evidence from the earlier pass,
   including `ytitle-over-name-11-375.png`, `callout-over-ytitle-10-375.png`
   and `tick-over-ytitle-18-375.png`.
-- `notes/tween-checklist.md`: every row is `[!]`. Only Owen marks `[x]`.
 
 ## Key Context
 

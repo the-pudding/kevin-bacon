@@ -24,7 +24,6 @@ and the measurements that were taken — lives in `notes/design/`.
 | `notes/design/simulation-race.md` | The simulation replay.                                                                                                                    |
 | `notes/design/motion.md`          | The motion rules every transition is held to (2026-09-19), what each looks like on a contact sheet, and the open questions.               |
 | `notes/design/interactions.md`    | The agreed interaction rules (2026-07-05, revised 2026-09-11 and 2026-09-19), the five gated steps and the rank → race handoff in detail. |
-| `notes/tween-checklist.md`        | The manual sign-off record for every step transition, and the rules `npm run stale` applies to it.                                        |
 
 ## Files
 
@@ -59,7 +58,7 @@ and the measurements that were taken — lives in `notes/design/`.
 | `scrolly/fly-to-dot.js`                                              | That flight, shared: `flyToDot({ el, rect, target, fill })` plus its beats (`MARK_MS`, `FLIGHT_MS`, `HOLD_MS`) and `prefersReducedMotion()`. WAAPI over a transform off the element's own box, so nothing leaves flow and the card's height never moves.                                                                                                                                                                                                                                                                                                                           |
 | `scrolly/search.js`                                                  | The actor search's index: `SEARCH_POOL` (the recognisable actors plus the story's own cast, narrowed at build time to whoever also has a `rankHopBands` breakdown — the one pool all four searchable steps, including the hop chart's anchors, share), `RANK_POOL` (the ranked 250 — the rank guess's own, narrower pool, since that's all `RankBars` renders a row for), `searchActors`, and the one highlight rule the three searchable layouts share (`SEARCH_RGB`, `searchedId`, `withSearchLabel`, `withSearchParams`).                                                       |
 | `scrolly/__tests__/`                                                 | The vitest suite (see "Verify").                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
-| `scripts/stale-checklist.js`                                         | Marks the tween checklist's rows stale from a diff (`npm run stale`), and checks them in the pre-commit gate.                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| `scripts/story-steps.js`                                             | Reads the `<Step>` list off `Index.svelte` (`parseSteps`), for the scripts and specs that walk every step.                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 
 ### The plot geometry, in one paragraph
 
@@ -155,8 +154,7 @@ the prose for exactly this.
    `foo: { layout: layoutFoo, labels?, params?, revealFrom?, entry?, curve?, requests?, ambient?, overlay? }`.
    A new module is spread into the registry in `states.js`.
 3. Use it: `<Step state="foo"><p>…</p></Step>` in `Index.svelte`.
-4. `npx vitest run -u` writes its golden; add a row to `notes/tween-checklist.md`
-   and run `npm run stale` for its neighbours. The hidden-spots walk in
+4. `npx vitest run -u` writes its golden. The hidden-spots walk in
    `contracts.spec.js` picks the new step up from `Index.svelte` and fails on
    any dot it brings in from off the canvas.
 
@@ -261,7 +259,7 @@ rank order, never by raw rank against `nodes.length`.
 `max-depth: 4`, `max-lines-per-function: 100` and import cycles enforced),
 svelte-check over `jsconfig.json`, vitest, and the rendered contrast scan
 (`npm run a11y`). The pre-commit hook runs the same through lint-staged, minus
-the contrast scan, plus `scripts/stale-checklist.js --check`.
+the contrast scan.
 
 The suite under `src/components/scrolly/__tests__/`, by contract:
 
@@ -273,20 +271,16 @@ The suite under `src/components/scrolly/__tests__/`, by contract:
 | `tween.spec.js`                                                                         | The tweener's timing, supersede and reframe semantics.                                                                                                                                                                         |
 | `render.spec.js`, `annotations.spec.js`, `choreographer.spec.js`, `race-camera.spec.js` | The visual's extracted modules.                                                                                                                                                                                                |
 | `step-registry.spec.js`                                                                 | The wizard: document-order registration, gates, `skipback`, `advance`, the bar's chapters and lines, the move handed to the arrival rules.                                                                                     |
-| `stale-checklist.spec.js`                                                               | The checklist script's blast-radius rules, and that the real table has one row per registered step in the registry's order.                                                                                                    |
+| `story-steps.spec.js`                                                                   | Reading the `<Step>` list: document order, attribute arrows, and nothing from the script block or comments.                                                                                                                    |
 
 What the tests cannot see — whether a tween reads as motion, whether a name
-arrives with its dot, whether the sky twitches at the handover — is
-`notes/tween-checklist.md`: one row per step, forwards, backwards and on a phone.
-`npm run stale` marks the rows a change affects; only Owen marks one `[x]`.
-
-Between the two sits `npm run sheet -- <from> <to>` (`scripts/tween-sheet.js`):
+arrives with its dot, whether the sky twitches at the handover — is looked at
+with `npm run sheet -- <from> <to>` (`scripts/tween-sheet.js`):
 Playwright drives the dev server with the page's clock faked, so
 `performance.now`, `Date` and `requestAnimationFrame` advance only when told
 to, and the frames of one transition are captured at exact times and tiled into
 a contact sheet with the pixel change between neighbours. It is how a transition
-is _looked at_ before the checklist is asked to sign it off, and the rules it is
-read against are `notes/design/motion.md`.
+is _looked at_, and the rules it is read against are `notes/design/motion.md`.
 
 Some properties are cheap to measure and invisible in a frame — the sky's
 stationarity over minutes, a writer's cost per frame, the beat's no-repeat

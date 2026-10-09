@@ -30,7 +30,7 @@
 import { readFileSync } from "node:fs";
 import { parseArgs } from "node:util";
 import { chromium, webkit } from "playwright";
-import { INDEX, parseSteps } from "./stale-checklist.js";
+import { INDEX, parseSteps } from "./story-steps.js";
 import { startVite, waitForStory } from "./lib/story-page.js";
 
 const BOXES = {

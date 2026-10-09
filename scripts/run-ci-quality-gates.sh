@@ -11,15 +11,12 @@
 #   --local    pre-commit: skips the whole-tree prettier and eslint passes —
 #              lint-staged has already formatted and linted the staged files,
 #              and checking the *working tree* here would block commits over
-#              unrelated dirty files. Adds the tween-checklist check: the rows
-#              the staged diff stales must be marked [!] (npm run stale), and
-#              the table must match the <Step> list. Also skips the rendered
-#              contrast scan (about 2.5 min on a dev server).
+#              unrelated dirty files. Also skips the rendered contrast scan
+#              (about 2.5 min on a dev server).
 #
 # svelte-check runs over jsconfig.json (everything under src/) and fails on type
 # errors. The vitest suite under src/components/scrolly/__tests__ holds the
-# layout goldens and frame contracts — the automated half of the tween
-# checklist (notes/tween-checklist.md). A golden only changes when a layout was
+# layout goldens and frame contracts. A golden only changes when a layout was
 # meant to change, and is regenerated deliberately with `npx vitest run -u`.
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -38,11 +35,6 @@ done
 if ! $LOCAL; then
 	echo "gate: prettier + eslint + stylelint (whole tree)"
 	npm run lint
-fi
-
-if $LOCAL; then
-	echo "gate: tween checklist"
-	node scripts/stale-checklist.js --check
 fi
 
 echo "gate: design tokens built"

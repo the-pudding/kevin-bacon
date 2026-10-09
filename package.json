@@ -12,7 +12,6 @@
 		"preview": "vite preview",
 		"lint": "prettier --check . && eslint . && stylelint \"src/**/*.{css,svelte}\"",
 		"test": "vitest run",
-		"stale": "node scripts/stale-checklist.js",
 		"sheet": "node scripts/tween-sheet.js",
 		"a11y": "node scripts/a11y-scan.js",
 		"overlap": "node scripts/overlap-scan.js",

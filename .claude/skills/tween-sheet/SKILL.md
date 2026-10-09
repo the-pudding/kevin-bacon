@@ -13,9 +13,8 @@ evidence.
 
 ## Workflow
 
-1. **Find the affected transitions.** `npm run stale -- --check` (or the rows
-   `npm run stale` marks `[!]`) names the steps; a step index N means the moves
-   N-1 → N and N → N+1, both directions. Adjacent steps are both ends of one
+1. **Find the affected transitions.** Work out the steps the change touches; a
+   step index N means the moves N-1 → N and N → N+1, both directions. Adjacent steps are both ends of one
    tween.
 2. **Take a baseline before changing anything** when the change is a fix:
    `npm run sheet -- <from> <to> --out sheets/before`. Without it there is no

@@ -50,7 +50,6 @@ committed copies differ from what `properties/` builds.
    change fails only goldens' `colour` hashes; regenerate with
    `npx vitest run -u` and check nothing else moved.
 4. `npm run a11y` — axe's contrast check on the rendered page, every step.
-5. A `mark.*` change stales the whole tween checklist (`npm run stale`).
 
 A new component style reads an existing role token, or a new one added to the
 group it belongs to. Stylelint (`stylelint.config.js`) refuses colour
