@@ -69,6 +69,10 @@
 
 	const top = BY_RANK.slice(0, RANK_TOP_N);
 
+	/** @param {number} band 0-based hop band */
+	const awayLabel = (band) =>
+		`${band + 1} ${band === 0 ? "movie" : "movies"} away:`;
+
 	const rows = top.map(({ id, rank }) => {
 		const fractions = hopFractions(id);
 		return {
@@ -119,9 +123,15 @@
 	// every row is the same width, so the dot grid is measured once (and
 	// recomputed on resize) rather than per row
 	let barWidth = $state(0);
-	const bars = $derived(
-		barWidth > 0 ? rows.map((row) => barPaths(row.fractions, barWidth)) : null
-	);
+	// a row's paths are struck the first time it is drawn (see `drawn`), not for
+	// all 250 up front, and struck afresh once the width changes
+	const barCache = $derived(barWidth > 0 ? new Map() : null);
+	/** @param {number} i row index */
+	function barsOf(i) {
+		if (!barCache.has(i))
+			barCache.set(i, barPaths(rows[i].fractions, barWidth));
+		return barCache.get(i);
+	}
 
 	// pre-guess the list centers on Bacon (#175, the step copy's anchor) rather
 	// than opening on #1 and spoiling the guess
@@ -187,6 +197,30 @@
 	const fade = $derived(
 		Math.max(listHeight * FADE_SHARE, rowPitch * FADE_ROWS)
 	);
+
+	// Only the rows near the scroll position draw their strip: the dots, the hop
+	// key and the race node. The rest keep their label and an empty svg of the
+	// same size, so every row is the same height whether drawn or not and the
+	// geometry centreOn and publishRows measure is the same either way. All 250
+	// drawn at once cost the hopAnchor → rankFocus press ~1.3s of dropped frames
+	// on a throttled phone profile: the mount, and then a repaint of every row's
+	// text and dots on each frame of the collapse underneath. DRAWN_ROWS either
+	// side of the visible run keeps a fling from outrunning them.
+	const DRAWN_ROWS = 20;
+	// the list's scroll position, as centreOn last set it or the reader last
+	// scrolled it; null until the list has been centred, while the focus row is
+	// what the drawn run is centred on
+	/** @type {number | null} */
+	let scrollTop = $state(null);
+	const drawn = $derived.by(() => {
+		const visible = rowPitch > 0 ? Math.ceil(listHeight / rowPitch) : 0;
+		const centre =
+			scrollTop == null || rowPitch === 0
+				? rows.findIndex((row) => row.id === focusId)
+				: Math.floor((scrollTop + listHeight / 2) / rowPitch);
+		const reach = DRAWN_ROWS + Math.ceil(visible / 2);
+		return { from: centre - reach, to: centre + reach };
+	});
 	let scrolledByReader = false;
 	// the row the effect below last centered on, so it re-centers only when the
 	// focus actually moves. Without it, any re-run after the reader has scrolled
@@ -358,7 +392,8 @@
 	$effect.pre(() => {
 		const id = focusId;
 		const ready = fontsReady;
-		if (!list || !listHeight || id == null) return;
+		// the rows render only once barWidth is in (see the markup)
+		if (!list || !listHeight || !barWidth || id == null) return;
 		// nothing may move once the bars are collapsing: the canvas has already
 		// been aimed at these rows, and a re-centre here would scroll the list out
 		// from under the nodes the reader is watching fold up
@@ -400,6 +435,7 @@
 			Math.min(target, list.scrollHeight - list.clientHeight)
 		);
 		list.scrollTo({ top: clampedTop, behavior });
+		scrollTop = clampedTop;
 		publishRows(clampedTop);
 		const bar = row.querySelector(".bar");
 		const panel = list.offsetParent;
@@ -508,83 +544,99 @@
 		bind:clientHeight={listHeight}
 		onscroll={() => {
 			atTop = list.scrollTop <= 1;
+			scrollTop = list.scrollTop;
 			publishRows(list.scrollTop);
 		}}
 	>
 		<!-- zero-height gauge: the row width the dot grid is laid out against,
 		     measured inside the scroller's padding so it needs no px assumptions -->
 		<li class="gauge" bind:clientWidth={barWidth} aria-hidden="true"></li>
-		{#each rows as row, i (row.id)}
-			<li
-				class="row"
-				data-id={row.id}
-				class:focus={row.id === focusId}
-				class:known={isKnown(row.id, row.rank)}
-			>
-				<span class="label-row">
-					<span class="label"
-						>#{row.rank}
-						{isKnown(row.id, row.rank) ? row.name : "???"}</span
-					>
-					<span class="avg">- {row.avgDistance.toFixed(2)} remoteness</span>
-				</span>
-				<!-- the svg lives inside an HTML span: the focus-row handoff below
+		{#if barCache}
+			{#each rows as row, i (row.id)}
+				{@const full = i >= drawn.from && i <= drawn.to}
+				<li
+					class="row"
+					data-id={row.id}
+					class:focus={row.id === focusId}
+					class:known={isKnown(row.id, row.rank)}
+				>
+					<span class="label-row">
+						<span class="label"
+							>#{row.rank}
+							{isKnown(row.id, row.rank) ? row.name : "???"}</span
+						>
+						<span class="avg">- {row.avgDistance.toFixed(2)} remoteness</span>
+					</span>
+					<!-- the svg lives inside an HTML span: the focus-row handoff below
 				     reads offsetTop/offsetHeight off `.bar`, which SVG elements
 				     don't carry -->
-				<span class="bar">
-					<svg
-						class="dots"
-						width={barWidth}
-						height={RANK_BAR_H}
-						viewBox="0 0 {barWidth} {RANK_BAR_H}"
-						aria-hidden="true"
-					>
-						{#each bars?.[i] ?? [] as band}
-							<path
-								d={band.d}
-								stroke={rgb(band.color)}
-								stroke-opacity={HOP_DOT_ALPHA}
-								stroke-width={RANK_DOT_D}
-								stroke-linecap="round"
-								fill="none"
-							/>
-						{/each}
-					</svg>
-					<!-- the hop key, and it is per row rather than a standing legend
+					<span class="bar">
+						<svg
+							class="dots"
+							width={barWidth}
+							height={RANK_BAR_H}
+							viewBox="0 0 {barWidth} {RANK_BAR_H}"
+							aria-hidden="true"
+						>
+							{#if full}
+								{#each barsOf(i) as band}
+									<path
+										d={band.d}
+										stroke={rgb(band.color)}
+										stroke-opacity={HOP_DOT_ALPHA}
+										stroke-width={RANK_DOT_D}
+										stroke-linecap="round"
+										fill="none"
+									/>
+								{/each}
+							{/if}
+						</svg>
+						<!-- the hop key, and it is per row rather than a standing legend
 					     because every actor has their own `fractions`: read down the
 					     ladder and the numbers are the story, hop 2 giving way to hop 3
 					     as the actors get more remote. Absolutely positioned so the
 					     labels cost the row no height — `publishRows` places all 250 of
 					     the race arrival's canvas copies off one measured row pitch, so
 					     the strip has to stay where the bar alone would put it. -->
-					<span class="shares" style="gap: {RANK_BAND_GAP}px">
-						{#each row.shares as share, band}
-							<span
-								class="share"
-								style="flex-basis: {(bars?.[i]?.[band]?.w ?? 0).toFixed(1)}px"
-								><span class="sr-only"
-									>{band + 1} {band === 0 ? "movie" : "movies"} away:
-								</span>{share}</span
+						{#if full}
+							<span class="shares" style="gap: {RANK_BAND_GAP}px">
+								{#each row.shares as share, band}
+									<span
+										class="share"
+										style="flex-basis: {barsOf(i)[band].w.toFixed(1)}px"
+										><span class="sr-only"
+											>{awayLabel(band)}
+										</span>{share}</span
+									>
+								{/each}
+							</span>
+						{:else}
+							<!-- an undrawn row's key, for a screen reader alone: the same
+						     words the drawn one carries, at the cost of one text run -->
+							<span class="sr-only"
+								>{row.shares
+									.map((share, band) => `${awayLabel(band)} ${share}`)
+									.join(" ")}</span
 							>
-						{/each}
-					</span>
-					<!-- the actor's race-chart dot, waiting at the bar's centre for the
+						{/if}
+						<!-- the actor's race-chart dot, waiting at the bar's centre for the
 					     collapse to grow it in. Its radius/colour/alpha come from the
 					     canvas's own definition (raceDotSpec), so when this overlay
 					     stands down the canvas copy underneath is indistinguishable. -->
-					{#if row.dot}
-						<span
-							class="node"
-							style:width="{row.dot.r * 2}px"
-							style:height="{row.dot.r * 2}px"
-							style:background={rgb(row.dot.rgb)}
-							style:opacity={row.dot.alpha}
-							aria-hidden="true"
-						></span>
-					{/if}
-				</span>
-			</li>
-		{/each}
+						{#if full && row.dot}
+							<span
+								class="node"
+								style:width="{row.dot.r * 2}px"
+								style:height="{row.dot.r * 2}px"
+								style:background={rgb(row.dot.rgb)}
+								style:opacity={row.dot.alpha}
+								aria-hidden="true"
+							></span>
+						{/if}
+					</span>
+				</li>
+			{/each}
+		{/if}
 		<li class="footnote" aria-hidden="true">
 			Only the top {RANK_TOP_N} actors shown
 		</li>
