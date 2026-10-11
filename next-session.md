@@ -1,141 +1,123 @@
-# Handoff: Overlap audit with screenshot evidence, chart text included
+# Handoff: Tween performance sweep across every step transition
 
 ## Starting Prompt
 
-Goal: audit the whole story for overprinting text again, now that `b5d468f`
-and `dd7dc4c` have landed. Back every finding with a screenshot you have
-looked at yourself. This time, cover **chart text against chart text** as
-well. `npm run overlap` can't see those collisions, and Owen has found two of
-them by eye on his phone.
+Goal: measure how every step transition in the story performs, forward and
+back, with the method the 6→7 investigation used (2026-10-09, commit
+`0cc25d4`). Produce a ranked table of the worst presses, then find the cause
+of the top few with evidence. **Report findings and proposed fixes; change no
+`src/` code without Owen's go-ahead.** Some of the costs are design choices,
+like 6→7's 22.5k converging dots.
 
 Context:
 
-- **`b5d468f`, step 12:** "Samuel L. Jackson · 116 films" ran into the
-  upright "↑ more central / Remoteness" y-axis title at 375. Below a 360px
-  visual, the names now drop "films" (`scatters.js`, `filmsLabel`).
-- **`dd7dc4c`, steps 11/18/19/25:** "THE FUTURE" sat in the box's top-right
-  corner, on SLJ's name. It now sits bottom-right, except on step 25, where
-  it stays bottom-left because SLJ's projected name falls to just above the
-  bottom-right corner (`race.js`, `raceFutureBand`).
-- **What the scan sees:** `scripts/overlap-scan.js` measures shared **ink**
-  for prose×chart, prose×title and title×chart only. Every axis title, tick,
-  name, callout and band label falls in the one "chart" group, so a collision
-  inside that group is never reported.
+- **Method:** a production build with the `?step` DEV gate removed, served
+  statically, Chromium headless with a 4× CDP CPU throttle, real clock. Press
+  the arrow key and record rAF frame intervals for 2s, plus a CDP trace with
+  the v8 CPU profiler, then break each long task into script, style, layout
+  and Commit.
+- **What 6→7 taught:**
+  1. **Slow `Commit` frames:** `LayerTreeHost::DoUpdateLayers` with no children
+     was the 2D canvas raster, not DOM. Time it directly by calling
+     `ctx.getImageData(0,0,1,1)` at the end of `drawScene` (scratch copy only)
+     and count the dots `drawDots` draws per frame.
+  2. **Ablations can stop the tween:** removing the rank panel stopped the
+     tween itself, because `rankFocus` waits on `story.rank.focusBar`, so it
+     read as 60fps. For every ablation, confirm the canvas still moved (dot
+     count per frame, or a sheet).
+  3. **Invalidation tracing:** the trace category
+     `disabled-by-default-devtools.timeline.invalidationTracking` names the
+     elements restyled or relaid each frame.
+  4. **Forced restyles:** Svelte `fade`/`fly` call `getComputedStyle`, so a
+     big mount in the same flush shows up as `fade` self time.
+- **Profiles:** use 390×844 at DPR 3 for comparison with the 2026-09-24
+  review, and 375×667 at DPR 2 (the support floor). Add an unthrottled run
+  for the worst few.
 
 Do this:
 
-1. Read `CLAUDE.md`, `notes/scrolly-framework.md` ("The plot geometry, in one
-   paragraph"), and the M7/M8 sections of
-   `notes/audit/a11y-review-2026-10-06.md`. The review has uncommitted edits
-   from Owen or another session; don't overwrite them.
-2. Boxes: 375×667 (the phone floor, Owen 2026-10-07: never change the
-   scripts' `mobile` box), 390×844 and 667×375. Use 100% text, plus 200% for
-   the scan. Run Chromium and **WebKit** at each.
-3. Dev server: use the one already running in the checkout. Find it with
-   `lsof -iTCP -sTCP:LISTEN -P | grep node`, then check each PID's cwd with
-   `lsof -a -p <pid> -d cwd`. Port 5174 was this checkout's on 2026-10-07.
-   **First check that it serves current source.** On 2026-10-07 it was
-   serving stale CSS: its watcher had stopped picking up edits. Check with
-   `curl -s "<url>src/components/scrolly/ScrollyVisual.svelte?svelte&type=style&lang.css" | grep -c "band-label-right"`,
-   which should print 1 or more. If it's stale, ask Owen to restart it rather
-   than starting a second Vite server; they share `.svelte-kit/`. Pass
-   `--url` to every script, and don't edit `src/` while a scan is running.
-4. Prose and title overlaps: `node scripts/overlap-scan.js --url <url>`.
-5. Chart×chart overlaps: write a probe (or extend the scan with a fourth
-   pairing inside the chart group) that compares, at rest on every step,
-   the **glyph boxes** (a `Range` over the element's contents, not the
-   element box) of `.node-label`, `.y-title-top span`, `.tick-y`, `.tick-x`,
-   `.x-label`, `.band-label`, `.callout p` and `.legend` against each other.
-   Exclude `.card-measure`, `.title-measure` and `.layer.gone`, and anything
-   at opacity ≤ 0.05.
-   - Count a gap under 4px as a hit: names carry a 7px halo (see the memory
-     on label overlap).
-   - Then confirm each hit in ink, or with a 3× crop, before reporting it.
-     Element boxes overstate: `.tick-y` boxes overlap the y-title without
-     any glyph contact.
-   - `sheets/overlap/band-label.mjs` is a working starting point: the band
-     label against everything else, `URL=` and `STEPS=` env vars, saving
-     a full-page shot per case.
-6. Settle: wait for the prose (`.scrolly-steps > .step-prose`), or about
-   5–9s on a real clock, after `document.fonts.ready`. A cold `?step=N` waits
-   on fonts before the canvas draws. On gated steps (8, 18 and the quiz), the
-   URL opens the step at rest.
-7. Evidence: save a WebKit screenshot for every hit to
-   `notes/audit/a11y/<what>-<step>-<WxH>.png` (the existing convention), and
-   put the bulk sets in `sheets/` (gitignored).
-8. Report a table per box: step, the pair (prose×chart, prose×title,
-   title×chart, chart×chart with both elements named), the overlap in px,
-   the screenshot path, and one line saying what prints over what. Split it
-   into new, already known (Key Context), and clear. Don't fix anything
-   without Owen's go-ahead, and don't commit unless asked.
+1. Read `CLAUDE.md`, `notes/scrolly-framework.md`, and the memories
+   `mobile-perf-review`, `tween-sheet-pitfalls` and `node-24-via-nvm-path`.
+   Prefix every node command with
+   `export PATH=$HOME/.nvm/versions/node/v24.13.1/bin:$PATH`.
+2. **Build a scratch copy:** `rsync` the repo, excluding `node_modules`,
+   `.svelte-kit`, `build`, `docs`, `sheets`, `screenshots` and `.git`, into
+   the scratchpad, and symlink `node_modules` back to the repo. In
+   `src/components/scrolly/step-registry.svelte.js`, replace
+   `!import.meta.env.DEV || typeof window` with `typeof window`. Run
+   `npx vite build --minify false` (unminified, so profiles keep names). Serve
+   it with `python3 -m http.server <port> --bind 127.0.0.1` in tmux. The
+   server occasionally stalls on a `goto`; rerun that one. Never build inside
+   the real checkout: it shares `.svelte-kit/` with Owen's dev server.
+3. **Harness:** copy it from `~/.cache/claude-scratch/kevin-bacon/tween-perf/`
+   and point its port at your server:
+   - `perf.mjs <from> <outdir> [w h dpr throttle key]` gives frame
+     intervals, long-animation-frame entries and `trace.json`. Env vars: `Q`
+     appends to the query, `CSS` injects a style for an ablation, `CATS`
+     adds trace categories.
+   - `analyze.mjs <trace.json> [ms]` gives the long tasks with their
+     style/layout/commit split, and CPU self and total time.
+   - `flush.mjs <from> [key throttle dpr]` gives per-frame canvas raster time
+     and dot count. It needs the `__rec`/`__n` instrumentation patched into
+     the scratch `ScrollyVisual.svelte` (`drawScene`, after `ctx.restore()`)
+     and `render.js` (`drawDots`, `addDot`).
+   - `centre.mjs` is a before/after geometry check against a pristine HEAD
+     build (`git archive HEAD`).
+4. **Sweep:** list the steps with `scripts/story-steps.js` (`parseSteps`),
+   then run `perf.mjs` for every N→N+1 (ArrowRight) and N+1→N (ArrowLeft).
+   - A gated step (`gate={NEVER}`: steps 7, 9 and others) refuses the arrow.
+     Press its control instead (`--click`-style, e.g. "Skip"; a Playwright
+     button click).
+   - Step 3 is the `Splash`; check how it advances.
+   - Record worst frame, the first 6 intervals, average fps over 2s, and the
+     count of frames over 50ms. Run each pair twice: run-to-run noise is real.
+5. Rank the transitions. For the top 3–5, trace and profile them, ablate,
+   and confirm the cause. Before claiming anything about what the canvas
+   does, read the transition's tween sheet (`npm run sheet -- <from> <to>
+--url <dev server>`, against Owen's running dev server, after checking it
+   serves current source).
+6. **Write up:** the ranked table, the evidence per cause, and the fix
+   options with trade-offs. If Owen wants the harness kept, propose moving
+   it into `scripts/perf/` as an npm script.
 
 ## Relevant Files
 
-- `scripts/overlap-scan.js`: `npm run overlap`, the ink-based scan. Its groups
-  are prose, title, chart and cue (`PAIRS`), and chart×chart isn't one of
-  its pairings.
-- `sheets/overlap/band-label.mjs`: the band label's glyph box against every
-  other text, per step and box, in both engines. `ytitle-boxes.mjs` compares
-  the y-title against names and ticks (element boxes). `ytitle-gap-12.mjs`
-  measures step 12's name-to-y-title clearance across widths.
-- `sheets/a11y/fix/shots.mjs`: the screenshot probe from the previous session
-  (`node sheets/a11y/fix/shots.mjs <engine> <WxH> <steps> [wait]`).
-- `src/components/scrolly/ScrollyVisual.svelte`:
-  - `.y-title-top` and `titleOverrun`: the y-title steps below the chart
-    title and the tick labels, but never below names.
-  - `.node-label` transforms: the sides are `left`, `right`, `belowLeft`
-    and `belowRight`, clamped to the canvas.
-  - `.band-label`.
-- `src/components/scrolly/layouts/scatters.js` (`states.scatterCenters`
-  `labelDirs`/`labelText`, `PAIR_SIDE_MIN_W`, `FILMS_WORD_MIN_W`) and
-  `layouts/race.js` (`raceFutureBand`, `raceLabelCut`): the existing
-  width-gated label rules.
-- `notes/audit/a11y-review-2026-10-06.md` and
-  `notes/audit/a11y-fix-plan-2026-10-06.md`: the earlier findings. Both have
-  uncommitted edits.
-- `notes/audit/a11y/*.png`: untracked evidence from the earlier pass,
-  including `ytitle-over-name-11-375.png`, `callout-over-ytitle-10-375.png`
-  and `tick-over-ytitle-18-375.png`.
+- `src/components/scrolly/ScrollyVisual.svelte`: `drawScene` and the frame
+  loop (`createFrameLoop`), where per-frame canvas work happens.
+- `src/components/scrolly/render.js`: `drawDots`, `addDot` and the
+  per-bucket `Path2D` fills, which are where raster cost scales with dot
+  count.
+- `src/components/scrolly/layouts/*.js`: what each state draws. `rank.js`
+  sends every hop 1–4 actor into Bacon's bar, which is 6→7's 22.5k dots.
+- `src/components/scrolly/RankBars.svelte`: the windowed list (`drawn`,
+  `DRAWN_ROWS`, `barsOf`) from `0cc25d4`.
+- `src/components/scrolly/Stage.svelte`: panels and their mount and fade
+  timing.
+- `src/components/scrolly/step-registry.svelte.js`: the DEV-only `?step`
+  gate to patch in the scratch copy.
+- `scripts/story-steps.js`, `scripts/tween-sheet.js` and
+  `scripts/lib/story-page.js`: the step list, sheets and story-ready wait.
+- `~/.cache/claude-scratch/kevin-bacon/tween-perf/`: the harness (outside
+  the repo).
 
 ## Key Context
 
-- **Fixed and confirmed on 2026-10-07** (375, 390, 430, 667×375 and
-  1280×800; Chromium and WebKit; glyph gap ≥ 4px):
-  - Step 12: the names against the y-title.
-  - Steps 11, 18, 19 and 25: "THE FUTURE" against every other text.
-- **Known chart×chart overlaps, not fixed:**
-  - **Step 11, 375:** "Samuel L. Jackson" starts at the y-title's right
-    edge, under "↑ more central" (`ytitle-over-name-11-375.png`; visible in
-    Owen's photo too).
-  - **Step 11, landscape:** the race names spill above the plot and through
-    the chart title (title×chart, ~135px; already in the earlier handoff).
-  - **Step 10, 375:** the callout over the y-title
-    (`callout-over-ytitle-10-375.png`).
-  - **WebKit, by element box, not yet confirmed in ink:** `.tick-y` labels
-    overlap the y-title. That's "3.0"/"2.4" on steps 18–19 at 375/390,
-    "Costar film count average (log scale)" against "100"/"20" on step 16
-    at 390 and landscape, and "3.0" on steps 12–15 and 18–19 in landscape.
-- **Known prose/title overlaps after `ee20518`:**
-  - **100% text at 375/390:** step 5, where the plate lies over the 1- and
-    2-movie band labels.
-  - **Landscape:** steps 4–5 (plate over the bands), 8–9 (race names spill
-    below a ~60–75px plot) and 11 (title×chart). On step 25, SLJ's name and
-    the y-title drop below the plot.
-  - **200% text:** titles run onto plot tops by design (past `MIN_PLOT_H` =
-    48), and the race and hop steps still overlap.
-- **Fix patterns already in use, if Owen asks for fixes later:**
-  - Width-gated label text or sides (`filmsLabel`, `pairLabelDirs`).
-  - Moving furniture to an empty corner.
-  - `titleOverrun`, which steps the y-title clear of the title and ticks.
-  - Any layout change regenerates goldens with `npx vitest run -u`.
-  - A changed `layouts/*.js` or `ScrollyVisual.svelte` needs its rows
-    staled; the pre-commit gate checks this.
-- **The reader's photo** was a 402×718 Safari page. 375×667 covers it.
-- **Pitfalls:**
-  - Use Node 24: prefix `PATH` with `~/.nvm/versions/node/v24.13.1/bin`.
-  - `set -- $t` doesn't split words in zsh, so run loops under `bash -c`.
-  - The faked clock in `npm run sheet` can drop a step's prose from its first
-    frame.
-  - Headless Chromium has only overlay scrollbars.
-  - Combining PNGs via `file://` in `page.setContent` renders broken images;
-    read each shot on its own.
+- **6→7 baseline (4×, 390×844, DPR 3):** frames of 483 · 250 · 217 · 117 ·
+  83 · 133ms, 24fps. After `0cc25d4`: 300 · 250 · 217 · 100 · 100 · 117,
+  31fps. Unthrottled, the press frame went from 117ms to 67ms. The remaining
+  frames are canvas raster: 155 → 45ms per frame for 22,530 dots, against
+  about 28ms per frame and 3.4k dots on 5→6. Owen accepted leaving that as
+  is (2026-10-09).
+- **7→8 frames:** 100–150ms during the reveal cascade and scroll to #1, still
+  uninvestigated. It's a good early candidate.
+- **5→6:** about 49fps, with steady roughly 30ms canvas flushes per frame.
+- **HEAD's rank panel height:** varies run to run (list height 547 vs 512px
+  at 390×844). That predates this work; don't mistake it for a regression.
+- **Headless vs phone:** headless canvas raster is CPU-side, while phones use
+  the GPU. Absolute canvas costs are overstated, but the ranking between
+  steps still holds. WebKit has no throttle or trace over Playwright, so
+  Safari gets frame times only.
+- **Commits:** never without Owen's explicit request, use
+  `git commit -- <paths>`, and add no AI co-author trailer.
+- **This file:** it replaces the overlap-audit handoff, which is still
+  recoverable from git (`git show HEAD:next-session.md`).
