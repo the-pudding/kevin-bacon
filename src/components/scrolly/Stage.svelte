@@ -357,6 +357,31 @@
 			? { duration: 0 }
 			: { duration: CARD_OUT_MS, easing: cubicInOut }
 	);
+	// The stacked cue leaves pinned where it was read, as the prose does
+	// (Step.svelte's proseLeave). It is in flow at the card's foot, and the
+	// press re-lifts the card (`cardLift`) for the next step's chart before the
+	// fade starts, which carried the cue ~60px up the screen at full ink.
+	/** @type {HTMLElement | null} */
+	let cueEl = $state(null);
+	/** @type {DOMRect | null} */
+	let cueLeftFrom = null;
+	let cueWasShown = false;
+	$effect.pre(() => {
+		const shown = steps.current === 0 && !beside;
+		if (cueWasShown && !shown && cueEl)
+			cueLeftFrom = cueEl.getBoundingClientRect();
+		cueWasShown = shown;
+	});
+	/** @param {HTMLElement} node @param {import("svelte/transition").FadeParams} params */
+	function cueLeave(node, params) {
+		if (cueLeftFrom) {
+			node.style.position = "fixed";
+			node.style.left = `${cueLeftFrom.left}px`;
+			node.style.top = `${cueLeftFrom.top}px`;
+			node.style.width = `${cueLeftFrom.width}px`;
+		}
+		return fade(node, params);
+	}
 	// The step's own panel. `{#key}`ed on the snippet so two steps declaring
 	// different panels back to back would swap rather than mutate; today the two
 	// panel steps are never adjacent, so this only ever mounts and unmounts.
@@ -486,7 +511,8 @@
 						class="nav-cue in-card"
 						class:shown={!steps.held}
 						aria-hidden="true"
-						out:fade={cardOut}
+						bind:this={cueEl}
+						out:cueLeave={cardOut}
 					>
 						{@render navCue()}
 					</div>
