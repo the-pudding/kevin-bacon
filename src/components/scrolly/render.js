@@ -4,6 +4,7 @@
 // Pure over (ctx, buffers): it reads nothing reactive and owns no state beyond
 // the scratch collections it reuses so a frame allocates nothing.
 import { STRIDE, EDGE_BASE } from "./attr-buffer.js";
+import { createCircleSet } from "./circle-set.js";
 import {
 	ANCHOR_HALO,
 	EDGE_GREY,
@@ -27,6 +28,9 @@ const TAU = Math.PI * 2;
 // one Path2D per (quantised rgb, alpha bucket): batches ~1k dots into a
 // handful of fills instead of a fillStyle + fill per dot
 const dotBuckets = new Map();
+// the circles each bucket already holds this pass: an exact repeat is left out
+// of its path (see circle-set.js)
+const bucketedCircles = createCircleSet(EDGE_BASE / STRIDE);
 // slots drawn in the second and third trail passes, reused rather than
 // allocated per frame
 /** @type {number[]} */
@@ -249,16 +253,10 @@ export function drawTrails(ctx, trailAttrs, focus = NO_FOCUS, halo, order) {
 		const hi = trailAttrs[base + TRAIL_POINTS * 2 + 1];
 		strokeTrail(ctx, trailAttrs, t, alpha + (1 - alpha) * hi, hi, INK, halo);
 	}
+	// ...and so is the focused line, whatever the field's alpha it rests at: a
+	// hover that only whitened a 0.35 line would leave it greyer than the leader
 	for (const t of focusedTrails) {
-		strokeTrail(
-			ctx,
-			trailAttrs,
-			t,
-			trailAttrs[t * TRAIL_STRIDE + TRAIL_POINTS * 2],
-			1,
-			FOCUS,
-			halo
-		);
+		strokeTrail(ctx, trailAttrs, t, 1, 1, FOCUS, halo);
 	}
 	ctx.lineWidth = 1;
 }
@@ -375,7 +373,11 @@ function dotBucket(attrs, i, alpha) {
 		const key = 0x1000000 + ((r << 16) | (g << 8) | b);
 		let bucket = dotBuckets.get(key);
 		if (!bucket) {
-			bucket = { path: new Path2D(), style: `rgb(${r}, ${g}, ${b})` };
+			bucket = {
+				id: dotBuckets.size,
+				path: new Path2D(),
+				style: `rgb(${r}, ${g}, ${b})`
+			};
 			dotBuckets.set(key, bucket);
 			exactBuckets++;
 		}
@@ -389,6 +391,7 @@ function dotBucket(attrs, i, alpha) {
 	let bucket = dotBuckets.get(key);
 	if (!bucket) {
 		bucket = {
+			id: dotBuckets.size,
 			path: new Path2D(),
 			style: `rgba(${(rB << 4) | 8}, ${(gB << 4) | 8}, ${(bB << 4) | 8}, ${(aB + 0.5) / 16})`
 		};
@@ -431,8 +434,7 @@ function circleMeetsView(x, y, r, view) {
  *   arrives into, and the named contenders over the field)
  */
 export function drawDots(ctx, attrs, skip, focus, view, late) {
-	dotBuckets.clear();
-	exactBuckets = 0;
+	clearBuckets();
 	focusedDots.length = 0;
 	for (const layer of lateDots) layer.length = 0;
 	for (let i = 0; i < EDGE_BASE; i += STRIDE) {
@@ -466,6 +468,7 @@ function addDot(attrs, i, view) {
 	const r = attrs[i + 2];
 	if (!circleMeetsView(x, y, r, view)) return;
 	const bucket = dotBucket(attrs, i, attrs[i + 6]);
+	if (!bucketedCircles.add(bucket.id, x, y, r)) return;
 	// moveTo before arc so consecutive circles aren't joined by a chord
 	bucket.path.moveTo(x + r, y);
 	bucket.path.arc(x, y, r, 0, TAU);
@@ -481,11 +484,17 @@ function holdLate(i, layer) {
 function fillLate(ctx, attrs, view) {
 	for (const layer of lateDots) {
 		if (!layer.length) continue;
-		dotBuckets.clear();
-		exactBuckets = 0;
+		clearBuckets();
 		for (const i of layer) addDot(attrs, i, view);
 		fillBuckets(ctx);
 	}
+}
+
+/** empty every bucket, ready for a pass of dots */
+function clearBuckets() {
+	dotBuckets.clear();
+	bucketedCircles.clear();
+	exactBuckets = 0;
 }
 
 /** fill every bucket opened since the last clear, in the order they opened */

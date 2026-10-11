@@ -213,8 +213,11 @@ rank order, never by raw rank against `nodes.length`.
   choreographies and ambients, and disables the overlay fades.
 - `drawDots` buckets dots into one `Path2D` per quantised (rgb, alpha) pair, so
   the whole crowd is a handful of fills a frame, and a dot wholly outside the
-  cleared rectangle (`view`) is never added to a path. Measurements:
-  `notes/perf/mobile-perf-review.md`.
+  cleared rectangle (`view`) is never added to a path. Nor is a circle its
+  bucket already holds exactly (`circle-set.js`): it adds no pixels to a
+  nonzero fill, but a stack of them costs raster time — seconds, for
+  careerMany's crowd arriving stacked on one point. Measurements:
+  `notes/perf/mobile-perf-review.md`, `notes/perf/tween-sweep-2026-10-10.md`.
 - Beside the prose (≥ 1200px, `Stage`'s `beside`) the plot takes
   `PLOT_BOTTOM_BESIDE` of the column instead of its group's measured reserve, and the
   prose holds a column of its own on the left for the whole story

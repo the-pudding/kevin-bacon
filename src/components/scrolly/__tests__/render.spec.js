@@ -72,6 +72,35 @@ describe("drawDots", () => {
 		expect(pathedXs(calls)).toEqual([-2, 50, 102]);
 	});
 
+	test("paths a circle once per bucket however many dots repeat it exactly", () => {
+		const attrs = new Float64Array(ATTR_SIZE);
+		set(attrs, 0, 10, 10, 3, [255, 0, 0], 1);
+		set(attrs, 1, 10, 10, 3, [255, 0, 0], 1); // an exact repeat
+		set(attrs, 2, 10, 10, 2, [255, 0, 0], 1); // same spot, smaller
+		set(attrs, 3, 10, 10, 3, [0, 0, 255], 1); // same circle, another bucket
+		set(attrs, 4, 10, 10.5, 3, [255, 0, 0], 1); // half a pixel off
+		const { ctx, calls } = fakeContext();
+		drawDots(ctx, attrs, null, NO_FOCUS, VIEW);
+		const fills = calls.filter(([op]) => op === "fill");
+		expect(fills.map(([, , arcs]) => arcs)).toEqual([
+			[
+				[10, 10, 3],
+				[10, 10, 2],
+				[10, 10.5, 3]
+			],
+			[[10, 10, 3]]
+		]);
+	});
+
+	test("forgets the last frame's circles", () => {
+		const attrs = new Float64Array(ATTR_SIZE);
+		set(attrs, 0, 10, 10, 3, [255, 0, 0], 1);
+		drawDots(fakeContext().ctx, attrs, null, NO_FOCUS, VIEW);
+		const { ctx, calls } = fakeContext();
+		drawDots(ctx, attrs, null, NO_FOCUS, VIEW);
+		expect(pathedXs(calls)).toEqual([10]);
+	});
+
 	test("draws a focused dot even wholly outside the view", () => {
 		const attrs = new Float64Array(ATTR_SIZE);
 		set(attrs, 0, -40, 50, 3, [255, 0, 0], 1);
