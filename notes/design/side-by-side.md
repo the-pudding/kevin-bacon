@@ -155,6 +155,11 @@ from its `beside` prop, AND puts the fraction in the layout cache key. The key i
 what makes it a rule rather than a coincidence: `w` changes with the mode too, so
 the key would usually miss anyway.
 
+The share is a ceiling, not the floor itself. The race group also keeps
+`BESIDE_RESERVES.race` (the year slider's row) and `AXIS_ROOM` clear at the
+foot, so on a canvas under about 900px tall its floor rises above the share;
+before that, "Year" printed through the slider's readout at 1280×720.
+
 The breakpoint itself is stated twice — a `@media` rule and `BESIDE_MIN_W` — and
 has to be kept in step by hand, because a breakpoint cannot be read back out of
 CSS and the render path needs the boolean rather than the layout.

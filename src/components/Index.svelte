@@ -15,6 +15,12 @@
 	import useWindowDimensions from "$runes/useWindowDimensions.svelte.js";
 	import { story, request } from "$components/scrolly/story.svelte.js";
 	import { STATE_PARAMS, quizDone } from "$components/scrolly/states.js";
+	import {
+		SCRUBBER_FOOT,
+		SCRUBBER_ROOM,
+		chartFloor,
+		reserveOf
+	} from "$components/scrolly/plot.js";
 	import { createStepRegistry } from "$components/scrolly/step-registry.svelte.js";
 	import { prepareArrival } from "$components/scrolly/arrivals.js";
 	import { resetHopAnchor } from "$components/scrolly/story.svelte.js";
@@ -116,6 +122,7 @@
 	);
 	// The caption hangs a short gap under the constellation's lowest name, in a
 	// band of its own: the intro group's reserve carries the band (`aboveCard`),
+	// as the race group's carries the year slider's on raceFull,
 	// so the constellation's fit stops above it and the caption never has to be
 	// lifted into the graph to clear the card.
 	const ROUTE_GAP = 12;
@@ -131,26 +138,47 @@
 			? Math.max(...routeHeights)
 			: 0
 	);
+	// raceFull's band is the year slider's (SCRUBBER_ROOM): stacked, the slider
+	// hangs in it, between the x-axis title and the card, rather than off the
+	// card's top, where a card shorter than the group's tallest left it printed
+	// over the title. Most widths need no more reserve for it: a taller race
+	// card already keeps it clear.
 	const aboveCard = $derived(
-		routeHeight ? { intro: routeHeight + 2 * ROUTE_GAP } : null
+		routeHeight
+			? { networkIntro: routeHeight + 2 * ROUTE_GAP, raceFull: SCRUBBER_ROOM }
+			: null
 	);
 	/** @param {{ width: number, height: number, geometry: import("$components/scrolly/plot.js").PlotGeometry | null }} layout the stage's measurements */
 	const routeTop = ({ width, height, geometry }) =>
 		introBottom(width, height, geometry) + ROUTE_GAP;
-	// Where the constellation's chart ends, for Stage to centre the step card
-	// under: the foot of the tour caption's band under the lowest name, whether
-	// or not it is showing yet, so the card does not move when it arrives. Other
-	// states answer null and Stage takes their plot group's.
+	// Where the year slider's row ends, as the panel's `bottom`: stacked, at the
+	// foot of its band, which hangs from the chart's foot (the race group's
+	// reserve); off the canvas's foot beside the prose, where no card is under it.
+	/** @param {{ beside: boolean, geometry: import("$components/scrolly/plot.js").PlotGeometry | null }} layout the stage's measurements */
+	const scrubberBottom = ({ beside, geometry }) =>
+		beside ? SCRUBBER_FOOT : reserveOf("race", geometry) - SCRUBBER_ROOM;
+	// Where the chart ends, for Stage to centre the step card under, on the two
+	// charts with a band of DOM under them: the constellation, to the foot of
+	// the tour caption's band under the lowest name, whether or not it is
+	// showing yet, so the card does not move when it arrives; and raceFull, to
+	// the foot of the slider's. Other states answer null and Stage takes their
+	// plot group's.
 	/**
 	 * @param {string} state
 	 * @param {{ width: number, height: number }} box
 	 * @param {import("$components/scrolly/plot.js").PlotGeometry} geometry
 	 */
-	function chartFloor(state, { width, height }, geometry) {
-		if (state !== "networkIntro") return null;
-		return (
-			introBottom(width, height, geometry) + ROUTE_GAP + routeHeight + ROUTE_GAP
-		);
+	function storyFloor(state, { width, height }, geometry) {
+		if (state === "networkIntro")
+			return (
+				introBottom(width, height, geometry) +
+				ROUTE_GAP +
+				routeHeight +
+				ROUTE_GAP
+			);
+		if (state === "raceFull")
+			return chartFloor(height, "race", geometry) + SCRUBBER_ROOM;
+		return null;
 	}
 	// Gated on `settled`, which for this state means the walk is over: it is
 	// written by ScrollyVisual's settle() at the END of the pop-in, i.e. the
@@ -238,7 +266,7 @@
 	<!-- the page's one h1: the title card's own name is drawn, not a heading,
 	     and unmounts with its step -->
 	<h1 class="sr-only">{copy.meta.title}</h1>
-	<Stage {steps} {dimensions} floor={chartFloor} {aboveCard}>
+	<Stage {steps} {dimensions} floor={storyFloor} {aboveCard}>
 		{#snippet children(layout)}
 			<!-- shared over-canvas panels live here, beside the <Step>s rather
 		     than inside one — a snippet declared directly inside a
@@ -312,7 +340,7 @@
 			{#snippet racePanel()}
 				<div
 					class="race-scrubber-panel"
-					style="bottom: {layout.overlayHeight + 12}px"
+					style="bottom: {scrubberBottom(layout)}px"
 				>
 					<RaceScrubber />
 				</div>
@@ -914,8 +942,8 @@
 </svelte:boundary>
 
 <style>
-	/* raceFull scrubber: spans the plot region above the step card (inline
-	   `bottom`). Transparent — the drag surface sits over the live canvas; only
+	/* raceFull scrubber: spans the plot region down to the foot of the race
+	   group's slider band (inline `bottom`, scrubberBottom). Transparent — the drag surface sits over the live canvas; only
 	   the slider control at its bottom edge is opaque. */
 	.race-scrubber-panel {
 		position: absolute;

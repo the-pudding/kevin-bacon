@@ -11,18 +11,20 @@
 
 	/**
 	 * What the prose is handed: how much of the canvas's bottom edge the step
-	 * card covers, the canvas box, the measured plot geometry (null until it is
-	 * all in) and the visual itself (for the pair quiz's flights).
-	 * @typedef {{ overlayHeight: number, width: number, height: number, geometry: import("./plot.js").PlotGeometry | null, visual: ScrollyVisual | undefined }} StageLayout
+	 * card covers, the canvas box, whether the prose sits beside it, the
+	 * measured plot geometry (null until it is all in) and the visual itself
+	 * (for the pair quiz's flights).
+	 * @typedef {{ overlayHeight: number, width: number, height: number, beside: boolean, geometry: import("./plot.js").PlotGeometry | null, visual: ScrollyVisual | undefined }} StageLayout
 	 */
 
 	/**
 	 * `floor` is where a state's chart ends when the story, not its plot group,
-	 * knows (the tour caption, Index.svelte). `aboveCard` is, per group, the px
-	 * the story keeps between that group's chart and its card for DOM of its
-	 * own — the tour caption's band, on the opening — added to the group's
-	 * measured reserve; null until the story has measured it.
-	 * @type {{ steps: ReturnType<typeof import("./step-registry.svelte.js").createStepRegistry>, dimensions: { width: number, height: number }, floor?: (state: import("./states.js").VisualState, box: { width: number, height: number }, geometry: import("./plot.js").PlotGeometry) => number | null, aboveCard: Partial<Record<import("./plot.js").PlotGroup, number>> | null, children: import("svelte").Snippet<[StageLayout]> }}
+	 * knows (the tour caption, Index.svelte). `aboveCard` is, per state, the px
+	 * the story keeps between that state's chart and its card for DOM of its
+	 * own — the tour caption's band on the opening, the year slider's on
+	 * raceFull — added to that state's card where its group's reserve is
+	 * measured; null until the story has measured it.
+	 * @type {{ steps: ReturnType<typeof import("./step-registry.svelte.js").createStepRegistry>, dimensions: { width: number, height: number }, floor?: (state: import("./states.js").VisualState, box: { width: number, height: number }, geometry: import("./plot.js").PlotGeometry) => number | null, aboveCard: Partial<Record<import("./states.js").VisualState, number>> | null, children: import("svelte").Snippet<[StageLayout]> }}
 	 */
 	let { steps, dimensions, floor, aboveCard, children } = $props();
 
@@ -155,27 +157,28 @@
 	const cardOf = (i) =>
 		(steps.configs[i].cardHeight ?? 0) + (i === 0 ? cueHeight : 0);
 	/**
-	 * Each measured group's tallest card, capped — or null while any card in a
-	 * group has yet to report.
+	 * Each measured group's tallest card, capped, with the band its state keeps
+	 * over it (`aboveCard`) — or null while any card in a group has yet to
+	 * report. Per step rather than per group, so a band one state needs fits in
+	 * what a taller card of another state already keeps clear.
+	 * @param {Partial<Record<import("./states.js").VisualState, number>>} bands
 	 * @returns {Partial<Record<import("./plot.js").PlotGroup, number>> | null}
 	 */
-	function tallestCards() {
+	function tallestCards(bands) {
 		/** @type {Partial<Record<import("./plot.js").PlotGroup, number>>} */
 		const out = {};
 		for (const [i, { state }] of steps.configs.entries()) {
 			const group = STATE_GROUP[state];
 			if (!group || isProseOver(state)) continue;
 			if (!steps.configs[i].cardHeight) return null;
-			out[group] = Math.max(out[group] ?? 0, Math.min(cardOf(i), cardCap));
+			const reserve = Math.min(cardOf(i), cardCap) + (bands[state] ?? 0);
+			out[group] = Math.max(out[group] ?? 0, reserve);
 		}
 		return out;
 	}
 	const reserves = $derived.by(() => {
 		if (!fontsReady || !cardCap || !cueHeight || !aboveCard) return null;
-		const out = tallestCards();
-		if (!out) return null;
-		for (const [group, px] of Object.entries(aboveCard)) out[group] += px;
-		return out;
+		return tallestCards(aboveCard);
 	});
 	// how far each group's chart title runs past one line, measured by
 	// ScrollyVisual, which owns the title (bound back out of it)
@@ -387,6 +390,9 @@
 		},
 		get height() {
 			return visualHeight;
+		},
+		get beside() {
+			return beside;
 		},
 		get geometry() {
 			return geometry;

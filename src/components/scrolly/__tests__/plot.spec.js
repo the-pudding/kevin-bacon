@@ -48,11 +48,22 @@ describe("plot floor", () => {
 			}
 	});
 
-	test("takes the column's own share beside the prose, whatever the group", () => {
+	test("takes the column's own share beside the prose, on a canvas tall enough", () => {
 		for (const group of AXIS_GROUPS)
-			expect(plotBottomAt(820, group, true, MEASURED)).toBe(
-				820 * PLOT_BOTTOM_BESIDE
+			expect(plotBottomAt(1000, group, true, MEASURED)).toBe(
+				1000 * PLOT_BOTTOM_BESIDE
 			);
+	});
+
+	test("keeps the race chart's year slider and AXIS_ROOM over it clear beside the prose", () => {
+		for (const h of [574, 694, 820]) {
+			const floor = plotBottomAt(h, "race", true, MEASURED);
+			expect(floor).toBeLessThan(h * PLOT_BOTTOM_BESIDE);
+			expect(floor + AXIS_ROOM).toBe(h - 78);
+			expect(plotBottomAt(h, "scatter", true, MEASURED)).toBe(
+				h * PLOT_BOTTOM_BESIDE
+			);
+		}
 	});
 
 	test("is not drawn to a guess before the geometry is measured", () => {

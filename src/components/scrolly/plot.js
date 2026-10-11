@@ -142,19 +142,41 @@ export const shareBottom = (h) => shareBottomAt(h, plotBeside);
 export const reserveOf = (group, geometry = plotGeometry) =>
 	measured(geometryOf(geometry).reserves, group);
 
+// The race chart's year slider row — RaceScrubber's .control (56px) and the
+// year riding 6px over its thumb — and 4px of air over it: a band the race
+// group keeps between its x-axis title and what lies under the chart. Stacked
+// that is raceFull's card, which carries the band into the group's reserve
+// (Index.svelte's `aboveCard`); beside the prose it is the canvas's foot, which
+// the slider stands SCRUBBER_FOOT off. Either way the whole group's floor
+// keeps it, slider or none, so a step change inside the group leaves the axes
+// where they are (motion.md rule 7).
+export const SCRUBBER_ROOM = 66;
+export const SCRUBBER_FOOT = 12;
+
+// Beside the prose no card lies over the canvas's foot; what a group keeps
+// clear there instead.
+const BESIDE_RESERVES = { race: SCRUBBER_ROOM + SCRUBBER_FOOT };
+
 /**
  * The plot floor for `group` on a canvas `h` tall, in either mode — the pure
  * form, for a caller that tracks `beside` and the geometry itself
  * (ScrollyVisual's furniture). Stacked, the group's reserve and AXIS_ROOM, the
  * room `xLabelTop` wants between the floor and the card to keep the x-axis
- * title at its home under the ticks.
+ * title at its home under the ticks. Beside, the column's share, raised on a
+ * canvas too short for that share to leave AXIS_ROOM and the group's
+ * BESIDE_RESERVES under it.
  * @param {number} h
  * @param {PlotGroup} group
  * @param {boolean} beside
  * @param {PlotGeometry | null} [geometry]
  */
 export const plotBottomAt = (h, group, beside, geometry = plotGeometry) =>
-	beside ? shareBottomAt(h, true) : h - reserveOf(group, geometry) - AXIS_ROOM;
+	beside
+		? Math.min(
+				shareBottomAt(h, true),
+				h - (BESIDE_RESERVES[group] ?? 0) - AXIS_ROOM
+			)
+		: h - reserveOf(group, geometry) - AXIS_ROOM;
 
 /**
  * @param {number} h
