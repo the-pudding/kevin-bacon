@@ -15,6 +15,16 @@
 	color-scheme: dark;
 	scrollbar-color: var(--control-scrollbar-thumb) transparent;
 
+	/* Nothing on the page scrolls sideways. The unseen measuring copies of the
+	   step cards (CardMeasure), the tour captions and the chart titles are laid
+	   at the layout's full width from the prose column's left edge; when the
+	   prose lies over the chart (proseOver, wide screens) that edge is
+	   mid-screen and they reach ~376px past the right one. The page then took
+	   a trackpad's sideways drift on those steps and snapped back on the next
+	   (step 2 → the title card). Clipped at the root, the drift has nowhere to
+	   go; the copies keep the width they are measured at. */
+	overflow-x: clip;
+
 	/* z-index */
 	--z-bottom: -1;
 	--z-base: 1;
@@ -181,6 +191,17 @@ svg {
 .step-prose.lead p {
 	font-size: 1.5rem;
 	line-height: 1.3;
+}
+
+/* Beside the chart (the side-by-side layout, >= 75rem — Stage.svelte's
+   BESIDE_MIN_W), every step's prose takes the lead's size: the column is its
+   own, with the room for it. The prose laid over a full-screen chart on its
+   plate (.plate, proseOver) follows the same rule at the same width. */
+@media (min-width: 75rem) {
+	.step-prose p {
+		font-size: 1.5rem;
+		line-height: 1.3;
+	}
 }
 
 /* the first paragraph a reader sees, whatever sr-only text leads the card */

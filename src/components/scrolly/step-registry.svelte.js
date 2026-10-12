@@ -122,6 +122,19 @@ const moveOf = (configs, from, dest) => ({
  *   prepare state the destination step reads on its first render — a
  *   post-render $effect is too late for anything that mounts with the step.
  */
+/**
+ * A backward move that would land on a `skipback` step passes through it
+ * instead, so the reader never arrives back on the controls behind their
+ * own answer.
+ * @param {StepConfig[]} configs
+ * @param {number} to
+ */
+function resolveBack(configs, to) {
+	let dest = to;
+	while (dest > 0 && configs[dest].skipback) dest -= 1;
+	return dest;
+}
+
 export function createStepRegistry({ navigate }) {
 	const restored = readStep();
 	const trackUrl = hasStepParam();
@@ -133,9 +146,13 @@ export function createStepRegistry({ navigate }) {
 	let coldStart = $state(restored !== null && restored > 0);
 	/** @type {StepConfig[]} filled by each step as it mounts, in document order */
 	const configs = $state([]);
-	// one-way: the reader tapping forward off the last step leaves the wizard
-	// for the credits, and there is no path back in (TapNav drops the back
-	// gutter along with everything else once this is true)
+	// Where the next registration lands. The steps unmount for the credits and
+	// mount again when the reader comes back (`exit(false)`), registering in the
+	// same order: rewound to 0 there, they overwrite their own old entries
+	// rather than appending a second story after the first.
+	let cursor = 0;
+	// forward off the last step leaves the wizard for the credits; their back
+	// notch and ArrowLeft (TapNav) re-enter it on the last step, `exit(false)`
 	let exited = $state(false);
 
 	$effect(() => {
@@ -159,17 +176,6 @@ export function createStepRegistry({ navigate }) {
 	const active = () => configs[value ?? 0];
 
 	/**
-	 * A backward move that would land on a `skipback` step passes through it
-	 * instead, so the reader never arrives back on the controls behind their
-	 * own answer.
-	 */
-	function resolveBack(to) {
-		let dest = to;
-		while (dest > 0 && configs[dest].skipback) dest -= 1;
-		return dest;
-	}
-
-	/**
 	 * A move to `dest`, reported to `navigate` before `current` changes.
 	 * @param {number} dest
 	 */
@@ -186,7 +192,10 @@ export function createStepRegistry({ navigate }) {
 		 * @param {StepConfig} config
 		 * @returns {number} the step's index
 		 */
-		register: (config) => configs.push(config) - 1,
+		register: (config) => {
+			configs[cursor] = config;
+			return cursor++;
+		},
 		get current() {
 			return value;
 		},
@@ -299,7 +308,7 @@ export function createStepRegistry({ navigate }) {
 				if (nextPressable(active(), value)) active().onnext();
 				return;
 			}
-			move(back ? resolveBack(to) : to);
+			move(back ? resolveBack(configs, to) : to);
 		},
 		next: () => steps.go(value + 1),
 		prev: () => steps.go(value - 1),
@@ -308,8 +317,10 @@ export function createStepRegistry({ navigate }) {
 		},
 		// the last step's own forward press, once its gate (if any) is open —
 		// TapNav calls this instead of next() at the end of the step list
-		exit: () => {
-			exited = true;
+		// and `exit(false)` is the way back in, from the credits' back notch
+		exit: (out = true) => {
+			if (!out) cursor = 0;
+			exited = out;
 		}
 	};
 

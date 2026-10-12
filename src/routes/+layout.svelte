@@ -26,6 +26,27 @@
 			<feMergeNode in="SourceGraphic" />
 		</feMerge>
 	</filter>
+	<!-- the race chart's callout note (ScrollyVisual's .callout-text), the same
+	     one pass under the whole block at the note's smaller reach: 1px of
+	     spread, softened over about 2px. Per line, each line's text-shadow
+	     covered the descenders of the line above. -->
+	<filter
+		id="callout-halo"
+		x="-10%"
+		y="-20%"
+		width="120%"
+		height="140%"
+		color-interpolation-filters="sRGB"
+	>
+		<feMorphology in="SourceAlpha" operator="dilate" radius="1" />
+		<feGaussianBlur stdDeviation="1" result="spread" />
+		<feFlood class="halo-flood" />
+		<feComposite in2="spread" operator="in" result="halo" />
+		<feMerge>
+			<feMergeNode in="halo" />
+			<feMergeNode in="SourceGraphic" />
+		</feMerge>
+	</filter>
 </svg>
 
 <main id="content">

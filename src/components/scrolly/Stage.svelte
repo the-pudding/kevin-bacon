@@ -518,7 +518,6 @@
 					</div>
 				{/if}
 			</div>
-			<TapNav {beside} />
 			<!-- ...and beside the prose: at the next notch, and over it in the
 			     paint order. Out here rather than in the card, because the card
 			     (.scrolly-steps, --z-card) is a stacking context the notches
@@ -534,6 +533,9 @@
 				</div>
 			{/if}
 		{/if}
+		<!-- Out of the {#if} above: it stays mounted over the credits, where it
+		     is only the way back (a back notch and ArrowLeft) -->
+		<TapNav {beside} />
 		<div
 			class="scrolly-visual"
 			class:exited={steps.exited}
@@ -1037,11 +1039,11 @@
 		margin: 0.5rem 0 0;
 		letter-spacing: 0.02em;
 		color: var(--prose-byline);
-		text-shadow: var(--text-halo);
+		/* text-shadow: var(--text-halo); */
 		z-index: var(--z-tap-above);
 		text-transform: uppercase;
 		font-size: 0.8rem;
-		opacity: 0.9;
+		opacity: 1;
 	}
 
 	.splash-byline :global(a) {
@@ -1052,6 +1054,9 @@
 		padding-block: calc((var(--48px) - 1lh) / 2);
 		margin-block: calc((1lh - var(--48px)) / 2);
 		pointer-events: auto;
+		text-decoration-thickness: 1px;
+		text-decoration-color: currentColor;
+		text-underline-offset: 2px;
 	}
 
 	/* Where the tap goes, on step 0: a hand-cursor icon, "click"/"tap to
@@ -1171,7 +1176,7 @@
 	}
 
 	.nav-cue strong {
-		font-size: var(--16px);
+		font-size: var(--24px);
 		line-height: 1.1;
 	}
 

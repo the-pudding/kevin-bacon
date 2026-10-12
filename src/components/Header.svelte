@@ -138,7 +138,6 @@
 	.wordmark {
 		max-width: 9em;
 		margin: 0 auto;
-		padding: 32px 0;
 		width: 100%;
 	}
 

@@ -3045,7 +3045,15 @@
 					style="left: {t.note.x}px; top: {t.note.y}px; width: {t.note
 						.width}px; opacity: {t.alpha}"
 				>
-					{t.text}
+					<!-- HTML, so the notes' typographic entities (&ldquo; &rdquo;)
+					     print as quotes. The text is authored in layouts/race.js,
+					     never read from a reader or a feed. -->
+					<!-- the halo is on this span, not the <p>: a filter halos
+					     everything it draws, and the <p> also draws the plate -->
+					<span class="callout-text"
+						><!-- eslint-disable-next-line svelte/no-at-html-tags -->
+						{@html t.text}</span
+					>
 				</p>
 			</div>
 		{/if}
@@ -3278,6 +3286,7 @@
 	.annotations:is([data-chart="race"], [data-chart="raceClose"]) .node-label {
 		text-transform: none;
 		font-size: 14px;
+		text-shadow: none;
 	}
 
 	.pulse-wrap {
@@ -3665,16 +3674,16 @@
 		line-height: 1.2;
 		color: var(--annotation-callout-note);
 		background: var(--annotation-callout-plate);
-		text-shadow:
-			0px 0px 2px var(--surface-holdout),
-			0px 1px 2px var(--surface-holdout),
-			0px -1px 2px var(--surface-holdout),
-			-1px -1px 2px var(--surface-holdout),
-			1px -1px 2px var(--surface-holdout),
-			-1px 1px 2px var(--surface-holdout);
-		/* three or four lines sitting over the chasing field, which would
-		   otherwise show through the counters */
-		/* text-shadow: var(--text-halo); */
+	}
+
+	/* The note's halo, against the chasing field showing through the plate:
+	   one pass under the whole block (#callout-halo, +layout.svelte) rather
+	   than a text-shadow, which is painted line by line, so each line's halo
+	   lay over the descenders of the line above it. Block, so the filter
+	   draws one box rather than a fragment per line. */
+	.callout-text {
+		display: block;
+		filter: url(#callout-halo);
 	}
 
 	/* A note ABOVE its ring is positioned by its bottom edge: the payload's `top`

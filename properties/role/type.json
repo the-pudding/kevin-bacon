@@ -12,7 +12,13 @@
 		"heading": {
 			"family": {
 				"value": "{font.serif}",
-				"comment": "the splash subtitle, the credits' headings"
+				"comment": "the splash subtitle"
+			}
+		},
+		"credits": {
+			"family": {
+				"value": "{font.sans}",
+				"comment": "every line of the credits, headings included"
 			}
 		},
 		"display": {
