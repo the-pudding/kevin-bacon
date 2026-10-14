@@ -39,8 +39,8 @@ import {
 // ---------------------------------------------------------------------------
 // Career lines (Future chapter): cumulative films by career age. Colour roles
 // follow the prototype (career-age-scatter.js): the hero's trajectory is the
-// red line, the comparisons are grey, and all three actors sit as blue marks
-// (comparisons dimmed). Two casts draw this chart, and both clip their
+// red line, the comparisons are grey, and all three actors sit as solid blue
+// marks. Two casts draw this chart, and both clip their
 // comparisons to the hero's endpoint so that every line on screen is a future
 // branching off the hero's dot rather than a whole career to be read alongside
 // it. Sweeney's cast asks how a Gen Z career might go; at "all futures" the
@@ -207,15 +207,10 @@ function careerLayout(cast, showCohort) {
 			if (namedIds.has(n.id)) {
 				const key = cast.named.find(([, id]) => id === n.id)[0];
 				const [age, films] = story.careers[key].at(-1);
-				// blue marks all round; the comparisons read dimmed
-				const alpha = key === heroKey ? 1 : COMPARISON_ALPHA;
-				set(
-					attrs,
-					n.id,
-					xS(age),
-					yS(films),
-					...careerDot(marked, 5.5, CAREER, alpha)
-				);
+				// blue marks all round, every one solid: the comparisons' marks are
+				// where the prose sends the reader (De Niro's 87, Chase's stall,
+				// Hackman's stub, Mirren's climb), so only their lines read dimmed
+				set(attrs, n.id, xS(age), yS(films), ...careerDot(marked, ...HERO_DOT));
 			} else if (n.careerAge != null) {
 				// background cloud: this actor's (career age, films) position
 				set(
@@ -383,7 +378,7 @@ function careerEntry(cast, heroFromCloud, showCohort) {
 			}
 			rideTip(attrs, trails, hero, 1, HERO_DOT);
 			for (const line of comparisons) {
-				rideTip(attrs, trails, line, e, [5.5, CAREER, COMPARISON_ALPHA * e]);
+				rideTip(attrs, trails, line, e, [5.5, CAREER, e]);
 			}
 			growFan(trails, e);
 		};

@@ -239,9 +239,9 @@ describe("state registry", () => {
 		}
 	});
 
-	test("the prose lies over the pull-back's sky and the hop chart, and nothing else", () => {
+	test("the prose lies over the pull-back's sky, the hop chart and the outro's sky, and nothing else", () => {
 		expect(names.filter(isProseOver).sort()).toEqual(
-			["hopAnchor", "hopBands", "hopSeed"].sort()
+			["hopAnchor", "hopBands", "hopSeed", "outro"].sort()
 		);
 	});
 

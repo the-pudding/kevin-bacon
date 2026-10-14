@@ -45,9 +45,16 @@
      box that never breaks across lines (display: inline does not change that),
      so a long term jumped whole to the next line and left a ragged gap. The
      triggers already handle Enter and Space; the role and tabindex are what a
-     span needs on top to be a button to a keyboard and a screen reader. -->
-{#snippet trigger(props)}<span {...props} role="button" tabindex="0"
-		>{@render term()}</span
+     span needs on top to be a button to a keyboard and a screen reader.
+     The Popover trigger's `type="button"` is dropped: on a span it means
+     nothing, but normalize.css's `[type="button"] { -webkit-appearance:
+     button }` catches it, and a box with a native appearance is laid out as
+     an inline-block — atomic again, so on desktop the term still jumped whole
+     to the next line. -->
+{#snippet trigger({ type: _type, ...props })}<span
+		{...props}
+		role="button"
+		tabindex="0">{@render term()}</span
 	>{/snippet}
 {#snippet body()}{@render info?.()}{/snippet}
 

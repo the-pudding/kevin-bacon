@@ -117,7 +117,7 @@
 	--annotation-note-strong: var(--color-white);
 	--annotation-callout-note: var(--color-white);
 	/** the translucent plate behind a callout's note on the race chart */
-	--annotation-callout-plate: rgba(19, 5, 29, 0.5);
+	--annotation-callout-plate: rgba(19, 5, 29, 0.7);
 	/** the ring a callout draws round its dot */
 	--annotation-callout-mark: var(--color-white);
 	/** an annotation arrow's line and head */
@@ -268,8 +268,10 @@
 	--type-prose-family: var(--font-serif);
 	/** a step's prose (app.css's .step-prose p) */
 	--type-step-family: var(--font-sans);
-	/** the splash subtitle, the credits' headings */
+	/** the splash subtitle */
 	--type-heading-family: var(--font-serif);
+	/** every line of the credits, headings included */
+	--type-credits-family: var(--font-sans);
 	/** the splash title, the chart titles and the race chart's future strip label */
 	--type-display-family: var(--font-mono);
 	/** form controls, the byline, the nav cue */

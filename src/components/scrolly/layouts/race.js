@@ -1108,8 +1108,11 @@ const PLOT_FLOOR_GAP = 8;
 // one assumed shorter runs off the plot.
 const NOTE_CHAR_PX = 6.6;
 const NOTE_LINE_H = 16;
+// The note is rendered as HTML (ScrollyVisual's {@html}), so an entity such as
+// &ldquo; is one glyph on screen and counts as one character here.
+const glyphCount = (text) => text.replace(/&[#\w]+;/g, "x").length;
 const noteHeight = (text, width) =>
-	Math.ceil((text.length * NOTE_CHAR_PX) / width) * NOTE_LINE_H;
+	Math.ceil((glyphCount(text) * NOTE_CHAR_PX) / width) * NOTE_LINE_H;
 const ARROW_INSET = 12; // how far in from the note's corners the leader may start
 const ARROW_LIFT = 6; // gap between the note's nearest edge and the leader
 const ARROW_HEAD = 7; // head length, px
@@ -1242,7 +1245,7 @@ function raceCalloutGeometry(cam, ring, at) {
  */
 const RACE_TAKEOVER_CALLOUT = {
 	...RACE_TAKEOVER,
-	text: "Freedomland (2006) takes Samuel L. Jackson to 2.14, overtaking Gene Hackman, whose last film was in 2004.",
+	text: "&ldquo;Freedomland&rdquo; (2006) takes Samuel L. Jackson to 2.14, overtaking Gene Hackman, whose last film was in 2004.",
 	focus: [HACKMAN]
 };
 
@@ -1274,7 +1277,7 @@ function raceCalloutList(...list) {
 // nothing can guard it and a rebuild cannot invalidate it either. Confirmed by
 // Owen against the analysis repo (2026-09-21).
 const RACE_WOMAN_NOTE =
-	"With 6 film credits in 2012, Susan Sarandon reaches #9, the highest position for any actress since 1980.";
+	"With 6 film credits in 2012, Susan Sarandon reaches #9, the highest position of any woman since 1980.";
 
 /** the nearest a woman has come to the centre on the years this step can reach */
 const RACE_WOMAN_CALLOUT = {
@@ -1292,7 +1295,7 @@ const RACE_WOMAN_CALLOUT = {
 // this repo carries a career total per actor and never a per-year credit list,
 // which is exactly the caveat RACE_WOMAN_NOTE carries above.
 const RACE_DAFOE_NOTE =
-	"Since 2021, Willem Dafoe has been credited in 16 films including roles in both the MCU and DC franchises, cementing him firmly at #2.";
+	"Since 2021, Willem Dafoe has been credited in 16 films including roles in both the Marvel and DC franchises, cementing him firmly at #2.";
 
 /** the recent chart's one change of lane, and where it leads */
 const RACE_DAFOE_CALLOUT = {
@@ -1304,7 +1307,7 @@ const RACE_DAFOE_CALLOUT = {
 /** the MCU's first film, two years after the takeover */
 const RACE_MCU_CALLOUT = {
 	...RACE_MCU_STEP,
-	text: "Iron Man (2008) - The Marvel Cinematic Universe begins with Samuel L. Jackson playing a key character, making him practically uncatchable for the next 20 years.",
+	text: "&ldquo;Iron Man&rdquo; (2008) - The Marvel Cinematic Universe begins with Samuel L. Jackson playing a key character, making him practically uncatchable for the next 20 years.",
 	focus: [SLJ]
 };
 
@@ -4056,7 +4059,7 @@ export const states = {
 	raceRecent: {
 		plot: "race",
 		layout: raceLayout(RACE_RECENT_STEP, RACE_RECENT_YCAP),
-		title: "The center of Hollywood, over time",
+		title: "The Center of Hollywood, over Time",
 		// one scene with the other panning race steps: same title, same overlay, same
 		// two axes off the same camera, so a step change inside the chapter must not
 		// fade the furniture out and mount it again (see STATE_SCENE)
@@ -4077,7 +4080,7 @@ export const states = {
 	raceFull: {
 		plot: "race",
 		layout: raceLayout(RACE_FULL_STEP, Infinity),
-		title: "The center of Hollywood, over time",
+		title: "The Center of Hollywood, over Time",
 		// one scene with the other panning race steps: same title, same overlay, same
 		// two axes off the same camera, so a step change inside the chapter must not
 		// fade the furniture out and mount it again (see STATE_SCENE)
@@ -4102,7 +4105,7 @@ export const states = {
 		// no yCap in the raceFull sense — a cap BELOW the field, so the race cast
 		// is off this step entirely and the Gen-Z lines have the plot to themselves
 		layout: raceLayout(RACE_GENZ_STEP, RACE_GENZ_YCAP),
-		title: "The center of Hollywood, over time",
+		title: "The Center of Hollywood, over Time",
 		// one scene with the other panning race steps: same title, same overlay, same
 		// two axes off the same camera, so a step change inside the chapter must not
 		// fade the furniture out and mount it again (see STATE_SCENE)
@@ -4167,8 +4170,10 @@ export const states = {
 		// scopes itself explicitly rather than leaving it implicit
 		revealFrom: ["raceClose"],
 		entry: { phases: [PULLBACK_ZOOM_MS], frames: outroGalaxyFrames },
-		// the sky fills the screen, under the prose too (see isProseHalo)
-		proseHalo: true,
+		// the sky fills the screen, so the closing words sit centred over it on
+		// the frosted plate, as the hop bands' do (see isProseOver) — not the
+		// halo as well: its SVG filter would cut the plate's backdrop blur
+		proseOver: true,
 		// the story ends on a sky that is still moving. FIELD_IDS covers the
 		// closing chart's cast too — they are actors with hops like anyone else,
 		// and the base each dot flies from is read back out of the layout, so it
@@ -4181,7 +4186,7 @@ export const states = {
 		// no yCap, same as raceFull: the whole cast, on a chart whose camera has
 		// run forward to the present with a fitted strip of future beside it
 		layout: raceLayout(RACE_FUTURE_STEP, Infinity),
-		title: "The center of Hollywood, over time",
+		title: "The Center of Hollywood, over Time",
 		// one scene with the other panning race steps: same title, same overlay, same
 		// two axes off the same camera, so a step change inside the chapter must not
 		// fade the furniture out and mount it again (see STATE_SCENE)

@@ -70,8 +70,37 @@
 	const top = BY_RANK.slice(0, RANK_TOP_N);
 
 	/** @param {number} band 0-based hop band */
-	const awayLabel = (band) =>
-		`${band + 1} ${band === 0 ? "movie" : "movies"} away:`;
+	const awayText = (band) =>
+		`${band + 1} ${band === 0 ? "movie" : "movies"} away`;
+	/** @param {number} band 0-based hop band */
+	const awayLabel = (band) => `${awayText(band)}:`;
+	// The first three bands' names, printed under their numbers ("1 movie
+	// away"); hop 4's sliver has no room under it for one. Each is centred
+	// under its number, pushed right just far enough to clear the name before
+	// it (hop 1's band is a sliver at the bar's left end, so its name runs well
+	// past it), and held inside the bar. Placed from the numbers' own boxes
+	// rather than the bands': a number wider than its band ("<0.1%" on hop 4's
+	// sliver) shifts its neighbours along the flex row, by up to 30px.
+	const NAMED_BANDS = 3;
+	const AWAY_GAP = 8; // px between two names
+	/** @param {HTMLElement} strip a row's `.aways`, just after its `.shares` */
+	function placeAways(strip) {
+		const right = barWidth; // and re-placed when the bar's width changes
+		const numbers = /** @type {HTMLElement[]} */ ([
+			...strip.previousElementSibling.children
+		]);
+		let clear = 0;
+		for (const [k, name] of /** @type {HTMLElement[]} */ ([
+			...strip.children
+		]).entries()) {
+			const w = name.offsetWidth;
+			const n = numbers[k];
+			const under = k === 0 ? 0 : n.offsetLeft + n.offsetWidth / 2 - w / 2;
+			const left = Math.min(Math.max(under, clear), right - w);
+			name.style.left = `${left}px`;
+			clear = left + w + AWAY_GAP;
+		}
+	}
 
 	const rows = top.map(({ id, rank }) => {
 		const fractions = hopFractions(id);
@@ -115,6 +144,7 @@
 		const boxes = hopBandBoxes(fractions, width);
 		return hopDotSlots(fractions, width).map((dots, band) => ({
 			color: HOP_RGB[band + 1],
+			x: boxes[band].x,
 			w: boxes[band].w,
 			d: dots.map((p) => `M${p.x.toFixed(1)} ${p.y.toFixed(1)}h0.01`).join("")
 		}));
@@ -610,6 +640,13 @@
 									>
 								{/each}
 							</span>
+							<!-- the bands' names under their numbers; the screen reader has
+							     them already, from each number's sr-only prefix -->
+							<span class="aways" aria-hidden="true" {@attach placeAways}>
+								{#each { length: NAMED_BANDS } as _, band}
+									<span class="away">{awayText(band)}</span>
+								{/each}
+							</span>
 						{:else}
 							<!-- an undrawn row's key, for a screen reader alone: the same
 						     words the drawn one carries, at the cost of one text run -->
@@ -703,7 +740,7 @@
 		   the next. Every row carries it, not just the focused one: the race
 		   arrival places all 250 canvas copies off a single measured row pitch, so
 		   rows of two different heights would scatter them. */
-		padding: 0.3rem 0 2rem;
+		padding: 0.3rem 0 2.75rem;
 		font-family: var(--type-chart-family);
 		/* letter-spacing: var(--type-chart-tracking); */
 		font-size: 1rem;
@@ -832,6 +869,28 @@
 		text-align: right;
 	}
 
+	/* the bands' names, a line under their numbers (see placeAways for where
+	   each one goes). Out of the row's flow like the numbers, in the lane the
+	   row's bottom padding leaves. */
+	.aways {
+		position: absolute;
+		top: calc(100% + 2px + 14px + 3px);
+		left: 0;
+		right: 0;
+		line-height: 1;
+	}
+
+	.away {
+		position: absolute;
+		top: 0;
+		font-family: var(--type-chart-family);
+		font-size: 11px;
+		white-space: nowrap;
+		-webkit-font-smoothing: antialiased;
+		font-weight: 500;
+    	color: rgba(255, 255, 255, 0.6);
+	}
+
 	/* the race-chart dot each bar folds into, pinned to the bar's centre */
 	.node {
 		position: absolute;
@@ -868,12 +927,14 @@
 
 	.collapsing .label-row,
 	.collapsing .shares,
+	.collapsing .aways,
 	.collapsing .footnote {
 		opacity: 0;
 	}
 
 	.label-row,
 	.shares,
+	.aways,
 	.footnote {
 		transition: opacity 0.2s ease;
 	}
@@ -883,6 +944,7 @@
 		.node,
 		.label-row,
 		.shares,
+		.aways,
 		.footnote {
 			transition: none;
 		}

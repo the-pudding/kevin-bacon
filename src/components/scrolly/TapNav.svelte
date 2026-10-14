@@ -26,9 +26,10 @@
 	 * simply does nothing. The halves carry no marking of their own and no
 	 * press tint — a tap's only feedback is the step it takes. At the very last
 	 * step next stays live instead: a forward press there exits the
-	 * wizard for the credits, one-way (see `exit` on the registry) — the
-	 * navigation disappears along with the rest of the step chrome once that
-	 * happens, so there is no route back in.
+	 * wizard for the credits (see `exit` on the registry). Over the credits
+	 * this is only the way back: the prev notch alone, at every width (tap
+	 * halves would take every press the credits' links and scrolling need),
+	 * and ArrowLeft, both re-entering the story on its last step (`exit(false)`).
 	 *
 	 * At step 0 (the one step `atStart` is ever true for — nothing before it to
 	 * go back to) the prev half stays live rather than disabled, and advances
@@ -87,11 +88,21 @@
 		if (e.defaultPrevented || e.target?.closest?.(OWNS_ARROWS)) return;
 		if (e.key === "ArrowLeft") {
 			e.preventDefault();
-			steps.prev();
-		} else if (e.key === "ArrowRight") {
+			back();
+		} else if (e.key === "ArrowRight" && !steps.exited) {
 			e.preventDefault();
 			forward();
 		}
+	}
+
+	// what the arrow key and the prev notch do: back a step, or from the
+	// credits back onto the last one
+	function back() {
+		if (!steps.exited) return steps.prev();
+		// from the top of the page the credits made scrollable, where the story
+		// sits
+		window.scrollTo(0, 0);
+		steps.exit(false);
 	}
 
 	// what the arrow key and the next notch do: forward off the last step
@@ -122,8 +133,10 @@
 	// it. A plain `let`: neither effect may read state it writes.
 	/** @type {string | null} */
 	let refocus = null;
+	// Leaving or re-entering the credits swaps the form the same way.
 	$effect.pre(() => {
 		void beside;
+		void steps.exited;
 		refocus =
 			/** @type {HTMLElement | null} */ (
 				document.activeElement?.closest("[data-nav]")
@@ -131,6 +144,7 @@
 	});
 	$effect(() => {
 		void beside;
+		void steps.exited;
 		if (refocus == null) return;
 		/** @type {HTMLElement | null} */ (
 			document.querySelector(`[data-nav="${refocus}"]`)
@@ -141,14 +155,26 @@
 
 <svelte:window onkeydown={onKeydown} />
 
-{#if beside}
+{#if steps.exited}
+	<div class="notch prev">
+		<Button
+			variant="notch"
+			data-side="left"
+			data-nav="prev"
+			aria-label="Back to the story"
+			onclick={back}
+		>
+			<ChevronLeft />
+		</Button>
+	</div>
+{:else if beside}
 	<div class="notch prev" class:hidden={atStart}>
 		<Button
 			variant="notch"
 			data-side="left"
 			data-nav="prev"
 			aria-label="Previous step"
-			onclick={() => steps.prev()}
+			onclick={back}
 		>
 			<ChevronLeft />
 		</Button>
@@ -267,7 +293,9 @@
 		z-index: var(--z-tap-above);
 		display: flex;
 		width: calc(40px + var(--notch-bleed));
-		height: calc(2 * var(--notch-w));
+		/* the fallback is the beside value (#scrolly's --notch-w): stacked, the
+		   credits' back notch is the only notch, and nothing reserves one */
+		height: calc(2 * var(--notch-w, 1.75rem));
 	}
 
 	.notch :global(.bits-button) {

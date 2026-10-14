@@ -19,7 +19,7 @@
 		},
 		"callout-plate": {
 			"value": "{color.aubergine}",
-			"modify": { "alpha": 0.5 },
+			"modify": { "alpha": 0.7 },
 			"comment": "the translucent plate behind a callout's note on the race chart"
 		},
 		"callout-mark": {

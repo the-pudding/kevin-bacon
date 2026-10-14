@@ -362,7 +362,7 @@ export const states = {
 	scatterCenters: {
 		layout: layoutScatterCenters,
 		plot: "scatter",
-		title: "Films vs. remoteness",
+		title: "Film Count vs. Remoteness",
 		labels: (params) =>
 			withSearchLabel(
 				params?.showPair ? [PORTMAN, KENDRICK] : [SLJ, CAGE],
@@ -415,7 +415,7 @@ export const states = {
 	scatterQuiz: {
 		layout: layoutScatterQuiz,
 		plot: "quiz",
-		title: "Films vs. remoteness",
+		title: "Film Count vs. Remoteness",
 		// the step back off the Gen Z race is a plain tween the other way, and
 		// curves the same way scatterCenters does off the race: the same fan
 		// out of the same column, rising
@@ -449,7 +449,7 @@ export const states = {
 	degScatter: {
 		layout: layoutDegScatter,
 		plot: "scatter",
-		title: "Films vs. costar film count",
+		title: "Film Count vs. Co-star Film Count",
 		labels: (params) => withSearchLabel([PORTMAN, KENDRICK], params),
 		// this state hosts the costar-count search (step 20)
 		params: withSearchParams(),
