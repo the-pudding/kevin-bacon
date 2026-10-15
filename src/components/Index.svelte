@@ -386,9 +386,28 @@
 			     fraction of the canvas: the intro fit is width-limited on a tall
 			     phone, so the graph stops well short of its band and any fixed
 			     fraction leaves a hole under it. -->
+			<!-- the tour's own pause (tourStopped). Outside the caption's live
+			     region and its focus handlers: focusing it must not hold the tour
+			     by itself, and its label is not the caption. Rendered in two
+			     places, one shown per width (.tour-toggle-row, .tour-toggle-inline). -->
+			{#snippet tourToggle()}
+				<button
+					type="button"
+					class="tour-toggle"
+					aria-label={tourStopped ? "Play the tour" : "Pause the tour"}
+					onclick={toggleTour}
+				>
+					{#if tourStopped}<Play aria-hidden="true" />{:else}<Pause
+							aria-hidden="true"
+						/>{/if}
+				</button>
+			{/snippet}
 			{#snippet routePanel()}
 				{#if story.settled === "networkIntro" && layout.geometry}
 					<div class="route" style="top: {routeTop(layout)}px">
+						<!-- on a phone the toggle takes a row of its own above the
+						     sentence, which already fills the width there -->
+						<div class="tour-toggle-row">{@render tourToggle()}</div>
 						{#if introRoute}
 							<!-- live once the reader has picked an actor themselves: the
 							     tour turns every few seconds, and announcing each turn would
@@ -413,24 +432,14 @@
 								away from {introRoute.anchor}.
 							</span>
 						{/if}
-						<!-- the tour's own pause (tourStopped). Outside the caption's
-						     live region and its focus handlers: focusing it must not
-						     hold the tour by itself, and its label is not the caption -->
-						<button
-							type="button"
-							class="tour-toggle"
-							aria-label={tourStopped ? "Play the tour" : "Pause the tour"}
-							onclick={toggleTour}
-						>
-							{#if tourStopped}<Play aria-hidden="true" />{:else}<Pause
-									aria-hidden="true"
-								/>{/if}
-						</button>
+						<!-- past a phone, at the end of the sentence -->
+						<span class="tour-toggle-inline">{@render tourToggle()}</span>
 					</div>
 				{/if}
 			{/snippet}
 			<!-- the tour caption's band (routeHeight): every caption, unseen, at
-			     the caption's width and type, with the toggle's box at its end -->
+			     the caption's width and type, with the toggle's box where it sits
+			     (at the sentence's end, or a row of its own on a phone) -->
 			{#each ROUTES as route, k (route.name)}
 				<p
 					class="route route-measure"
@@ -1118,6 +1127,34 @@
 	.tour-toggle :global(svg) {
 		width: 50%;
 		height: 50%;
+	}
+
+	/* Where the toggle sits: at the sentence's end past a phone, and on a phone
+	   a row of its own above it (the sentence fills the width there). The
+	   measured copies reserve the same row, so the band still holds it. */
+	.tour-toggle-row {
+		display: none;
+	}
+
+	@media (width < 40rem) {
+		.tour-toggle-row {
+			display: flex;
+			justify-content: center;
+			margin-bottom: 0.5rem;
+		}
+
+		.tour-toggle-row .tour-toggle {
+			margin-left: 0;
+		}
+
+		.tour-toggle-inline {
+			display: none;
+		}
+
+		.route-measure .tour-toggle {
+			display: block;
+			margin: 0.5rem auto 0;
+		}
 	}
 
 	@media (prefers-reduced-motion: reduce) {
