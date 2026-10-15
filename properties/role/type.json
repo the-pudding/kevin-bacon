@@ -11,7 +11,7 @@
 		},
 		"heading": {
 			"family": {
-				"value": "{font.serif}",
+				"value": "{font.sans}",
 				"comment": "the splash subtitle"
 			}
 		},
@@ -60,6 +60,10 @@
 			"size": {
 				"value": "1.2rem",
 				"comment": "the chart titles over the canvas (ScrollyVisual's .chart-title)"
+			},
+			"size-narrow": {
+				"value": "1rem",
+				"comment": "the chart titles in the single-column layout, below 75rem (Stage.svelte's BESIDE_MIN_W)"
 			},
 			"size-base": {
 				"value": "19.2px",

@@ -8,6 +8,15 @@
 	// not state: nothing renders from it.
 	let handoff = false;
 
+	/**
+	 * The reader moved the story with one of TapNav's controls (a notch, a tap
+	 * half, an arrow key pressed on either): the arriving card takes focus, so a
+	 * screen reader reads its words rather than staying on the button.
+	 */
+	export function handFocusToCard() {
+		handoff = true;
+	}
+
 	/** @param {HTMLElement} node */
 	function claimFocus(node) {
 		if (!handoff) return;

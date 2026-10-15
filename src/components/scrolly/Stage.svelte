@@ -73,6 +73,11 @@
 	const BESIDE_MIN_W = 1200;
 	const beside = $derived(dimensions.width >= BESIDE_MIN_W);
 
+	// TapNav's prev/next notches: everywhere but a phone. Kept in step with the
+	// 40rem `@media` rule on #scrolly below, which reserves their gutter, by hand.
+	const NOTCH_MIN_W = 640;
+	const notches = $derived(dimensions.width >= NOTCH_MIN_W);
+
 	// ScrollyVisual instance, for the pair quiz's locate() flight targets
 	/** @type {ScrollyVisual | undefined} */
 	let visual = $state();
@@ -154,8 +159,10 @@
 	// scrolls rather than the plot shrinking further, so it also caps a reserve.
 	const cardCap = $derived(dimensions.height / 2);
 	/** @param {number} i a step index @returns {number} its card's height at rest */
+	// step 0's cue is a row of the card only where there are no notches for
+	// it to sit at
 	const cardOf = (i) =>
-		(steps.configs[i].cardHeight ?? 0) + (i === 0 ? cueHeight : 0);
+		(steps.configs[i].cardHeight ?? 0) + (i === 0 && !notches ? cueHeight : 0);
 	/**
 	 * Each measured group's tallest card, capped, with the band its state keeps
 	 * over it (`aboveCard`) — or null while any card in a group has yet to
@@ -367,7 +374,7 @@
 	let cueLeftFrom = null;
 	let cueWasShown = false;
 	$effect.pre(() => {
-		const shown = steps.current === 0 && !beside;
+		const shown = steps.current === 0 && !notches;
 		if (cueWasShown && !shown && cueEl)
 			cueLeftFrom = cueEl.getBoundingClientRect();
 		cueWasShown = shown;
@@ -430,7 +437,7 @@
 
 {#snippet navCue()}
 	<span class="nav-cue-body">
-		<!-- beside the prose the cue sits under the next notch (.nav-cue.beside),
+		<!-- past 40rem the cue sits under the next notch (.nav-cue.at-notch),
 		     so "click" there is a click on the arrow it is under -->
 		<span class="nav-cue-row on-wide">
 			<strong>Click to continue</strong>
@@ -502,11 +509,11 @@
 				>
 					{@render navCue()}
 				</div>
-				<!-- step 0's nav cue, stacked: a row of its own under the prose.
+				<!-- step 0's nav cue on a phone: a row of its own under the prose.
 				     Mounted for the whole of the step rather than when it shows,
 				     so the row is already there when the prose lands and the words
 				     never shift up to make room for it. -->
-				{#if steps.current === 0 && !beside}
+				{#if steps.current === 0 && !notches}
 					<div
 						class="nav-cue in-card"
 						class:shown={!steps.held}
@@ -518,13 +525,13 @@
 					</div>
 				{/if}
 			</div>
-			<!-- ...and beside the prose: at the next notch, and over it in the
+			<!-- ...and wherever the notches are up: at the next one, and over it in the
 			     paint order. Out here rather than in the card, because the card
 			     (.scrolly-steps, --z-card) is a stacking context the notches
 			     (--z-tap-above) sit above whatever z-index is set inside it. -->
-			{#if steps.current === 0 && beside}
+			{#if steps.current === 0 && notches}
 				<div
-					class="nav-cue beside"
+					class="nav-cue at-notch"
 					class:shown={!steps.held}
 					aria-hidden="true"
 					out:fade={cardOut}
@@ -535,7 +542,7 @@
 		{/if}
 		<!-- Out of the {#if} above: it stays mounted over the credits, where it
 		     is only the way back (a back notch and ArrowLeft) -->
-		<TapNav {beside} />
+		<TapNav {beside} {notches} />
 		<div
 			class="scrolly-visual"
 			class:exited={steps.exited}
@@ -713,6 +720,24 @@
 		margin: 0 auto;
 		padding: 0 var(--column-gutter);
 	}
+
+	/* --notch-w: the prev/next notches TapNav pins to the viewport's edges past
+	   a phone's width (>= NOTCH_MIN_W — kept in step with the constant in the
+	   script by hand). Reserved in the column's own gutter, so no content runs
+	   under one at any width; .scrolly-visual.exited rebuilds its box from the
+	   same gutter, and the canvas measures its own bleed. */
+	@media (min-width: 40rem) {
+		#scrolly {
+			--notch-w: 1.75rem;
+			--column-gutter: calc(1rem + var(--notch-w));
+		}
+	}
+
+	/* @media (width < 40rem) {
+		#scrolly {
+			--column-gutter: 16px;
+		}
+	} */
 
 	/* --control-inset: how far a card-hosted control is held off the layout's
 	   two edges. Not a tap measurement any more — the tap halves cover the whole
@@ -1021,8 +1046,8 @@
 		margin: 1rem 0 0;
 		-webkit-font-smoothing: antialiased;
 		font-family: var(--type-heading-family);
-		font-size: var(--20px);
-		line-height: 1.35;
+		font-size: var(--24px);
+		line-height: 1.3;
 		text-align: center;
 		text-wrap: balance;
 		color: var(--prose-fg);
@@ -1046,6 +1071,12 @@
 		opacity: 1;
 	}
 
+	@media (min-width: 40rem) {
+		.splash-byline {
+			font-size: 16px;
+		}
+	}
+
 	.splash-byline :global(a) {
 		color: inherit;
 		/* padding widens the tap area to 48px; the equal negative margin keeps the
@@ -1062,7 +1093,7 @@
 	/* Where the tap goes, on step 0: a hand-cursor icon, "click"/"tap to
 	   continue" (ported like-for-like from The Pudding's pop-love-songs
 	   Tap.svelte) and, past 40rem, the keyboard alternative spelled out as two
-	   key glyphs. Beside the prose it sits under the next notch (.nav-cue.beside),
+	   key glyphs. Past 40rem it sits under the next notch (.nav-cue.at-notch),
 	   where a click on the screen is not a step but a click on the notch is. The whole screen answers a tap on step 0 (see TapNav's
 	   atStart branch), so the cue does not have to sit over any one half of it.
 
@@ -1095,11 +1126,11 @@
 		transform: none;
 	}
 
-	/* Beside the prose: just under the next notch (TapNav's .notch.next, fixed
+	/* Past 40rem (the notches' breakpoint): just under the next notch (TapNav's .notch.next, fixed
 	   to the viewport's right edge and centred on its height, 2 × --notch-w
 	   tall), right-aligned a little in from the screen edge, rather than in the
 	   bottom-right corner. */
-	.nav-cue.beside {
+	.nav-cue.at-notch {
 		top: calc(50% + var(--notch-w, 1.75rem) + -0.55rem);
 		bottom: auto;
 		right: 0.75rem;
@@ -1109,7 +1140,7 @@
 	}
 
 	/* A keyframe animation rather than a transition: the cue can be created
-	   already `.shown` (it mounts when `beside` turns false, which on a cold
+	   already `.shown` (it mounts when `notches` turns false, which on a cold
 	   load can be the same flush the prose lands in), and a transition never
 	   plays on an element's first style. The curve is cubicInOut, the
 	   prose's own (Step.svelte). */
@@ -1175,9 +1206,17 @@
 		-webkit-font-smoothing: antialiased;
 	}
 
+	/* 16px on a phone, where it is a row under the prose; past 40rem, at the
+	   next notch, the larger size (below) */
 	.nav-cue strong {
-		font-size: var(--24px);
+		font-size: var(--16px);
 		line-height: 1.1;
+	}
+
+	@media (min-width: 40rem) {
+		.nav-cue strong {
+			font-size: var(--24px);
+		}
 	}
 
 	.nav-cue-row {
@@ -1393,14 +1432,9 @@
 	   screen's middle, so its offset is the measure negated rather than a ratio
 	   between two columns. */
 	@media (min-width: 75rem) {
-		/* --notch-w: the prev/next notches TapNav pins to the viewport's edges
-		   beside the prose. Reserved in the column's own gutter, so no content
-		   runs under one at any width; .scrolly-visual.exited rebuilds its box
-		   from the same gutter, and the canvas measures its own bleed. */
+		/* the notch gutter (--notch-w) is the 40rem rule's, above */
 		#scrolly {
 			--column: 1400px;
-			--notch-w: 1.75rem;
-			--column-gutter: calc(1rem + var(--notch-w));
 		}
 
 		.scrolly-layout {
@@ -1454,6 +1488,13 @@
 		.splash-card,
 		.splash-logo {
 			left: calc(-1 * var(--prose-col));
+		}
+	}
+	@media (width < 40rem) {
+		.splash-card {
+			padding: 0;
+			max-width: 300px;
+			margin: 0 auto;
 		}
 	}
 </style>

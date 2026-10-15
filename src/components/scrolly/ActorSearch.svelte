@@ -350,7 +350,7 @@
 		width: calc(var(--search-w) + 2 * var(--pad));
 		height: var(--48px);
 		padding: 0 var(--pad);
-		font-family: var(--type-chip-family);
+		font-family: var(--type-ui-family);
 		font-size: 0.8rem;
 		white-space: nowrap;
 		border: 0;

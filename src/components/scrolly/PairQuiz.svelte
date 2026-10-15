@@ -310,7 +310,7 @@
 		/* room for the 10px ✓/✗ at 0.5rem from the edge plus a few px clear of
 		   the name, and no more: every px of gutter is taken from a name that
 		   already wraps to two lines at 375 */
-		--mark-gutter: 1.5rem;
+		--mark-gutter: 10px;
 		display: flex;
 		align-items: center;
 		gap: 0.5rem;
@@ -361,7 +361,7 @@
 		flex-direction: row;
 		gap: var(--chip-gap);
 		align-items: center;
-		min-height: calc(2 * var(--chip-h) + var(--chip-gap));
+		/* min-height: calc(2 * var(--chip-h) + var(--chip-gap)); */
 	}
 
 	.quiz__card {

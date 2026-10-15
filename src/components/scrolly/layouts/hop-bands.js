@@ -865,7 +865,7 @@ export const states = {
 		// over them rather than beside them, on a frosted plate that keeps it
 		// legible over the rows — Stage.svelte reads this (see isProseOver).
 		proseOver: true,
-		title: "The Four Degrees of Kevin Bacon",
+		title: "The 4 Degrees of Kevin Bacon",
 		labels: [ANCHOR_ID],
 		// The cascade is authored for the forward arrival off the title card's
 		// sky (hopSeed's, carried on), where the crowd is spread across the plot

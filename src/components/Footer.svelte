@@ -78,7 +78,8 @@
 					<section class="text">
 						We’ve published <strong>{storyCount}</strong> awesome stories such
 						as
-						{#each stories as { short, href }, i}
+						{#each stories as { short, href }}
+							<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- external pudding.cool links, not app routes -->
 							<a {href} target="_blank" rel="noreferrer">{short}</a>,&nbsp;
 						{/each}and more.
 					</section>
@@ -89,6 +90,7 @@
 			<div class="cta-wrapper">
 				<section class="donate">
 					<div class="img-wrapper">
+						<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- external pudding.cool links, not app routes -->
 						<a href="https://patreon.com/thepudding">
 							<img
 								src="{base}/assets/stickers/donate-footer-square@2x.png"
@@ -98,7 +100,9 @@
 					</div>
 					<div class="text-wrapper">
 						<p>
+							<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- external pudding.cool links, not app routes -->
 							<a href="https://patreon.com/thepudding">Support us on Patreon</a>
+							<!-- eslint-disable-next-line svelte/no-at-html-tags -- an SVG file the repo imports itself -->
 							<span class="arrow">{@html linkOutArrow}</span>
 						</p>
 						<p>
@@ -111,6 +115,7 @@
 
 				<section class="subscribe">
 					<div class="img-wrapper">
+						<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- external pudding.cool links, not app routes -->
 						<a href="https://pudding.cool/subscribe">
 							<img
 								src="{base}/assets/stickers/subscribe-footer@2x.png"
@@ -120,9 +125,11 @@
 					</div>
 					<div class="text-wrapper">
 						<p>
+							<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- external pudding.cool links, not app routes -->
 							<a href="https://pudding.cool/subscribe"
 								>Subscribe to our newsletter</a
 							>
+							<!-- eslint-disable-next-line svelte/no-at-html-tags -- an SVG file the repo imports itself -->
 							<span class="arrow">{@html linkOutArrow}</span>
 						</p>
 						<p>
@@ -134,7 +141,9 @@
 			</div>
 
 			<section class="links">
+				<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- external pudding.cool links, not app routes -->
 				<a class="img-wrapper" href="https://pudding.cool">
+					<!-- eslint-disable-next-line svelte/no-at-html-tags -- an SVG file the repo imports itself -->
 					<span class="wordmark">{@html wordmark}</span>
 				</a>
 				<div class="inner">
@@ -142,6 +151,7 @@
 						<p class="title">About Us</p>
 						<ul>
 							{#each about as { name, url }}
+								<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- external pudding.cool links, not app routes -->
 								<li><a href={url}>{name}</a></li>
 							{/each}
 						</ul>
@@ -151,6 +161,7 @@
 						<p class="title">Follow Us</p>
 						<ul>
 							{#each follow as { name, url }}
+								<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- external pudding.cool links, not app routes -->
 								<li><a href={url}>{name}</a></li>
 							{/each}
 						</ul>
@@ -163,14 +174,14 @@
 
 <style>
 	footer {
-		margin-top: 100px;
+		/* margin-top: 100px; */
 	}
 
 	.c {
 		max-width: calc(var(--width-column-wide, 1280px) - var(--margin, 16px) * 2);
 		padding: 16px;
-		margin: 32px auto 100px auto;
-		font-family: var(--font-sans);
+		margin: 0px auto 100px auto;
+		font-family: var(--type-credits-family);
 	}
 
 	.top {
@@ -178,11 +189,11 @@
 		flex-direction: row;
 		align-items: center;
 		justify-content: center;
-		margin: 0 0 64px 0;
+		margin: 0 0 0px 0;
 	}
 
 	.text {
-		font-size: var(--20px, 20px);
+		font-size: var(--20px);
 		text-align: center;
 		max-width: 900px;
 	}
@@ -242,10 +253,10 @@
 	}
 
 	.links p.title {
-		font-family: var(--mono);
+		font-family: var(--type-credits-family);
 		font-weight: bold;
 		text-transform: uppercase;
-		font-size: var(--font-size-xsmall, 14px);
+		font-size: var(--14px);
 	}
 
 	.links .inner {
@@ -257,18 +268,18 @@
 	}
 
 	p {
-		color: var(--color-fg);
+		color: var(--prose-fg);
 	}
 
 	a {
 		font-weight: 700;
-		color: var(--color-fg);
-		text-decoration: 2px underline var(--color-fg);
+		color: var(--prose-fg);
+		text-decoration: 2px underline var(--prose-fg);
 	}
 
 	a:hover {
-		color: var(--color-link-hover);
-		text-decoration: 2px underline var(--color-link-hover);
+		color: var(--prose-link-hover);
+		text-decoration: 2px underline var(--prose-link-hover);
 	}
 
 	a:hover + .arrow {
@@ -276,7 +287,7 @@
 	}
 
 	:global(a:hover + .arrow svg path) {
-		stroke: var(--color-link-hover, blue);
+		stroke: var(--prose-link-hover);
 	}
 
 	ul {
@@ -390,7 +401,7 @@
 		}
 
 		.text-wrapper p {
-			font-size: var(--16px, 16px);
+			font-size: var(--16px);
 		}
 
 		.img-wrapper {
@@ -405,7 +416,7 @@
 		}
 
 		li {
-			font-size: var(--16px, 16px);
+			font-size: var(--16px);
 		}
 
 		.arrow {
@@ -421,7 +432,7 @@
 		}
 
 		.text {
-			font-size: var(--24px, 24px);
+			font-size: var(--24px);
 		}
 	}
 
@@ -458,7 +469,7 @@
 		}
 
 		.text {
-			font-size: var(--28px, 28px);
+			font-size: var(--28px);
 		}
 	}
 </style>

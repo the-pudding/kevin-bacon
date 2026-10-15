@@ -50,7 +50,7 @@
 	font-size: var(--14px);
 	line-height: 1.4;
 	/* a long list of films still has to fit above the fold on a short viewport */
-	max-height: min(60vh, 30rem);
+	max-height: min(60svh, 30rem);
 	overflow-y: auto;
 	animation: infoterm-in calc(var(--1s) * 0.15) ease both;
 }

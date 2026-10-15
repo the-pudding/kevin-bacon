@@ -8,7 +8,9 @@
 	 * arrival rules (arrivals.js) prepare (see notes/scrolly-framework.md).
 	 *
 	 * STACKED (below Stage's `beside` breakpoint): the screen split down the
-	 * middle into two full-height tap halves.
+	 * middle into two full-height tap halves. Past a phone's width (Stage's
+	 * `notches`, >= 640px) the two notches below lie over them too, in the
+	 * same reserved gutter, so the way on is visible as well as tappable.
 	 *
 	 * BESIDE (the side-by-side layout, >= 1200px): no tap halves. A click on a
 	 * desktop screen is too easy to make by accident, so the story moves only by
@@ -17,13 +19,12 @@
 	 * hidden on step 0 but keeps its box; the next notch's chevron pans there instead
 	 * of a written cue, once the prose has landed.
 	 *
-	 * The next half goes aria-disabled while the active step's gate is shut and
-	 * its `onnext` cannot be pressed yet, so a press there does nothing — and
-	 * keeps its focus, which a natively disabled half would throw to <body>
-	 * (the registry's `go()` already refuses the move). The next notch never
-	 * does: every gated step's Next presses the step's own control
-	 * (`onnext`), and in the moment before that control can be pressed a press
-	 * simply does nothing. The halves carry no marking of their own and no
+	 * The next half and the next notch go aria-disabled while the active step's
+	 * gate is shut and its `onnext` cannot be pressed yet (its arrival or its
+	 * animation is still playing), so a press there does nothing — and keeps
+	 * its focus, which a natively disabled control would throw to <body> (the
+	 * registry's `go()` already refuses the move). A screen reader says so
+	 * rather than leaving a silent dead press. The halves carry no marking of their own and no
 	 * press tint — a tap's only feedback is the step it takes. At the very last
 	 * step next stays live instead: a forward press there exits the
 	 * wizard for the credits (see `exit` on the registry). Over the credits
@@ -57,9 +58,10 @@
 	import ChevronLeft from "@lucide/svelte/icons/chevron-left";
 	import ChevronRight from "@lucide/svelte/icons/chevron-right";
 	import { createTap } from "./tap.js";
+	import { handFocusToCard } from "./Step.svelte";
 
-	/** @type {{ beside: boolean }} */
-	let { beside } = $props();
+	/** @type {{ beside: boolean, notches: boolean }} */
+	let { beside, notches } = $props();
 
 	const steps = getContext("scrolly-steps");
 
@@ -88,11 +90,32 @@
 		if (e.defaultPrevented || e.target?.closest?.(OWNS_ARROWS)) return;
 		if (e.key === "ArrowLeft") {
 			e.preventDefault();
-			back();
+			keyMove(e, back);
 		} else if (e.key === "ArrowRight" && !steps.exited) {
 			e.preventDefault();
-			forward();
+			keyMove(e, forward);
 		}
+	}
+
+	// An arrow pressed on a notch or a half is that control's press; from
+	// anywhere else focus stays where the reader left it.
+	/** @param {KeyboardEvent} e @param {() => unknown} move */
+	function keyMove(e, move) {
+		const target = /** @type {Element | null} */ (e.target);
+		if (target?.closest?.("[data-nav]")) press(move);
+		else move();
+	}
+
+	// A press on one of this component's controls. If it moved the story, the
+	// arriving card takes focus once its words land (Step.svelte), so a screen
+	// reader goes on to read them — the status line (Stage) says only where the
+	// reader is and what the chart shows. A press a gate refused moves nothing,
+	// and leaves focus on the control.
+	/** @param {() => unknown} move */
+	function press(move) {
+		const from = steps.current;
+		move();
+		if (steps.current !== from) handFocusToCard();
 	}
 
 	// what the arrow key and the prev notch do: back a step, or from the
@@ -117,7 +140,9 @@
 	const tap = createTap(() => steps);
 
 	function onTap(e, direction) {
+		const from = steps.current;
 		if (!tap.tap(e, direction)) return;
+		if (steps.current !== from) handFocusToCard();
 		// A pointer click leaves the half focused, and :focus-visible starts
 		// matching it the moment the reader touches the keyboard — so a tap
 		// followed by arrow keys paints a full-height ring the reader has no way
@@ -167,53 +192,61 @@
 			<ChevronLeft />
 		</Button>
 	</div>
-{:else if beside}
-	<div class="notch prev" class:hidden={atStart}>
-		<Button
-			variant="notch"
-			data-side="left"
+{:else}
+	{#if !beside}
+		<!-- At step 0 this half advances (see above), which would make it a second
+		     "go forward" stop beside Next: it keeps answering a tap, but leaves the
+		     tab order and the accessibility tree to Next. With the notches up, both
+		     halves leave them to the notches the same way. -->
+		<button
+			type="button"
+			class="tap-half prev"
 			data-nav="prev"
-			aria-label="Previous step"
-			onclick={back}
-		>
-			<ChevronLeft />
-		</Button>
-	</div>
-	<div class="notch next" class:pan={atStart && !steps.held}>
-		<Button
-			variant="notch"
-			data-side="right"
+			aria-label={atStart ? "Continue" : "Previous step"}
+			tabindex={atStart || notches ? -1 : undefined}
+			aria-hidden={atStart || notches || undefined}
+			onpointerdown={tap.down}
+			onclick={(e) => onTap(e, "prev")}
+		></button>
+
+		<button
+			type="button"
+			class="tap-half next"
 			data-nav="next"
 			aria-label="Next step"
-			onclick={forward}
-		>
-			<ChevronRight />
-		</Button>
-	</div>
-{:else}
-	<!-- At step 0 this half advances (see above), which would make it a second
-	     "go forward" stop beside Next: it keeps answering a tap, but leaves the
-	     tab order and the accessibility tree to Next. -->
-	<button
-		type="button"
-		class="tap-half prev"
-		data-nav="prev"
-		aria-label={atStart ? "Continue" : "Previous step"}
-		tabindex={atStart ? -1 : undefined}
-		aria-hidden={atStart || undefined}
-		onpointerdown={tap.down}
-		onclick={(e) => onTap(e, "prev")}
-	></button>
-
-	<button
-		type="button"
-		class="tap-half next"
-		data-nav="next"
-		aria-label="Next step"
-		aria-disabled={held}
-		onpointerdown={tap.down}
-		onclick={(e) => onTap(e, "next")}
-	></button>
+			aria-disabled={held}
+			tabindex={notches ? -1 : undefined}
+			aria-hidden={notches || undefined}
+			onpointerdown={tap.down}
+			onclick={(e) => onTap(e, "next")}
+		></button>
+	{/if}
+	<!-- after the halves, so the notches lie over them -->
+	{#if notches}
+		<div class="notch prev" class:hidden={atStart}>
+			<Button
+				variant="notch"
+				data-side="left"
+				data-nav="prev"
+				aria-label="Previous step"
+				onclick={() => press(back)}
+			>
+				<ChevronLeft />
+			</Button>
+		</div>
+		<div class="notch next" class:pan={atStart && !steps.held}>
+			<Button
+				variant="notch"
+				data-side="right"
+				data-nav="next"
+				aria-label="Next step"
+				aria-disabled={held}
+				onclick={() => press(forward)}
+			>
+				<ChevronRight />
+			</Button>
+		</div>
+	{/if}
 {/if}
 
 <style>
@@ -325,7 +358,7 @@
 		visibility: hidden;
 	}
 
-	/* step 0's only cue beside the prose: the whole next notch, outline and
+	/* step 0's cue wherever the notches are up: the whole next notch, outline and
 	   chevron together, pans left and right until the reader takes it. It
 	   reaches no further than --notch-bleed either way, so it never lifts off
 	   its edge. `translate` keeps the vertical centring in every frame. */

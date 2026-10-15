@@ -17,6 +17,11 @@
 			"modify": { "alpha": 0.7 },
 			"comment": "one layer of --text-halo, the hold-out behind text over the dot field"
 		},
+		"credits-plate": {
+			"value": "{surface.page}",
+			"modify": { "alpha": 0.42 },
+			"comment": "the plate behind each credits block, over the drifting dot field"
+		},
 		"frost": {
 			"value": "{surface.page}",
 			"modify": { "alpha": 0.5 },

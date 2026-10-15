@@ -730,6 +730,14 @@
 		--fade-top: 0px;
 	}
 
+	/* on a phone, no edge fade: the rows run hard to the list's edges */
+	@media (width < 40rem) {
+		.rows {
+			mask-image: none;
+			-webkit-mask-image: none;
+		}
+	}
+
 	.rows .row {
 		display: flex;
 		flex-direction: column;
@@ -888,7 +896,7 @@
 		white-space: nowrap;
 		-webkit-font-smoothing: antialiased;
 		font-weight: 500;
-    	color: rgba(255, 255, 255, 0.6);
+		color: var(--chart-rank-away);
 	}
 
 	/* the race-chart dot each bar folds into, pinned to the bar's centre */
