@@ -4131,7 +4131,7 @@ export const states = {
 		layout: RACE_CLOSE_LAYOUT,
 		// not the chapter's shared title: two thirds of the ink on this chart is
 		// modelled, and the axis it is drawn on runs past the end of the record
-		title: "Where the future center of Hollywood could be",
+		title: "The Future Center of Hollywood",
 		race: RACE_CLOSE_STEP,
 		yCap: RACE_CLOSE_YCAP,
 		...RACE_CLOSE_LABELS,

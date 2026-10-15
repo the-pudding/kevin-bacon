@@ -40,6 +40,28 @@
 				"min": 3
 			}
 		},
+		"axis-title": {
+			"value": "{color.white}",
+			"modify": {
+				"alpha": 0.7
+			},
+			"comment": "the x-axis title and the y-axis title over the plot",
+			"contrast": {
+				"against": "surface.page",
+				"min": 4.5
+			}
+		},
+		"rank-away": {
+			"value": "{color.white}",
+			"modify": {
+				"alpha": 0.6
+			},
+			"comment": "the rank list's per-band share labels (RankBars' .away)",
+			"contrast": {
+				"against": "surface.page",
+				"min": 4.5
+			}
+		},
 		"axis-hint": {
 			"value": "{color.white}",
 			"modify": {

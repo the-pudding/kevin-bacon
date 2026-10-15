@@ -109,6 +109,8 @@
 	--control-button-quiet-hover: transparent;
 	/** the chart titles over the canvas (ScrollyVisual's .chart-title) */
 	--type-chart-title-size: 1.2rem;
+	/** the chart titles in the single-column layout, below 75rem (Stage.svelte's BESIDE_MIN_W) */
+	--type-chart-title-size-narrow: 1rem;
 	/** the chart title's size at the default 16px root: the one line every layout's plot top is authored to clear, which ScrollyVisual measures the live titles against */
 	--type-chart-title-size-base: 19.2px;
 	/** an over-canvas paragraph at rest */
@@ -143,6 +145,10 @@
 	--chart-tick-horizon: rgba(161, 161, 161, 0.75);
 	/** the tick's own stroke */
 	--chart-tick-mark: var(--color-gray-500);
+	/** the x-axis title and the y-axis title over the plot */
+	--chart-axis-title: rgba(255, 255, 255, 0.7);
+	/** the rank list's per-band share labels (RankBars' .away) */
+	--chart-rank-away: rgba(255, 255, 255, 0.6);
 	/** the y-axis direction hint */
 	--chart-axis-hint: rgba(255, 255, 255, 0.9);
 	--chart-legend: var(--color-gray-300);
@@ -269,7 +275,7 @@
 	/** a step's prose (app.css's .step-prose p) */
 	--type-step-family: var(--font-sans);
 	/** the splash subtitle */
-	--type-heading-family: var(--font-serif);
+	--type-heading-family: var(--font-sans);
 	/** every line of the credits, headings included */
 	--type-credits-family: var(--font-sans);
 	/** the splash title, the chart titles and the race chart's future strip label */
@@ -307,6 +313,8 @@
 	--mark-hop-0: var(--mark-ink);
 	/** one layer of --text-halo, the hold-out behind text over the dot field */
 	--surface-halo: rgba(19, 5, 29, 0.7);
+	/** the plate behind each credits block, over the drifting dot field */
+	--surface-credits-plate: rgba(19, 5, 29, 0.42);
 	/** the plate behind prose laid over a chart (proseOver), blurred through with backdrop-filter so the chart shows faintly behind the words */
 	--surface-frost: rgba(19, 5, 29, 0.5);
 	/** the solid rings and glows that part a mark or logo from the field behind it */

@@ -15,7 +15,6 @@
 	import useWindowDimensions from "$runes/useWindowDimensions.svelte.js";
 	import { story, request } from "$components/scrolly/story.svelte.js";
 	import { STATE_PARAMS, quizDone } from "$components/scrolly/states.js";
-	import PuddingLogo from "$components/Header.svelte";
 	import Footer from "$components/Footer.svelte";
 	import {
 		SCRUBBER_FOOT,
@@ -36,6 +35,8 @@
 	} from "$components/scrolly/layouts/intro.js";
 	import RouteFilms from "$components/scrolly/RouteFilms.svelte";
 	import InfoTerm from "$components/ui/InfoTerm.svelte";
+	import Pause from "@lucide/svelte/icons/pause";
+	import Play from "@lucide/svelte/icons/play";
 	import { MediaQuery } from "svelte/reactivity";
 	import { fly } from "svelte/transition";
 	import { linear } from "svelte/easing";
@@ -202,10 +203,29 @@
 		routeOpen = false;
 		routeFocused = false;
 	});
+	// The reader's own pause, from the toggle at the end of the caption: text
+	// that changes on its own needs a way to stop it (WCAG 2.2.2), and a tap
+	// that pins an actor is not one anybody is told about. Null until pressed,
+	// so reduced motion decides where the tour starts: text that changes on its
+	// own is motion the reader didn't ask for, so under it the step rests where
+	// it is and the toggle offers Play.
+	/** @type {boolean | null} */
+	let tourHeld = $state(null);
+	const tourPaused = $derived(tourHeld ?? reducedMotion.current);
+	// What the toggle offers. Stopped by the reader's own hand — paused, or an
+	// actor picked — and not by focus on the caption or its panel being open,
+	// which hold the tour only for as long as they last.
+	const tourStopped = $derived(tourPaused || story.intro.pinned);
+	// Play hands a picked actor back to the tour too, which carries on from them
+	function toggleTour() {
+		tourHeld = !tourStopped;
+		if (!tourHeld) story.intro.pinned = false;
+	}
 	const touring = $derived(
 		steps.state === "networkIntro" &&
 			story.settled === "networkIntro" &&
 			!story.intro.pinned &&
+			!tourPaused &&
 			!routeOpen &&
 			!routeFocused
 	);
@@ -240,10 +260,8 @@
 		const releases = story.intro.releases;
 		const released = releases !== seenReleases;
 		seenReleases = releases;
+		// (reduced motion holds it through `touring`, by way of tourPaused)
 		if (!touring) return;
-		// text that changes on its own is motion the reader didn't ask for: under
-		// reduced motion the step rests where it is and waits for a tap
-		if (reducedMotion.current) return;
 		// Nobody is picked out straight away. On an arrival that is the dwell above
 		// — the constellation has just finished drawing itself and has earned a
 		// beat of being looked at whole. A tap that CLEARED the highlight means the
@@ -368,35 +386,60 @@
 			     fraction of the canvas: the intro fit is width-limited on a tall
 			     phone, so the graph stops well short of its band and any fixed
 			     fraction leaves a hole under it. -->
+			<!-- the tour's own pause (tourStopped). Outside the caption's live
+			     region and its focus handlers: focusing it must not hold the tour
+			     by itself, and its label is not the caption. Rendered in two
+			     places, one shown per width (.tour-toggle-row, .tour-toggle-inline). -->
+			{#snippet tourToggle()}
+				<button
+					type="button"
+					class="tour-toggle"
+					aria-label={tourStopped ? "Play the tour" : "Pause the tour"}
+					onclick={toggleTour}
+				>
+					{#if tourStopped}<Play aria-hidden="true" />{:else}<Pause
+							aria-hidden="true"
+						/>{/if}
+				</button>
+			{/snippet}
 			{#snippet routePanel()}
-				{#if story.settled === "networkIntro" && introRoute && layout.geometry}
-					<!-- live once the reader has picked an actor themselves: the tour
-					     turns every few seconds, and announcing each turn would talk
-					     over everything else on the page -->
-					<p
-						class="route"
-						aria-live={story.intro.pinned ? "polite" : "off"}
-						style="top: {routeTop(layout)}px"
-						onfocusin={() => (routeFocused = true)}
-						onfocusout={() => (routeFocused = false)}
-					>
-						<strong>{introRoute.name}</strong>:
-						<InfoTerm
-							bind:open={routeOpen}
-							title="{introRoute.name} → {introRoute.anchor}"
-							onclick={() => (story.intro.pinned = true)}
-						>
-							{introRoute.count}
-							{#snippet info()}
-								<RouteFilms routes={introRoute.routes} />
-							{/snippet}
-						</InfoTerm>
-						away from {introRoute.anchor}.
-					</p>
+				{#if story.settled === "networkIntro" && layout.geometry}
+					<div class="route" style="top: {routeTop(layout)}px">
+						<!-- on a phone the toggle takes a row of its own above the
+						     sentence, which already fills the width there -->
+						<div class="tour-toggle-row">{@render tourToggle()}</div>
+						{#if introRoute}
+							<!-- live once the reader has picked an actor themselves: the
+							     tour turns every few seconds, and announcing each turn would
+							     talk over everything else on the page -->
+							<span
+								class="route-caption"
+								aria-live={story.intro.pinned ? "polite" : "off"}
+								onfocusin={() => (routeFocused = true)}
+								onfocusout={() => (routeFocused = false)}
+							>
+								<strong>{introRoute.name}</strong>:
+								<InfoTerm
+									bind:open={routeOpen}
+									title="{introRoute.name} → {introRoute.anchor}"
+									onclick={() => (story.intro.pinned = true)}
+								>
+									{introRoute.count}
+									{#snippet info()}
+										<RouteFilms routes={introRoute.routes} />
+									{/snippet}
+								</InfoTerm>
+								away from {introRoute.anchor}.
+							</span>
+						{/if}
+						<!-- past a phone, at the end of the sentence -->
+						<span class="tour-toggle-inline">{@render tourToggle()}</span>
+					</div>
 				{/if}
 			{/snippet}
 			<!-- the tour caption's band (routeHeight): every caption, unseen, at
-			     the caption's width and type -->
+			     the caption's width and type, with the toggle's box where it sits
+			     (at the sentence's end, or a row of its own on a phone) -->
 			{#each ROUTES as route, k (route.name)}
 				<p
 					class="route route-measure"
@@ -410,6 +453,7 @@
 						{#snippet info()}{/snippet}
 					</InfoTerm>
 					away from {route.anchor}.
+					<span class="tour-toggle"></span>
 				</p>
 			{/each}
 			<!-- THE OPENING -->
@@ -494,7 +538,7 @@
 		     the 2-movie row's label on a phone — see layouts/hop-bands.js. -->
 				<Step
 					state="hopBands"
-					alt="Chart: the four degrees of Kevin Bacon. Kevin Bacon's dot sits above four rows of dots, one for the actors 1, 2, 3 and 4 movies away from him, each labelled with its share of actors. The 2-movie row is by far the largest."
+					alt="Chart: the 4 degrees of Kevin Bacon. Kevin Bacon's dot sits above four rows of dots, one for the actors 1, 2, 3 and 4 movies away from him, each labelled with its share of actors. The 2-movie row is by far the largest."
 				>
 					<p>
 						No doubt, Kevin Bacon is well connected. With
@@ -512,9 +556,10 @@
 								<p>The data for this was taken in ~March 2026.</p>
 								<p>
 									Massive tangent: this dataset even includes <a
-										href="https://www.imdb.com/name/nm8509587/" target="_blank">my bestie</a
-									>, who got a role in the 2018 film &ldquo;Tolkien,&rdquo; putting him two
-									films away from Kevin Bacon!
+										href="https://www.imdb.com/name/nm8509587/"
+										target="_blank">my bestie</a
+									>, who got a role in the 2018 film &ldquo;Tolkien,&rdquo;
+									putting him two films away from Kevin Bacon!
 								</p>
 							{/snippet}our dataset of 169,000 actors</InfoTerm
 						>, you can get from any Hollywood actor to Kevin Bacon in four films
@@ -591,8 +636,9 @@
 					alt="Chart: The Center of Hollywood, over time. A line per actor traces their remoteness year by year, lower being better, up to 2025."
 				>
 					<p>
-						Let&rsquo;s create time machine for the center of Hollywood and calculate actors&rsquo; remoteness in
-						previous years. Our time machine starts at the end of 2025.
+						Let&rsquo;s create time machine for the center of Hollywood and
+						calculate actors&rsquo; remoteness in previous years. Our time
+						machine starts at the end of 2025.
 					</p>
 					<StartButton kind="rewind" label="Go back in time" onpress={rewind} />
 				</Step>
@@ -601,11 +647,12 @@
 					alt="The chart rewinds to 2006, where Samuel L. Jackson's line overtakes Gene Hackman's."
 				>
 					<p>
-						Let&rsquo;s time travel to 2006, when Samuel L. Jackson took the crown.
+						Let&rsquo;s time travel to 2006, when Samuel L. Jackson took the
+						crown.
 					</p>
 					<p>
-						Kevin Bacon still does not appear; his highest ranking was #108 in
-						1996, with his role in &ldquo;Sleepers.&rdquo;
+						Kevin Bacon still does not appear; his highest rank was #108 in 1996
+						after his role in &ldquo;Sleepers.&rdquo;
 					</p>
 				</Step>
 				<Step
@@ -680,11 +727,11 @@
 					alt="Chart: film count vs. costar film count. A dot per actor, with film count across and their costars' average film count up, both on log scales."
 				>
 					<p>
-						Co-star film count is the next important factor: this is an actor's
-						50 most prolific co-stars by number of films, taken as an average.
-						If you work with more “big dog” actors compared to someone with the
-						same film count, you'll almost certainly be closer to the center of
-						Hollywood.
+						So if you work with more “big dog” actors compared to someone with
+						the same film count, you'll almost certainly be closer to the center
+						of Hollywood. Consequently, co-star film count is the next important
+						factor: this is an actor&rsquo;s 50 most prolific co-stars by number
+						of films, taken as an average.
 					</p>
 				</Step>
 				<!-- the one gate the reader's own Next walks through once it opens:
@@ -757,10 +804,10 @@
 					alt="Chart: film count by career age. Sydney Sweeney's line reaches 16 films at 15 years, where Robert De Niro's and Chevy Chase's lines meet it; De Niro's goes on to 87 films and Chase's to 27."
 				>
 					<p>
-						When predicting film count, consider Sydney Sweeney, who has appeared in
-						16 films since her debut 15 years ago. By the same point in his
-						career, Robert De Niro also racked up 16 films, and he went on to
-						have a brilliant career totalling 87. By contrast, Chevy Chase
+						When predicting film count, consider Sydney Sweeney, who has
+						appeared in 16 films since her debut 15 years ago. By the same point
+						in his career, Robert De Niro also racked up 16 films, and he went
+						on to have a brilliant career totalling 87. By contrast, Chevy Chase
 						reached the same 16-film milestone, but ultimately only appeared in
 						27 total.
 					</p>
@@ -869,8 +916,8 @@
 						Hollywood is on the horizon.
 					</p>
 					<p>
-						We can also be pretty sure of the fact that it&rsquo;s not going to be
-						Kevin Bacon.
+						We can also be pretty sure of the fact that it&rsquo;s not going to
+						be Kevin Bacon.
 					</p>
 				</Step>
 			</Chapter>
@@ -920,22 +967,22 @@
 				     result of this reader's own — heading included, which is why
 				     the whole block lives inside the component -->
 					<QuizResults data={quizResults.data} loading={quizResults.loading} />
-					<div class="credits-block">
+					<div class="credits-block author-notes">
 						<h2>Author notes</h2>
 						<div style="text-align: left;">
-						<p>
-							The corpus is the IMDb top 10,000 English-language feature films
-							by user vote count. I then enriched the data with cast information
-							from the TMDB API so we can build the graph network. In total,
-							there are just over 169,000 actors in the dataset.
-						</p>
-						<p>The data for this was taken in ~March 2026.</p>
-						<p>
-							I got so carried away with this project I made <a
-								href="https://hollywood.six-degrees.app/"
-								target="_blank">a website</a
-							> focussed on Hollywood connection trivia.
-						</p>
+							<p>
+								The corpus is the IMDb top 10,000 English-language feature films
+								by user vote count. I then enriched the data with cast
+								information from the TMDB API so we can build the graph network.
+								In total, there are just over 169,000 actors in the dataset.
+							</p>
+							<p>The data for this was taken in ~March 2026.</p>
+							<p>
+								I got so carried away with this project I made <a
+									href="https://hollywood.six-degrees.app/"
+									target="_blank">a website</a
+								> focussed on Hollywood connection trivia.
+							</p>
 						</div>
 					</div>
 				</div>
@@ -1015,6 +1062,13 @@
 		animation: panel-in 0.4s ease both;
 	}
 
+	@media (width < 40rem) {
+		.route {
+			font-size: var(--14px);
+			padding: 0;
+		}
+	}
+
 	/* the measured copies: the caption's own box at the stacked card's width
 	   (Stage's --card-w), whichever step is on screen, and never seen */
 	.route.route-measure {
@@ -1034,8 +1088,78 @@
 		pointer-events: auto;
 	}
 
+	/* the box stays up for the whole step (the toggle lives in it); the
+	   sentence fades in on its own the first time the tour names somebody */
+	.route-caption {
+		animation: panel-in 0.4s ease both;
+	}
+
+	/* The tour's pause, at the end of the sentence: a round icon button in the
+	   caption's own ink, sized off its type and never under the 24px target
+	   minimum (WCAG 2.5.8). The measured copies hold a box the same size. */
+	.tour-toggle {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		vertical-align: middle;
+		width: max(1.75em, 24px);
+		height: max(1.75em, 24px);
+		margin-left: 0.4em;
+		padding: 0;
+		border: 1px solid var(--surface-border);
+		border-radius: 50%;
+		/* reset.css paints every bare button as filled-primary, :hover included */
+		background: none;
+		color: var(--prose-fg);
+		cursor: pointer;
+		pointer-events: auto;
+	}
+
+	.tour-toggle:hover {
+		background: none;
+	}
+
+	.tour-toggle:focus-visible {
+		outline: 2px solid var(--control-focus);
+		outline-offset: 2px;
+	}
+
+	.tour-toggle :global(svg) {
+		width: 50%;
+		height: 50%;
+	}
+
+	/* Where the toggle sits: at the sentence's end past a phone, and on a phone
+	   a row of its own above it (the sentence fills the width there). The
+	   measured copies reserve the same row, so the band still holds it. */
+	.tour-toggle-row {
+		display: none;
+	}
+
+	@media (width < 40rem) {
+		.tour-toggle-row {
+			display: flex;
+			justify-content: center;
+			margin-bottom: 0.5rem;
+		}
+
+		.tour-toggle-row .tour-toggle {
+			margin-left: 0;
+		}
+
+		.tour-toggle-inline {
+			display: none;
+		}
+
+		.route-measure .tour-toggle {
+			display: block;
+			margin: 0.5rem auto 0;
+		}
+	}
+
 	@media (prefers-reduced-motion: reduce) {
-		.route {
+		.route,
+		.route-caption {
 			animation: none;
 		}
 	}
@@ -1083,7 +1207,7 @@
 		gap: 0.75rem;
 		font-size: 1rem;
 		text-align: center;
-		background: rgba(19,5,29,0.42);
+		background: var(--surface-credits-plate);
 	}
 
 	/* same halo as Stage's .splash-card h1 — this text also sits over the drifting
@@ -1104,6 +1228,14 @@
 		color: var(--prose-fg);
 		margin-bottom: 10px;
 		/* text-shadow: var(--text-halo); */
+	}
+
+	/* the author's notes run longer than a credit: smaller, short of the
+	   side-by-side layout (75rem, Stage.svelte's BESIDE_MIN_W) */
+	@media (width < 75rem) {
+		.author-notes p {
+			font-size: var(--14px);
+		}
 	}
 
 	/* a film credit's line: role on the left, name on the right, same halo as

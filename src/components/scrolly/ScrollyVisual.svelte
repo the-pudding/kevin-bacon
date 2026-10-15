@@ -3275,7 +3275,7 @@
 		font-size: 12px;
 	}
 
-	@media (min-width: 75rem) {
+	@media (min-width: 40rem) {
 		.annotations[data-chart="networkIntro"] .node-label {
 			font-size: 14px;
 		}
@@ -3449,7 +3449,28 @@
 		font-family: var(--type-display-family);
 		letter-spacing: -0.5px;
 		-webkit-font-smoothing: antialiased;
-		font-size: var(--type-chart-title-size);
+		font-size: var(--type-chart-title-size-narrow);
+	}
+
+	@media (min-width: 40rem) {
+		p.chart-title {
+			font-size: 18px;
+		}
+	}
+
+	/* on a phone, capped by the column rather than the plot's width. Not
+	   `none`: the title is max-content, and the longest ran off both sides */
+	@media (width < 40rem) {
+		p.chart-title {
+			max-width: 100%;
+		}
+	}
+
+	/* beside the chart (>= 75rem, Stage.svelte's BESIDE_MIN_W): the full size */
+	@media (min-width: 75rem) {
+		p.chart-title {
+			font-size: var(--type-chart-title-size);
+		}
 	}
 
 	/* A searchable step puts ActorSearch's labelled glyph (--search-w, at the
@@ -3480,12 +3501,15 @@
 		font-size: var(--type-chart-title-size-base);
 	}
 
-	.x-label {
+	.overlay .x-label {
 		bottom: 0.5rem;
 		left: 50%;
 		transform: translateX(-50%);
 		/* clamps above the step card on long-prose steps — may sit over dots */
 		text-shadow: var(--text-halo);
+		font-weight: 600;
+		color: var(--chart-axis-title);
+		-webkit-font-smoothing: antialiased;
 	}
 
 	.tick {
@@ -3686,6 +3710,13 @@
 		filter: url(#callout-halo);
 	}
 
+	@media (width < 40rem) {
+		.callout-text {
+			font-size: 11px;
+			line-height: 1.1;
+		}
+	}
+
 	/* A note ABOVE its ring is positioned by its bottom edge: the payload's `top`
 	   is where that edge goes, and this lifts the box by its own rendered height.
 	   The frame writer has no DOM, so its note height is an assumption — doing the
@@ -3801,7 +3832,7 @@
 	/* the upright alternative to .y-label + .y-hint-top (overlay `yTitleTop`):
 	   one block, its first line centred on the plot's top edge, where the top
 	   tick's label is centred too */
-	.y-title-top {
+	.overlay .y-title-top {
 		/* painted over the y ticks' marks and labels, which come after it in
 		   the markup and can slide under it in a pan */
 		z-index: 1;
@@ -3814,6 +3845,7 @@
 		-webkit-font-smoothing: antialiased;
 		font-size: 14px;
 		letter-spacing: 0;
+		color: var(--chart-axis-title);
 	}
 
 	.y-title-top span {
