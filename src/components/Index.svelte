@@ -897,13 +897,13 @@
 				>
 					<p>
 						As time goes on, Samuel L. Jackson will eventually stop appearing in
-						films and will be connected to an increasingly smaller proportion of
-						actors.
+						films and have fewer connections to new actors, lowering his
+						remoteness score.
 					</p>
 					<p>
 						Meanwhile, younger actors will continue starring in films and
-						eventually overtake his status as the center of Hollywood. What we
-						don&rsquo;t know, however, is exactly how long that will take.
+						overtake his status as the center of Hollywood. What we don&rsquo;t
+						know, however, is exactly how long that will take.
 					</p>
 				</Step>
 				<Step

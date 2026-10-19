@@ -3640,6 +3640,7 @@
 			0 0 0 1.5px var(--surface-holdout),
 			0 0 4px var(--surface-holdout);
 		transform: translate(-50%, -50%);
+		background: var(--surface-holdout);
 	}
 
 	/* app.css has a global `svg { display: block; width: 100%; height: auto }`.

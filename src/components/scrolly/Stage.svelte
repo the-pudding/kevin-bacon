@@ -472,6 +472,18 @@
 			class:shown={steps.current < 4 && !steps.exited}
 			aria-hidden="true"
 		></div>
+		<!-- The Pudding's wordmark on step 0: at the top of the screen on one
+		     column, at the top of the prose column once the two sit abreast. -->
+		{#if steps.current === 0 && !steps.exited}
+			<div
+				class="intro-logo"
+				class:reveal={mounted}
+				in:fade={cardIn}
+				out:fade={cardOut}
+			>
+				<PuddingLogo />
+			</div>
+		{/if}
 		{#if !steps.exited}
 			<!-- The reader's place, said on each step change (placeText), ahead of
 			     the card in the document so it also reads as the card's preface. -->
@@ -1036,6 +1048,36 @@
 		pointer-events: auto;
 	}
 
+	/* Step 0's wordmark: the same pinned row as .splash-logo (a link over the
+	   tap halves, so the row passes presses through and only the link takes
+	   them), but in the layout box rather than the canvas's, so past 75rem it
+	   can sit at the top of the prose column instead (below). */
+	.intro-logo {
+		position: absolute;
+		top: 20px;
+		left: 0;
+		right: 0;
+		z-index: var(--z-tap-above);
+		display: flex;
+		justify-content: center;
+		pointer-events: none;
+	}
+
+	.intro-logo :global(a) {
+		pointer-events: auto;
+	}
+
+	/* smaller on a phone, so it clears the constellation's top names */
+	@media (width < 40rem) {
+		.intro-logo {
+			top: 20px;
+		}
+
+		.intro-logo :global(.wordmark) {
+			max-width: 7em;
+		}
+	}
+
 	/* The standfirst, between the title and the byline: the serif again, so it
 	   reads as part of the title rather than as the byline's small print, but
 	   upright case and body size so the display type above keeps the card.
@@ -1263,6 +1305,7 @@
 	   cascade reads as one composed entrance (a cold load of `?step=3`).
 	   `in:fade`/`out:fade` above still carry every later mount and every exit
 	   unaffected by any of this. */
+	.intro-logo,
 	.splash-logo,
 	.splash-title,
 	.splash-subtitle,
@@ -1270,6 +1313,7 @@
 		opacity: 0;
 	}
 
+	.intro-logo.reveal,
 	.splash-logo.reveal,
 	.splash-title.reveal,
 	.splash-subtitle.reveal,
@@ -1278,6 +1322,7 @@
 	}
 
 	@media (prefers-reduced-motion: no-preference) {
+		.intro-logo,
 		.splash-logo {
 			transition: opacity var(--splash-reveal-ms) ease-out;
 		}
@@ -1488,6 +1533,17 @@
 		.splash-card,
 		.splash-logo {
 			left: calc(-1 * var(--prose-col));
+		}
+
+		/* step 0's wordmark heads the prose column, flush with its left edge */
+		.intro-logo {
+			right: auto;
+			width: var(--prose-w);
+			justify-content: flex-start;
+		}
+
+		.intro-logo :global(.wordmark) {
+			margin: 0;
 		}
 	}
 	@media (width < 40rem) {
